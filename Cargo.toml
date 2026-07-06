@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+# 根目录只作为 Cargo workspace，不承载应用或库代码。
+members = [
+  "core",
+  "shared",
+]
+
+[workspace.package]
+# 所有 Rust crate 共享同一个版本号和 edition。
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+# 统一在 workspace 根声明依赖版本，成员 crate 通过 workspace = true 复用。
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
+utoipa = "5"
+utoipa-axum = "0.2"
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
+winestock-shared = { path = "shared" }

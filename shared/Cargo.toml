@@ -1,0 +1,13 @@
+[package]
+name = "winestock-shared"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+# shared 只放平台无关的配置、契约和通用类型，不能反向依赖 core。
+name = "winestock_shared"
+path = "src/lib.rs"
+crate-type = ["lib"]
+
+[dependencies]
