@@ -104,7 +104,10 @@ The server shell does not use a WebView and does not package frontend assets.
 
 Current status:
 
-- the formal server shell is not implemented yet
+- the formal server shell exists under `server/`
+- it always reads or creates `data/config.json` next to the server executable
+- it does not accept a config path argument
+- it reads JSON config, starts the shared Axum service, reports access URLs, and handles Ctrl+C shutdown
 
 ## Shared Axum Service
 

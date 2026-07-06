@@ -1,3 +1,213 @@
 #![forbid(unsafe_code)]
 
-//! Shared configuration, contracts, and platform-neutral types for WineStock.
+//! WineStock 平台无关配置、契约和通用类型。
+
+use serde::{Deserialize, Serialize};
+
+/// WineStock v1 启动配置，只包含服务启动和本地存储两类信息。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AppConfig {
+    pub server: ServerConfig,
+    pub storage: StorageConfig,
+}
+
+impl AppConfig {
+    /// 从 JSON 文本解析启动配置，平台壳负责决定文件位置和路径解析。
+    pub fn from_json_str(input: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(input)
+    }
+
+    /// 输出稳定的 JSON 配置文本，便于平台壳创建默认配置文件。
+    pub fn to_json_string_pretty(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string_pretty(self)
+    }
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            server: ServerConfig::default(),
+            storage: StorageConfig::default(),
+        }
+    }
+}
+
+/// 服务运行模式，决定平台壳是否启动本地 Axum 或连接远端服务。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeMode {
+    ClientOnly,
+    SelfHosted,
+    ServerMode,
+    ConnectToRemote,
+}
+
+impl RuntimeMode {
+    /// 这些模式需要本地服务和本地数据库。
+    pub fn uses_local_service(self) -> bool {
+        matches!(self, Self::SelfHosted | Self::ServerMode)
+    }
+
+    /// 这些模式只作为客户端访问远端服务。
+    pub fn uses_remote_service(self) -> bool {
+        matches!(self, Self::ClientOnly | Self::ConnectToRemote)
+    }
+}
+
+/// Axum 服务启动和访问相关配置。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ServerConfig {
+    pub mode: RuntimeMode,
+    pub bind_host: String,
+    pub port: u16,
+    pub auto_start_server: bool,
+    pub remote_base_url: String,
+}
+
+impl ServerConfig {
+    /// 当前运行模式是否需要本地服务。
+    pub fn uses_local_service(&self) -> bool {
+        self.mode.uses_local_service()
+    }
+
+    /// 平台壳启动时是否应自动启动本地服务。
+    pub fn should_auto_start_local_service(&self) -> bool {
+        self.uses_local_service() && self.auto_start_server
+    }
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            mode: RuntimeMode::SelfHosted,
+            bind_host: "127.0.0.1".to_owned(),
+            port: 17890,
+            auto_start_server: true,
+            remote_base_url: String::new(),
+        }
+    }
+}
+
+/// 本地持久化配置，路径由平台壳补齐并传入 core。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StorageConfig {
+    pub database_path: String,
+    pub files_dir: String,
+    pub auto_migrate: bool,
+}
+
+impl Default for StorageConfig {
+    fn default() -> Self {
+        Self {
+            database_path: "data/winestock.sqlite".to_owned(),
+            files_dir: "data/files".to_owned(),
+            auto_migrate: true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_json_config_shape_from_note() {
+        let json = r#"
+        {
+          "server": {
+            "mode": "self-hosted",
+            "bind_host": "127.0.0.1",
+            "port": 17890,
+            "auto_start_server": true,
+            "remote_base_url": ""
+          },
+          "storage": {
+            "database_path": "data/winestock.sqlite",
+            "files_dir": "data/files",
+            "auto_migrate": true
+          }
+        }
+        "#;
+
+        let config = AppConfig::from_json_str(json).expect("config should parse");
+
+        assert_eq!(config.server.mode, RuntimeMode::SelfHosted);
+        assert_eq!(config.server.bind_host, "127.0.0.1");
+        assert_eq!(config.storage.database_path, "data/winestock.sqlite");
+    }
+
+    #[test]
+    fn serializes_only_server_and_storage() {
+        let json = AppConfig::default()
+            .to_json_string_pretty()
+            .expect("config should serialize");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("json should parse");
+        let object = value.as_object().expect("root should be object");
+
+        assert_eq!(object.len(), 2);
+        assert!(object.contains_key("server"));
+        assert!(object.contains_key("storage"));
+        assert!(!json.contains("enabled"));
+        assert!(!json.contains("jwt"));
+        assert!(!json.contains("secret"));
+    }
+
+    #[test]
+    fn rejects_enabled_flag_in_json_config() {
+        let json = r#"
+        {
+          "server": {
+            "mode": "self-hosted",
+            "enabled": true,
+            "bind_host": "127.0.0.1",
+            "port": 17890,
+            "auto_start_server": true,
+            "remote_base_url": ""
+          },
+          "storage": {
+            "database_path": "data/winestock.sqlite",
+            "files_dir": "data/files",
+            "auto_migrate": true
+          }
+        }
+        "#;
+
+        let error = AppConfig::from_json_str(json).expect_err("enabled flag must be rejected");
+        assert!(error.to_string().contains("enabled"));
+    }
+
+    #[test]
+    fn rejects_auth_settings_in_json_config() {
+        let json = r#"
+        {
+          "server": {
+            "mode": "self-hosted",
+            "bind_host": "127.0.0.1",
+            "port": 17890,
+            "auto_start_server": true,
+            "remote_base_url": "",
+            "jwt_secret": "do-not-allow"
+          },
+          "storage": {
+            "database_path": "data/winestock.sqlite",
+            "files_dir": "data/files",
+            "auto_migrate": true
+          }
+        }
+        "#;
+
+        let error = AppConfig::from_json_str(json).expect_err("auth config must be rejected");
+        assert!(error.to_string().contains("jwt_secret"));
+    }
+
+    #[test]
+    fn runtime_mode_reports_storage_need() {
+        assert!(!RuntimeMode::ClientOnly.uses_local_service());
+        assert!(RuntimeMode::SelfHosted.uses_local_service());
+        assert!(RuntimeMode::ServerMode.uses_local_service());
+        assert!(!RuntimeMode::ConnectToRemote.uses_local_service());
+    }
+}

@@ -19,6 +19,10 @@ Initial Rust crates:
 - package `winestock-core`, crate `winestock_core`
 - package `winestock-shared`, crate `winestock_shared`
 
+Current additional Rust crate:
+
+- package `winestock-server`, binary/library crate `winestock_server`
+
 ## Naming Rules
 
 `core` means the shared Rust/Axum service core.
@@ -47,14 +51,13 @@ WineStock/
     platforms.md
     project-structure.md
     agent-checklist.md
+    code-map.md
   Cargo.toml                     # current workspace manifest
   Cargo.lock                     # current Rust lockfile
   core/                          # current winestock-core library crate
     Cargo.toml
     src/
       lib.rs
-    examples/
-      dev_server.rs
   shared/                        # current winestock-shared library crate
     Cargo.toml
     src/
@@ -63,7 +66,13 @@ WineStock/
     tauri/
   android/
     app/
-  server/
+  server/                        # current winestock-server headless shell crate
+    Cargo.toml
+    src/
+      config.rs
+      error.rs
+      lib.rs
+      main.rs
   frontend/
 ```
 
@@ -76,6 +85,7 @@ The initial root workspace should include the Rust crates only.
 resolver = "2"
 members = [
   "core",
+  "server",
   "shared",
 ]
 ```
@@ -85,14 +95,20 @@ Add desktop Tauri Rust crates, Android Rust bridge crates, or a server executabl
 Current workspace dependencies:
 
 - `axum`
+- `base64`
+- `getrandom`
+- `rusqlite`
 - `serde`
+- `serde_json`
+- `tempfile`
 - `tokio`
 - `utoipa`
 - `utoipa-axum`
 - `utoipa-swagger-ui`
+- `winestock-core`
 - `winestock-shared`
 
-`tokio` is currently used by the `core` development example.
+`tokio` is used by core service startup and the server shell.
 
 ## Component Ownership
 
@@ -103,6 +119,8 @@ It must not own platform UI assets or frontend build output.
 Current `core` API surface:
 
 - `build_router()`
+- `bootstrap_from_config()`
+- `bind_server()`
 - `OPENAPI_JSON_PATH`
 - `SWAGGER_UI_PATH`
 - `HealthResponse`
@@ -123,7 +141,7 @@ It starts or connects to `core` based on config and packages desktop frontend as
 It starts or connects to `core` based on config and packages Android frontend assets through Android.
 
 `server` owns the headless server shell.
-It starts `core` based on shared config, reports service status, and does not own frontend build output.
+It starts `core` based on shared config, reports service status and access URLs, handles Ctrl+C shutdown, and does not own frontend build output.
 
 `frontend` owns frontend source code.
 The selected frontend framework is a project choice, not an Axum service requirement.
@@ -149,5 +167,4 @@ This records the current files only; it does not make Vue a required product arc
 Any existing plain Rust project under `desktop/` is not a workspace member and is not the formal Tauri shell.
 Convert or replace it only when implementing `desktop/tauri`.
 
-The `server/` directory is reserved for the future headless server shell.
-It is not a formal workspace crate yet.
+The `server/` directory is now the formal headless server shell crate.

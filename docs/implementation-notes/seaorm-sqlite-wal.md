@@ -269,7 +269,7 @@ core：
 - refresh token 写入、查询、吊销、轮换在事务中正确执行。
 - 并发读取不被普通写入长期阻塞。
 - 文件元数据写入 SQLite，大文件内容写入 `files/`。
-- `cargo check --workspace --examples` 通过。
+- `cargo check --workspace --all-targets` 通过。
 
 ## 当前假设
 

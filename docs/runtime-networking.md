@@ -34,16 +34,17 @@ A pure server shell may use only the server-side subset at runtime.
 
 ```toml
 [server]
-enabled = true
+mode = "self-hosted"
 bind_host = "127.0.0.1"
 port = 17890
 auto_start_server = true
 remote_base_url = ""
 ```
 
-### `server.enabled`
+### `mode`
 
-Controls whether the local Axum service is available for this runtime profile.
+Controls whether this runtime profile starts a local Axum service or connects to a remote one.
+Do not add a separate `server.enabled` flag; that duplicates `mode` and allows contradictory config.
 
 ### `bind_host`
 
@@ -83,8 +84,9 @@ This is a platform startup decision, not a UI rendering decision.
 Do not use it as a WebView URL.
 Do not show it as a URL users should open.
 
-When `bind_host = "0.0.0.0"`, enumerate real interface addresses for display.
-Show actual LAN URLs such as:
+When `bind_host = "0.0.0.0"`, do not show `0.0.0.0` as an access URL.
+The server shell may show a loopback URL for local access.
+For LAN access, use the host machine's actual LAN IP address, such as:
 
 ```text
 http://192.168.1.23:17890
@@ -112,7 +114,7 @@ Open the UI against `http://127.0.0.1:<port>`.
 
 Use `server-mode`.
 Bind to an explicit LAN IP or `0.0.0.0`.
-Display real LAN IP URLs to users.
+If bound to all interfaces, tell users to use the host machine's actual LAN IP for other-device access.
 Make sure platform firewalls and permissions are handled by the platform shell.
 This is the main access pattern for a pure server shell.
 
@@ -135,19 +137,14 @@ Valid strategies include:
 
 Do not silently switch ports without updating the URL used by the WebView and user-facing status.
 
-## Development Runner
+## Server Shell
 
-`core/examples/dev_server.rs` is the current local runner for validating the shared Axum core.
-It is not a production startup path and does not replace the shared runtime config model.
-
-By default it binds to:
-
-```text
-127.0.0.1:0
-```
-
-Port `0` asks the operating system to select an available local port.
-The runner prints the actual URLs after binding.
+`server/` contains the formal headless shell for validating and running the shared Axum core.
+It always reads JSON config from `data/config.json` next to the server executable.
+It does not accept a config path argument.
+If that fixed JSON config file does not exist, it creates a default config file first and then continues startup.
+Relative storage paths are resolved from that `data` directory, so the default database and file store live next to the config file.
+It initializes core, binds to `server.bind_host` and `server.port`, and prints the actual access URLs after binding.
 
 It exposes:
 
@@ -157,14 +154,8 @@ It exposes:
 /swagger-ui
 ```
 
-The runner accepts an optional bind address argument for local testing, such as:
-
-```text
-127.0.0.1:17890
-```
-
-It rejects non-loopback bind addresses.
-Do not use it for LAN exposure or server mode testing.
+When `bind_host = "0.0.0.0"`, the server shell prints a local loopback URL.
+It must not print `0.0.0.0` as a URL to open.
 
 ## Security Notes
 

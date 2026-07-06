@@ -5,20 +5,23 @@ edition.workspace = true
 publish = false
 
 [lib]
-# core 是供桌面、Android 和开发 runner 复用的 Rust library crate。
+# core 是供桌面、Android 和服务端 shell 复用的 Rust 库包。
 name = "winestock_core"
 path = "src/lib.rs"
 crate-type = ["lib"]
 
 [dependencies]
-# core 拥有 Axum API、OpenAPI 文档和 Swagger UI，不拥有平台前端产物。
+# core 拥有 Axum 接口、OpenAPI 文档和 Swagger UI，不拥有平台前端产物。
 axum = { workspace = true }
+base64 = { workspace = true }
+getrandom = { workspace = true }
+rusqlite = { workspace = true }
 serde = { workspace = true }
+tokio = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 winestock-shared = { workspace = true }
 
 [dev-dependencies]
-# tokio 目前只用于 core/examples/dev_server.rs 的本地验证入口。
-tokio = { workspace = true }
+tempfile = { workspace = true }

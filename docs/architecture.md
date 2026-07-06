@@ -49,10 +49,11 @@ The exact API can change, but the ownership boundary should not.
 Current implemented surface:
 
 - `winestock_core::build_router()`
+- `winestock_core::bootstrap_from_config()`
+- `winestock_core::bind_server()`
 - `GET /api/health`
 - OpenAPI JSON at `/api-docs/openapi.json`
 - Swagger UI at `/swagger-ui`
-- development runner at `core/examples/dev_server.rs`
 
 Swagger UI is API documentation tooling exposed by the service.
 It is not a platform frontend bundle and does not change the rule that Axum must not own desktop or Android UI assets.
@@ -183,11 +184,12 @@ Do not preserve demo JNI, UI, package, or Gradle structure unless the user expli
 The root Cargo workspace currently contains:
 
 - `core` as package `winestock-core`, crate `winestock_core`
+- `server` as package `winestock-server`
 - `shared` as package `winestock-shared`, crate `winestock_shared`
 
-`core` currently depends on Axum, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, and `shared`.
-`shared` currently contains only the library shell for future shared config and platform-neutral contracts.
+`core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, SQLite bootstrap dependencies, and `shared`.
+`shared` contains the platform-neutral JSON startup config model.
 
 Desktop and Android platform shells are not implemented yet.
 
-The formal server shell is not implemented yet.
+The formal server shell exists under `server/` and starts the shared Axum service from JSON config.

@@ -10,6 +10,7 @@ Read:
 - `docs/runtime-networking.md`
 - `docs/platforms.md`
 - `docs/project-structure.md`
+- `docs/code-map.md`
 
 Then identify:
 
@@ -38,7 +39,6 @@ If the change spans multiple parts, define the boundary first.
 Before changing a URL, bind address, or startup mode, confirm:
 
 - runtime mode
-- `server.enabled`
 - `bind_host`
 - `port`
 - `remote_base_url`
@@ -104,16 +104,18 @@ When the relevant code exists, verify:
 Current Rust checks:
 
 ```text
-cargo check --workspace --examples
-cargo build -p winestock-core --example dev_server
+cargo check --workspace --all-targets
+cargo test --workspace
+cargo build -p winestock-server
 ```
 
 For local API documentation smoke testing, run:
 
 ```text
-cargo run -p winestock-core --example dev_server
+cargo run -p winestock-server
 ```
 
+The server shell creates `data/config.json` next to the executable with default values if it does not exist.
 Then open the printed `/api/health`, `/api-docs/openapi.json`, and `/swagger-ui` URLs.
 
 ## Stop Conditions

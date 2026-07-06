@@ -13,6 +13,7 @@ Before changing project code or structure, read:
 3. `docs/platforms.md`
 4. `docs/project-structure.md`
 5. `docs/agent-checklist.md`
+6. `docs/code-map.md`
 
 ## Project Position
 
@@ -25,6 +26,14 @@ Do not create separate platform-specific servers.
 
 The UI is platform-owned.
 Axum does not package, own, or serve platform frontend build artifacts.
+
+## Current Implementation Scope
+
+The formal product is multi-platform, but the current implementation scope is server/API first.
+Use [`docs/platforms.md`](docs/platforms.md) and [`docs/project-structure.md`](docs/project-structure.md) as the source of truth for current platform status and ownership boundaries.
+
+Unless the user explicitly requests platform-shell work, do not implement desktop, Android, WebView, Tauri, or frontend packaging behavior.
+Keep current implementation work in the server-facing `core`, `shared`, and `server` boundaries described by those docs.
 
 ## Core Components
 
@@ -71,7 +80,7 @@ For platforms that connect to another service, use `remote_base_url`.
 
 `0.0.0.0` is only a bind address.
 Never show `0.0.0.0` as a user-facing access URL.
-When bound to all interfaces, enumerate actual LAN IP addresses for display.
+When bound to all interfaces, show a loopback URL for local access and do not present `0.0.0.0` as an openable URL.
 
 ## Config Rules
 
@@ -79,7 +88,10 @@ Do not hard-code IP addresses.
 Do not hard-code ports.
 Use shared config for all runtime network decisions.
 
-Expected config keys: `server.enabled`, `bind_host`, `port`, `remote_base_url`, and `auto_start_server`.
+Expected config keys: `mode`, `bind_host`, `port`, `remote_base_url`, and `auto_start_server`.
+
+Do not add a separate `server.enabled` flag.
+Runtime mode decides whether a local Axum service exists.
 
 A pure server shell may only consume the server-side subset and does not need `remote_base_url` just to expose its own API.
 
@@ -107,6 +119,18 @@ Do not make Axum directly serve Android WebView assets.
 Do not use `0.0.0.0` as a browser or WebView URL.
 Do not require LAN exposure for normal self-hosted local use.
 
+## Dependency Rules
+
+Before introducing any new library or dependency, query the current stable version from the official package registry or upstream release source.
+Do not add outdated or unverified dependency versions.
+
+## Code Map Rules
+
+Read [`docs/code-map.md`](docs/code-map.md) before large or cross-module implementation work.
+When generating new code, adding or moving modules or crates, changing public API surfaces, or making broad code changes, update [`docs/code-map.md`](docs/code-map.md) in the same change.
+If the code map is missing or stale, regenerate it before continuing implementation.
+Write and maintain [`docs/code-map.md`](docs/code-map.md) in Chinese.
+
 ## Implementation Discipline
 
 Read the config model before changing startup behavior.
@@ -116,6 +140,10 @@ Read the platform lifecycle rules before changing service startup or shutdown.
 Keep shared code in shared crates.
 Keep platform code in platform shells.
 Keep frontend packaging platform-specific.
+Keep code modular and cohesive.
+Do not pile unrelated behavior into one file, function, module, or crate when a clear local boundary exists.
+When removing or simplifying behavior, also remove obsolete functions, wrappers, arguments, config keys, tests, and documentation.
+Do not keep meaningless compatibility shims unless the user explicitly requires backward compatibility.
 
 When adding or changing code, review the related comments.
 Code comments must be written in Chinese.

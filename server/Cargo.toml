@@ -1,0 +1,15 @@
+[package]
+name = "winestock-server"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+# server 是无前端的正式服务端平台壳，只负责进程生命周期、配置读取和状态输出。
+serde_json = { workspace = true }
+tokio = { workspace = true }
+winestock-core = { workspace = true }
+winestock-shared = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

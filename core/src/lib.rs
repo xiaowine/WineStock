@@ -2,12 +2,23 @@
 
 //! WineStock 共享 Rust/Axum 服务核心。
 
+mod auth;
+mod bootstrap;
+mod persistence;
+mod server;
+
 use axum::{Json, Router};
 use serde::Serialize;
 use utoipa::OpenApi;
 use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_swagger_ui::SwaggerUi;
 
+pub use auth::{AuthBootstrap, AuthSettings, AuthSigningKey, SigningKeyStatus};
+pub use bootstrap::{
+    bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
+};
+pub use persistence::{StorageBootstrapError, StorageRuntime};
+pub use server::{bind_server, BoundServer, ServerStartError};
 pub use winestock_shared as shared;
 
 /// OpenAPI JSON 文档的服务路径。
@@ -16,7 +27,7 @@ pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
 /// Swagger UI 的服务路径。
 pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 
-// 这里集中声明 API 文档元信息，具体路径由带 #[utoipa::path] 的 handler 收集。
+// 这里集中声明接口文档元信息，具体路径由带 #[utoipa::path] 的处理函数收集。
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(title = "WineStock API", version = "0.1.0"),
@@ -36,7 +47,7 @@ pub struct HealthResponse {
     pub service: String,
 }
 
-/// 构建平台壳和开发 runner 共用的 Axum Router。
+/// 构建平台壳共用的 Axum 路由器。
 pub fn build_router() -> Router {
     let (api_router, openapi) = OpenApiRouter::with_openapi(ApiDoc::openapi())
         .routes(routes!(health_check))

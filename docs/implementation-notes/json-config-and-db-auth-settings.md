@@ -27,7 +27,6 @@ JSON 文件只保存启动服务前必须知道的信息：
 {
   "server": {
     "mode": "self-hosted",
-    "enabled": true,
     "bind_host": "127.0.0.1",
     "port": 17890,
     "auto_start_server": true,
@@ -216,4 +215,3 @@ JWT header 写入 kid
 - v1 JWT access token 使用 HS256。
 - v1 不实现 signing key rotation 的完整管理 UI，但表结构预留 `active` / `retired`。
 - v1 不使用固定默认管理员密码。
-

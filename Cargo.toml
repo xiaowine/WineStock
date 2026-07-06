@@ -1,22 +1,29 @@
 [workspace]
 resolver = "2"
-# 根目录只作为 Cargo workspace，不承载应用或库代码。
+# 根目录只作为 Cargo 工作区，不承载应用或库代码。
 members = [
   "core",
+  "server",
   "shared",
 ]
 
 [workspace.package]
-# 所有 Rust crate 共享同一个版本号和 edition。
+# 所有 Rust 包共享同一个版本号和语言版本。
 version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-# 统一在 workspace 根声明依赖版本，成员 crate 通过 workspace = true 复用。
+# 统一在工作区根声明依赖版本，成员包通过 workspace = true 复用。
 axum = "0.8"
+base64 = "0.22"
+getrandom = "0.4.3"
+rusqlite = { version = "0.40.1", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
+serde_json = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
 utoipa = "5"
 utoipa-axum = "0.2"
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
+winestock-core = { path = "core" }
 winestock-shared = { path = "shared" }
