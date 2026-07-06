@@ -73,7 +73,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
-  - 实现 `bootstrap_from_config()`。
+  - 异步实现 `bootstrap_from_config()`。
   - 仅在共享配置启用本地服务时打开本地存储并初始化鉴权。
   - 对远端-only 或禁用本地服务的模式跳过存储初始化。
 
@@ -83,16 +83,38 @@ core   -> desktop/android/frontend platform assets
   - 拥有按配置绑定 socket、报告端口冲突和优雅运行 Axum 的逻辑。
   - 不决定平台生命周期，也不决定面向用户的展示文本。
 
-- `core/src/persistence.rs`
+- `core/src/persistence/`
   - 定义 `StorageRuntime` 和存储启动错误。
-  - 通过 `rusqlite` 打开 SQLite。
-  - 应用 SQLite PRAGMA 设置，例如 foreign keys、busy timeout、WAL 和 checkpoint 行为。
+  - 通过 SeaORM/SQLx 打开 SQLite，并向 core 暴露 `DatabaseConnection`。
+  - 集中应用 SQLite PRAGMA 设置，例如 foreign keys、busy timeout、WAL 和 checkpoint 行为。
   - 校验平台 shell 传入的存储路径。
+  - 按 `StorageConfig.auto_migrate` 执行 SeaORM migration。
+  - 放置 SeaORM Entity、migration 和 repository，handler 不直接散写 ORM 查询。
+
+- `core/src/persistence/connection.rs`
+  - 打开 SQLite 文件连接池。
+  - 配置 WAL、foreign keys、busy timeout 和 `wal_autocheckpoint`。
+  - 执行 migration 入口。
+
+- `core/src/persistence/migration/`
+  - 定义 SeaORM `Migrator`。
+  - 首版 migration 创建 `users`、`roles`、`user_roles`、`permissions`、`role_permissions`、`auth_settings`、`auth_signing_keys`、`refresh_tokens` 和 `file_objects`。
+  - 为 refresh token、文件 hash、文件 owner/created_at 和 active signing key 建立索引或约束。
+
+- `core/src/persistence/entity/`
+  - 放置 SeaORM Entity、Model 和 ActiveModel。
+  - 当前包含 auth setting、auth signing key、user、refresh token 和 file object 实体。
+
+- `core/src/persistence/repository/`
+  - 放置业务语义 repository。
+  - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
+  - `UserRepository` 支撑用户创建、按 ID/用户名查找和权限列表查询。
+  - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
+  - `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
 
 - `core/src/auth.rs`
   - 定义鉴权启动设置、签名密钥状态和鉴权启动结果。
-  - 迁移内部鉴权表。
-  - 写入默认鉴权设置，但不覆盖数据库管理的已有值。
+  - 通过 `AuthRepository` 写入默认鉴权设置，但不覆盖数据库管理的已有值。
   - 创建或读取当前 active 访问令牌签名密钥。
   - 判断是否仍需首次管理员初始化。
 
@@ -137,7 +159,7 @@ server/src/main.rs
   -> config::load_config()
   -> config::ensure_server_runtime()
   -> config::prepare_storage_dirs()
-  -> winestock_core::bootstrap_from_config()
+  -> winestock_core::bootstrap_from_config().await
   -> winestock_core::bind_server()
   -> BoundServer::serve_with_shutdown()
   -> winestock_core::build_router()

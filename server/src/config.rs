@@ -11,10 +11,14 @@ const CONFIG_DATA_DIR: &str = "data";
 const CONFIG_FILE_NAME: &str = "config.json";
 
 pub(crate) struct LoadedConfig {
+    /// 已解析并完成相对路径补齐的启动配置。
     pub config: AppConfig,
+
+    /// 本次加载是否因为配置文件缺失而创建了默认配置。
     pub created_default: bool,
 }
 
+/// 返回服务端 shell 固定配置文件路径。
 pub(crate) fn fixed_config_path() -> Result<PathBuf, ServerShellError> {
     let exe_path =
         env::current_exe().map_err(|source| ServerShellError::ResolveExecutablePath { source })?;
@@ -33,6 +37,7 @@ fn config_path_from_exe_path(exe_path: &Path) -> Result<PathBuf, ServerShellErro
     Ok(exe_dir.join(CONFIG_DATA_DIR).join(CONFIG_FILE_NAME))
 }
 
+/// 读取或创建配置文件，并把存储路径解析到配置文件所在目录。
 pub(crate) fn load_config(config_path: &Path) -> Result<LoadedConfig, ServerShellError> {
     let (mut config, created_default) = match fs::read_to_string(config_path) {
         Ok(content) => (
@@ -71,9 +76,7 @@ fn create_default_config_file(config_path: &Path) -> Result<AppConfig, ServerShe
         })?;
     }
 
-    let mut config = AppConfig::default();
-    config.storage.database_path = "winestock.sqlite".to_owned();
-    config.storage.files_dir = "files".to_owned();
+    let config = AppConfig::default();
     let mut content = config.to_json_string_pretty().map_err(|source| {
         ServerShellError::SerializeDefaultConfig {
             path: config_path.to_path_buf(),
@@ -91,6 +94,7 @@ fn create_default_config_file(config_path: &Path) -> Result<AppConfig, ServerShe
     Ok(config)
 }
 
+/// 校验服务端 shell 只能运行需要本地服务的模式。
 pub(crate) fn ensure_server_runtime(config: &AppConfig) -> Result<(), ServerShellError> {
     if !config.server.auto_start_server {
         return Err(ServerShellError::AutoStartDisabled);
@@ -125,6 +129,7 @@ fn resolve_path(base_dir: &Path, value: &str) -> PathBuf {
     }
 }
 
+/// 在 core 打开数据库之前准备数据库父目录和文件目录。
 pub(crate) fn prepare_storage_dirs(storage: &StorageConfig) -> Result<(), ServerShellError> {
     let database_path = Path::new(&storage.database_path);
     if let Some(parent) = database_path

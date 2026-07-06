@@ -6,40 +6,85 @@ use winestock_shared::RuntimeMode;
 /// 服务端 shell 自身的配置、生命周期和启动错误。
 #[derive(Debug)]
 pub enum ServerShellError {
+    /// 获取当前可执行文件路径失败。
     ResolveExecutablePath {
+        /// 底层 IO 错误。
         source: io::Error,
     },
+
+    /// 当前可执行文件路径没有父目录，无法定位固定配置目录。
     MissingExecutableDirectory {
+        /// 无法解析父目录的可执行文件路径。
         path: PathBuf,
     },
+
+    /// 读取已有配置文件失败。
     ReadConfig {
+        /// 配置文件路径。
         path: PathBuf,
+
+        /// 底层 IO 错误。
         source: io::Error,
     },
+
+    /// 配置文件内容不是合法启动配置。
     ParseConfig {
+        /// 配置文件路径。
         path: PathBuf,
+
+        /// JSON 解析错误。
         source: serde_json::Error,
     },
+
+    /// 创建默认配置目录失败。
     CreateConfigDirectory {
+        /// 需要创建的目录路径。
         path: PathBuf,
+
+        /// 底层 IO 错误。
         source: io::Error,
     },
+
+    /// 序列化默认配置失败。
     SerializeDefaultConfig {
+        /// 目标配置文件路径。
         path: PathBuf,
+
+        /// JSON 序列化错误。
         source: serde_json::Error,
     },
+
+    /// 写入默认配置文件失败。
     WriteDefaultConfig {
+        /// 目标配置文件路径。
         path: PathBuf,
+
+        /// 底层 IO 错误。
         source: io::Error,
     },
+
+    /// 配置关闭了自动启动，本服务端 shell 不继续启动。
     AutoStartDisabled,
+
+    /// 服务端 shell 不支持远端-only 运行模式。
     UnsupportedRuntimeMode(RuntimeMode),
+
+    /// core 没有返回本地服务启动依赖。
     LocalServiceNotInitialized,
+
+    /// 准备数据库目录或文件目录失败。
     PrepareStorage {
+        /// 创建失败的路径。
         path: PathBuf,
+
+        /// 底层 IO 错误。
         source: io::Error,
     },
+
+    /// core 初始化失败。
     CoreBootstrap(CoreBootstrapError),
+
+    /// Axum 绑定或运行失败。
     Start(ServerStartError),
 }
 

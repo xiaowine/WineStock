@@ -1,33 +1,58 @@
 use std::{error::Error, fmt};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use rusqlite::{params, Connection, OptionalExtension};
+use sea_orm::{DatabaseConnection, DbErr};
+
+use crate::persistence::{entity::auth_signing_key, repository::AuthRepository};
 
 /// 数据库中的鉴权策略快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthSettings {
+    /// 访问令牌有效期，单位秒。
     pub access_token_ttl_seconds: u64,
+
+    /// 刷新令牌有效期，单位秒。
     pub refresh_token_ttl_seconds: u64,
+
+    /// 是否启用刷新令牌轮换。
     pub refresh_token_rotation: bool,
 }
 
 /// JWT 访问令牌签名密钥状态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SigningKeyStatus {
+    /// 当前用于签发访问令牌的密钥。
     Active,
+
+    /// 已退役、不可再用于新签发的密钥。
     Retired,
 }
 
 /// 当前可用于签发 JWT 访问令牌的密钥。
 #[derive(Clone, PartialEq, Eq)]
 pub struct AuthSigningKey {
+    /// 数据库自增主键。
     pub id: i64,
+
+    /// JWT 头部中使用的密钥标识。
     pub key_id: String,
+
+    /// 签名算法标识，当前默认 HS256。
     pub algorithm: String,
+
+    /// 签名密钥材料，不能写入日志或普通响应。
     pub key_material: String,
+
+    /// 密钥生命周期状态。
     pub status: SigningKeyStatus,
+
+    /// 密钥创建时间，使用 SQLite UTC 字符串格式。
     pub created_at: String,
+
+    /// 密钥启用时间。
     pub activated_at: Option<String>,
+
+    /// 密钥退役时间。
     pub retired_at: Option<String>,
 }
 
@@ -49,20 +74,43 @@ impl fmt::Debug for AuthSigningKey {
 /// 本地服务鉴权初始化结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthBootstrap {
+    /// 本次启动读取到的鉴权策略。
     pub settings: AuthSettings,
+
+    /// 当前可用于签发访问令牌的 active 密钥。
     pub active_signing_key: AuthSigningKey,
+
+    /// 数据库中是否已经存在用户。
     pub has_users: bool,
+
+    /// 是否需要执行首次管理员初始化流程。
     pub admin_setup_required: bool,
 }
 
 /// 鉴权内部配置初始化错误。
 #[derive(Debug)]
 pub enum AuthBootstrapError {
-    Database(rusqlite::Error),
+    /// SeaORM 或 SQLite 查询失败。
+    Database(DbErr),
+
+    /// 生成签名密钥随机材料失败。
     Random(getrandom::Error),
-    InvalidSetting {
+
+    /// 数据库缺少必需的鉴权设置。
+    MissingSetting {
+        /// 缺失的设置键。
         key: &'static str,
+    },
+
+    /// 数据库中的鉴权设置值无法解析为期望类型。
+    InvalidSetting {
+        /// 设置键。
+        key: &'static str,
+
+        /// 数据库中的原始设置值。
         value: String,
+
+        /// 期望的数据格式说明。
         expected: &'static str,
     },
 }
@@ -72,6 +120,9 @@ impl fmt::Display for AuthBootstrapError {
         match self {
             Self::Database(_) => write!(f, "failed to initialize auth settings"),
             Self::Random(_) => write!(f, "failed to generate auth signing key material"),
+            Self::MissingSetting { key } => {
+                write!(f, "missing required auth setting {key}")
+            }
             Self::InvalidSetting {
                 key,
                 value,
@@ -89,13 +140,13 @@ impl Error for AuthBootstrapError {
         match self {
             Self::Database(source) => Some(source),
             Self::Random(source) => Some(source),
-            Self::InvalidSetting { .. } => None,
+            Self::MissingSetting { .. } | Self::InvalidSetting { .. } => None,
         }
     }
 }
 
-impl From<rusqlite::Error> for AuthBootstrapError {
-    fn from(source: rusqlite::Error) -> Self {
+impl From<DbErr> for AuthBootstrapError {
+    fn from(source: DbErr) -> Self {
         Self::Database(source)
     }
 }
@@ -117,78 +168,45 @@ const DEFAULT_AUTH_SETTINGS: [(&str, &str); 3] = [
     (REFRESH_TOKEN_ROTATION, "true"),
 ];
 
-pub(crate) fn migrate_auth_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
+pub(crate) async fn bootstrap_auth(
+    database: &DatabaseConnection,
+) -> Result<AuthBootstrap, AuthBootstrapError> {
+    let repository = AuthRepository::new(database);
+
     // 鉴权配置和签名密钥属于服务内部状态，不进入 JSON 启动配置。
-    conn.execute_batch(
-        r#"
-        CREATE TABLE IF NOT EXISTS auth_settings (
-            key TEXT PRIMARY KEY NOT NULL,
-            value TEXT NOT NULL,
-            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS auth_signing_keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key_id TEXT NOT NULL UNIQUE,
-            algorithm TEXT NOT NULL,
-            key_material TEXT NOT NULL,
-            status TEXT NOT NULL CHECK (status IN ('active', 'retired')),
-            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-            activated_at TEXT,
-            retired_at TEXT,
-            CHECK (status != 'active' OR activated_at IS NOT NULL),
-            CHECK (status != 'retired' OR retired_at IS NOT NULL)
-        );
-
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_signing_keys_single_active
-            ON auth_signing_keys(status)
-            WHERE status = 'active';
-        "#,
-    )
-}
-
-pub(crate) fn bootstrap_auth(conn: &Connection) -> Result<AuthBootstrap, AuthBootstrapError> {
-    insert_default_settings(conn)?;
-    let settings = read_auth_settings(conn)?;
-    let active_signing_key = match active_signing_key(conn)? {
+    repository
+        .insert_default_settings(&DEFAULT_AUTH_SETTINGS)
+        .await?;
+    let settings = read_auth_settings(&repository).await?;
+    let active_signing_key = match repository.active_signing_key().await? {
         Some(key) => key,
-        None => create_active_signing_key(conn)?,
+        None => create_active_signing_key(&repository).await?,
     };
-    let has_users = has_any_user(conn)?;
+    let has_users = repository.has_any_user().await?;
 
     Ok(AuthBootstrap {
         settings,
-        active_signing_key,
+        active_signing_key: signing_key_from_model(active_signing_key),
         has_users,
         admin_setup_required: !has_users,
     })
 }
 
-fn insert_default_settings(conn: &Connection) -> Result<(), rusqlite::Error> {
-    for (key, value) in DEFAULT_AUTH_SETTINGS {
-        conn.execute(
-            r#"
-            INSERT INTO auth_settings (key, value, updated_at)
-            VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-            ON CONFLICT(key) DO NOTHING
-            "#,
-            params![key, value],
-        )?;
-    }
-
-    Ok(())
-}
-
-fn read_auth_settings(conn: &Connection) -> Result<AuthSettings, AuthBootstrapError> {
+async fn read_auth_settings(
+    repository: &AuthRepository<'_>,
+) -> Result<AuthSettings, AuthBootstrapError> {
     Ok(AuthSettings {
-        access_token_ttl_seconds: read_u64_setting(conn, ACCESS_TOKEN_TTL_SECONDS)?,
-        refresh_token_ttl_seconds: read_u64_setting(conn, REFRESH_TOKEN_TTL_SECONDS)?,
-        refresh_token_rotation: read_bool_setting(conn, REFRESH_TOKEN_ROTATION)?,
+        access_token_ttl_seconds: read_u64_setting(repository, ACCESS_TOKEN_TTL_SECONDS).await?,
+        refresh_token_ttl_seconds: read_u64_setting(repository, REFRESH_TOKEN_TTL_SECONDS).await?,
+        refresh_token_rotation: read_bool_setting(repository, REFRESH_TOKEN_ROTATION).await?,
     })
 }
 
-fn read_u64_setting(conn: &Connection, key: &'static str) -> Result<u64, AuthBootstrapError> {
-    let value = read_setting(conn, key)?;
+async fn read_u64_setting(
+    repository: &AuthRepository<'_>,
+    key: &'static str,
+) -> Result<u64, AuthBootstrapError> {
+    let value = read_setting(repository, key).await?;
     value
         .parse()
         .map_err(|_| AuthBootstrapError::InvalidSetting {
@@ -198,8 +216,11 @@ fn read_u64_setting(conn: &Connection, key: &'static str) -> Result<u64, AuthBoo
         })
 }
 
-fn read_bool_setting(conn: &Connection, key: &'static str) -> Result<bool, AuthBootstrapError> {
-    let value = read_setting(conn, key)?;
+async fn read_bool_setting(
+    repository: &AuthRepository<'_>,
+    key: &'static str,
+) -> Result<bool, AuthBootstrapError> {
+    let value = read_setting(repository, key).await?;
 
     match value.as_str() {
         "true" => Ok(true),
@@ -212,96 +233,45 @@ fn read_bool_setting(conn: &Connection, key: &'static str) -> Result<bool, AuthB
     }
 }
 
-fn read_setting(conn: &Connection, key: &'static str) -> Result<String, AuthBootstrapError> {
-    conn.query_row(
-        "SELECT value FROM auth_settings WHERE key = ?1",
-        params![key],
-        |row| row.get(0),
-    )
-    .map_err(AuthBootstrapError::Database)
+async fn read_setting(
+    repository: &AuthRepository<'_>,
+    key: &'static str,
+) -> Result<String, AuthBootstrapError> {
+    repository
+        .setting_value(key)
+        .await?
+        .ok_or(AuthBootstrapError::MissingSetting { key })
 }
 
-fn active_signing_key(conn: &Connection) -> Result<Option<AuthSigningKey>, rusqlite::Error> {
-    conn.query_row(
-        r#"
-        SELECT id, key_id, algorithm, key_material, status, created_at, activated_at, retired_at
-        FROM auth_signing_keys
-        WHERE status = 'active'
-        ORDER BY activated_at DESC, id DESC
-        LIMIT 1
-        "#,
-        [],
-        signing_key_from_row,
-    )
-    .optional()
-}
-
-fn create_active_signing_key(conn: &Connection) -> Result<AuthSigningKey, AuthBootstrapError> {
+async fn create_active_signing_key(
+    repository: &AuthRepository<'_>,
+) -> Result<auth_signing_key::Model, AuthBootstrapError> {
     let key_id = format!("ak_{}", random_urlsafe(16)?);
     let key_material = random_urlsafe(32)?;
 
-    conn.execute(
-        r#"
-        INSERT INTO auth_signing_keys
-            (key_id, algorithm, key_material, status, created_at, activated_at)
-        VALUES
-            (?1, ?2, ?3, 'active',
-             strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
-             strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-        "#,
-        params![key_id, SIGNING_ALGORITHM, key_material],
-    )?;
-
-    let row_id = conn.last_insert_rowid();
-    conn.query_row(
-        r#"
-        SELECT id, key_id, algorithm, key_material, status, created_at, activated_at, retired_at
-        FROM auth_signing_keys
-        WHERE id = ?1
-        "#,
-        params![row_id],
-        signing_key_from_row,
-    )
-    .map_err(AuthBootstrapError::Database)
+    repository
+        .create_active_signing_key(key_id, SIGNING_ALGORITHM, key_material)
+        .await
+        .map_err(AuthBootstrapError::Database)
 }
 
-fn signing_key_from_row(row: &rusqlite::Row<'_>) -> Result<AuthSigningKey, rusqlite::Error> {
-    let status: String = row.get(4)?;
-    let status = match status.as_str() {
+fn signing_key_from_model(model: auth_signing_key::Model) -> AuthSigningKey {
+    let status = match model.status.as_str() {
         "active" => SigningKeyStatus::Active,
         "retired" => SigningKeyStatus::Retired,
         _ => SigningKeyStatus::Retired,
     };
 
-    Ok(AuthSigningKey {
-        id: row.get(0)?,
-        key_id: row.get(1)?,
-        algorithm: row.get(2)?,
-        key_material: row.get(3)?,
+    AuthSigningKey {
+        id: model.id,
+        key_id: model.key_id,
+        algorithm: model.algorithm,
+        key_material: model.key_material,
         status,
-        created_at: row.get(5)?,
-        activated_at: row.get(6)?,
-        retired_at: row.get(7)?,
-    })
-}
-
-fn has_any_user(conn: &Connection) -> Result<bool, rusqlite::Error> {
-    let users_table_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'users'",
-        [],
-        |row| row.get(0),
-    )?;
-
-    if users_table_count == 0 {
-        return Ok(false);
+        created_at: model.created_at,
+        activated_at: model.activated_at,
+        retired_at: model.retired_at,
     }
-
-    let has_user: i64 =
-        conn.query_row("SELECT EXISTS(SELECT 1 FROM users LIMIT 1)", [], |row| {
-            row.get(0)
-        })?;
-
-    Ok(has_user != 0)
 }
 
 fn random_urlsafe(length: usize) -> Result<String, getrandom::Error> {

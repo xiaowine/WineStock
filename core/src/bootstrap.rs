@@ -3,13 +3,16 @@ use std::{error::Error, fmt};
 use winestock_shared::AppConfig;
 
 use crate::{
-    auth::{bootstrap_auth, migrate_auth_schema, AuthBootstrap, AuthBootstrapError},
-    persistence::{open_sqlite_storage, StorageBootstrapError, StorageRuntime},
+    auth::{bootstrap_auth, AuthBootstrap, AuthBootstrapError},
+    persistence::{
+        migrate_storage_schema, open_sqlite_storage, StorageBootstrapError, StorageRuntime,
+    },
 };
 
 /// core 根据启动配置完成的初始化结果。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct CoreBootstrap {
+    /// 需要本地服务时包含启动结果；远端客户端模式下为空。
     pub local_service: Option<LocalServiceBootstrap>,
 }
 
@@ -21,16 +24,22 @@ impl CoreBootstrap {
 }
 
 /// 本地 Axum 服务启动前必须准备好的共享状态。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct LocalServiceBootstrap {
+    /// 本地存储运行时状态和 SeaORM 连接。
     pub storage: StorageRuntime,
+
+    /// 鉴权启动结果，包括数据库托管设置和签名密钥。
     pub auth: AuthBootstrap,
 }
 
 /// core 启动配置初始化错误。
 #[derive(Debug)]
 pub enum CoreBootstrapError {
+    /// 本地存储打开、配置或迁移失败。
     Storage(StorageBootstrapError),
+
+    /// 鉴权设置或签名密钥初始化失败。
     Auth(AuthBootstrapError),
 }
 
@@ -53,41 +62,44 @@ impl Error for CoreBootstrapError {
 }
 
 /// 使用已解析配置初始化 core，本函数不查找或读取配置文件。
-pub fn bootstrap_from_config(config: &AppConfig) -> Result<CoreBootstrap, CoreBootstrapError> {
+pub async fn bootstrap_from_config(
+    config: &AppConfig,
+) -> Result<CoreBootstrap, CoreBootstrapError> {
     if !config.server.uses_local_service() {
         return Ok(CoreBootstrap {
             local_service: None,
         });
     }
 
-    let storage = open_sqlite_storage(&config.storage).map_err(CoreBootstrapError::Storage)?;
+    let storage = open_sqlite_storage(&config.storage)
+        .await
+        .map_err(CoreBootstrapError::Storage)?;
 
     if config.storage.auto_migrate {
-        migrate_auth_schema(&storage.connection)
-            .map_err(AuthBootstrapError::Database)
-            .map_err(CoreBootstrapError::Auth)?;
+        migrate_storage_schema(&storage)
+            .await
+            .map_err(CoreBootstrapError::Storage)?;
     }
 
-    let auth = bootstrap_auth(&storage.connection).map_err(CoreBootstrapError::Auth)?;
+    let auth = bootstrap_auth(&storage.database)
+        .await
+        .map_err(CoreBootstrapError::Auth)?;
 
     Ok(CoreBootstrap {
-        local_service: Some(LocalServiceBootstrap {
-            storage: storage.runtime,
-            auth,
-        }),
+        local_service: Some(LocalServiceBootstrap { storage, auth }),
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use rusqlite::Connection;
+    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
     use tempfile::tempdir;
     use winestock_shared::{AppConfig, RuntimeMode, ServerConfig, StorageConfig};
 
     use super::*;
 
-    #[test]
-    fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
+    #[tokio::test]
+    async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
         let temp = tempdir().expect("temp dir should exist");
         let config = test_config(
             RuntimeMode::SelfHosted,
@@ -96,6 +108,7 @@ mod tests {
         );
 
         let first = bootstrap_from_config(&config)
+            .await
             .expect("bootstrap should succeed")
             .local_service
             .expect("local service should be initialized");
@@ -113,6 +126,7 @@ mod tests {
         assert!(first.auth.admin_setup_required);
 
         let second = bootstrap_from_config(&config)
+            .await
             .expect("second bootstrap should succeed")
             .local_service
             .expect("local service should be initialized");
@@ -126,19 +140,17 @@ mod tests {
             second.auth.active_signing_key.key_material
         );
 
-        let conn = Connection::open(&config.storage.database_path).expect("database should open");
-        let active_count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM auth_signing_keys WHERE status = 'active'",
-                [],
-                |row| row.get(0),
-            )
-            .expect("active key count should query");
+        let active_count: i64 = query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM auth_signing_keys WHERE status = 'active'",
+            "count",
+        )
+        .await;
         assert_eq!(active_count, 1);
     }
 
-    #[test]
-    fn client_only_bootstrap_does_not_touch_storage() {
+    #[tokio::test]
+    async fn client_only_bootstrap_does_not_touch_storage() {
         let temp = tempdir().expect("temp dir should exist");
         let missing_database = temp.path().join("missing").join("winestock.sqlite");
         let config = test_config(
@@ -147,14 +159,16 @@ mod tests {
             temp.path().join("files").to_string_lossy(),
         );
 
-        let bootstrap = bootstrap_from_config(&config).expect("client-only should skip storage");
+        let bootstrap = bootstrap_from_config(&config)
+            .await
+            .expect("client-only should skip storage");
 
         assert!(!bootstrap.initialized_local_service());
         assert!(!missing_database.exists());
     }
 
-    #[test]
-    fn server_mode_bootstrap_uses_local_storage() {
+    #[tokio::test]
+    async fn server_mode_bootstrap_uses_local_storage() {
         let temp = tempdir().expect("temp dir should exist");
         let database = temp.path().join("server.sqlite");
         let config = test_config(
@@ -163,14 +177,16 @@ mod tests {
             temp.path().join("files").to_string_lossy(),
         );
 
-        let bootstrap = bootstrap_from_config(&config).expect("server-mode should use storage");
+        let bootstrap = bootstrap_from_config(&config)
+            .await
+            .expect("server-mode should use storage");
 
         assert!(bootstrap.initialized_local_service());
         assert!(database.exists());
     }
 
-    #[test]
-    fn auth_defaults_do_not_overwrite_database_managed_settings() {
+    #[tokio::test]
+    async fn auth_defaults_do_not_overwrite_database_managed_settings() {
         let temp = tempdir().expect("temp dir should exist");
         let config = test_config(
             RuntimeMode::SelfHosted,
@@ -178,17 +194,24 @@ mod tests {
             temp.path().join("files").to_string_lossy(),
         );
 
-        bootstrap_from_config(&config).expect("first bootstrap should initialize settings");
-
-        let conn = Connection::open(&config.storage.database_path).expect("database should open");
-        conn.execute(
-            "UPDATE auth_settings SET value = '1200' WHERE key = 'access_token_ttl_seconds'",
-            [],
-        )
-        .expect("setting should update");
-        drop(conn);
+        let first = bootstrap_from_config(&config)
+            .await
+            .expect("first bootstrap should initialize settings")
+            .local_service
+            .expect("local service should be initialized");
+        first
+            .storage
+            .database
+            .execute(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "UPDATE auth_settings SET value = '1200' WHERE key = 'access_token_ttl_seconds'"
+                    .to_owned(),
+            ))
+            .await
+            .expect("setting should update");
 
         let bootstrap = bootstrap_from_config(&config)
+            .await
             .expect("second bootstrap should preserve settings")
             .local_service
             .expect("local service should be initialized");
@@ -196,8 +219,8 @@ mod tests {
         assert_eq!(bootstrap.auth.settings.access_token_ttl_seconds, 1200);
     }
 
-    #[test]
-    fn self_hosted_bootstrap_requires_database_directory() {
+    #[tokio::test]
+    async fn self_hosted_bootstrap_requires_database_directory() {
         let temp = tempdir().expect("temp dir should exist");
         let missing_database = temp.path().join("missing").join("winestock.sqlite");
         let config = test_config(
@@ -206,7 +229,9 @@ mod tests {
             temp.path().join("files").to_string_lossy(),
         );
 
-        let error = bootstrap_from_config(&config).expect_err("missing directory should fail");
+        let error = bootstrap_from_config(&config)
+            .await
+            .expect_err("missing directory should fail");
 
         assert!(matches!(
             error,
@@ -230,5 +255,18 @@ mod tests {
                 auto_migrate: true,
             },
         }
+    }
+
+    async fn query_i64(database: &sea_orm::DatabaseConnection, sql: &str, column: &str) -> i64 {
+        database
+            .query_one(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                sql.to_owned(),
+            ))
+            .await
+            .expect("query should execute")
+            .expect("row should exist")
+            .try_get("", column)
+            .expect("column should decode")
     }
 }

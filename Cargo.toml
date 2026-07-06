@@ -17,9 +17,11 @@ edition = "2021"
 axum = "0.8"
 base64 = "0.22"
 getrandom = "0.4.3"
-rusqlite = { version = "0.40.1", features = ["bundled"] }
+sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio", "sqlx-sqlite"] }
+sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sqlx = { version = "0.8.4", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
 utoipa = "5"

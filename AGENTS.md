@@ -145,10 +145,33 @@ Do not pile unrelated behavior into one file, function, module, or crate when a 
 When removing or simplifying behavior, also remove obsolete functions, wrappers, arguments, config keys, tests, and documentation.
 Do not keep meaningless compatibility shims unless the user explicitly requires backward compatibility.
 
-When adding or changing code, review the related comments.
+## Comment Rules
+
+Comments exist to help a reader quickly understand what each part of the project does, where it belongs, and what constraints it must preserve.
 Code comments must be written in Chinese.
-Add a succinct Chinese comment when new behavior has no useful explanation.
+
+Every new source file or module must start with a short Chinese module/file comment explaining:
+
+- what this file/module owns
+- which layer it belongs to, such as `core`, `shared`, or `server shell`
+- what it must not own when there is an important boundary
+
+Public API types, cross-module structs/enums, database entities, DTO/config structs, repository input structs, and error enums must have Chinese documentation comments.
+For database entities, DTO/config structs, repository input structs, and error enums, document every field or enum variant unless the field is private and purely mechanical.
+
+For functions that cross ownership boundaries, perform persistence, transactions, networking, config parsing, migration, startup/shutdown, or security-sensitive behavior, add a Chinese doc comment or a nearby Chinese intent comment.
+Those comments should state when the function is used, what side effects it has, and what failure behavior matters.
+
+For non-obvious parameters, config keys, database columns, runtime modes, path rules, bind-address rules, or security-sensitive values, document their meaning on the struct field, enum variant, function doc comment, or nearby intent comment.
+When touching an under-commented area, improve the surrounding comments enough that the next reader can quickly understand the local responsibility without reconstructing it from every call site.
+
 Update comments that describe changed behavior.
 Do not leave stale comments behind.
+If a comment is only restating syntax, delete it instead of translating it.
+Do not document every local variable or obvious control-flow branch; prefer comments that explain ownership, invariants, data format, side effects, failure behavior, and why a boundary exists.
+
+Before finishing any code change, audit comments in changed source files.
+Use a text search for comment markers such as `//`, `///`, `//!`, and block comments.
+Technical names such as `Axum`, `SQLx`, `SeaORM`, `JWT`, `PRAGMA`, and path/API identifiers may remain as-is, but explanatory prose in code comments must be Chinese.
 
 When adding tests or checks, cover local self access, LAN access, remote access, port conflicts, server startup and shutdown, and frontend artifacts staying out of the Axum crate.

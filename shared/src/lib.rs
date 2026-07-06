@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AppConfig {
+    /// 服务运行、绑定和远端访问配置。
     pub server: ServerConfig,
+
+    /// 本地数据库和文件目录配置。
     pub storage: StorageConfig,
 }
 
@@ -37,9 +40,16 @@ impl Default for AppConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RuntimeMode {
+    /// 只连接远端服务，不启动本地 Axum，也不使用本地数据库。
     ClientOnly,
+
+    /// 启动本地 Axum 供本机 UI 使用，默认绑定 loopback。
     SelfHosted,
+
+    /// 启动本地 Axum 作为可被其他客户端访问的服务端。
     ServerMode,
+
+    /// 连接远端服务；语义上保留给需要明确远端连接的客户端壳。
     ConnectToRemote,
 }
 
@@ -59,10 +69,19 @@ impl RuntimeMode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ServerConfig {
+    /// 运行模式，决定是否启动本地服务或连接远端。
     pub mode: RuntimeMode,
+
+    /// Axum 监听地址；`0.0.0.0` 只能作为绑定地址，不能作为访问 URL。
     pub bind_host: String,
+
+    /// Axum 监听端口，由平台壳和 core 共同使用。
     pub port: u16,
+
+    /// 平台壳启动时是否自动启动本地服务。
     pub auto_start_server: bool,
+
+    /// 远端服务基础 URL，仅远端客户端模式使用。
     pub remote_base_url: String,
 }
 
@@ -94,8 +113,13 @@ impl Default for ServerConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StorageConfig {
+    /// SQLite 主数据库文件路径，平台壳负责解析为可用路径。
     pub database_path: String,
+
+    /// 大对象文件目录，SQLite 只保存文件元数据。
     pub files_dir: String,
+
+    /// 是否在 core 初始化时自动执行数据库迁移。
     pub auto_migrate: bool,
 }
 

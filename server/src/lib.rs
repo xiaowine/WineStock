@@ -16,7 +16,9 @@ pub async fn run() -> Result<(), ServerShellError> {
     config::ensure_server_runtime(&config)?;
     config::prepare_storage_dirs(&config.storage)?;
 
-    let bootstrap = bootstrap_from_config(&config).map_err(ServerShellError::CoreBootstrap)?;
+    let bootstrap = bootstrap_from_config(&config)
+        .await
+        .map_err(ServerShellError::CoreBootstrap)?;
     let local = bootstrap
         .local_service
         .as_ref()

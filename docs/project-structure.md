@@ -97,9 +97,11 @@ Current workspace dependencies:
 - `axum`
 - `base64`
 - `getrandom`
-- `rusqlite`
+- `sea-orm`
+- `sea-orm-migration`
 - `serde`
 - `serde_json`
+- `sqlx`
 - `tempfile`
 - `tokio`
 - `utoipa`
