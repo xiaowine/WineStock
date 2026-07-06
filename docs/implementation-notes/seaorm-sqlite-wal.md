@@ -144,6 +144,8 @@ auth_refresh_tokens
 storage_file_objects
 ```
 
+RBAC 表的角色、权限和授权语义见 [`../rbac-permission-model.md`](../rbac-permission-model.md)。
+
 `auth_settings` 表用于保存鉴权策略，不放入 JSON 配置：
 
 ```text
@@ -205,14 +207,20 @@ UserRepository
   find_by_username
   find_by_id
   create_user
+
+RbacRepository
+  list_user_roles
   list_user_permissions
+  ensure_role
+  ensure_permission
+  assign_role_to_user
+  assign_permission_to_role
 
 RefreshTokenRepository
   create
   find_active_by_hash
   rotate
   revoke
-  revoke_chain
 
 FileObjectRepository
   create_metadata

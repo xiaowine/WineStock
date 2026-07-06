@@ -7,6 +7,82 @@
 
 use serde::{Deserialize, Serialize};
 
+/// 用户名密码登录请求。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuthLoginRequest {
+    /// 登录用户名。
+    pub username: String,
+
+    /// 明文密码只允许出现在登录请求中，服务端不得持久化该值。
+    pub password: String,
+
+    /// 可选设备名称，用于标识 refresh token 来源。
+    pub device_name: Option<String>,
+
+    /// 可选客户端类型，例如 desktop、android 或 remote。
+    pub client_kind: Option<String>,
+}
+
+/// 注册用户请求。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuthRegisterRequest {
+    /// 登录用户名，服务端会去除首尾空白并要求非空。
+    pub username: String,
+
+    /// 明文密码只允许出现在注册请求中，服务端会保存 Argon2 哈希。
+    pub password: String,
+}
+
+/// 刷新访问令牌请求。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuthRefreshRequest {
+    /// 客户端持有的 opaque refresh token 明文；服务端只保存其哈希。
+    pub refresh_token: String,
+}
+
+/// 登出请求。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AuthLogoutRequest {
+    /// 需要吊销的 opaque refresh token 明文。
+    pub refresh_token: String,
+}
+
+/// 鉴权接口返回的用户摘要。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AuthUserResponse {
+    /// 用户 ID，作为字符串返回，避免前端运行时整数精度差异。
+    pub id: String,
+
+    /// 登录用户名。
+    pub username: String,
+
+    /// 用户角色代码列表。
+    pub roles: Vec<String>,
+
+    /// 用户权限代码列表。
+    pub permissions: Vec<String>,
+}
+
+/// 登录和刷新接口返回的 token 包。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AuthTokenResponse {
+    /// JWT access token，用于 `Authorization: Bearer` 请求头。
+    pub access_token: String,
+
+    /// opaque refresh token 明文，只在本响应中返回一次。
+    pub refresh_token: String,
+
+    /// access token 剩余有效期，单位秒。
+    pub expires_in: u64,
+
+    /// 当前登录用户摘要。
+    pub user: AuthUserResponse,
+}
+
 /// WineStock v1 启动配置，只包含服务启动和本地存储两类信息。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

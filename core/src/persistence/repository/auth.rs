@@ -4,11 +4,13 @@
 //! 调用方不需要知道 `auth_settings`、`auth_signing_keys` 和 `auth_users` 的具体查询细节。
 
 use sea_orm::{
-    sea_query::OnConflict, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
-    DbErr, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set, Statement,
+    sea_query::OnConflict, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, Set,
 };
 
 use crate::persistence::entity::{auth_setting, auth_signing_key, user};
+
+use super::time::sqlite_now;
 
 /// 鉴权启动使用的 repository，负责数据库托管设置和签名密钥读取。
 pub(crate) struct AuthRepository<'db> {
@@ -105,17 +107,4 @@ impl<'db> AuthRepository<'db> {
         // v1 schema 总是包含 auth_users 表，首次管理员判断只需要检查是否已有用户。
         user::Entity::find().exists(self.database).await
     }
-}
-
-/// 从 SQLite 读取统一时间戳，避免 Rust 进程时间和数据库默认时间格式不一致。
-pub(crate) async fn sqlite_now(database: &impl ConnectionTrait) -> Result<String, DbErr> {
-    let row = database
-        .query_one(Statement::from_string(
-            DatabaseBackend::Sqlite,
-            "SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AS current_time".to_owned(),
-        ))
-        .await?
-        .ok_or_else(|| DbErr::RecordNotFound("SQLite current timestamp".to_owned()))?;
-
-    row.try_get("", "current_time")
 }

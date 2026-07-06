@@ -15,15 +15,19 @@ edition = "2021"
 [workspace.dependencies]
 # 统一在工作区根声明依赖版本，成员包通过 workspace = true 复用。
 axum = "0.8"
+argon2 = "0.5.3"
 base64 = "0.22"
 getrandom = "0.4.3"
+jsonwebtoken = { version = "10.4.0", default-features = false, features = ["rust_crypto"] }
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio", "sqlx-sqlite"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.11.0"
 sqlx = { version = "0.8.4", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tower = "0.5.3"
 utoipa = "5"
 utoipa-axum = "0.2"
 utoipa-swagger-ui = { version = "9", features = ["axum"] }

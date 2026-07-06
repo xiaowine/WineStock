@@ -12,6 +12,7 @@ use crate::{
     persistence::{
         migrate_storage_schema, open_sqlite_storage, StorageBootstrapError, StorageRuntime,
     },
+    rbac::{bootstrap_builtin_rbac, RbacBootstrapError},
 };
 
 /// core 根据启动配置完成的初始化结果。
@@ -46,6 +47,9 @@ pub enum CoreBootstrapError {
 
     /// 鉴权设置或签名密钥初始化失败。
     Auth(AuthBootstrapError),
+
+    /// 内置角色和权限初始化失败。
+    Rbac(RbacBootstrapError),
 }
 
 impl fmt::Display for CoreBootstrapError {
@@ -53,6 +57,7 @@ impl fmt::Display for CoreBootstrapError {
         match self {
             Self::Storage(source) => write!(f, "{source}"),
             Self::Auth(source) => write!(f, "{source}"),
+            Self::Rbac(source) => write!(f, "{source}"),
         }
     }
 }
@@ -62,6 +67,7 @@ impl Error for CoreBootstrapError {
         match self {
             Self::Storage(source) => Some(source),
             Self::Auth(source) => Some(source),
+            Self::Rbac(source) => Some(source),
         }
     }
 }
@@ -85,6 +91,10 @@ pub async fn bootstrap_from_config(
             .await
             .map_err(CoreBootstrapError::Storage)?;
     }
+
+    bootstrap_builtin_rbac(&storage.database)
+        .await
+        .map_err(CoreBootstrapError::Rbac)?;
 
     let auth = bootstrap_auth(&storage.database)
         .await
@@ -152,6 +162,51 @@ mod tests {
         )
         .await;
         assert_eq!(active_count, 1);
+
+        let user_count = query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM auth_users",
+            "count",
+        )
+        .await;
+        assert_eq!(user_count, 0);
+
+        assert_eq!(
+            query_string_vec(
+                &second.storage.database,
+                "SELECT code FROM auth_roles ORDER BY code",
+                "code",
+            )
+            .await,
+            vec!["admin", "staff", "viewer"]
+        );
+        assert_eq!(
+            query_string_vec(
+                &second.storage.database,
+                "SELECT code FROM auth_permissions ORDER BY code",
+                "code",
+            )
+            .await,
+            vec!["stock.read", "stock.write", "user.manage", "user.register"]
+        );
+        assert_eq!(
+            query_string_vec(
+                &second.storage.database,
+                r#"
+                SELECT auth_permissions.code AS code
+                FROM auth_permissions
+                INNER JOIN auth_role_permission_assignments
+                    ON auth_role_permission_assignments.permission_id = auth_permissions.id
+                INNER JOIN auth_roles
+                    ON auth_roles.id = auth_role_permission_assignments.role_id
+                WHERE auth_roles.code = 'admin'
+                ORDER BY auth_permissions.code
+                "#,
+                "code",
+            )
+            .await,
+            vec!["stock.read", "stock.write", "user.manage", "user.register"]
+        );
     }
 
     #[tokio::test]
@@ -170,6 +225,23 @@ mod tests {
 
         assert!(!bootstrap.initialized_local_service());
         assert!(!missing_database.exists());
+    }
+
+    #[tokio::test]
+    async fn local_bootstrap_initializes_rbac_before_auth_runtime() {
+        let temp = tempdir().expect("temp dir should exist");
+        let mut config = test_config(
+            RuntimeMode::SelfHosted,
+            temp.path().join("winestock.sqlite").to_string_lossy(),
+            temp.path().join("files").to_string_lossy(),
+        );
+        config.storage.auto_migrate = false;
+
+        let error = bootstrap_from_config(&config)
+            .await
+            .expect_err("missing schema should fail before auth runtime initializes");
+
+        assert!(matches!(error, CoreBootstrapError::Rbac(_)));
     }
 
     #[tokio::test]
@@ -225,6 +297,74 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_text() {
+        let temp = tempdir().expect("temp dir should exist");
+        let config = test_config(
+            RuntimeMode::SelfHosted,
+            temp.path().join("winestock.sqlite").to_string_lossy(),
+            temp.path().join("files").to_string_lossy(),
+        );
+
+        let first = bootstrap_from_config(&config)
+            .await
+            .expect("first bootstrap should initialize rbac")
+            .local_service
+            .expect("local service should be initialized");
+        first
+            .storage
+            .database
+            .execute(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "UPDATE auth_roles SET name = '自定义管理员' WHERE code = 'admin'".to_owned(),
+            ))
+            .await
+            .expect("role should update");
+
+        let second = bootstrap_from_config(&config)
+            .await
+            .expect("second bootstrap should preserve rbac")
+            .local_service
+            .expect("local service should be initialized");
+
+        assert_eq!(
+            query_i64(
+                &second.storage.database,
+                "SELECT COUNT(*) AS count FROM auth_roles",
+                "count",
+            )
+            .await,
+            3
+        );
+        assert_eq!(
+            query_i64(
+                &second.storage.database,
+                "SELECT COUNT(*) AS count FROM auth_permissions",
+                "count",
+            )
+            .await,
+            4
+        );
+        assert_eq!(
+            query_i64(
+                &second.storage.database,
+                "SELECT COUNT(*) AS count FROM auth_role_permission_assignments",
+                "count",
+            )
+            .await,
+            7
+        );
+        assert_eq!(
+            query_string_vec(
+                &second.storage.database,
+                "SELECT name FROM auth_roles WHERE code = 'admin'",
+                "name",
+            )
+            .await,
+            vec!["自定义管理员"]
+        );
+    }
+
+    #[tokio::test]
     async fn self_hosted_bootstrap_requires_database_directory() {
         let temp = tempdir().expect("temp dir should exist");
         let missing_database = temp.path().join("missing").join("winestock.sqlite");
@@ -273,5 +413,22 @@ mod tests {
             .expect("row should exist")
             .try_get("", column)
             .expect("column should decode")
+    }
+
+    async fn query_string_vec(
+        database: &sea_orm::DatabaseConnection,
+        sql: &str,
+        column: &str,
+    ) -> Vec<String> {
+        database
+            .query_all(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                sql.to_owned(),
+            ))
+            .await
+            .expect("query should execute")
+            .into_iter()
+            .map(|row| row.try_get("", column).expect("column should decode"))
+            .collect()
     }
 }

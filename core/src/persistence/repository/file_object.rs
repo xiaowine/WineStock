@@ -7,7 +7,7 @@ use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, 
 
 use crate::persistence::entity::file_object;
 
-use super::auth::sqlite_now;
+use super::time::sqlite_now;
 
 /// 创建文件元数据时的输入；文件内容必须已经由调用方写入 files/ 目录。
 #[derive(Debug, Clone, PartialEq, Eq)]

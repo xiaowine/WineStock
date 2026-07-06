@@ -52,6 +52,9 @@ WineStock/
     project-structure.md
     agent-checklist.md
     code-map.md
+    database-schema.md
+    rbac-permission-model.md
+    implementation-notes/
   Cargo.toml                     # current workspace manifest
   Cargo.lock                     # current Rust lockfile
   core/                          # current winestock-core library crate
@@ -95,15 +98,19 @@ Add desktop Tauri Rust crates, Android Rust bridge crates, or a server executabl
 Current workspace dependencies:
 
 - `axum`
+- `argon2`
 - `base64`
 - `getrandom`
+- `jsonwebtoken`
 - `sea-orm`
 - `sea-orm-migration`
 - `serde`
 - `serde_json`
+- `sha2`
 - `sqlx`
 - `tempfile`
 - `tokio`
+- `tower`
 - `utoipa`
 - `utoipa-axum`
 - `utoipa-swagger-ui`
@@ -121,6 +128,7 @@ It must not own platform UI assets or frontend build output.
 Current `core` API surface:
 
 - `build_router()`
+- `build_router_with_local_service()`
 - `bootstrap_from_config()`
 - `bind_server()`
 - `OPENAPI_JSON_PATH`
@@ -130,6 +138,11 @@ Current `core` API surface:
 Current `core` HTTP surface:
 
 - `GET /api/health`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 - `GET /api-docs/openapi.json`
 - Swagger UI under `/swagger-ui`
 

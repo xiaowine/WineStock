@@ -26,6 +26,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实现笔记和本代码地图。
+- `docs/rbac-permission-model.md`：当前 RBAC 角色/权限模型、初始化行为和业务授权规则。
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关配置、契约和通用类型。
 - `server/`：运行共享服务的无头服务端 shell。
@@ -54,6 +55,7 @@ core   -> desktop/android/frontend platform assets
 用途：平台无关配置和契约。
 
 - `shared/src/lib.rs`
+  - 定义鉴权 HTTP DTO：`AuthRegisterRequest`、`AuthLoginRequest`、`AuthRefreshRequest`、`AuthLogoutRequest`、`AuthUserResponse` 和 `AuthTokenResponse`。
   - 定义 `AppConfig`、`ServerConfig`、`StorageConfig` 和 `RuntimeMode`。
   - 提供启动配置的 JSON 解析和序列化辅助函数。
   - 提供运行模式辅助判断，例如本地服务和远端服务检查。
@@ -65,16 +67,18 @@ core   -> desktop/android/frontend platform assets
 用途：供各平台 shell 复用的共享 Axum 服务库。
 
 - `core/src/lib.rs`
-  - 声明内部模块：`auth`、`bootstrap`、`persistence`、`server`。
+  - 声明内部模块：`auth`、`bootstrap`、`persistence`、`rbac`、`server`。
   - 重新导出 core 的公共启动和运行时类型。
+  - 重新导出 `RbacBootstrapError`，供平台 shell 区分内置 RBAC 初始化失败。
   - 定义 `OPENAPI_JSON_PATH` 和 `SWAGGER_UI_PATH`。
   - 通过 `build_router()` 构建 Axum 路由。
-  - 拥有 `GET /api/health`、OpenAPI 元信息和 Swagger UI 挂载。
+  - 通过 `build_router_with_local_service()` 构建带本地鉴权状态的 Axum 路由。
+  - 拥有 `GET /api/health`、auth API、OpenAPI 元信息、Bearer security scheme 和 Swagger UI 挂载。
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
   - 异步实现 `bootstrap_from_config()`。
-  - 仅在共享配置启用本地服务时打开本地存储并初始化鉴权。
+  - 仅在共享配置启用本地服务时打开本地存储，执行 migration 后先初始化内置 RBAC，再初始化鉴权设置和 JWT signing key。
   - 对远端-only 或禁用本地服务的模式跳过存储初始化。
 
 - `core/src/server.rs`
@@ -99,7 +103,7 @@ core   -> desktop/android/frontend platform assets
 - `core/src/persistence/migration/`
   - 定义 SeaORM `Migrator`。
   - 首版 migration 创建 `auth_users`、`auth_roles`、`auth_user_role_assignments`、`auth_permissions`、`auth_role_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens` 和 `storage_file_objects`。
-  - 为 refresh token、文件 hash、文件 owner/created_at 和 active signing key 建立索引或约束。
+  - 为 refresh token hash、文件 hash、文件 owner/created_at 和 active signing key 建立索引或约束。
 
 - `core/src/persistence/entity/`
   - 放置 SeaORM Entity、Model 和 ActiveModel。
@@ -107,20 +111,41 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/repository/`
   - 放置业务语义 repository。
+  - `time` 模块提供仓储层共用的 SQLite UTC 时间生成工具，避免具体业务仓储各自拼接时间查询。
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
-  - `UserRepository` 支撑用户创建、按 ID/用户名查找和权限列表查询。
+  - `UserRepository` 只支撑用户创建、按 ID/用户名查找。
+  - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、角色权限分配、角色列表和权限列表查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
   - `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
 
+- `core/src/rbac.rs`
+  - 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和基础用户/库存权限。
+  - 启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
+  - 角色只作为批量授予权限的模板，不作为业务授权等级。
+  - 先于 JWT signing key 初始化执行，确保 token 签发只消费已经存在的角色/权限快照。
+
 - `core/src/auth.rs`
-  - 定义鉴权启动设置、签名密钥状态和鉴权启动结果。
+  - 定义鉴权启动设置、签名密钥状态、鉴权启动结果、`CurrentUser` extractor 和鉴权 HTTP 错误。
   - 通过 `AuthRepository` 写入默认鉴权设置，但不覆盖数据库管理的已有值。
   - 创建或读取当前 active 访问令牌签名密钥。
   - 判断是否仍需首次管理员初始化。
+  - 使用数据库中的 HS256 active signing key 签发和校验 JWT access token。
+  - 管理类授权会在校验 Bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
+  - 使用 Argon2 校验密码哈希。
+  - 使用高强度随机 opaque refresh token，入库前保存 SHA-256 哈希。
+  - 实现 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/refresh`、`POST /api/auth/logout` 和 `GET /api/auth/me`。
+  - 注册接口在数据库没有用户时免鉴权并把首个用户分配为 `admin`；已有用户后必须由当前拥有 `user.register` 权限的 Bearer token 调用。
+  - refresh 时在事务中轮换 token；已吊销旧 token 被复用时返回 401。
 
 - `docs/database-schema.md`
   - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。
   - 说明业务表的 `auth_`、`storage_` 前缀，避免把 SQLite 或 SeaORM 系统表误读为业务表。
+
+- `docs/rbac-permission-model.md`
+  - 记录当前 RBAC 模型的正式规则。
+  - 明确业务授权统一判断权限代码，不判断角色代码。
+  - 说明角色只作为批量授予权限的模板，不作为业务授权等级。
+  - 记录内置角色、内置权限、角色权限关系、启动补齐顺序和新增受保护能力的流程。
 
 ## `server`
 
@@ -165,13 +190,18 @@ server/src/main.rs
   -> config::prepare_storage_dirs()
   -> winestock_core::bootstrap_from_config().await
   -> winestock_core::bind_server()
-  -> BoundServer::serve_with_shutdown()
-  -> winestock_core::build_router()
+  -> BoundServer::serve_local_with_shutdown()
+  -> winestock_core::build_router_with_local_service()
 ```
 
 公共 HTTP 接口：
 
 - `GET /api/health`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 - `GET /api-docs/openapi.json`
 - `/swagger-ui` 下的 Swagger UI
 

@@ -14,6 +14,8 @@ use std::{
 use tokio::net::TcpListener;
 use winestock_shared::ServerConfig;
 
+use crate::LocalServiceBootstrap;
+
 /// 已完成端口绑定、等待平台壳启动服务的 Axum 实例。
 #[derive(Debug)]
 pub struct BoundServer {
@@ -36,6 +38,24 @@ impl BoundServer {
             .with_graceful_shutdown(shutdown)
             .await
             .map_err(ServerStartError::Serve)
+    }
+
+    /// 使用已初始化的本地服务状态启动包含鉴权 API 的 Axum 服务。
+    pub async fn serve_local_with_shutdown<S>(
+        self,
+        local_service: &LocalServiceBootstrap,
+        shutdown: S,
+    ) -> Result<(), ServerStartError>
+    where
+        S: Future<Output = ()> + Send + 'static,
+    {
+        axum::serve(
+            self.listener,
+            crate::build_router_with_local_service(local_service),
+        )
+        .with_graceful_shutdown(shutdown)
+        .await
+        .map_err(ServerStartError::Serve)
     }
 }
 

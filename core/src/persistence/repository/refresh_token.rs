@@ -10,7 +10,7 @@ use sea_orm::{
 
 use crate::persistence::entity::refresh_token;
 
-use super::auth::sqlite_now;
+use super::time::sqlite_now;
 
 /// 创建刷新令牌时写入数据库的安全元数据，明文令牌不进入 SQLite。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,10 +58,18 @@ impl<'db> RefreshTokenRepository<'db> {
         find_active_by_hash_on_connection(self.database, token_hash).await
     }
 
+    /// 按哈希查找令牌记录，包含已吊销令牌，用于识别旧 refresh token 复用。
+    pub(crate) async fn find_by_hash(
+        &self,
+        token_hash: &str,
+    ) -> Result<Option<refresh_token::Model>, DbErr> {
+        find_by_hash_on_connection(self.database, token_hash).await
+    }
+
     /// 吊销当前 active 刷新令牌；不存在或已吊销时返回 false。
     pub(crate) async fn revoke(&self, token_hash: &str) -> Result<bool, DbErr> {
         let txn = self.database.begin().await?;
-        let revoked = revoke_on_transaction(&txn, token_hash).await?;
+        let revoked = revoke_on_transaction(&txn, token_hash, None).await?;
         txn.commit().await?;
 
         Ok(revoked)
@@ -76,9 +84,11 @@ impl<'db> RefreshTokenRepository<'db> {
         // 先吊销旧令牌再创建新令牌，必须放在同一个事务里避免双活令牌。
         let txn = self.database.begin().await?;
         let existing = find_active_by_hash_on_connection(&txn, old_token_hash).await?;
-        let rotated = if existing.is_some() {
-            revoke_on_transaction(&txn, old_token_hash).await?;
-            Some(create_on_connection(&txn, new_token).await?)
+        let rotated = if let Some(old_token) = existing {
+            let created = create_on_connection(&txn, new_token).await?;
+            revoke_on_transaction(&txn, old_token_hash, Some(created.id)).await?;
+            mark_last_used_on_transaction(&txn, old_token.id).await?;
+            Some(created)
         } else {
             None
         };
@@ -106,6 +116,7 @@ where
         expires_at: Set(input.expires_at),
         last_used_at: Set(None),
         revoked_at: Set(None),
+        replaced_by_token_id: Set(None),
         ..Default::default()
     };
     let result = refresh_token::Entity::insert(active_token)
@@ -133,10 +144,25 @@ where
         .await
 }
 
+/// 在指定连接或事务上按哈希查找任意状态令牌。
+async fn find_by_hash_on_connection<C>(
+    connection: &C,
+    token_hash: &str,
+) -> Result<Option<refresh_token::Model>, DbErr>
+where
+    C: ConnectionTrait,
+{
+    refresh_token::Entity::find()
+        .filter(refresh_token::Column::TokenHash.eq(token_hash))
+        .one(connection)
+        .await
+}
+
 /// 在事务内标记刷新令牌为已吊销；调用方负责提交或回滚事务。
 async fn revoke_on_transaction(
     transaction: &DatabaseTransaction,
     token_hash: &str,
+    replaced_by_token_id: Option<i64>,
 ) -> Result<bool, DbErr> {
     // 已吊销或不存在的令牌视为没有状态变更，调用方可据此返回幂等结果。
     let Some(token) = find_active_by_hash_on_connection(transaction, token_hash).await? else {
@@ -145,10 +171,32 @@ async fn revoke_on_transaction(
     let now = sqlite_now(transaction).await?;
     let mut active: refresh_token::ActiveModel = token.into();
     active.revoked_at = Set(Some(now));
+    active.replaced_by_token_id = Set(replaced_by_token_id);
 
     refresh_token::Entity::update(active)
         .exec(transaction)
         .await?;
 
     Ok(true)
+}
+
+/// 在事务内记录令牌最近使用时间；轮换时即使随后吊销，也能保留审计信息。
+async fn mark_last_used_on_transaction(
+    transaction: &DatabaseTransaction,
+    token_id: i64,
+) -> Result<(), DbErr> {
+    let now = sqlite_now(transaction).await?;
+    let Some(token) = refresh_token::Entity::find_by_id(token_id)
+        .one(transaction)
+        .await?
+    else {
+        return Ok(());
+    };
+    let mut active: refresh_token::ActiveModel = token.into();
+    active.last_used_at = Set(Some(now));
+    refresh_token::Entity::update(active)
+        .exec(transaction)
+        .await?;
+
+    Ok(())
 }

@@ -9,19 +9,29 @@
 mod auth;
 mod bootstrap;
 mod persistence;
+mod rbac;
 mod server;
 
-use axum::{Json, Router};
+use axum::{routing::get, routing::post, Json, Router};
 use serde::Serialize;
-use utoipa::OpenApi;
-use utoipa_axum::{router::OpenApiRouter, routes};
+use utoipa::{
+    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+    Modify, OpenApi,
+};
 use utoipa_swagger_ui::SwaggerUi;
+use winestock_shared::{
+    AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthTokenResponse, AuthUserResponse,
+};
 
-pub use auth::{AuthBootstrap, AuthSettings, AuthSigningKey, SigningKeyStatus};
+pub use auth::{
+    AuthApiError, AuthBootstrap, AuthSettings, AuthSigningKey, CurrentUser, SigningKeyStatus,
+};
 pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };
 pub use persistence::{StorageBootstrapError, StorageRuntime};
+pub use rbac::RbacBootstrapError;
 pub use server::{bind_server, BoundServer, ServerStartError};
 pub use winestock_shared as shared;
 
@@ -34,12 +44,48 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 // 这里集中声明接口文档元信息，具体路径由带 #[utoipa::path] 的处理函数收集。
 #[derive(utoipa::OpenApi)]
 #[openapi(
+    paths(
+        health_check,
+        auth::register,
+        auth::login,
+        auth::refresh,
+        auth::logout,
+        auth::me
+    ),
+    components(schemas(
+        HealthResponse,
+        AuthRegisterRequest,
+        AuthLoginRequest,
+        AuthRefreshRequest,
+        AuthLogoutRequest,
+        AuthUserResponse,
+        AuthTokenResponse
+    )),
+    modifiers(&SecurityAddon),
     info(title = "WineStock API", version = "0.1.0"),
     tags(
-        (name = "system", description = "Service status endpoints")
+        (name = "system", description = "Service status endpoints"),
+        (name = "auth", description = "Authentication endpoints")
     )
 )]
 struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.get_or_insert_with(Default::default);
+        components.add_security_scheme(
+            "bearerAuth",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .build(),
+            ),
+        );
+    }
+}
 
 /// 健康检查接口返回体。
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
@@ -53,14 +99,26 @@ pub struct HealthResponse {
 
 /// 构建平台壳共用的 Axum 路由器。
 pub fn build_router() -> Router {
-    let (api_router, openapi) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .routes(routes!(health_check))
-        .split_for_parts();
-
-    // Swagger UI 只服务 API 文档，不承载桌面或 Android 的平台前端资源。
+    // API 文档工具只服务接口说明，不承载桌面或 Android 的平台前端资源。
     Router::new()
-        .merge(api_router)
-        .merge(SwaggerUi::new(SWAGGER_UI_PATH).url(OPENAPI_JSON_PATH, openapi))
+        .route("/api/health", get(health_check))
+        .merge(SwaggerUi::new(SWAGGER_UI_PATH).url(OPENAPI_JSON_PATH, ApiDoc::openapi()))
+}
+
+/// 构建已接入本地存储和鉴权状态的 Axum 路由器。
+pub fn build_router_with_local_service(local_service: &LocalServiceBootstrap) -> Router {
+    let auth_state = auth::AuthRuntime::from_local_service(local_service);
+
+    // 鉴权路由依赖数据库和签名密钥状态，只有本地服务模式才能挂载。
+    Router::new()
+        .route("/api/health", get(health_check))
+        .route("/api/auth/register", post(auth::register))
+        .route("/api/auth/login", post(auth::login))
+        .route("/api/auth/refresh", post(auth::refresh))
+        .route("/api/auth/logout", post(auth::logout))
+        .route("/api/auth/me", get(auth::me))
+        .with_state(auth_state)
+        .merge(SwaggerUi::new(SWAGGER_UI_PATH).url(OPENAPI_JSON_PATH, ApiDoc::openapi()))
 }
 
 #[utoipa::path(

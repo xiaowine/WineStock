@@ -2,6 +2,7 @@
 
 本文档记录当前 SQLite schema 的业务表命名、职责和系统表边界。
 业务实现以 `core/src/persistence/migration/` 中的 SeaORM migration 为准；本文档用于帮助阅读数据库文件时快速区分表的所有权。
+RBAC 角色、权限和授权规则见 [`rbac-permission-model.md`](rbac-permission-model.md)。
 
 ## 命名规则
 
@@ -26,12 +27,18 @@
 
 ### `auth_roles`
 
-角色定义表。保存角色代码、名称和说明。
+角色定义表。保存角色代码、名称和说明。角色是批量授予权限的模板，不是业务授权等级。
 
 重要字段：
 
 - `code`：稳定角色代码，例如后续可用于 `admin` 或 `staff`。
 - `name`：面向管理界面的角色名称。
+
+启动时会补齐内置角色定义，但不会创建任何用户，也不会覆盖已存在角色的名称或说明：
+
+- `admin`：系统管理员角色。
+- `staff`：日常业务操作角色。
+- `viewer`：只读访问角色。
 
 ### `auth_user_role_assignments`
 
@@ -47,16 +54,29 @@
 
 重要字段：
 
-- `code`：稳定权限代码，例如后续可用于 `wine.read` 或 `user.manage`。
+- `code`：稳定权限代码，例如 `stock.read` 或 `user.manage`。
 - `description`：权限说明。
+
+启动时会补齐内置权限定义，但不会覆盖已存在权限的说明：
+
+- `user.register`：注册新用户。
+- `user.manage`：管理用户、角色和权限。
+- `stock.read`：查看库存数据。
+- `stock.write`：创建或修改库存数据。
 
 ### `auth_role_permission_assignments`
 
-角色与权限的分配表。它不是权限定义，而是记录“哪个角色拥有哪些权限”。
+角色与权限的分配表。它不是权限定义，而是记录“哪个角色模板包含哪些权限”。
 
 主键：
 
 - `(role_id, permission_id)`：同一角色不能重复分配同一权限。
+
+内置角色权限关系由启动初始化补齐：
+
+- `admin` 拥有 `user.register`、`user.manage`、`stock.read`、`stock.write`。
+- `staff` 拥有 `stock.read`、`stock.write`。
+- `viewer` 拥有 `stock.read`。
 
 ### `auth_settings`
 
@@ -86,6 +106,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 ### `auth_refresh_tokens`
 
 刷新令牌表。只保存 refresh token 哈希和设备元数据，不保存明文令牌。
+同一用户可以有多条未吊销 refresh token，用于支持多设备同时登录；轮换只影响提交的那一条 token。
 
 重要字段：
 
@@ -93,6 +114,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `token_hash`：刷新令牌哈希，数据库内唯一。
 - `expires_at`：过期时间。
 - `revoked_at`：吊销时间，为空表示当前未吊销。
+- `replaced_by_token_id`：轮换后替代该令牌的新令牌 ID；普通登出吊销时为空。
 
 ### `storage_file_objects`
 
@@ -120,7 +142,7 @@ SQLite 自增序列表。存在 `AUTOINCREMENT` 主键时，SQLite 用它记录�
 
 ## 权限链路
 
-用户权限通过 RBAC 链路计算：
+用户权限通过 RBAC 链路计算。业务授权应判断最终权限代码，而不是把角色当成等级：
 
 ```text
 auth_users
@@ -131,3 +153,4 @@ auth_users
 ```
 
 repository 对外只暴露业务语义，例如按用户查询权限代码；handler 不直接依赖这些表名。
+完整 RBAC 初始化、内置角色权限关系和新增权限流程见 [`rbac-permission-model.md`](rbac-permission-model.md)。

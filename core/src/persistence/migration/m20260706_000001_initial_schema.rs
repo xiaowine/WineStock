@@ -126,6 +126,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         expires_at TEXT NOT NULL,
         last_used_at TEXT,
         revoked_at TEXT,
+        replaced_by_token_id INTEGER,
         FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE
     )
     "#,

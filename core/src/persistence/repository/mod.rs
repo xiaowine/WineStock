@@ -9,9 +9,19 @@ mod file_object;
 mod refresh_token;
 
 #[allow(dead_code)]
+mod rbac;
+
+mod time;
+
+#[allow(dead_code)]
 mod user;
 
 pub(crate) use auth::AuthRepository;
+pub(crate) use rbac::RbacRepository;
+pub(crate) use refresh_token::{CreateRefreshToken, RefreshTokenRepository};
+pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
+pub(crate) use user::CreateUser;
+pub(crate) use user::UserRepository;
 
 #[cfg(test)]
 mod tests {

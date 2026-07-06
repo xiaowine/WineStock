@@ -57,7 +57,7 @@ pub async fn run() -> Result<(), ServerShellError> {
 
     println!("按 Ctrl+C 停止服务。");
     bound
-        .serve_with_shutdown(shutdown_signal())
+        .serve_local_with_shutdown(local, shutdown_signal())
         .await
         .map_err(ServerShellError::Start)?;
     println!("WineStock server 已停止。");

@@ -35,6 +35,9 @@ pub struct Model {
 
     /// 吊销时间；为空表示当前未被吊销。
     pub revoked_at: Option<String>,
+
+    /// 轮换后替代该令牌的新令牌 ID；普通登出吊销时为空。
+    pub replaced_by_token_id: Option<i64>,
 }
 
 /// 刷新令牌与用户的关系先由外键约束表达，轮换事务由仓储层控制。
