@@ -113,20 +113,5 @@ fn format_socket_addr(ip: IpAddr, port: u16) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn access_url_never_uses_unspecified_ipv4_address() {
-        let url = access_url(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 17890)));
-
-        assert_eq!(url, "http://127.0.0.1:17890");
-    }
-
-    #[test]
-    fn explicit_access_url_is_reported_directly() {
-        let url = access_url(SocketAddr::from((Ipv4Addr::new(10, 0, 0, 8), 17890)));
-
-        assert_eq!(url, "http://10.0.0.8:17890");
-    }
-}
+#[path = "tests/lib.rs"]
+mod tests;

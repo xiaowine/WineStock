@@ -50,6 +50,12 @@ core   -> server
 core   -> desktop/android/frontend platform assets
 ```
 
+## 测试布局
+
+单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和 `mod tests;` 声明。
+测试仍作为被测模块的子模块挂载，因此可以访问本模块私有项；物理文件集中存放，避免生产代码文件夹中散落 `tests.rs`。
+当前布局示例：`core/src/tests/auth.rs`、`core/src/tests/persistence_repository.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
+
 ## `shared`
 
 用途：平台无关配置和契约。
@@ -114,7 +120,7 @@ core   -> desktop/android/frontend platform assets
   - `time` 模块提供仓储层共用的 SQLite UTC 时间生成工具，避免具体业务仓储各自拼接时间查询。
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
   - `UserRepository` 只支撑用户创建、按 ID/用户名查找。
-  - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、角色权限分配、角色列表和权限列表查询。
+  - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、角色权限分配、角色权限同步、角色列表和权限列表查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
   - `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
 
@@ -124,17 +130,16 @@ core   -> desktop/android/frontend platform assets
   - 角色只作为批量授予权限的模板，不作为业务授权等级。
   - 先于 JWT signing key 初始化执行，确保 token 签发只消费已经存在的角色/权限快照。
 
-- `core/src/auth.rs`
-  - 定义鉴权启动设置、签名密钥状态、鉴权启动结果、`CurrentUser` extractor 和鉴权 HTTP 错误。
-  - 通过 `AuthRepository` 写入默认鉴权设置，但不覆盖数据库管理的已有值。
-  - 创建或读取当前 active 访问令牌签名密钥。
-  - 判断是否仍需首次管理员初始化。
-  - 使用数据库中的 HS256 active signing key 签发和校验 JWT access token。
-  - 管理类授权会在校验 Bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
-  - 使用 Argon2 校验密码哈希。
-  - 使用高强度随机 opaque refresh token，入库前保存 SHA-256 哈希。
-  - 实现 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/refresh`、`POST /api/auth/logout` 和 `GET /api/auth/me`。
-  - 注册接口在数据库没有用户时免鉴权并把首个用户分配为 `admin`；已有用户后必须由当前拥有 `user.register` 权限的 Bearer token 调用。
+- `core/src/auth/`
+  - `auth/mod.rs` 是鉴权模块入口，组合启动初始化、运行时、HTTP handler、安全工具和测试模块，并对 crate 内外重新导出必要类型。
+  - `auth/bootstrap.rs` 定义鉴权启动设置、签名密钥状态和鉴权启动结果；通过 `AuthRepository` 写入默认鉴权设置但不覆盖数据库管理的已有值，并创建或读取当前 active 访问令牌签名密钥。
+  - `auth/runtime.rs` 定义 `AuthRuntime`、JWT claims 和 `CurrentUser` extractor；使用数据库中的 HS256 active signing key 签发和校验 JWT access token。
+  - `auth/authorization.rs` 定义 Axum route layer 鉴权中间件，普通 API 可在路由注册处声明所需权限；中间件会重新读取数据库当前权限后再放行业务 handler。
+  - `auth/security.rs` 集中处理 Argon2 密码哈希、refresh token 的 SHA-256 哈希、高强度随机文本和 JWT 时间戳。
+  - `auth/error.rs` 定义鉴权 HTTP 错误和响应映射。
+  - `auth/routes.rs` 实现 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/refresh`、`POST /api/auth/logout` 和 `GET /api/auth/me`。
+  - 管理类授权由 route layer 在校验 Bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
+  - 注册接口的特殊鉴权也在 route layer 中处理：数据库没有用户时免鉴权并把首个用户分配为 `admin`；已有用户后必须由当前拥有 `user.register` 权限的 Bearer token 调用。
   - refresh 时在事务中轮换 token；已吊销旧 token 被复用时返回 401。
 
 - `docs/database-schema.md`

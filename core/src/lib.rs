@@ -46,11 +46,11 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 #[openapi(
     paths(
         health_check,
-        auth::register,
-        auth::login,
-        auth::refresh,
-        auth::logout,
-        auth::me
+        auth::routes::register,
+        auth::routes::login,
+        auth::routes::refresh,
+        auth::routes::logout,
+        auth::routes::me
     ),
     components(schemas(
         HealthResponse,
@@ -112,11 +112,22 @@ pub fn build_router_with_local_service(local_service: &LocalServiceBootstrap) ->
     // 鉴权路由依赖数据库和签名密钥状态，只有本地服务模式才能挂载。
     Router::new()
         .route("/api/health", get(health_check))
-        .route("/api/auth/register", post(auth::register))
+        .route(
+            "/api/auth/register",
+            auth::require_permission_when(
+                post(auth::register),
+                auth_state.clone(),
+                auth::REGISTER_USER_PERMISSION,
+                auth::users_exist(),
+            ),
+        )
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/refresh", post(auth::refresh))
         .route("/api/auth/logout", post(auth::logout))
-        .route("/api/auth/me", get(auth::me))
+        .route(
+            "/api/auth/me",
+            auth::require_authenticated(get(auth::me), auth_state.clone()),
+        )
         .with_state(auth_state)
         .merge(SwaggerUi::new(SWAGGER_UI_PATH).url(OPENAPI_JSON_PATH, ApiDoc::openapi()))
 }

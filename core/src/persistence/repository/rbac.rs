@@ -3,7 +3,19 @@
 //! 本模块属于 core 持久化层，封装角色、权限、用户角色分配和角色权限分配。
 //! 用户账号仓储不拥有 RBAC 表结构，鉴权和业务处理函数也不应直接拼接这些关联查询。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, Statement};
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, Statement, TransactionTrait,
+};
+
+/// 同步角色权限时对已有权限关系的处理策略。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RolePermissionSyncMode {
+    /// 保留角色已有权限，只追加本次传入但尚未存在的权限。
+    PreserveExisting,
+
+    /// 先清空角色已有权限，再写入本次传入的权限集合。
+    ReplaceExisting,
+}
 
 /// RBAC 仓储层封装角色和权限定义、分配与查询。
 pub(crate) struct RbacRepository<'db> {
@@ -142,17 +154,36 @@ impl<'db> RbacRepository<'db> {
         role_id: i64,
         permission_id: i64,
     ) -> Result<(), DbErr> {
-        self.database
-            .execute(Statement::from_sql_and_values(
-                DatabaseBackend::Sqlite,
-                r#"
-                INSERT INTO auth_role_permission_assignments (role_id, permission_id)
-                VALUES (?, ?)
-                ON CONFLICT(role_id, permission_id) DO NOTHING
-                "#,
-                [role_id.into(), permission_id.into()],
-            ))
-            .await?;
+        assign_permission_to_role_on_connection(self.database, role_id, permission_id).await?;
+
+        Ok(())
+    }
+
+    /// 同步角色权限；可选择保留旧权限或把角色权限替换为本次传入集合。
+    pub(crate) async fn sync_role_permissions(
+        &self,
+        role_id: i64,
+        permission_ids: &[i64],
+        mode: RolePermissionSyncMode,
+    ) -> Result<(), DbErr> {
+        // 修改角色权限必须在事务中完成，避免管理界面保存时出现短暂的半更新状态。
+        let transaction = self.database.begin().await?;
+
+        if mode == RolePermissionSyncMode::ReplaceExisting {
+            transaction
+                .execute(Statement::from_sql_and_values(
+                    DatabaseBackend::Sqlite,
+                    "DELETE FROM auth_role_permission_assignments WHERE role_id = ?",
+                    [role_id.into()],
+                ))
+                .await?;
+        }
+
+        for permission_id in permission_ids {
+            assign_permission_to_role_on_connection(&transaction, role_id, *permission_id).await?;
+        }
+
+        transaction.commit().await?;
 
         Ok(())
     }
@@ -184,4 +215,28 @@ impl<'db> RbacRepository<'db> {
 
         row.map(|row| row.try_get("", "id")).transpose()
     }
+}
+
+/// 在指定连接或事务上给角色追加权限；已有分配保持不变。
+async fn assign_permission_to_role_on_connection<C>(
+    connection: &C,
+    role_id: i64,
+    permission_id: i64,
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    connection
+        .execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            INSERT INTO auth_role_permission_assignments (role_id, permission_id)
+            VALUES (?, ?)
+            ON CONFLICT(role_id, permission_id) DO NOTHING
+            "#,
+            [role_id.into(), permission_id.into()],
+        ))
+        .await?;
+
+    Ok(())
 }

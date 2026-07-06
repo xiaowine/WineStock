@@ -2,7 +2,7 @@
 
 本文档定义 WineStock 当前 RBAC 模型、启动初始化行为和业务授权规则。
 
-实现以 `core/src/rbac.rs`、`core/src/auth.rs`、`core/src/persistence/repository/rbac.rs` 和数据库 migration 为准。
+实现以 `core/src/rbac.rs`、`core/src/auth/mod.rs`、`core/src/persistence/repository/rbac.rs` 和数据库 migration 为准。
 
 ## 核心规则
 
@@ -26,11 +26,12 @@
 - 补齐角色、权限和分配关系。
 - 隔离 RBAC 表结构，避免 handler 直接拼接关联查询。
 
-`core/src/auth.rs` 负责：
+`core/src/auth/` 负责：
 
 - 登录、注册、刷新、登出和当前用户接口。
 - JWT access token 签发和校验。
-- 在需要授权的业务入口检查权限代码。
+- 通过 Axum route layer 在业务 handler 之前检查权限代码。
+- 提供条件鉴权封装，条件满足时要求指定权限，条件不满足时直接放行。
 
 `shared` 只定义 API 契约中的 `roles` 和 `permissions` 字段，不拥有 RBAC 规则。
 
@@ -110,13 +111,15 @@ RBAC 初始化是幂等的：
 
 当数据库已经存在用户后，注册新用户必须由当前拥有 `user.register` 权限的 Bearer token 调用。
 
+这个规则不是注册接口专用的硬编码分支。路由注册处使用条件鉴权组合“数据库已有用户”条件和 `user.register` 权限；后续如果条件变化，只需要替换条件函数或权限代码。
+
 ## JWT 与当前授权
 
 登录和刷新时，access token 会携带签发时的 `roles` 和 `permissions` 快照。响应体也会返回当前用户的角色和权限列表，便于客户端展示。
 
-需要当前授权状态的管理接口不能只依赖 JWT 快照。它应在校验 Bearer token 后重新读取数据库中的当前权限，再判断具体权限代码。
+需要当前授权状态的管理接口不能只依赖 JWT 快照。它应通过鉴权 middleware 在校验 Bearer token 后重新读取数据库中的当前权限，再判断具体权限代码。
 
-当前注册接口已经按这个规则实现：已有用户后注册新用户会重新查询数据库当前权限，撤销用户角色后，旧 token 不能继续注册用户。
+当前注册接口已经按这个规则实现：已有用户后注册新用户会在 route layer 重新查询数据库当前权限，撤销用户角色后，旧 token 不能继续注册用户。
 
 ## 新增受保护能力
 
@@ -125,9 +128,10 @@ RBAC 初始化是幂等的：
 1. 定义稳定权限代码，命名使用 `domain.action` 形式，例如 `stock.write`。
 2. 在 `core/src/rbac.rs` 的内置权限中补齐权限说明。
 3. 把权限分配给合适的内置角色模板。
-4. 在 handler 或服务层检查权限代码，不检查角色代码。
-5. 对需要立即响应授权变更的管理能力，校验 token 后重新读取数据库当前权限。
-6. 更新 OpenAPI、数据库文档和测试。
+4. 在路由注册处挂载权限 middleware，不在 handler 中判断角色或权限代码。
+5. 如果权限要求取决于运行时条件，复用条件鉴权封装，把条件函数和权限代码作为路由参数组合。
+6. 对需要立即响应授权变更的管理能力，校验 token 后重新读取数据库当前权限。
+7. 更新 OpenAPI、数据库文档和测试。
 
 ## 禁止做法
 

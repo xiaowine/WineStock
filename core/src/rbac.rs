@@ -7,7 +7,7 @@ use std::{error::Error, fmt};
 
 use sea_orm::{DatabaseConnection, DbErr};
 
-use crate::persistence::repository::RbacRepository;
+use crate::persistence::repository::{RbacRepository, RolePermissionSyncMode};
 
 /// 内置管理员角色代码，用于首次用户分配；业务授权仍应判断权限代码。
 pub(crate) const ADMIN_ROLE_CODE: &str = "admin";
@@ -133,11 +133,17 @@ pub(crate) async fn bootstrap_builtin_rbac(
 
     for (role_code, permission_codes) in BUILTIN_ROLE_PERMISSIONS {
         let role_id = rbac.ensure_role(role_code, role_code, None).await?;
+        let mut permission_ids = Vec::with_capacity(permission_codes.len());
         for permission_code in *permission_codes {
             let permission_id = rbac.ensure_permission(permission_code, None).await?;
-            rbac.assign_permission_to_role(role_id, permission_id)
-                .await?;
+            permission_ids.push(permission_id);
         }
+        rbac.sync_role_permissions(
+            role_id,
+            &permission_ids,
+            RolePermissionSyncMode::PreserveExisting,
+        )
+        .await?;
     }
 
     Ok(())
