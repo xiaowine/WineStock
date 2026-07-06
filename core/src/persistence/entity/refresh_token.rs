@@ -1,8 +1,12 @@
+//! `auth_refresh_tokens` 表的 SeaORM Entity。
+//!
+//! 该表只保存刷新令牌哈希和设备元数据。明文令牌、签发流程和轮换事务属于鉴权服务或 repository。
+
 use sea_orm::entity::prelude::*;
 
 /// 刷新令牌表，保存哈希、设备信息、过期时间和吊销状态。
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "refresh_tokens")]
+#[sea_orm(table_name = "auth_refresh_tokens")]
 pub struct Model {
     #[sea_orm(primary_key)]
     /// 数据库自增主键，用于内部定位令牌记录。

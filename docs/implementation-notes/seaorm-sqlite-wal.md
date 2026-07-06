@@ -133,15 +133,15 @@ core/src/persistence/
 首版 migration 至少创建：
 
 ```text
-users
-roles
-user_roles
-permissions
-role_permissions
+auth_users
+auth_roles
+auth_user_role_assignments
+auth_permissions
+auth_role_permission_assignments
 auth_settings
 auth_signing_keys
-refresh_tokens
-file_objects
+auth_refresh_tokens
+storage_file_objects
 ```
 
 `auth_settings` 表用于保存鉴权策略，不放入 JSON 配置：
@@ -165,7 +165,7 @@ activated_at
 retired_at
 ```
 
-`refresh_tokens` 表用于衔接 JWT 方案：
+`auth_refresh_tokens` 表用于衔接 JWT 方案：
 
 ```text
 id
@@ -179,7 +179,7 @@ last_used_at
 revoked_at
 ```
 
-`file_objects` 表只保存文件元数据：
+`storage_file_objects` 表只保存文件元数据：
 
 ```text
 id

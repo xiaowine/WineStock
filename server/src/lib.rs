@@ -1,5 +1,11 @@
 #![forbid(unsafe_code)]
 
+//! WineStock 无头服务端 shell 的生命周期编排。
+//!
+//! 本模块属于 `server shell` 层，负责固定配置文件定位、调用 core 初始化、
+//! 启动共享 Axum 服务、打印控制台状态和处理 Ctrl+C 关闭。
+//! 它不拥有 API 路由、业务逻辑、桌面/Android UI 或前端打包产物。
+
 mod config;
 mod error;
 
@@ -9,6 +15,10 @@ use winestock_core::{bind_server, bootstrap_from_config, OPENAPI_JSON_PATH, SWAG
 
 pub use error::ServerShellError;
 
+/// 启动无头服务端 shell。
+///
+/// 配置文件固定为当前可执行文件同目录下的 `data/config.json`。
+/// 本函数会创建缺失配置、准备存储目录、初始化 core、绑定 Axum，并阻塞直到收到关闭信号。
 pub async fn run() -> Result<(), ServerShellError> {
     let config_path = config::fixed_config_path()?;
     let loaded_config = config::load_config(&config_path)?;
@@ -31,7 +41,7 @@ pub async fn run() -> Result<(), ServerShellError> {
     println!("数据库: {}", local.storage.database_path.display());
     println!("文件目录: {}", local.storage.files_dir.display());
     if local.auth.admin_setup_required {
-        println!("首次管理员尚未初始化；请通过后续 setup 流程创建管理员。");
+        println!("首次管理员尚未初始化；管理员创建流程尚未实现。");
     }
 
     let bound = bind_server(&config.server)
@@ -62,6 +72,9 @@ async fn shutdown_signal() {
     }
 }
 
+/// 生成控制台中的监听地址文本。
+///
+/// `0.0.0.0` 和 `::` 是绑定语义，不是可打开 URL，因此这里转换成“所有接口”的说明文本。
 fn display_bind_addr(bound_addr: SocketAddr) -> String {
     let port = bound_addr.port();
     match bound_addr.ip() {
@@ -71,6 +84,9 @@ fn display_bind_addr(bound_addr: SocketAddr) -> String {
     }
 }
 
+/// 生成本机可打开的访问 URL。
+///
+/// 当服务绑定到所有接口时，只给出 loopback URL，避免把 `0.0.0.0` 展示成浏览器地址。
 fn access_url(bound_addr: SocketAddr) -> String {
     let port = bound_addr.port();
     let ip = match bound_addr.ip() {

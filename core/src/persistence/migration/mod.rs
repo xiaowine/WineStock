@@ -1,3 +1,8 @@
+//! SeaORM migration 注册入口。
+//!
+//! 本模块属于 core 持久化层，只声明内置 migration 列表。
+//! 是否执行 migration 由平台传入的 `StorageConfig.auto_migrate` 决定。
+
 mod m20260706_000001_initial_schema;
 
 use sea_orm_migration::prelude::*;

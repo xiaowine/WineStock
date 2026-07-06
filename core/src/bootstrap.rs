@@ -1,3 +1,8 @@
+//! core 启动编排入口。
+//!
+//! 本模块属于 `core axum library` 层，负责根据平台壳传入的共享配置准备本地服务依赖。
+//! 它不查找配置文件、不创建平台目录，也不处理服务端进程生命周期。
+
 use std::{error::Error, fmt};
 
 use winestock_shared::AppConfig;

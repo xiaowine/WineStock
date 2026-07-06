@@ -1,3 +1,7 @@
+//! `auth_signing_keys` 表的 SeaORM Entity。
+//!
+//! 该表保存 JWT access token 签名密钥。字段映射在这里，active 密钥唯一性和状态约束由 migration 建立。
+
 use sea_orm::entity::prelude::*;
 
 /// JWT 访问令牌签名密钥表，每次启动复用当前启用密钥。

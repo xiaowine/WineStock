@@ -173,7 +173,7 @@ mod tests {
             .execute(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"
-                INSERT INTO users (username, password_hash, status, created_at, updated_at)
+                INSERT INTO auth_users (username, password_hash, status, created_at, updated_at)
                 VALUES ('writer', 'password-hash', 'active',
                     strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
                     strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -184,7 +184,7 @@ mod tests {
             .expect("uncommitted write should succeed");
 
         let visible_count =
-            query_i64(storage, "SELECT COUNT(*) AS count FROM users", "count").await;
+            query_i64(storage, "SELECT COUNT(*) AS count FROM auth_users", "count").await;
 
         assert_eq!(visible_count, 1);
         transaction

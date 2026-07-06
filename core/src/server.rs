@@ -1,3 +1,8 @@
+//! core 的 Axum 网络绑定和服务运行封装。
+//!
+//! 本模块只负责把共享 `ServerConfig` 转换成已绑定的 TCP listener，
+//! 并提供带关闭信号的 Axum serve 入口。用户可见 URL 展示和进程生命周期属于平台 shell。
+
 use std::{
     error::Error,
     fmt,
@@ -37,16 +42,31 @@ impl BoundServer {
 /// Axum 服务绑定或运行失败。
 #[derive(Debug)]
 pub enum ServerStartError {
+    /// 当前运行模式不需要本地 Axum 服务，不能执行绑定。
     LocalServiceUnavailable,
+
+    /// `server.bind_host` 不是合法 IP 地址。
     InvalidBindHost {
+        /// 配置中的原始绑定地址。
         host: String,
+
+        /// IP 解析失败原因。
         source: AddrParseError,
     },
+
+    /// TCP listener 绑定失败，通常是端口占用或权限问题。
     Bind {
+        /// 绑定失败的目标地址。
         addr: SocketAddr,
+
+        /// 底层 IO 错误。
         source: io::Error,
     },
+
+    /// 绑定成功后读取实际监听地址失败。
     LocalAddr(io::Error),
+
+    /// Axum 服务运行过程中返回错误。
     Serve(io::Error),
 }
 

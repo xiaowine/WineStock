@@ -1,3 +1,8 @@
+//! server shell 的配置文件定位、读取和运行前目录准备。
+//!
+//! 本模块属于 `server shell` 层，固定使用当前可执行文件同目录下的 `data/config.json`。
+//! 它负责把配置中的相对存储路径解析到该 `data` 目录，但不决定 core 的业务配置含义。
+
 use std::{
     env, fs, io,
     path::{Path, PathBuf},
@@ -7,9 +12,11 @@ use winestock_shared::{AppConfig, StorageConfig};
 
 use crate::error::ServerShellError;
 
+// 服务端 shell 固定把配置放在可执行文件同级 data 目录，避免依赖启动工作目录。
 const CONFIG_DATA_DIR: &str = "data";
 const CONFIG_FILE_NAME: &str = "config.json";
 
+/// 服务端 shell 完成配置读取后的结果。
 pub(crate) struct LoadedConfig {
     /// 已解析并完成相对路径补齐的启动配置。
     pub config: AppConfig,
@@ -26,6 +33,7 @@ pub(crate) fn fixed_config_path() -> Result<PathBuf, ServerShellError> {
     config_path_from_exe_path(&exe_path)
 }
 
+/// 从可执行文件路径推导固定配置文件路径，不读取或创建文件。
 fn config_path_from_exe_path(exe_path: &Path) -> Result<PathBuf, ServerShellError> {
     let exe_dir = exe_path
         .parent()
@@ -65,6 +73,7 @@ pub(crate) fn load_config(config_path: &Path) -> Result<LoadedConfig, ServerShel
     })
 }
 
+/// 缺失配置文件时写入共享默认配置；已有配置不会进入这个函数。
 fn create_default_config_file(config_path: &Path) -> Result<AppConfig, ServerShellError> {
     if let Some(parent) = config_path
         .parent()
@@ -76,7 +85,10 @@ fn create_default_config_file(config_path: &Path) -> Result<AppConfig, ServerShe
         })?;
     }
 
-    let config = AppConfig::default();
+    let mut config = AppConfig::default();
+    // 配置文件已经位于 data/ 目录内，写入文件的默认存储路径要相对这个目录。
+    config.storage.database_path = "winestock.sqlite".to_owned();
+    config.storage.files_dir = "files".to_owned();
     let mut content = config.to_json_string_pretty().map_err(|source| {
         ServerShellError::SerializeDefaultConfig {
             path: config_path.to_path_buf(),
@@ -107,7 +119,9 @@ pub(crate) fn ensure_server_runtime(config: &AppConfig) -> Result<(), ServerShel
     Ok(())
 }
 
+/// 把 JSON 中的相对存储路径解析到配置文件所在目录，传给 core 时必须是可用路径。
 fn resolve_storage_paths(config: &mut AppConfig, config_path: &Path) {
+    // 配置文件固定在 data/config.json，因此默认相对路径会落在同一个 data 目录中。
     let base_dir = config_path
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
@@ -120,6 +134,7 @@ fn resolve_storage_paths(config: &mut AppConfig, config_path: &Path) {
         .into_owned();
 }
 
+/// 解析单个配置路径值；绝对路径保持不变，相对路径以配置目录为基准。
 fn resolve_path(base_dir: &Path, value: &str) -> PathBuf {
     let path = PathBuf::from(value.trim());
     if path.is_absolute() {
@@ -143,6 +158,7 @@ pub(crate) fn prepare_storage_dirs(storage: &StorageConfig) -> Result<(), Server
     Ok(())
 }
 
+/// 创建平台壳负责的运行时目录，并把失败路径保留到错误链中。
 fn create_dir_all(path: &Path) -> Result<(), ServerShellError> {
     fs::create_dir_all(path).map_err(|source| ServerShellError::PrepareStorage {
         path: path.to_path_buf(),
@@ -202,7 +218,7 @@ mod tests {
     #[test]
     fn creates_default_json_config_when_missing() {
         let temp = tempdir().expect("temp dir should exist");
-        let config_path = temp.path().join("missing").join("config.json");
+        let config_path = temp.path().join("bin").join("data").join("config.json");
 
         let loaded = load_config(&config_path).expect("missing config should be created");
 
@@ -211,11 +227,14 @@ mod tests {
         assert_eq!(loaded.config.server, ServerConfig::default());
         assert_eq!(
             PathBuf::from(&loaded.config.storage.database_path),
-            temp.path().join("missing").join("winestock.sqlite")
+            temp.path()
+                .join("bin")
+                .join("data")
+                .join("winestock.sqlite")
         );
         assert_eq!(
             PathBuf::from(&loaded.config.storage.files_dir),
-            temp.path().join("missing").join("files")
+            temp.path().join("bin").join("data").join("files")
         );
 
         let file_content =

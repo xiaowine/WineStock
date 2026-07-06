@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 
 //! WineStock 共享 Rust/Axum 服务核心。
+//!
+//! 本 crate 属于 `core axum library` 层，拥有 API 路由、OpenAPI 文档、网络绑定、
+//! 本地服务启动依赖、鉴权初始化和持久化集成。
+//! 它不拥有 server 进程生命周期、桌面/Android shell、WebView 或前端打包产物。
 
 mod auth;
 mod bootstrap;
@@ -67,6 +71,7 @@ pub fn build_router() -> Router {
         (status = 200, description = "Service is healthy", body = HealthResponse)
     )
 )]
+/// 返回平台壳和外部监控可调用的最小健康检查响应。
 async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".to_owned(),

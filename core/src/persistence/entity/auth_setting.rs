@@ -1,3 +1,8 @@
+//! `auth_settings` 表的 SeaORM Entity。
+//!
+//! 该表保存数据库托管的鉴权配置。JSON 启动配置不承载 token TTL、
+//! refresh token 轮换或签名密钥等安全相关运行时设置。
+
 use sea_orm::entity::prelude::*;
 
 /// 鉴权策略键值表，保存 token TTL、refresh token 轮换等数据库托管设置。

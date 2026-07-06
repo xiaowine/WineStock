@@ -1,3 +1,8 @@
+//! 刷新令牌 repository。
+//!
+//! 本模块属于 core 持久化层，封装 refresh token 的创建、查询、吊销和轮换事务。
+//! 明文令牌不进入本模块，调用方只能传入哈希和设备元数据。
+
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction, DbErr, EntityTrait,
     QueryFilter, Set, TransactionTrait,
@@ -83,6 +88,7 @@ impl<'db> RefreshTokenRepository<'db> {
     }
 }
 
+/// 在指定连接或事务上创建刷新令牌记录，供普通创建和轮换事务复用。
 async fn create_on_connection<C>(
     connection: &C,
     input: CreateRefreshToken,
@@ -112,6 +118,7 @@ where
         .ok_or_else(|| DbErr::RecordNotFound("created refresh token".to_owned()))
 }
 
+/// 在指定连接或事务上查找未吊销令牌，轮换前必须用同一事务视图读取。
 async fn find_active_by_hash_on_connection<C>(
     connection: &C,
     token_hash: &str,
@@ -126,6 +133,7 @@ where
         .await
 }
 
+/// 在事务内标记刷新令牌为已吊销；调用方负责提交或回滚事务。
 async fn revoke_on_transaction(
     transaction: &DatabaseTransaction,
     token_hash: &str,

@@ -1,3 +1,8 @@
+//! server shell 的错误类型。
+//!
+//! 本模块只描述无头服务端壳自己的启动、配置、目录准备和 core 调用错误。
+//! core 内部的绑定、迁移和鉴权错误通过 source 链保留，不在这里重新解释业务细节。
+
 use std::{error::Error, fmt, io, path::PathBuf};
 
 use winestock_core::{CoreBootstrapError, ServerStartError};

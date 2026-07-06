@@ -1,3 +1,8 @@
+//! 用户 repository。
+//!
+//! 本模块属于 core 持久化层，封装用户创建、用户查询和 RBAC 权限读取。
+//! HTTP handler 和鉴权流程不应直接拼接用户、角色、权限关联表查询。
+
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
 };
@@ -75,12 +80,14 @@ impl<'db> UserRepository<'db> {
             .query_all(sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Sqlite,
                 r#"
-                SELECT DISTINCT permissions.code AS code
-                FROM permissions
-                INNER JOIN role_permissions ON role_permissions.permission_id = permissions.id
-                INNER JOIN user_roles ON user_roles.role_id = role_permissions.role_id
-                WHERE user_roles.user_id = ?
-                ORDER BY permissions.code
+                SELECT DISTINCT auth_permissions.code AS code
+                FROM auth_permissions
+                INNER JOIN auth_role_permission_assignments
+                    ON auth_role_permission_assignments.permission_id = auth_permissions.id
+                INNER JOIN auth_user_role_assignments
+                    ON auth_user_role_assignments.role_id = auth_role_permission_assignments.role_id
+                WHERE auth_user_role_assignments.user_id = ?
+                ORDER BY auth_permissions.code
                 "#,
                 [user_id.into()],
             ))

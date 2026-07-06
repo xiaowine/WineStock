@@ -1,3 +1,9 @@
+//! core 的鉴权启动状态初始化。
+//!
+//! 本模块属于 `core axum library` 层，负责读取数据库托管的鉴权设置、
+//! 准备 JWT access token 签名密钥，并判断是否需要首次管理员初始化。
+//! 它不处理 HTTP 登录接口、密码哈希算法选择或平台交互流程。
+
 use std::{error::Error, fmt};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
@@ -157,17 +163,25 @@ impl From<getrandom::Error> for AuthBootstrapError {
     }
 }
 
+// 以下常量是数据库托管的鉴权设置键，不属于平台 JSON 启动配置。
 const ACCESS_TOKEN_TTL_SECONDS: &str = "access_token_ttl_seconds";
 const REFRESH_TOKEN_TTL_SECONDS: &str = "refresh_token_ttl_seconds";
 const REFRESH_TOKEN_ROTATION: &str = "refresh_token_rotation";
+
+// 当前仅生成对称签名密钥；若以后支持非对称算法，需要同步调整密钥材料存储语义。
 const SIGNING_ALGORITHM: &str = "HS256";
 
+// 缺省鉴权设置只用于补齐空库，不能覆盖数据库中已有的管理员配置。
 const DEFAULT_AUTH_SETTINGS: [(&str, &str); 3] = [
     (ACCESS_TOKEN_TTL_SECONDS, "900"),
     (REFRESH_TOKEN_TTL_SECONDS, "604800"),
     (REFRESH_TOKEN_ROTATION, "true"),
 ];
 
+/// 初始化本地服务的鉴权运行时状态。
+///
+/// 默认设置只在数据库缺失时插入，已有数据库值必须保留。
+/// JWT 签名密钥也由数据库托管，缺少 active 密钥时才创建新密钥。
 pub(crate) async fn bootstrap_auth(
     database: &DatabaseConnection,
 ) -> Result<AuthBootstrap, AuthBootstrapError> {
@@ -177,8 +191,8 @@ pub(crate) async fn bootstrap_auth(
     repository
         .insert_default_settings(&DEFAULT_AUTH_SETTINGS)
         .await?;
-    let settings = read_auth_settings(&repository).await?;
-    let active_signing_key = match repository.active_signing_key().await? {
+    let settings = load_auth_settings(&repository).await?;
+    let active_signing_key = match repository.find_active_signing_key().await? {
         Some(key) => key,
         None => create_active_signing_key(&repository).await?,
     };
@@ -192,21 +206,23 @@ pub(crate) async fn bootstrap_auth(
     })
 }
 
-async fn read_auth_settings(
+/// 从数据库加载完整鉴权策略，并把字符串设置解析成运行时类型。
+async fn load_auth_settings(
     repository: &AuthRepository<'_>,
 ) -> Result<AuthSettings, AuthBootstrapError> {
     Ok(AuthSettings {
-        access_token_ttl_seconds: read_u64_setting(repository, ACCESS_TOKEN_TTL_SECONDS).await?,
-        refresh_token_ttl_seconds: read_u64_setting(repository, REFRESH_TOKEN_TTL_SECONDS).await?,
-        refresh_token_rotation: read_bool_setting(repository, REFRESH_TOKEN_ROTATION).await?,
+        access_token_ttl_seconds: parse_u64_setting(repository, ACCESS_TOKEN_TTL_SECONDS).await?,
+        refresh_token_ttl_seconds: parse_u64_setting(repository, REFRESH_TOKEN_TTL_SECONDS).await?,
+        refresh_token_rotation: parse_bool_setting(repository, REFRESH_TOKEN_ROTATION).await?,
     })
 }
 
-async fn read_u64_setting(
+/// 读取秒数类鉴权设置；格式错误会阻止本地服务完成鉴权初始化。
+async fn parse_u64_setting(
     repository: &AuthRepository<'_>,
     key: &'static str,
 ) -> Result<u64, AuthBootstrapError> {
-    let value = read_setting(repository, key).await?;
+    let value = require_setting(repository, key).await?;
     value
         .parse()
         .map_err(|_| AuthBootstrapError::InvalidSetting {
@@ -216,11 +232,12 @@ async fn read_u64_setting(
         })
 }
 
-async fn read_bool_setting(
+/// 读取布尔类鉴权设置；数据库中只接受明确的 true/false 文本。
+async fn parse_bool_setting(
     repository: &AuthRepository<'_>,
     key: &'static str,
 ) -> Result<bool, AuthBootstrapError> {
-    let value = read_setting(repository, key).await?;
+    let value = require_setting(repository, key).await?;
 
     match value.as_str() {
         "true" => Ok(true),
@@ -233,19 +250,22 @@ async fn read_bool_setting(
     }
 }
 
-async fn read_setting(
+/// 读取必需的鉴权设置原始字符串；缺失表示 migration 或默认初始化没有成功。
+async fn require_setting(
     repository: &AuthRepository<'_>,
     key: &'static str,
 ) -> Result<String, AuthBootstrapError> {
     repository
-        .setting_value(key)
+        .get_setting_value(key)
         .await?
         .ok_or(AuthBootstrapError::MissingSetting { key })
 }
 
+/// 创建首个 active 签名密钥；调用方只应在数据库不存在 active 密钥时使用。
 async fn create_active_signing_key(
     repository: &AuthRepository<'_>,
 ) -> Result<auth_signing_key::Model, AuthBootstrapError> {
+    // key_id 用于 JWT header 识别密钥，key_material 是真正签名材料，二者都由安全随机数生成。
     let key_id = format!("ak_{}", random_urlsafe(16)?);
     let key_material = random_urlsafe(32)?;
 
@@ -255,7 +275,9 @@ async fn create_active_signing_key(
         .map_err(AuthBootstrapError::Database)
 }
 
+/// 把数据库模型转换成鉴权启动快照，并隔离数据库字段表示和运行时枚举。
 fn signing_key_from_model(model: auth_signing_key::Model) -> AuthSigningKey {
+    // 数据库 CHECK 约束已经限制状态值；未知值兜底为 retired，避免误当 active 使用。
     let status = match model.status.as_str() {
         "active" => SigningKeyStatus::Active,
         "retired" => SigningKeyStatus::Retired,
@@ -274,7 +296,9 @@ fn signing_key_from_model(model: auth_signing_key::Model) -> AuthSigningKey {
     }
 }
 
+/// 生成 URL-safe base64 随机文本，用于 JWT `kid` 和 HS256 对称签名密钥。
 fn random_urlsafe(length: usize) -> Result<String, getrandom::Error> {
+    // 使用 URL-safe base64，便于 key_id 和密钥材料进入 JSON/JWT 相关文本格式。
     let mut bytes = vec![0_u8; length];
     getrandom::fill(&mut bytes)?;
     Ok(URL_SAFE_NO_PAD.encode(bytes))

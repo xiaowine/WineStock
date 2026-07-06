@@ -1,9 +1,14 @@
+//! 鉴权 repository。
+//!
+//! 本模块属于 core 持久化层，封装鉴权设置、签名密钥和首次管理员判断所需查询。
+//! 调用方不需要知道 `auth_settings`、`auth_signing_keys` 和 `auth_users` 的具体查询细节。
+
 use sea_orm::{
     sea_query::OnConflict, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
-    DbErr, EntityTrait, QueryFilter, QueryOrder, Set, Statement,
+    DbErr, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set, Statement,
 };
 
-use crate::persistence::entity::{auth_setting, auth_signing_key};
+use crate::persistence::entity::{auth_setting, auth_signing_key, user};
 
 /// 鉴权启动使用的 repository，负责数据库托管设置和签名密钥读取。
 pub(crate) struct AuthRepository<'db> {
@@ -47,7 +52,7 @@ impl<'db> AuthRepository<'db> {
     }
 
     /// 读取单个鉴权设置的字符串值。
-    pub(crate) async fn setting_value(&self, key: &str) -> Result<Option<String>, DbErr> {
+    pub(crate) async fn get_setting_value(&self, key: &str) -> Result<Option<String>, DbErr> {
         Ok(auth_setting::Entity::find_by_id(key.to_owned())
             .one(self.database)
             .await?
@@ -55,7 +60,7 @@ impl<'db> AuthRepository<'db> {
     }
 
     /// 读取当前 active 签名密钥。
-    pub(crate) async fn active_signing_key(
+    pub(crate) async fn find_active_signing_key(
         &self,
     ) -> Result<Option<auth_signing_key::Model>, DbErr> {
         auth_signing_key::Entity::find()
@@ -97,18 +102,8 @@ impl<'db> AuthRepository<'db> {
 
     /// 判断是否已经存在任何用户，用于首次管理员初始化判断。
     pub(crate) async fn has_any_user(&self) -> Result<bool, DbErr> {
-        // v1 schema 总是包含 users 表，首次管理员判断只需要检查是否已有用户。
-        let row = self
-            .database
-            .query_one(Statement::from_string(
-                DatabaseBackend::Sqlite,
-                "SELECT EXISTS(SELECT 1 FROM users LIMIT 1) AS has_user".to_owned(),
-            ))
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("users existence query".to_owned()))?;
-        let has_user: i64 = row.try_get("", "has_user")?;
-
-        Ok(has_user != 0)
+        // v1 schema 总是包含 auth_users 表，首次管理员判断只需要检查是否已有用户。
+        user::Entity::find().exists(self.database).await
     }
 }
 

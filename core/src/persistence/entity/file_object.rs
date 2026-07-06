@@ -1,8 +1,12 @@
+//! `storage_file_objects` 表的 SeaORM Entity。
+//!
+//! 该表只映射文件元数据。文件二进制内容属于平台提供的 `files/` 目录，不进入 SQLite。
+
 use sea_orm::entity::prelude::*;
 
 /// 文件对象元数据表，不保存文件二进制内容。
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "file_objects")]
+#[sea_orm(table_name = "storage_file_objects")]
 pub struct Model {
     #[sea_orm(primary_key)]
     /// 数据库自增主键，用于后续 API 引用文件元数据。

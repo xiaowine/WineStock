@@ -1,5 +1,10 @@
 #![forbid(unsafe_code)]
 
+//! WineStock 无头服务端 shell 的二进制入口。
+//!
+//! 本文件只负责启动异步运行时、调用 `winestock_server::run`，并把错误链打印到 stderr。
+//! 配置定位、存储目录准备和 Axum 生命周期编排都在 server shell 库代码中完成。
+
 use std::error::Error;
 
 #[tokio::main]

@@ -1,6 +1,9 @@
 #![forbid(unsafe_code)]
 
 //! WineStock 平台无关配置、契约和通用类型。
+//!
+//! 本 crate 属于 `shared` 层，供 core、server shell 和未来平台 shell 共同使用。
+//! 它只定义配置形状和平台无关枚举，不依赖 Axum、数据库、Tauri、Android 或前端产物。
 
 use serde::{Deserialize, Serialize};
 

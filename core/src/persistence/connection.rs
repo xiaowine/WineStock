@@ -1,3 +1,8 @@
+//! SQLite 连接、PRAGMA 配置和 migration 执行入口。
+//!
+//! 本模块属于 `core` 的持久化层，负责把平台壳解析好的 `StorageConfig`
+//! 转换成 SeaORM 连接和运行时路径信息。目录创建属于平台壳，不在这里做。
+
 use std::{
     error::Error,
     fmt,
@@ -143,6 +148,7 @@ pub(crate) async fn migrate_storage_schema(
         })
 }
 
+/// 打开 SQLite 连接池，并为连接池中的每条连接设置一致的 PRAGMA。
 async fn connect_sqlite(database_path: &Path) -> Result<DatabaseConnection, StorageBootstrapError> {
     // PRAGMA 放在连接选项里，确保连接池中新建的每条 SQLite 连接都继承同一运行策略。
     let options = SqliteConnectOptions::new()
@@ -191,10 +197,12 @@ async fn configure_sqlite(
     Ok(())
 }
 
+/// 将共享配置中的路径字符串裁剪空白后转成 PathBuf，不在 core 内补相对路径。
 fn path_from_config_value(value: &str) -> PathBuf {
     PathBuf::from(value.trim())
 }
 
+/// 返回需要由平台壳预先创建的父目录；裸文件名不做目录存在性检查。
 fn meaningful_parent(path: &Path) -> Option<&Path> {
     // 相对裸文件名没有可校验父目录，交给 SQLite 在当前工作目录创建文件。
     path.parent()
@@ -261,15 +269,15 @@ mod tests {
             .expect("second migration should be idempotent");
 
         for table in [
-            "users",
-            "roles",
-            "user_roles",
-            "permissions",
-            "role_permissions",
+            "auth_users",
+            "auth_roles",
+            "auth_user_role_assignments",
+            "auth_permissions",
+            "auth_role_permission_assignments",
             "auth_settings",
             "auth_signing_keys",
-            "refresh_tokens",
-            "file_objects",
+            "auth_refresh_tokens",
+            "storage_file_objects",
         ] {
             let sql = format!(
                 "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = '{table}'"

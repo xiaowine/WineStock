@@ -25,7 +25,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `AGENTS.md`：agent 的简短操作指南。
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
-- `docs/`：架构、网络、平台、项目结构、检查清单、实现笔记和本代码地图。
+- `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实现笔记和本代码地图。
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关配置、契约和通用类型。
 - `server/`：运行共享服务的无头服务端 shell。
@@ -98,7 +98,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/migration/`
   - 定义 SeaORM `Migrator`。
-  - 首版 migration 创建 `users`、`roles`、`user_roles`、`permissions`、`role_permissions`、`auth_settings`、`auth_signing_keys`、`refresh_tokens` 和 `file_objects`。
+  - 首版 migration 创建 `auth_users`、`auth_roles`、`auth_user_role_assignments`、`auth_permissions`、`auth_role_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens` 和 `storage_file_objects`。
   - 为 refresh token、文件 hash、文件 owner/created_at 和 active signing key 建立索引或约束。
 
 - `core/src/persistence/entity/`
@@ -117,6 +117,10 @@ core   -> desktop/android/frontend platform assets
   - 通过 `AuthRepository` 写入默认鉴权设置，但不覆盖数据库管理的已有值。
   - 创建或读取当前 active 访问令牌签名密钥。
   - 判断是否仍需首次管理员初始化。
+
+- `docs/database-schema.md`
+  - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。
+  - 说明业务表的 `auth_`、`storage_` 前缀，避免把 SQLite 或 SeaORM 系统表误读为业务表。
 
 ## `server`
 
