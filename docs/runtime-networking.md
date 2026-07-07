@@ -149,7 +149,6 @@ It initializes core, binds to `server.bind_host` and `server.port`, and prints t
 It exposes:
 
 ```text
-/api/health
 /api-docs/openapi.json
 /swagger-ui
 ```

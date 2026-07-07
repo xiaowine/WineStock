@@ -18,13 +18,19 @@ pub(crate) enum RolePermissionSyncMode {
 }
 
 /// RBAC 仓储层封装角色和权限定义、分配与查询。
-pub(crate) struct RbacRepository<'db> {
-    database: &'db DatabaseConnection,
+pub(crate) struct RbacRepository<'db, C = DatabaseConnection>
+where
+    C: ConnectionTrait,
+{
+    database: &'db C,
 }
 
-impl<'db> RbacRepository<'db> {
+impl<'db, C> RbacRepository<'db, C>
+where
+    C: ConnectionTrait,
+{
     /// 创建绑定到同一个 SeaORM 连接的 RBAC 仓储。
-    pub(crate) fn new(database: &'db DatabaseConnection) -> Self {
+    pub(crate) fn new(database: &'db C) -> Self {
         Self { database }
     }
 
@@ -166,7 +172,10 @@ impl<'db> RbacRepository<'db> {
         role_id: i64,
         permission_ids: &[i64],
         mode: RolePermissionSyncMode,
-    ) -> Result<(), DbErr> {
+    ) -> Result<(), DbErr>
+    where
+        C: TransactionTrait,
+    {
         // 修改角色权限必须在事务中完成，避免管理界面保存时出现短暂的半更新状态。
         let transaction = self.database.begin().await?;
 

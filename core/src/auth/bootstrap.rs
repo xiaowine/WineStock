@@ -20,9 +20,6 @@ pub struct AuthSettings {
 
     /// 刷新令牌有效期，单位秒。
     pub refresh_token_ttl_seconds: u64,
-
-    /// 是否启用刷新令牌轮换。
-    pub refresh_token_rotation: bool,
 }
 
 /// JWT 访问令牌签名密钥状态。
@@ -167,16 +164,14 @@ impl From<getrandom::Error> for AuthBootstrapError {
 // 以下常量是数据库托管的鉴权设置键，不属于平台 JSON 启动配置。
 const ACCESS_TOKEN_TTL_SECONDS: &str = "access_token_ttl_seconds";
 const REFRESH_TOKEN_TTL_SECONDS: &str = "refresh_token_ttl_seconds";
-const REFRESH_TOKEN_ROTATION: &str = "refresh_token_rotation";
 
 // 当前仅生成对称签名密钥；若以后支持非对称算法，需要同步调整密钥材料存储语义。
 const SIGNING_ALGORITHM: &str = "HS256";
 
 // 缺省鉴权设置只用于补齐空库，不能覆盖数据库中已有的管理员配置。
-const DEFAULT_AUTH_SETTINGS: [(&str, &str); 3] = [
+const DEFAULT_AUTH_SETTINGS: [(&str, &str); 2] = [
     (ACCESS_TOKEN_TTL_SECONDS, "900"),
     (REFRESH_TOKEN_TTL_SECONDS, "604800"),
-    (REFRESH_TOKEN_ROTATION, "true"),
 ];
 
 /// 初始化本地服务的鉴权运行时状态。
@@ -214,7 +209,6 @@ async fn load_auth_settings(
     Ok(AuthSettings {
         access_token_ttl_seconds: parse_u64_setting(repository, ACCESS_TOKEN_TTL_SECONDS).await?,
         refresh_token_ttl_seconds: parse_u64_setting(repository, REFRESH_TOKEN_TTL_SECONDS).await?,
-        refresh_token_rotation: parse_bool_setting(repository, REFRESH_TOKEN_ROTATION).await?,
     })
 }
 
@@ -231,24 +225,6 @@ async fn parse_u64_setting(
             value,
             expected: "unsigned integer seconds",
         })
-}
-
-/// 读取布尔类鉴权设置；数据库中只接受明确的 true/false 文本。
-async fn parse_bool_setting(
-    repository: &AuthRepository<'_>,
-    key: &'static str,
-) -> Result<bool, AuthBootstrapError> {
-    let value = require_setting(repository, key).await?;
-
-    match value.as_str() {
-        "true" => Ok(true),
-        "false" => Ok(false),
-        _ => Err(AuthBootstrapError::InvalidSetting {
-            key,
-            value,
-            expected: "true or false",
-        }),
-    }
 }
 
 /// 读取必需的鉴权设置原始字符串；缺失表示 migration 或默认初始化没有成功。

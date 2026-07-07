@@ -58,7 +58,6 @@
    - `build_router_with_local_service()`
    - `bootstrap_from_config()`
    - `bind_server()`
-   - `/api/health`
    - 当前 auth API
    - OpenAPI JSON 与 Swagger UI 路径
 3. 让未来新增 API 时，能直接按**业务领域**落位，而不是继续堆在全局 `handlers` 或顶层模块中。
@@ -111,7 +110,6 @@
 
 全局 HTTP 层只负责：
 
-- health endpoint
 - OpenAPI / Swagger
 - 全局 middleware
 - merge 各领域 router
@@ -145,7 +143,6 @@ core/src/
     mod.rs
     router.rs
     docs.rs
-    health.rs
   identity/
     mod.rs
     api/
@@ -248,7 +245,6 @@ core/src/storage/
 
 - 这是**全局 HTTP 外壳层**，不是业务模块。
 - 负责：
-  - `GET /api/health`
   - OpenAPI / Swagger
   - merge 各领域路由
   - 全局 middleware（如果未来真的需要）
@@ -340,7 +336,7 @@ CoreState
 
 ```text
 build_router()
-  -> merge health/docs
+  -> merge docs
   -> merge(identity::api::router(...))
   -> merge(stock::api::router(...))
   -> merge(storage::api::router(...))
@@ -461,7 +457,7 @@ persistence/repository/stock/...
 #### 任务
 
 1. 新建 `core/src/state.rs`，定义 `CoreState`。
-2. 把当前路由组装、OpenAPI 和 health endpoint 从 `lib.rs` 移到 `core/src/http/`。
+2. 把当前路由组装和 OpenAPI 从 `lib.rs` 移到 `core/src/http/`。
 3. `lib.rs` 只保留：
    - 模块声明
    - re-export
@@ -617,7 +613,6 @@ tests/identity_register.rs
 tests/identity_refresh.rs
 tests/identity_authorization.rs
 tests/http_openapi.rs
-tests/http_health.rs
 ```
 
 以后再加：
@@ -676,18 +671,17 @@ tests/stock_detail.rs
 
 在阶段 1、阶段 2、阶段 3、阶段 5 完成后，额外确认：
 
-1. `GET /api/health`
-2. `POST /api/auth/register`
-3. `POST /api/auth/login`
-4. `POST /api/auth/refresh`
-5. `POST /api/auth/logout`
-6. `GET /api/auth/me`
-7. `/api-docs/openapi.json`
-8. `/swagger-ui`
+1. `POST /api/auth/register`
+2. `POST /api/auth/login`
+3. `POST /api/auth/refresh`
+4. `POST /api/auth/logout`
+5. `GET /api/auth/me`
+6. `/api-docs/openapi.json`
+7. `/swagger-ui`
 
 当 `stock` 首批 API 落地后，再新增验证：
 
-9. `GET /api/stock/search`
+8. `GET /api/stock/search`
 10. `GET /api/stock/:id`
 
 ### 必须保留的行为断言

@@ -61,7 +61,7 @@ core   -> desktop/android/frontend platform assets
 单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和对应测试模块声明。
 测试仍作为被测模块的子模块挂载，因此可以访问本模块私有项；物理文件集中存放，避免生产代码文件夹中散落 `tests.rs`。
 `core` 当前已按“全局 HTTP 外壳”“security 前置层”“auth 会话认证业务”“users 用户业务”和持久化层拆分测试文件，并通过 `core/src/tests/support.rs` 复用测试搭建逻辑。
-当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_health.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
+当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
 
 ## `shared`
 
@@ -94,8 +94,7 @@ core   -> desktop/android/frontend platform assets
 - `core/src/http/`
   - 作为唯一的全局 HTTP 外壳层。
   - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息和 Swagger UI 挂载。
-  - `health.rs` 定义 `HealthResponse` 和 `GET /api/health`。
-  - `router.rs` 负责组装健康检查、Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth` 与 `users` 模块路由。
+  - `router.rs` 负责组装 Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth` 与 `users` 模块路由。
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
@@ -129,7 +128,7 @@ core   -> desktop/android/frontend platform assets
   - 用户业务模块，承载注册、当前用户和后续用户管理能力。
   - `mod.rs` 负责 `/api/auth/register` 与 `/api/auth/me` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限和已登录校验。
   - `controller.rs` 提供注册与当前用户接口的 HTTP 入口和 utoipa 标注。
-  - `service.rs` 处理首个管理员分配、当前用户快照读取、用户响应组装和用户名规范化。
+  - `service.rs` 处理用户注册、事务内首个管理员分配、当前用户快照读取、用户响应组装和用户名规范化。
   - `permissions.rs` 定义 `user.register`、`user.manage` 等用户域稳定权限代码。
 
 - `core/src/rbac/`
@@ -138,7 +137,7 @@ core   -> desktop/android/frontend platform assets
   - `bootstrap.rs` 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和基础用户/库存权限；启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
   - 角色只作为批量授予权限的模板，不作为业务授权等级。
   - 管理类授权由 `security/middleware.rs` 在校验 bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
-  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段处理：数据库没有用户时免鉴权并把首个用户分配为 `admin`；已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
+  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段表达：数据库没有用户时允许免鉴权进入；`users/service.rs` 会在同一事务内重新判断首个用户条件并分配 `admin`，已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
 
 - `core/src/persistence/`
   - 定义 `StorageRuntime` 和存储启动错误。
@@ -195,7 +194,7 @@ core   -> desktop/android/frontend platform assets
 - `server/src/lib.rs`
   - 编排服务端生命周期。
   - 使用固定配置路径加载配置、校验 server 运行模式、准备存储目录、启动 `core`、绑定 Axum、打印访问 URL，并等待 Ctrl+C 关闭。
-  - 打印健康检查、OpenAPI JSON 和 Swagger UI 的辅助 URL。
+  - 打印 OpenAPI JSON 和 Swagger UI 的辅助 URL。
   - 直接处理最小的绑定地址展示；绑定到所有接口时使用 loopback URL 作为本机访问地址，不把 `0.0.0.0` 展示为可打开 URL。
 
 - `server/src/config.rs`
@@ -232,7 +231,6 @@ server/src/main.rs
 
 ## 公共 HTTP 接口
 
-- `GET /api/health`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
@@ -265,4 +263,4 @@ cargo build -p winestock-server
 cargo run -p winestock-server
 ```
 
-server shell 会读取或创建可执行文件同目录下的 `data/config.json`，基于共享配置启动 Axum，打印真实访问 URL，并暴露健康检查、OpenAPI JSON 和 Swagger UI 端点。
+server shell 会读取或创建可执行文件同目录下的 `data/config.json`，基于共享配置启动 Axum，打印真实访问 URL，并暴露 OpenAPI JSON 和 Swagger UI 端点。

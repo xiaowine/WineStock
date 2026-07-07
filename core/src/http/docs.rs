@@ -14,7 +14,6 @@ use winestock_shared::{
     AuthTokenResponse, AuthUserResponse,
 };
 
-
 /// OpenAPI JSON 文档的服务路径。
 pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
 
@@ -42,7 +41,6 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     modifiers(&SecurityAddon),
     info(title = "WineStock API", version = "0.1.0"),
     tags(
-        (name = "system", description = "Service status endpoints"),
         (name = "auth", description = "Authentication endpoints")
     )
 )]

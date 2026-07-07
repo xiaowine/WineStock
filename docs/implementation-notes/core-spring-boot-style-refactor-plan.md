@@ -72,7 +72,6 @@ Spring Boot 常见的可读性优势是：
    - `build_router_with_local_service()`
    - `bootstrap_from_config()`
    - `bind_server()`
-   - `/api/health`
    - `/api/auth/register`
    - `/api/auth/login`
    - `/api/auth/refresh`
@@ -108,7 +107,6 @@ Spring Boot 常见的可读性优势是：
 
 `http/` 已经是正确方向：
 
-- 放全局 health endpoint
 - 放 OpenAPI / Swagger
 - 放总 router 装配
 - 不承担具体业务规则
@@ -257,7 +255,6 @@ core/src/
   http/
     mod.rs
     router.rs
-    health.rs
     docs.rs
 
   security/
@@ -308,7 +305,6 @@ core/src/
 
   tests/
     support.rs
-    http_health.rs
     http_openapi.rs
     security_authorization.rs
     auth_login.rs
@@ -338,7 +334,6 @@ stock/
 
 全局 HTTP 外壳层，只负责：
 
-- `GET /api/health`
 - OpenAPI / Swagger
 - merge 各业务 router
 - 全局 middleware 装配点
@@ -637,14 +632,13 @@ http/router
 
 在阶段 1 到阶段 5 完成后，额外确认：
 
-1. `GET /api/health`
-2. `POST /api/auth/register`
-3. `POST /api/auth/login`
-4. `POST /api/auth/refresh`
-5. `POST /api/auth/logout`
-6. `GET /api/auth/me`
-7. `/api-docs/openapi.json`
-8. `/swagger-ui`
+1. `POST /api/auth/register`
+2. `POST /api/auth/login`
+3. `POST /api/auth/refresh`
+4. `POST /api/auth/logout`
+5. `GET /api/auth/me`
+6. `/api-docs/openapi.json`
+7. `/swagger-ui`
 
 ### 必须保留的行为断言
 

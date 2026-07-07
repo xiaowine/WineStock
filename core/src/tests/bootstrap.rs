@@ -23,7 +23,6 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
 
     assert_eq!(first.auth.settings.access_token_ttl_seconds, 900);
     assert_eq!(first.auth.settings.refresh_token_ttl_seconds, 604800);
-    assert!(first.auth.settings.refresh_token_rotation);
     assert_eq!(first.auth.active_signing_key.algorithm, "HS256");
     assert_eq!(
         first.auth.active_signing_key.status,
@@ -64,6 +63,15 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
     .await;
     assert_eq!(user_count, 0);
 
+    assert_eq!(
+        query_string_vec(
+            &second.storage.database,
+            "SELECT key FROM auth_settings ORDER BY key",
+            "key",
+        )
+        .await,
+        vec!["access_token_ttl_seconds", "refresh_token_ttl_seconds"]
+    );
     assert_eq!(
         query_string_vec(
             &second.storage.database,

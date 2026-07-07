@@ -3,7 +3,9 @@
 //! 本模块属于 `core` 的持久化层，只封装用户创建和用户查询。
 //! 角色、权限和分配关系属于 RBAC repository，不应混入账号仓储。
 
-use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
+};
 
 use crate::persistence::entity::user;
 
@@ -23,13 +25,19 @@ pub(crate) struct CreateUser {
 }
 
 /// 用户仓储层封装账号创建和查询。
-pub(crate) struct UserRepository<'db> {
-    database: &'db DatabaseConnection,
+pub(crate) struct UserRepository<'db, C = DatabaseConnection>
+where
+    C: ConnectionTrait,
+{
+    database: &'db C,
 }
 
-impl<'db> UserRepository<'db> {
+impl<'db, C> UserRepository<'db, C>
+where
+    C: ConnectionTrait,
+{
     /// 创建绑定到同一个 SeaORM 连接的用户仓储。
-    pub(crate) fn new(database: &'db DatabaseConnection) -> Self {
+    pub(crate) fn new(database: &'db C) -> Self {
         Self { database }
     }
 

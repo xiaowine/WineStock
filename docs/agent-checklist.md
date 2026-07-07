@@ -116,7 +116,7 @@ cargo run -p winestock-server
 ```
 
 The server shell creates `data/config.json` next to the executable with default values if it does not exist.
-Then open the printed `/api/health`, `/api-docs/openapi.json`, and `/swagger-ui` URLs.
+Then open the printed `/api-docs/openapi.json` and `/swagger-ui` URLs.
 
 ## Stop Conditions
 

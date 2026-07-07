@@ -5,6 +5,10 @@
 
 use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, Statement, TransactionTrait,
+};
+
 use crate::{
     persistence::{
         entity::user,
@@ -19,28 +23,57 @@ use crate::{
 pub(crate) async fn register(
     state: &CoreState,
     request: AuthRegisterRequest,
+    current_user: Option<&CurrentUser>,
 ) -> Result<AuthUserResponse, AuthApiError> {
     let username = normalize_username(&request.username)?;
     if request.password.is_empty() {
         return Err(AuthApiError::InvalidRegisterRequest);
     }
+    let password_hash = create_password_hash(&request.password)?;
 
-    let auth_repository = AuthRepository::new(state.database());
-    let users = UserRepository::new(state.database());
+    let user = register_user_transactionally(
+        state.database(),
+        CreateUser {
+            username,
+            password_hash,
+            display_name: None,
+        },
+        current_user,
+    )
+    .await?;
+
     let rbac = RbacRepository::new(state.database());
+    load_user_response(&rbac, &user).await
+}
+
+/// 在同一事务中完成注册、首个用户判断和首个 admin 分配，避免并发首登产生多个管理员。
+async fn register_user_transactionally(
+    database: &DatabaseConnection,
+    input: CreateUser,
+    current_user: Option<&CurrentUser>,
+) -> Result<user::Model, AuthApiError> {
+    let transaction = database.begin().await?;
+    acquire_registration_write_lock(&transaction).await?;
+
+    let auth_repository = AuthRepository::new(&transaction);
+    let users = UserRepository::new(&transaction);
+    let rbac = RbacRepository::new(&transaction);
     let has_users = auth_repository.has_any_user().await?;
 
-    if users.find_by_username(&username).await?.is_some() {
+    if has_users {
+        let Some(current_user) = current_user else {
+            return Err(AuthApiError::InvalidAccessToken);
+        };
+        if !current_user.has_permission(super::REGISTER_USER_PERMISSION) {
+            return Err(AuthApiError::PermissionDenied);
+        }
+    }
+
+    if users.find_by_username(&input.username).await?.is_some() {
         return Err(AuthApiError::UsernameTaken);
     }
 
-    let user = users
-        .create_user(CreateUser {
-            username,
-            password_hash: create_password_hash(&request.password)?,
-            display_name: None,
-        })
-        .await?;
+    let user = users.create_user(input).await?;
 
     if !has_users {
         let admin_role_id = rbac
@@ -53,7 +86,22 @@ pub(crate) async fn register(
         rbac.assign_role_to_user(user.id, admin_role_id).await?;
     }
 
-    load_user_response(&rbac, &user).await
+    transaction.commit().await?;
+
+    Ok(user)
+}
+
+/// SeaORM 的 SQLite 事务默认延迟拿写锁；这里先执行无害写入，让首个用户判断串行化。
+async fn acquire_registration_write_lock(transaction: &impl ConnectionTrait) -> Result<(), DbErr> {
+    transaction
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "UPDATE auth_settings SET value = value WHERE key = 'access_token_ttl_seconds'"
+                .to_owned(),
+        ))
+        .await?;
+
+    Ok(())
 }
 
 /// 根据当前认证上下文读取数据库中的最新用户、角色和权限快照。
@@ -75,7 +123,7 @@ pub(crate) async fn current_user(
 
 /// 组装 API 返回和 JWT claims 共享的用户、角色、权限快照。
 pub(crate) async fn load_user_response(
-    rbac: &RbacRepository<'_>,
+    rbac: &RbacRepository<'_, impl ConnectionTrait>,
     user: &user::Model,
 ) -> Result<AuthUserResponse, AuthApiError> {
     Ok(AuthUserResponse {

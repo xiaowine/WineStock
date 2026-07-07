@@ -1,10 +1,11 @@
 //! users 模块注册相关测试。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-use winestock_shared::AuthUserResponse;
+use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
 use crate::{
     persistence::repository::{RbacRepository, UserRepository},
+    security::{AuthApiError, CurrentUser},
     test_support::{
         empty_app, json_body, login_request, raw_register_request, seed_plain_user, text_body,
     },
@@ -66,6 +67,46 @@ async fn registration_requires_register_permission_after_first_user_exists() {
     let user: AuthUserResponse = json_body(created).await;
     assert_eq!(user.username, "staff");
     assert!(user.roles.is_empty());
+}
+
+#[tokio::test]
+async fn registration_service_rechecks_first_user_bypass_inside_transaction() {
+    let app = empty_app().await;
+    let first = raw_register_request(&app, "admin", "password", None).await;
+    assert_eq!(first.status(), axum::http::StatusCode::CREATED);
+
+    let missing_current_user = super::service::register(
+        &app.state,
+        AuthRegisterRequest {
+            username: "raced-user".to_owned(),
+            password: "password".to_owned(),
+        },
+        None,
+    )
+    .await
+    .expect_err("stale first-user bypass should be rejected");
+    assert!(matches!(
+        missing_current_user,
+        AuthApiError::InvalidAccessToken
+    ));
+
+    let stale_current_user = CurrentUser {
+        user_id: 1,
+        access_token_id: "stale".to_owned(),
+        roles: vec![],
+        permissions: vec![],
+    };
+    let missing_permission = super::service::register(
+        &app.state,
+        AuthRegisterRequest {
+            username: "forbidden-user".to_owned(),
+            password: "password".to_owned(),
+        },
+        Some(&stale_current_user),
+    )
+    .await
+    .expect_err("stale permission snapshot should be rejected");
+    assert!(matches!(missing_permission, AuthApiError::PermissionDenied));
 }
 
 #[tokio::test]

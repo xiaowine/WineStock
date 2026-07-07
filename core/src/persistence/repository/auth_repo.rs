@@ -4,8 +4,8 @@
 //! 调用方不需要知道 `auth_settings`、`auth_signing_keys` 和 `auth_users` 的具体查询细节。
 
 use sea_orm::{
-    sea_query::OnConflict, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, PaginatorTrait,
-    QueryFilter, QueryOrder, Set,
+    sea_query::OnConflict, ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set,
 };
 
 use crate::persistence::entity::{auth_setting, auth_signing_key, user};
@@ -13,13 +13,19 @@ use crate::persistence::entity::{auth_setting, auth_signing_key, user};
 use crate::persistence::repository::time::sqlite_now;
 
 /// 鉴权启动使用的 repository，负责数据库托管设置和签名密钥读取。
-pub(crate) struct AuthRepository<'db> {
-    database: &'db DatabaseConnection,
+pub(crate) struct AuthRepository<'db, C = DatabaseConnection>
+where
+    C: ConnectionTrait,
+{
+    database: &'db C,
 }
 
-impl<'db> AuthRepository<'db> {
+impl<'db, C> AuthRepository<'db, C>
+where
+    C: ConnectionTrait,
+{
     /// 创建绑定到同一个 SeaORM 连接的鉴权仓储。
-    pub(crate) fn new(database: &'db DatabaseConnection) -> Self {
+    pub(crate) fn new(database: &'db C) -> Self {
         Self { database }
     }
 

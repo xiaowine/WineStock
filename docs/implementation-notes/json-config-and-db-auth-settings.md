@@ -47,9 +47,10 @@ JSON 文件只保存启动服务前必须知道的信息：
 - refresh token TTL。
 - 密码策略。
 - 默认用户密码。
-- refresh token 轮换策略。
+- refresh token 轮换关闭开关。
 
-这些内容属于服务内部状态，保存在数据库中。
+其中 token TTL 等策略属于服务内部状态，保存在数据库中。
+refresh token 轮换是固定安全策略，不通过 JSON 或数据库配置关闭。
 
 ## 配置职责边界
 
@@ -121,7 +122,6 @@ updated_at
 ```text
 access_token_ttl_seconds = 900
 refresh_token_ttl_seconds = 604800
-refresh_token_rotation = true
 ```
 
 后续可以通过管理 API 或管理 UI 修改这些策略。

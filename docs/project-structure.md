@@ -133,11 +133,9 @@ Current `core` API surface:
 - `bind_server()`
 - `OPENAPI_JSON_PATH`
 - `SWAGGER_UI_PATH`
-- `HealthResponse`
 
 Current `core` HTTP surface:
 
-- `GET /api/health`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`

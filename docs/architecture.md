@@ -52,7 +52,6 @@ Current implemented surface:
 - `winestock_core::build_router_with_local_service()`
 - `winestock_core::bootstrap_from_config()`
 - `winestock_core::bind_server()`
-- `GET /api/health`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`

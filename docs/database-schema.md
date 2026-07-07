@@ -80,13 +80,13 @@ RBAC 角色、权限和授权规则见 [`rbac-permission-model.md`](rbac-permiss
 
 ### `auth_settings`
 
-数据库托管的鉴权策略表。JSON 启动配置不保存 token TTL、refresh token 轮换等安全相关运行时策略。
+数据库托管的鉴权策略表。JSON 启动配置不保存 token TTL 等安全相关运行时策略。
+refresh token 轮换是固定安全策略，不作为配置项关闭。
 
 当前默认设置：
 
 - `access_token_ttl_seconds`
 - `refresh_token_ttl_seconds`
-- `refresh_token_rotation`
 
 ### `auth_signing_keys`
 

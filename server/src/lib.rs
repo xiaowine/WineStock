@@ -51,7 +51,6 @@ pub async fn run() -> Result<(), ServerShellError> {
     let access_url = access_url(bound_addr);
     println!("监听地址: {}", display_bind_addr(bound_addr));
     println!("访问地址: {access_url}");
-    println!("健康检查: {access_url}/api/health");
     println!("OpenAPI JSON: {access_url}{OPENAPI_JSON_PATH}");
     println!("Swagger UI: {access_url}{SWAGGER_UI_PATH}");
 

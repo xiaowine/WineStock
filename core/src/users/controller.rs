@@ -37,9 +37,14 @@ use super::service;
 /// 注册新用户；首个用户免鉴权并自动成为 admin，之后必须拥有注册用户权限。
 pub(crate) async fn register(
     State(state): State<CoreState>,
+    current_user: Option<Extension<CurrentUser>>,
     Json(request): Json<AuthRegisterRequest>,
 ) -> Result<(StatusCode, Json<AuthUserResponse>), AuthApiError> {
-    Ok((StatusCode::CREATED, Json(service::register(&state, request).await?)))
+    let current_user = current_user.map(|Extension(user)| user);
+    Ok((
+        StatusCode::CREATED,
+        Json(service::register(&state, request, current_user.as_ref()).await?),
+    ))
 }
 
 #[utoipa::path(
