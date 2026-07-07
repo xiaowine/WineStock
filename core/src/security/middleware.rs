@@ -49,6 +49,7 @@ impl AuthorizationCondition {
 }
 
 /// 给路由增加“必须登录”的鉴权层，并把当前用户写入 request extensions。
+#[allow(dead_code)]
 pub(crate) fn require_authenticated(
     route: MethodRouter<CoreState>,
     core_state: CoreState,
@@ -71,6 +72,7 @@ pub(crate) fn require_permission(
 }
 
 /// 给路由增加条件权限校验；条件满足时才要求调用方拥有指定权限。
+#[allow(dead_code)]
 pub(crate) fn require_permission_when(
     route: MethodRouter<CoreState>,
     core_state: CoreState,
@@ -95,6 +97,62 @@ pub(crate) fn users_exist() -> AuthorizationCondition {
             .await
             .map_err(AuthApiError::Database)
     })
+}
+
+/// 为 Axum 路由提供链式鉴权声明，便于业务模块把权限要求贴近路由定义。
+pub(crate) trait AuthorizeRouteExt {
+    /// 给路由增加“必须登录”的鉴权层。
+    fn require_authenticated(self, core_state: CoreState) -> MethodRouter<CoreState>;
+
+    /// 给路由增加“必须登录且拥有指定权限”的授权层。
+    #[allow(dead_code)]
+    fn require_permission(
+        self,
+        core_state: CoreState,
+        permission: &'static str,
+    ) -> MethodRouter<CoreState>;
+
+    /// 给路由增加条件授权层；条件满足时必须登录且拥有指定权限。
+    fn require_permission_when(
+        self,
+        core_state: CoreState,
+        permission: &'static str,
+        condition: AuthorizationCondition,
+    ) -> MethodRouter<CoreState>;
+}
+
+impl AuthorizeRouteExt for MethodRouter<CoreState> {
+    fn require_authenticated(self, core_state: CoreState) -> MethodRouter<CoreState> {
+        apply_authorization(self, core_state, AuthorizationPolicy::Authenticated)
+    }
+
+    fn require_permission(
+        self,
+        core_state: CoreState,
+        permission: &'static str,
+    ) -> MethodRouter<CoreState> {
+        apply_authorization(
+            self,
+            core_state,
+            AuthorizationPolicy::Permission(permission),
+        )
+    }
+
+    fn require_permission_when(
+        self,
+        core_state: CoreState,
+        permission: &'static str,
+        condition: AuthorizationCondition,
+    ) -> MethodRouter<CoreState> {
+        apply_authorization(
+            self,
+            core_state,
+            AuthorizationPolicy::ConditionalPermission {
+                permission,
+                condition,
+            },
+        )
+    }
 }
 
 fn apply_authorization(

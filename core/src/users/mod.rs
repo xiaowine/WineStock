@@ -9,12 +9,12 @@ use axum::{
 };
 
 use crate::{
-    security::{require_authenticated, require_permission_when, users_exist},
+    security::{users_exist, AuthorizeRouteExt},
     state::CoreState,
 };
 
-mod permissions;
 pub(crate) mod controller;
+mod permissions;
 pub(crate) mod service;
 
 pub(crate) use permissions::{MANAGE_USER_PERMISSION, REGISTER_USER_PERMISSION};
@@ -24,8 +24,7 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
     Router::new()
         .route(
             "/api/auth/register",
-            require_permission_when(
-                post(controller::register),
+            post(controller::register).require_permission_when(
                 state.clone(),
                 REGISTER_USER_PERMISSION,
                 users_exist(),
@@ -33,7 +32,7 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
         )
         .route(
             "/api/auth/me",
-            require_authenticated(get(controller::me), state.clone()),
+            get(controller::me).require_authenticated(state.clone()),
         )
 }
 

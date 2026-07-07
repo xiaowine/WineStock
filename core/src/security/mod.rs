@@ -17,13 +17,13 @@ pub use error::AuthApiError;
 #[cfg(test)]
 pub(crate) use jwt::AccessClaims;
 pub(crate) use jwt::SecurityRuntime;
-pub(crate) use middleware::{require_authenticated, require_permission_when, users_exist};
 #[cfg(test)]
 pub(crate) use middleware::require_permission;
+pub(crate) use middleware::{users_exist, AuthorizeRouteExt};
 pub(crate) use password::{create_password_hash, verify_password};
-pub(crate) use token::{hash_refresh_token, random_urlsafe};
 #[cfg(test)]
 pub(crate) use token::unix_timestamp;
+pub(crate) use token::{hash_refresh_token, random_urlsafe};
 
 #[cfg(test)]
 #[path = "../tests/security_authorization.rs"]
