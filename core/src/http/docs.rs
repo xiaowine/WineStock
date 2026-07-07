@@ -14,7 +14,6 @@ use winestock_shared::{
     AuthTokenResponse, AuthUserResponse,
 };
 
-use super::health::HealthResponse;
 
 /// OpenAPI JSON 文档的服务路径。
 pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
@@ -26,7 +25,6 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        super::health::health_check,
         crate::users::controller::register,
         crate::auth::controller::login,
         crate::auth::controller::refresh,
@@ -34,7 +32,6 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::users::controller::me
     ),
     components(schemas(
-        HealthResponse,
         AuthRegisterRequest,
         AuthLoginRequest,
         AuthRefreshRequest,

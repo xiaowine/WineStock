@@ -23,7 +23,7 @@ pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };
 pub use http::{
-    build_router, build_router_with_local_service, HealthResponse, OPENAPI_JSON_PATH,
+    build_router, build_router_with_local_service, OPENAPI_JSON_PATH,
     SWAGGER_UI_PATH,
 };
 pub use persistence::{StorageBootstrapError, StorageRuntime};
