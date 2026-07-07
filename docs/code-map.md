@@ -27,6 +27,8 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实现笔记和本代码地图。
 - `docs/rbac-permission-model.md`：当前 RBAC 角色/权限模型、初始化行为和业务授权规则。
+- `docs/implementation-notes/core-axum-structure-refactor-plan.md`：面向后续 API 扩展的 `core\src` 领域切片重整方案。
+- `docs/implementation-notes/core-spring-boot-style-refactor-plan.md`：后续把 `core\src` 从 `identity` 结构继续收敛为 `http / security / auth / users / rbac` 的实施方案。
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关配置、契约和通用类型。
 - `server/`：运行共享服务的无头服务端 shell。
@@ -52,9 +54,10 @@ core   -> desktop/android/frontend platform assets
 
 ## 测试布局
 
-单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和 `mod tests;` 声明。
+单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和对应测试模块声明。
 测试仍作为被测模块的子模块挂载，因此可以访问本模块私有项；物理文件集中存放，避免生产代码文件夹中散落 `tests.rs`。
-当前布局示例：`core/src/tests/auth.rs`、`core/src/tests/persistence_repository.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
+`core` 当前已按“全局 HTTP 外壳”“security 前置层”“auth 会话认证业务”“users 用户业务”和持久化层拆分测试文件，并通过 `core/src/tests/support.rs` 复用测试搭建逻辑。
+当前布局示例：`core/src/tests/support.rs`、`core/src/tests/http_health.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/persistence_repository.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
 
 ## `shared`
 
@@ -73,18 +76,26 @@ core   -> desktop/android/frontend platform assets
 用途：供各平台 shell 复用的共享 Axum 服务库。
 
 - `core/src/lib.rs`
-  - 声明内部模块：`auth`、`bootstrap`、`persistence`、`rbac`、`server`。
-  - 重新导出 core 的公共启动和运行时类型。
+  - 声明内部模块：`auth`、`bootstrap`、`http`、`persistence`、`rbac`、`security`、`server`、`state` 和 `users`。
+  - 重新导出 core 的公共启动入口、HTTP 构建入口、鉴权公开类型和运行时错误类型。
   - 重新导出 `RbacBootstrapError`，供平台 shell 区分内置 RBAC 初始化失败。
-  - 定义 `OPENAPI_JSON_PATH` 和 `SWAGGER_UI_PATH`。
-  - 通过 `build_router()` 构建 Axum 路由。
-  - 通过 `build_router_with_local_service()` 构建带本地鉴权状态的 Axum 路由。
-  - 拥有 `GET /api/health`、auth API、OpenAPI 元信息、Bearer security scheme 和 Swagger UI 挂载。
+  - 保留 `build_router()` 和 `build_router_with_local_service()` 两个稳定入口，但不直接承担 Router 细节和 OpenAPI 元信息。
+
+- `core/src/state.rs`
+  - 定义统一的 `CoreState`。
+  - 把 `StorageRuntime` 和 `SecurityRuntime` 组合成全局 Axum state 根对象。
+  - 避免某个领域 runtime 直接充当整个服务状态。
+
+- `core/src/http/`
+  - 作为唯一的全局 HTTP 外壳层。
+  - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息和 Swagger UI 挂载。
+  - `health.rs` 定义 `HealthResponse` 和 `GET /api/health`。
+  - `router.rs` 负责组装健康检查、Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth` 与 `users` 模块路由。
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
   - 异步实现 `bootstrap_from_config()`。
-  - 仅在共享配置启用本地服务时打开本地存储，执行 migration 后先初始化内置 RBAC，再初始化鉴权设置和 JWT signing key。
+  - 仅在共享配置启用本地服务时打开本地存储，执行 migration 后先初始化顶层 `rbac` 模块的内置 RBAC，再初始化 `auth` 模块的鉴权设置和 JWT signing key。
   - 对远端-only 或禁用本地服务的模式跳过存储初始化。
 
 - `core/src/server.rs`
@@ -93,13 +104,44 @@ core   -> desktop/android/frontend platform assets
   - 拥有按配置绑定 socket、报告端口冲突和优雅运行 Axum 的逻辑。
   - 不决定平台生命周期，也不决定面向用户的展示文本。
 
+- `core/src/security/`
+  - 全局认证与授权前置层，不属于具体业务域。
+  - `current_user.rs` 定义 `CurrentUser` extractor 和 bearer token 解析。
+  - `jwt.rs` 定义 `SecurityRuntime`、JWT claims 和 access token 的签发/校验逻辑。
+  - `middleware.rs` 定义 Axum route layer 鉴权中间件；普通 API 可在业务模块路由注册处声明所需权限，中间件会重新读取数据库当前权限后再放行业务 handler。
+  - `password.rs` 集中处理 Argon2 密码哈希与校验。
+  - `token.rs` 集中处理 refresh token 的 SHA-256 哈希、高强度随机文本和 JWT 时间戳。
+  - `error.rs` 定义 `security`、`auth` 和 `users` 共用的鉴权 HTTP 错误和响应映射。
+
+- `core/src/auth/`
+  - 会话认证业务模块，承载登录、refresh、logout 和 auth bootstrap。
+  - `mod.rs` 负责 `/api/auth/login`、`/api/auth/refresh` 和 `/api/auth/logout` 的路由注册。
+  - `controller.rs` 提供对应 HTTP 入口和 utoipa 标注。
+  - `service.rs` 处理登录、refresh token 轮换、旧 token 复用检测和登出吊销逻辑。
+  - `bootstrap.rs` 定义鉴权启动设置、签名密钥状态和鉴权启动结果；通过 `AuthRepository` 写入默认鉴权设置但不覆盖数据库管理的已有值，并创建或读取当前 active 访问令牌签名密钥。
+
+- `core/src/users/`
+  - 用户业务模块，承载注册、当前用户和后续用户管理能力。
+  - `mod.rs` 负责 `/api/auth/register` 与 `/api/auth/me` 的路由注册，并挂载首个用户免鉴权与已登录校验。
+  - `controller.rs` 提供注册与当前用户接口的 HTTP 入口和 utoipa 标注。
+  - `service.rs` 处理首个管理员分配、当前用户快照读取、用户响应组装和用户名规范化。
+  - `permissions.rs` 定义 `user.register`、`user.manage` 等用户域稳定权限代码。
+
+- `core/src/rbac/`
+  - 授权模型模块，承载内置角色/权限常量和启动补齐逻辑。
+  - `policy.rs` 定义稳定角色代码，以及在 `stock` 正式模块落地前暂存的库存权限常量。
+  - `bootstrap.rs` 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和基础用户/库存权限；启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
+  - 角色只作为批量授予权限的模板，不作为业务授权等级。
+  - 管理类授权由 `security/middleware.rs` 在校验 bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
+  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段处理：数据库没有用户时免鉴权并把首个用户分配为 `admin`；已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
+
 - `core/src/persistence/`
   - 定义 `StorageRuntime` 和存储启动错误。
   - 通过 SeaORM/SQLx 打开 SQLite，并向 core 暴露 `DatabaseConnection`。
   - 集中应用 SQLite PRAGMA 设置，例如 foreign keys、busy timeout、WAL 和 checkpoint 行为。
   - 校验平台 shell 传入的存储路径。
   - 按 `StorageConfig.auto_migrate` 执行 SeaORM migration。
-  - 放置 SeaORM Entity、migration 和 repository，handler 不直接散写 ORM 查询。
+  - `entity/` 和 `repository/` 使用对齐当前业务模块的直白命名，避免再保留 `identity/` 中间目录。
 
 - `core/src/persistence/connection.rs`
   - 打开 SQLite 文件连接池。
@@ -113,34 +155,18 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/entity/`
   - 放置 SeaORM Entity、Model 和 ActiveModel。
-  - 当前包含 auth setting、auth signing key、user、refresh token 和 file object 实体。
+  - `auth_setting.rs`、`auth_signing_key.rs`、`refresh_token.rs` 和 `user.rs` 分别映射鉴权设置、签名密钥、refresh token 和用户表。
+  - `file_object.rs` 仍保存文件元数据实体。
 
 - `core/src/persistence/repository/`
   - 放置业务语义 repository。
-  - `time` 模块提供仓储层共用的 SQLite UTC 时间生成工具，避免具体业务仓储各自拼接时间查询。
+  - `auth_repo.rs`、`user_repo.rs`、`rbac_repo.rs` 和 `refresh_token_repo.rs` 分别承载 auth/users/rbac/refresh token 的仓储能力。
+  - `time.rs` 提供仓储层共用的 SQLite UTC 时间生成工具，避免具体业务仓储各自拼接时间查询。
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
   - `UserRepository` 只支撑用户创建、按 ID/用户名查找。
   - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、角色权限分配、角色权限同步、角色列表和权限列表查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
-  - `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
-
-- `core/src/rbac.rs`
-  - 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和基础用户/库存权限。
-  - 启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
-  - 角色只作为批量授予权限的模板，不作为业务授权等级。
-  - 先于 JWT signing key 初始化执行，确保 token 签发只消费已经存在的角色/权限快照。
-
-- `core/src/auth/`
-  - `auth/mod.rs` 是鉴权模块入口，组合启动初始化、运行时、HTTP handler、安全工具和测试模块，并对 crate 内外重新导出必要类型。
-  - `auth/bootstrap.rs` 定义鉴权启动设置、签名密钥状态和鉴权启动结果；通过 `AuthRepository` 写入默认鉴权设置但不覆盖数据库管理的已有值，并创建或读取当前 active 访问令牌签名密钥。
-  - `auth/runtime.rs` 定义 `AuthRuntime`、JWT claims 和 `CurrentUser` extractor；使用数据库中的 HS256 active signing key 签发和校验 JWT access token。
-  - `auth/authorization.rs` 定义 Axum route layer 鉴权中间件，普通 API 可在路由注册处声明所需权限；中间件会重新读取数据库当前权限后再放行业务 handler。
-  - `auth/security.rs` 集中处理 Argon2 密码哈希、refresh token 的 SHA-256 哈希、高强度随机文本和 JWT 时间戳。
-  - `auth/error.rs` 定义鉴权 HTTP 错误和响应映射。
-  - `auth/routes.rs` 实现 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/refresh`、`POST /api/auth/logout` 和 `GET /api/auth/me`。
-  - 管理类授权由 route layer 在校验 Bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
-  - 注册接口的特殊鉴权也在 route layer 中处理：数据库没有用户时免鉴权并把首个用户分配为 `admin`；已有用户后必须由当前拥有 `user.register` 权限的 Bearer token 调用。
-  - refresh 时在事务中轮换 token；已吊销旧 token 被复用时返回 401。
+  - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
 
 - `docs/database-schema.md`
   - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。
@@ -199,7 +225,7 @@ server/src/main.rs
   -> winestock_core::build_router_with_local_service()
 ```
 
-公共 HTTP 接口：
+## 公共 HTTP 接口
 
 - `GET /api/health`
 - `POST /api/auth/register`

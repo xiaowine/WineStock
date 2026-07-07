@@ -1,6 +1,6 @@
-//! 刷新令牌 repository。
+//! auth 模块刷新令牌 repository。
 //!
-//! 本模块属于 core 持久化层，封装 refresh token 的创建、查询、吊销和轮换事务。
+//! 本模块属于 `core` 的持久化层，封装 refresh token 的创建、查询、吊销和轮换事务。
 //! 明文令牌不进入本模块，调用方只能传入哈希和设备元数据。
 
 use sea_orm::{
@@ -10,7 +10,7 @@ use sea_orm::{
 
 use crate::persistence::entity::refresh_token;
 
-use super::time::sqlite_now;
+use crate::persistence::repository::time::sqlite_now;
 
 /// 创建刷新令牌时写入数据库的安全元数据，明文令牌不进入 SQLite。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,6 +51,7 @@ impl<'db> RefreshTokenRepository<'db> {
     }
 
     /// 按哈希查找未吊销的刷新令牌。
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) async fn find_active_by_hash(
         &self,
         token_hash: &str,

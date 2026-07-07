@@ -1,6 +1,6 @@
-//! 鉴权 repository。
+//! auth 模块鉴权 repository。
 //!
-//! 本模块属于 core 持久化层，封装鉴权设置、签名密钥和首次管理员判断所需查询。
+//! 本模块属于 `core` 的持久化层，封装鉴权设置、签名密钥和首次管理员判断所需查询。
 //! 调用方不需要知道 `auth_settings`、`auth_signing_keys` 和 `auth_users` 的具体查询细节。
 
 use sea_orm::{
@@ -10,7 +10,7 @@ use sea_orm::{
 
 use crate::persistence::entity::{auth_setting, auth_signing_key, user};
 
-use super::time::sqlite_now;
+use crate::persistence::repository::time::sqlite_now;
 
 /// 鉴权启动使用的 repository，负责数据库托管设置和签名密钥读取。
 pub(crate) struct AuthRepository<'db> {

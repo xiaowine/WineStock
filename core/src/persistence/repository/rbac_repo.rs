@@ -1,6 +1,6 @@
-//! RBAC repository。
+//! rbac 模块 repository。
 //!
-//! 本模块属于 core 持久化层，封装角色、权限、用户角色分配和角色权限分配。
+//! 本模块属于 `core` 的持久化层，封装角色、权限、用户角色分配和角色权限分配。
 //! 用户账号仓储不拥有 RBAC 表结构，鉴权和业务处理函数也不应直接拼接这些关联查询。
 
 use sea_orm::{
@@ -149,6 +149,7 @@ impl<'db> RbacRepository<'db> {
     }
 
     /// 给角色分配权限；已有分配保持不变。
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) async fn assign_permission_to_role(
         &self,
         role_id: i64,

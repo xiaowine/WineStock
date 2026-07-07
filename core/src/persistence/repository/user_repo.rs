@@ -1,13 +1,13 @@
-//! 用户 repository。
+//! users 模块用户 repository。
 //!
-//! 本模块属于 core 持久化层，只封装用户创建和用户查询。
+//! 本模块属于 `core` 的持久化层，只封装用户创建和用户查询。
 //! 角色、权限和分配关系属于 RBAC repository，不应混入账号仓储。
 
 use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set};
 
 use crate::persistence::entity::user;
 
-use super::time::sqlite_now;
+use crate::persistence::repository::time::sqlite_now;
 
 /// 创建用户的最小输入，密码哈希由上层鉴权流程生成。
 #[derive(Debug, Clone, PartialEq, Eq)]

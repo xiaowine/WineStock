@@ -1,7 +1,7 @@
-//! 鉴权启动初始化。
+//! auth 模块启动初始化。
 //!
-//! 本模块属于 core 鉴权层，负责读取数据库托管的鉴权设置、创建或读取 JWT
-//! access token 签名密钥，并产出本地服务启动时需要的鉴权快照。
+//! 本模块属于 `auth` 业务层，负责读取数据库托管的鉴权设置、
+//! 创建或读取 JWT access token 签名密钥，并产出本地服务启动时需要的鉴权快照。
 //! 它不处理 HTTP 请求，也不校验用户凭据。
 
 use std::{error::Error, fmt};
@@ -10,7 +10,7 @@ use sea_orm::{DatabaseConnection, DbErr};
 
 use crate::persistence::{entity::auth_signing_key, repository::AuthRepository};
 
-use super::security::random_urlsafe;
+use crate::security::random_urlsafe;
 
 /// 数据库中的鉴权策略快照。
 #[derive(Debug, Clone, PartialEq, Eq)]

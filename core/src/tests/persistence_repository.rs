@@ -10,9 +10,9 @@ use crate::persistence::{migrate_storage_schema, open_sqlite_storage, StorageRun
 
 use super::{
     file_object::{CreateFileObject, FileObjectRepository},
-    rbac::{RbacRepository, RolePermissionSyncMode},
-    refresh_token::{CreateRefreshToken, RefreshTokenRepository},
-    user::{CreateUser, UserRepository},
+    rbac_repo::{RbacRepository, RolePermissionSyncMode},
+    refresh_token_repo::{CreateRefreshToken, RefreshTokenRepository},
+    user_repo::{CreateUser, UserRepository},
 };
 
 struct TestStorage {

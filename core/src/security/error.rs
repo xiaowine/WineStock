@@ -1,7 +1,7 @@
-//! 鉴权 HTTP 错误。
+//! 鉴权相关 HTTP 错误定义。
 //!
-//! 本模块属于 core 鉴权层，集中把鉴权、token 和数据库错误映射成 HTTP 响应。
-//! 它不执行数据库查询，也不暴露内部错误细节给客户端。
+//! 本模块属于 `security` 前置层，为 `security`、`auth` 和 `users` 模块共享统一的
+//! HTTP 错误映射。它不执行数据库查询，也不承载具体业务流程。
 
 use axum::{
     http::StatusCode,
@@ -9,7 +9,7 @@ use axum::{
 };
 use sea_orm::DbErr;
 
-/// 鉴权 HTTP API 的错误响应。
+/// 鉴权相关 API 的错误响应。
 #[derive(Debug)]
 pub enum AuthApiError {
     /// 注册请求字段不满足服务端约束。

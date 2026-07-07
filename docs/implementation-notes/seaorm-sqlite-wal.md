@@ -65,7 +65,7 @@ sea-orm-migration = { version = "...", features = ["sqlx-sqlite", "runtime-tokio
 core 创建 DatabaseConnection
 core 执行 SQLite PRAGMA
 core 根据 auto_migrate 执行 migration
-core 构建 AppState / CoreState
+core 构建 CoreState
 Router handlers 通过 State 使用 repository
 ```
 

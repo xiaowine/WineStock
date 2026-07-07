@@ -1,19 +1,18 @@
-//! core 的 RBAC 基础定义初始化。
+//! rbac 模块的基础定义初始化。
 //!
-//! 本模块属于 `core axum library` 层，拥有内置角色、权限和角色权限关系的启动补齐。
+//! 本模块属于 `rbac` 授权模型层，拥有内置角色、权限和角色权限关系的启动补齐。
 //! 它不签发 JWT、不创建用户，也不处理平台配置或 HTTP token 解析。
 
 use std::{error::Error, fmt};
 
 use sea_orm::{DatabaseConnection, DbErr};
 
-use crate::persistence::repository::{RbacRepository, RolePermissionSyncMode};
+use crate::{
+    persistence::repository::{RbacRepository, RolePermissionSyncMode},
+    users::{MANAGE_USER_PERMISSION, REGISTER_USER_PERMISSION},
+};
 
-/// 内置管理员角色代码，用于首次用户分配；业务授权仍应判断权限代码。
-pub(crate) const ADMIN_ROLE_CODE: &str = "admin";
-
-/// 内置管理员角色默认名称；启动补齐不会覆盖数据库中已有名称。
-pub(crate) const ADMIN_ROLE_NAME: &str = "Admin";
+use super::policy::{ADMIN_ROLE_CODE, ADMIN_ROLE_NAME, STAFF_ROLE_CODE, STAFF_ROLE_NAME, STOCK_READ_PERMISSION, STOCK_WRITE_PERMISSION, VIEWER_ROLE_CODE, VIEWER_ROLE_NAME};
 
 /// RBAC 基础定义初始化错误。
 #[derive(Debug)]
@@ -52,13 +51,13 @@ const BUILTIN_ROLES: &[BuiltinRole] = &[
         description: Some("系统管理员，拥有全部内置权限。"),
     },
     BuiltinRole {
-        code: "staff",
-        name: "Staff",
+        code: STAFF_ROLE_CODE,
+        name: STAFF_ROLE_NAME,
         description: Some("日常业务操作用户。"),
     },
     BuiltinRole {
-        code: "viewer",
-        name: "Viewer",
+        code: VIEWER_ROLE_CODE,
+        name: VIEWER_ROLE_NAME,
         description: Some("只读访问用户。"),
     },
 ];
@@ -66,19 +65,19 @@ const BUILTIN_ROLES: &[BuiltinRole] = &[
 // 内置权限覆盖当前用户管理入口和库存域的基础读写能力。
 const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
     BuiltinPermission {
-        code: "user.register",
+        code: REGISTER_USER_PERMISSION,
         description: "注册新用户。",
     },
     BuiltinPermission {
-        code: "user.manage",
+        code: MANAGE_USER_PERMISSION,
         description: "管理用户、角色和权限。",
     },
     BuiltinPermission {
-        code: "stock.read",
+        code: STOCK_READ_PERMISSION,
         description: "查看库存数据。",
     },
     BuiltinPermission {
-        code: "stock.write",
+        code: STOCK_WRITE_PERMISSION,
         description: "创建或修改库存数据。",
     },
 ];
@@ -86,10 +85,18 @@ const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
 const BUILTIN_ROLE_PERMISSIONS: &[(&str, &[&str])] = &[
     (
         ADMIN_ROLE_CODE,
-        &["user.register", "user.manage", "stock.read", "stock.write"],
+        &[
+            REGISTER_USER_PERMISSION,
+            MANAGE_USER_PERMISSION,
+            STOCK_READ_PERMISSION,
+            STOCK_WRITE_PERMISSION,
+        ],
     ),
-    ("staff", &["stock.read", "stock.write"]),
-    ("viewer", &["stock.read"]),
+    (
+        STAFF_ROLE_CODE,
+        &[STOCK_READ_PERMISSION, STOCK_WRITE_PERMISSION],
+    ),
+    (VIEWER_ROLE_CODE, &[STOCK_READ_PERMISSION]),
 ];
 
 /// 内置角色定义，启动时只补齐缺失记录，不覆盖已有记录。
