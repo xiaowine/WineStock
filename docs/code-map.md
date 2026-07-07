@@ -27,8 +27,12 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实现笔记和本代码地图。
 - `docs/rbac-permission-model.md`：当前 RBAC 角色/权限模型、初始化行为和业务授权规则。
+- `docs/implementation-notes/README.md`：实现笔记目录说明。
 - `docs/implementation-notes/core-axum-structure-refactor-plan.md`：面向后续 API 扩展的 `core\src` 领域切片重整方案。
 - `docs/implementation-notes/core-spring-boot-style-refactor-plan.md`：后续把 `core\src` 从 `identity` 结构继续收敛为 `http / security / auth / users / rbac` 的实施方案。
+- `docs/implementation-notes/json-config-and-db-auth-settings.md`：JSON 启动配置与数据库托管鉴权设置的边界说明。
+- `docs/implementation-notes/jwt-access-refresh-token.md`：JWT access token 与 refresh token 机制实现笔记。
+- `docs/implementation-notes/seaorm-sqlite-wal.md`：SeaORM、SQLite 和 WAL 存储行为实现笔记。
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关配置、契约和通用类型。
 - `server/`：运行共享服务的无头服务端 shell。
@@ -57,7 +61,7 @@ core   -> desktop/android/frontend platform assets
 单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和对应测试模块声明。
 测试仍作为被测模块的子模块挂载，因此可以访问本模块私有项；物理文件集中存放，避免生产代码文件夹中散落 `tests.rs`。
 `core` 当前已按“全局 HTTP 外壳”“security 前置层”“auth 会话认证业务”“users 用户业务”和持久化层拆分测试文件，并通过 `core/src/tests/support.rs` 复用测试搭建逻辑。
-当前布局示例：`core/src/tests/support.rs`、`core/src/tests/http_health.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/persistence_repository.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
+当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_health.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
 
 ## `shared`
 
@@ -79,6 +83,7 @@ core   -> desktop/android/frontend platform assets
   - 声明内部模块：`auth`、`bootstrap`、`http`、`persistence`、`rbac`、`security`、`server`、`state` 和 `users`。
   - 重新导出 core 的公共启动入口、HTTP 构建入口、鉴权公开类型和运行时错误类型。
   - 重新导出 `RbacBootstrapError`，供平台 shell 区分内置 RBAC 初始化失败。
+  - 重新导出 `winestock_shared` 为 `shared`，供调用方通过 core 入口访问共享契约。
   - 保留 `build_router()` 和 `build_router_with_local_service()` 两个稳定入口，但不直接承担 Router 细节和 OpenAPI 元信息。
 
 - `core/src/state.rs`
@@ -108,7 +113,7 @@ core   -> desktop/android/frontend platform assets
   - 全局认证与授权前置层，不属于具体业务域。
   - `current_user.rs` 定义 `CurrentUser` extractor 和 bearer token 解析。
   - `jwt.rs` 定义 `SecurityRuntime`、JWT claims 和 access token 的签发/校验逻辑。
-  - `middleware.rs` 定义 Axum route layer 鉴权中间件；普通 API 可在业务模块路由注册处声明所需权限，中间件会重新读取数据库当前权限后再放行业务 handler。
+  - `middleware.rs` 定义 Axum route layer 鉴权中间件和 `AuthorizeRouteExt` 链式路由授权声明；普通 API 可在业务模块路由注册处声明所需权限，中间件会重新读取数据库当前权限后再放行业务 handler。
   - `password.rs` 集中处理 Argon2 密码哈希与校验。
   - `token.rs` 集中处理 refresh token 的 SHA-256 哈希、高强度随机文本和 JWT 时间戳。
   - `error.rs` 定义 `security`、`auth` 和 `users` 共用的鉴权 HTTP 错误和响应映射。
@@ -122,7 +127,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/users/`
   - 用户业务模块，承载注册、当前用户和后续用户管理能力。
-  - `mod.rs` 负责 `/api/auth/register` 与 `/api/auth/me` 的路由注册，并挂载首个用户免鉴权与已登录校验。
+  - `mod.rs` 负责 `/api/auth/register` 与 `/api/auth/me` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限和已登录校验。
   - `controller.rs` 提供注册与当前用户接口的 HTTP 入口和 utoipa 标注。
   - `service.rs` 处理首个管理员分配、当前用户快照读取、用户响应组装和用户名规范化。
   - `permissions.rs` 定义 `user.register`、`user.manage` 等用户域稳定权限代码。
