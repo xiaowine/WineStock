@@ -112,6 +112,10 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 - `user_id`：所属账号。
 - `token_hash`：刷新令牌哈希，数据库内唯一。
+- `device_name`：登录请求提供的设备名称，不能为空。
+- `client_kind`：登录客户端类型，只允许 `desktop` 或 `android`。
+- `app_version`：登录客户端 App 版本号，不能为空。
+- `refresh_token_version`：refresh token 格式版本，由服务端生成规则决定。
 - `expires_at`：过期时间。
 - `revoked_at`：吊销时间，为空表示当前未吊销。
 - `replaced_by_token_id`：轮换后替代该令牌的新令牌 ID；普通登出吊销时为空。

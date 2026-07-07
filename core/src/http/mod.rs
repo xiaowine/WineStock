@@ -5,9 +5,11 @@
 
 mod docs;
 mod router;
+mod validation;
 
 pub use docs::{OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
 pub use router::{build_router, build_router_with_local_service};
+pub(crate) use validation::ValidatedJson;
 #[cfg(test)]
 #[path = "../tests/http_openapi.rs"]
 mod http_openapi_tests;

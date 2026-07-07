@@ -92,7 +92,10 @@ GET  /api/auth/me
 ```json
 {
   "username": "admin",
-  "password": "password"
+  "password": "password",
+  "device_name": "workstation",
+  "client_kind": "desktop",
+  "version": "1.0.0"
 }
 ```
 
@@ -194,6 +197,8 @@ user_id
 token_hash
 device_name
 client_kind
+app_version
+refresh_token_version
 created_at
 expires_at
 last_used_at

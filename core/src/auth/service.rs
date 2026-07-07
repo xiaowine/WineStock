@@ -5,7 +5,7 @@
 
 use sea_orm::DatabaseConnection;
 use winestock_shared::{
-    AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
+    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
 };
 
 use crate::{
@@ -16,7 +16,10 @@ use crate::{
             RefreshTokenRepository, UserRepository,
         },
     },
-    security::{hash_refresh_token, random_urlsafe, verify_password, AuthApiError},
+    security::{
+        hash_refresh_token, random_urlsafe, verify_password, AuthApiError,
+        CURRENT_REFRESH_TOKEN_VERSION,
+    },
     state::CoreState,
     users::service::load_user_response,
 };
@@ -41,8 +44,14 @@ pub(crate) async fn login(
         user_response.roles.clone(),
         user_response.permissions.clone(),
     )?;
-    let refresh_token =
-        create_refresh_token(state, user.id, request.device_name, request.client_kind).await?;
+    let refresh_token = create_refresh_token(
+        state,
+        user.id,
+        request.device_name,
+        request.client_kind,
+        request.version,
+    )
+    .await?;
 
     Ok(AuthTokenResponse {
         access_token,
@@ -89,6 +98,8 @@ pub(crate) async fn refresh(
                 token_hash: new_hash,
                 device_name: existing.device_name,
                 client_kind: existing.client_kind,
+                app_version: existing.app_version,
+                refresh_token_version: CURRENT_REFRESH_TOKEN_VERSION.to_owned(),
                 expires_at,
             },
         )
@@ -128,8 +139,9 @@ pub(crate) async fn logout(
 async fn create_refresh_token(
     state: &CoreState,
     user_id: i64,
-    device_name: Option<String>,
-    client_kind: Option<String>,
+    device_name: String,
+    client_kind: AuthClientKind,
+    app_version: String,
 ) -> Result<String, AuthApiError> {
     let plain_token = random_urlsafe(32).map_err(AuthApiError::Random)?;
     let token_hash = hash_refresh_token(&plain_token);
@@ -143,7 +155,9 @@ async fn create_refresh_token(
             user_id,
             token_hash,
             device_name,
-            client_kind,
+            client_kind: client_kind.as_str().to_owned(),
+            app_version,
+            refresh_token_version: CURRENT_REFRESH_TOKEN_VERSION.to_owned(),
             expires_at,
         })
         .await?;

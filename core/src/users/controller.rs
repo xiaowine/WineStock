@@ -11,6 +11,7 @@ use axum::{
 use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
 use crate::{
+    http::ValidatedJson,
     security::{AuthApiError, CurrentUser},
     state::CoreState,
 };
@@ -38,7 +39,7 @@ use super::service;
 pub(crate) async fn register(
     State(state): State<CoreState>,
     current_user: Option<Extension<CurrentUser>>,
-    Json(request): Json<AuthRegisterRequest>,
+    ValidatedJson(request): ValidatedJson<AuthRegisterRequest>,
 ) -> Result<(StatusCode, Json<AuthUserResponse>), AuthApiError> {
     let current_user = current_user.map(|Extension(user)| user);
     Ok((

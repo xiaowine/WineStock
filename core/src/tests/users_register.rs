@@ -218,4 +218,5 @@ async fn registration_rejects_duplicate_or_invalid_usernames() {
     )
     .await;
     assert_eq!(empty_username.status(), axum::http::StatusCode::BAD_REQUEST);
+    assert_eq!(text_body(empty_username).await, "invalid_request");
 }

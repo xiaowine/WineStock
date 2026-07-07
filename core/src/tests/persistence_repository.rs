@@ -39,8 +39,10 @@ async fn refresh_token_repository_handles_create_revoke_and_rotate_in_transactio
         .create(CreateRefreshToken {
             user_id: user.id,
             token_hash: "hash-1".to_owned(),
-            device_name: Some("desktop".to_owned()),
-            client_kind: Some("server-test".to_owned()),
+            device_name: "desktop".to_owned(),
+            client_kind: "desktop".to_owned(),
+            app_version: "0.1.0-test".to_owned(),
+            refresh_token_version: "v1".to_owned(),
             expires_at: "2099-01-01T00:00:00.000Z".to_owned(),
         })
         .await
@@ -65,8 +67,10 @@ async fn refresh_token_repository_handles_create_revoke_and_rotate_in_transactio
         .create(CreateRefreshToken {
             user_id: user.id,
             token_hash: "hash-2".to_owned(),
-            device_name: Some("desktop".to_owned()),
-            client_kind: Some("server-test".to_owned()),
+            device_name: "desktop".to_owned(),
+            client_kind: "desktop".to_owned(),
+            app_version: "0.1.0-test".to_owned(),
+            refresh_token_version: "v1".to_owned(),
             expires_at: "2099-01-01T00:00:00.000Z".to_owned(),
         })
         .await
@@ -78,8 +82,10 @@ async fn refresh_token_repository_handles_create_revoke_and_rotate_in_transactio
             CreateRefreshToken {
                 user_id: user.id,
                 token_hash: "hash-3".to_owned(),
-                device_name: Some("desktop".to_owned()),
-                client_kind: Some("server-test".to_owned()),
+                device_name: "desktop".to_owned(),
+                client_kind: "desktop".to_owned(),
+                app_version: "0.1.0-test".to_owned(),
+                refresh_token_version: "v1".to_owned(),
                 expires_at: "2099-01-01T00:00:00.000Z".to_owned(),
             },
         )

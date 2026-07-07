@@ -175,6 +175,8 @@ user_id
 token_hash
 device_name
 client_kind
+app_version
+refresh_token_version
 created_at
 expires_at
 last_used_at

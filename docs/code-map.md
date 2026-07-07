@@ -25,8 +25,9 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `AGENTS.md`：agent 的简短操作指南。
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
-- `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实现笔记和本代码地图。
+- `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实体限制文档、实现笔记和本代码地图。
 - `docs/rbac-permission-model.md`：当前 RBAC 角色/权限模型、初始化行为和业务授权规则。
+- `docs/validation/`：按实体所在源码文件归档的字段限制、校验入口和数据库约束说明。
 - `docs/implementation-notes/README.md`：实现笔记目录说明。
 - `docs/implementation-notes/core-axum-structure-refactor-plan.md`：面向后续 API 扩展的 `core\src` 领域切片重整方案。
 - `docs/implementation-notes/core-spring-boot-style-refactor-plan.md`：后续把 `core\src` 从 `identity` 结构继续收敛为 `http / security / auth / users / rbac` 的实施方案。
@@ -68,12 +69,30 @@ core   -> desktop/android/frontend platform assets
 用途：平台无关配置和契约。
 
 - `shared/src/lib.rs`
+  - 作为 `shared` crate 的薄入口，只声明 `auth`、`config`、`error` 和 `validation` 模块，并重新导出公共契约类型。
+  - 不直接承载 DTO、配置实体或校验函数实现。
+
+- `shared/src/auth.rs`
   - 定义鉴权 HTTP DTO：`AuthRegisterRequest`、`AuthLoginRequest`、`AuthRefreshRequest`、`AuthLogoutRequest`、`AuthUserResponse` 和 `AuthTokenResponse`。
+  - 定义 `AuthClientKind`，登录请求的客户端类型只允许 `desktop` 和 `android`。
+  - 使用 `garde` 内置 `length`、`range`、`inner` 和项目自定义 trim/code 规则定义静态字段约束。
+
+- `shared/src/config.rs`
   - 定义 `AppConfig`、`ServerConfig`、`StorageConfig` 和 `RuntimeMode`。
+  - 使用 `garde` 内置 `dive`、`skip`、`length`、`range`、`ip` 和远端 URL 自定义规则定义 JSON 启动配置约束。
   - 提供启动配置的 JSON 解析和序列化辅助函数。
+  - `AppConfig::from_json_str()` 会在 JSON 反序列化后执行 `garde` 校验，字段值不满足约束时返回 `ConfigParseError::Validation`。
   - 提供运行模式辅助判断，例如本地服务和远端服务检查。
   - `ServerConfig` 不包含单独的 `enabled` 开关；是否使用本地服务由 `RuntimeMode` 决定。
-  - 不能依赖 `core`、Axum、平台 shell 代码、WebView 代码或前端构建产物。
+
+- `shared/src/error.rs`
+  - 定义 `ConfigParseError`，区分 JSON 结构错误和 `garde` 字段约束错误。
+
+- `shared/src/validation.rs`
+  - 定义 DTO 和配置复用的 `garde` 自定义校验函数。
+  - 只保留内置规则无法直接表达的项目语义，例如 trim 后非空、可选短标签、权限代码格式和空字符串远端 URL。
+
+`shared` 不能依赖 `core`、Axum、平台 shell 代码、WebView 代码或前端构建产物。
 
 ## `core`
 
@@ -95,6 +114,7 @@ core   -> desktop/android/frontend platform assets
   - 作为唯一的全局 HTTP 外壳层。
   - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息和 Swagger UI 挂载。
   - `router.rs` 负责组装 Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth` 与 `users` 模块路由。
+  - `validation.rs` 定义 `ValidatedJson<T>`，在业务 handler 之前完成 JSON 解析和 `garde` 静态字段校验；校验失败统一返回 `400 invalid_request`。
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
@@ -156,6 +176,7 @@ core   -> desktop/android/frontend platform assets
   - 定义 SeaORM `Migrator`。
   - 首版 migration 创建 `auth_users`、`auth_roles`、`auth_user_role_assignments`、`auth_permissions`、`auth_role_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens` 和 `storage_file_objects`。
   - 为 refresh token hash、文件 hash、文件 owner/created_at 和 active signing key 建立索引或约束。
+  - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端或 Android 端稳定代码。
 
 - `core/src/persistence/entity/`
   - 放置 SeaORM Entity、Model 和 ActiveModel。
@@ -166,6 +187,7 @@ core   -> desktop/android/frontend platform assets
   - 放置业务语义 repository。
   - `auth_repo.rs`、`user_repo.rs`、`rbac_repo.rs` 和 `refresh_token_repo.rs` 分别承载 auth/users/rbac/refresh token 的仓储能力。
   - `time.rs` 提供仓储层共用的 SQLite UTC 时间生成工具，避免具体业务仓储各自拼接时间查询。
+  - `validation.rs` 提供 repository 写库输入的 `garde` 校验入口和少量内部自定义规则。
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
   - `UserRepository` 只支撑用户创建、按 ID/用户名查找。
   - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、角色权限分配、角色权限同步、角色列表和权限列表查询。
@@ -175,6 +197,15 @@ core   -> desktop/android/frontend platform assets
 - `docs/database-schema.md`
   - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。
   - 说明业务表的 `auth_`、`storage_` 前缀，避免把 SQLite 或 SeaORM 系统表误读为业务表。
+
+- `docs/validation/`
+  - `README.md` 说明限制文档的命名规则和约束来源。
+  - `shared-src-auth.md` 记录鉴权 HTTP DTO 和响应实体的 `garde`/Serde 限制。
+  - `shared-src-config.md` 记录启动配置和运行模式的 `garde`/Serde 限制。
+  - `shared-src-error.md` 记录共享配置解析错误。
+  - `shared-src-validation.md` 记录共享自定义校验函数的使用边界。
+  - `core-src-persistence-entity-*.md` 记录当前 SeaORM 数据库实体的字段约束来源。
+  - `core-src-persistence-repository-*.md` 记录当前 repository 写库输入结构的限制和事务边界。
 
 - `docs/rbac-permission-model.md`
   - 记录当前 RBAC 模型的正式规则。

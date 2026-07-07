@@ -7,27 +7,41 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction, DbErr, EntityTrait,
     QueryFilter, Set, TransactionTrait,
 };
+use winestock_shared::validation::validate_not_blank;
 
 use crate::persistence::entity::refresh_token;
 
-use crate::persistence::repository::time::sqlite_now;
+use crate::persistence::repository::{time::sqlite_now, validation::validate_repository_input};
 
 /// 创建刷新令牌时写入数据库的安全元数据，明文令牌不进入 SQLite。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateRefreshToken {
     /// 令牌所属用户 ID，必须指向已存在用户。
+    #[garde(range(min = 1))]
     pub user_id: i64,
 
     /// 刷新令牌哈希值，明文令牌不得入库。
+    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub token_hash: String,
 
     /// 设备名称，便于用户识别登录来源。
-    pub device_name: Option<String>,
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub device_name: String,
 
     /// 客户端类型，用于区分桌面、Android 或其他调用方。
-    pub client_kind: Option<String>,
+    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    pub client_kind: String,
+
+    /// App 版本号，用于定位登录来源的客户端版本。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub app_version: String,
+
+    /// Refresh token 格式版本，由服务端当前 token 生成规则决定。
+    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    pub refresh_token_version: String,
 
     /// 令牌过期时间，使用 SQLite UTC 字符串格式。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub expires_at: String,
 }
 
@@ -107,12 +121,15 @@ async fn create_on_connection<C>(
 where
     C: ConnectionTrait,
 {
+    validate_repository_input(&input)?;
     let now = sqlite_now(connection).await?;
     let active_token = refresh_token::ActiveModel {
         user_id: Set(input.user_id),
         token_hash: Set(input.token_hash),
         device_name: Set(input.device_name),
         client_kind: Set(input.client_kind),
+        app_version: Set(input.app_version),
+        refresh_token_version: Set(input.refresh_token_version),
         created_at: Set(now),
         expires_at: Set(input.expires_at),
         last_used_at: Set(None),

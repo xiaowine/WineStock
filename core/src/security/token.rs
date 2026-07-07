@@ -10,6 +10,9 @@ use sha2::{Digest, Sha256};
 
 use super::AuthApiError;
 
+/// 当前 refresh token 格式版本，用于数据库中标记 opaque token 的生成规则。
+pub(crate) const CURRENT_REFRESH_TOKEN_VERSION: &str = "v1";
+
 /// refresh token 使用高熵随机明文，数据库只保存其 SHA-256 哈希文本。
 pub(crate) fn hash_refresh_token(token: &str) -> String {
     let digest = Sha256::digest(token.as_bytes());

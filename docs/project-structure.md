@@ -64,7 +64,11 @@ WineStock/
   shared/                        # current winestock-shared library crate
     Cargo.toml
     src/
+      auth.rs
+      config.rs
+      error.rs
       lib.rs
+      validation.rs
   desktop/
     tauri/
   android/
@@ -101,6 +105,7 @@ Current workspace dependencies:
 - `argon2`
 - `base64`
 - `getrandom`
+- `garde`
 - `jsonwebtoken`
 - `sea-orm`
 - `sea-orm-migration`

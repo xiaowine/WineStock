@@ -6,7 +6,7 @@
 use std::{error::Error, fmt, io, path::PathBuf};
 
 use winestock_core::{CoreBootstrapError, ServerStartError};
-use winestock_shared::RuntimeMode;
+use winestock_shared::{ConfigParseError, RuntimeMode};
 
 /// 服务端 shell 自身的配置、生命周期和启动错误。
 #[derive(Debug)]
@@ -37,8 +37,8 @@ pub enum ServerShellError {
         /// 配置文件路径。
         path: PathBuf,
 
-        /// JSON 解析错误。
-        source: serde_json::Error,
+        /// JSON 解析或字段约束错误。
+        source: ConfigParseError,
     },
 
     /// 创建默认配置目录失败。

@@ -8,7 +8,7 @@ use winestock_shared::{
     AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
 };
 
-use crate::{security::AuthApiError, state::CoreState};
+use crate::{http::ValidatedJson, security::AuthApiError, state::CoreState};
 
 use super::service;
 
@@ -25,7 +25,7 @@ use super::service;
 /// 用户名密码登录，成功后返回 JWT access token 和 opaque refresh token。
 pub(crate) async fn login(
     State(state): State<CoreState>,
-    Json(request): Json<AuthLoginRequest>,
+    ValidatedJson(request): ValidatedJson<AuthLoginRequest>,
 ) -> Result<Json<AuthTokenResponse>, AuthApiError> {
     Ok(Json(service::login(&state, request).await?))
 }
@@ -43,7 +43,7 @@ pub(crate) async fn login(
 /// 使用 refresh token 轮换并签发新的 access token。
 pub(crate) async fn refresh(
     State(state): State<CoreState>,
-    Json(request): Json<AuthRefreshRequest>,
+    ValidatedJson(request): ValidatedJson<AuthRefreshRequest>,
 ) -> Result<Json<AuthTokenResponse>, AuthApiError> {
     Ok(Json(service::refresh(&state, request).await?))
 }
@@ -61,7 +61,7 @@ pub(crate) async fn refresh(
 /// 吊销当前 refresh token；access token 自身仍按短 TTL 自然过期。
 pub(crate) async fn logout(
     State(state): State<CoreState>,
-    Json(request): Json<AuthLogoutRequest>,
+    ValidatedJson(request): ValidatedJson<AuthLogoutRequest>,
 ) -> Result<StatusCode, AuthApiError> {
     service::logout(&state, request).await?;
     Ok(StatusCode::NO_CONTENT)

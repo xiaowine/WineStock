@@ -10,7 +10,7 @@ use utoipa::{
 };
 use utoipa_swagger_ui::SwaggerUi;
 use winestock_shared::{
-    AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
     AuthTokenResponse, AuthUserResponse,
 };
 
@@ -32,6 +32,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     ),
     components(schemas(
         AuthRegisterRequest,
+        AuthClientKind,
         AuthLoginRequest,
         AuthRefreshRequest,
         AuthLogoutRequest,

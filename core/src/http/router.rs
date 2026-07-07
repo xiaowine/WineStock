@@ -29,6 +29,5 @@ fn base_router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new()
-        .merge(docs::router())
+    Router::new().merge(docs::router())
 }

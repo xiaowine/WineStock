@@ -23,7 +23,7 @@ pub(crate) use middleware::{users_exist, AuthorizeRouteExt};
 pub(crate) use password::{create_password_hash, verify_password};
 #[cfg(test)]
 pub(crate) use token::unix_timestamp;
-pub(crate) use token::{hash_refresh_token, random_urlsafe};
+pub(crate) use token::{hash_refresh_token, random_urlsafe, CURRENT_REFRESH_TOKEN_VERSION};
 
 #[cfg(test)]
 #[path = "../tests/security_authorization.rs"]

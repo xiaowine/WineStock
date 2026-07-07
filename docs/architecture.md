@@ -192,7 +192,7 @@ The root Cargo workspace currently contains:
 - `server` as package `winestock-server`
 - `shared` as package `winestock-shared`, crate `winestock_shared`
 
-`core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, SeaORM/SQLx SQLite bootstrap dependencies, and `shared`.
+`core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, Garde, SeaORM/SQLx SQLite bootstrap dependencies, and `shared`.
 `shared` contains the platform-neutral JSON startup config model.
 
 Desktop and Android platform shells are not implemented yet.

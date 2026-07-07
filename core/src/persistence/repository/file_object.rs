@@ -4,30 +4,40 @@
 //! 文件内容读写属于 `StorageRuntime.files_dir` 对应的文件系统目录，不在 repository 中处理。
 
 use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set};
+use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
 use crate::persistence::entity::file_object;
 
-use super::time::sqlite_now;
+use super::{
+    time::sqlite_now,
+    validation::{validate_optional_positive_id, validate_repository_input},
+};
 
 /// 创建文件元数据时的输入；文件内容必须已经由调用方写入 files/ 目录。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateFileObject {
     /// 文件内容的 SHA-256 摘要，必须由调用方在写入元数据前计算。
+    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub sha256: String,
 
     /// 文件 MIME 类型；调用方无法判断时允许为空。
+    #[garde(length(min = 1, max = 255), custom(validate_optional_not_blank))]
     pub mime_type: Option<String>,
 
     /// 文件大小，单位字节。
+    #[garde(range(min = 0))]
     pub size_bytes: i64,
 
     /// 文件在 `files/` 目录下的相对存储路径。
+    #[garde(length(min = 1, max = 4096), custom(validate_not_blank))]
     pub storage_path: String,
 
     /// 上传或导入时的原始文件名。
+    #[garde(length(min = 1, max = 255), custom(validate_optional_not_blank))]
     pub original_name: Option<String>,
 
     /// 文件所有者用户 ID；系统级文件或未归属文件允许为空。
+    #[garde(custom(validate_optional_positive_id))]
     pub owner_user_id: Option<i64>,
 }
 
@@ -47,6 +57,7 @@ impl<'db> FileObjectRepository<'db> {
         &self,
         input: CreateFileObject,
     ) -> Result<file_object::Model, DbErr> {
+        validate_repository_input(&input)?;
         let active_file = file_object::ActiveModel {
             sha256: Set(input.sha256),
             mime_type: Set(input.mime_type),

@@ -16,8 +16,8 @@ use sea_orm::DatabaseConnection;
 use tempfile::{tempdir, TempDir};
 use tower::ServiceExt;
 use winestock_shared::{
-    AppConfig, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest, AuthTokenResponse,
-    RuntimeMode, ServerConfig, StorageConfig,
+    AppConfig, AuthClientKind, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthTokenResponse, RuntimeMode, ServerConfig, StorageConfig,
 };
 
 use crate::{
@@ -124,8 +124,9 @@ pub(crate) async fn raw_login_request(
             &AuthLoginRequest {
                 username: username.to_owned(),
                 password: password.to_owned(),
-                device_name: Some("test-device".to_owned()),
-                client_kind: Some("test".to_owned()),
+                device_name: "test-device".to_owned(),
+                client_kind: AuthClientKind::Desktop,
+                version: "0.1.0-test".to_owned(),
             },
         ))
         .await

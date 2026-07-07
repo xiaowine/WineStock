@@ -82,6 +82,24 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         .await,
         0
     );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('auth_refresh_tokens') WHERE name = 'app_version'",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('auth_refresh_tokens') WHERE name = 'refresh_token_version'",
+            "count",
+        )
+        .await,
+        1
+    );
 }
 
 async fn query_string(database: &DatabaseConnection, sql: &str, column: &str) -> String {

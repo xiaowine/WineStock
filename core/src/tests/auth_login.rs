@@ -1,9 +1,13 @@
 //! auth 模块登录相关测试。
 
 use axum::http::StatusCode;
+use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 use winestock_shared::AuthUserResponse;
 
-use crate::test_support::{login_request, raw_login_request, seeded_app, text_body};
+use crate::{
+    security::{hash_refresh_token, CURRENT_REFRESH_TOKEN_VERSION},
+    test_support::{login_request, raw_login_request, seeded_app, text_body},
+};
 
 #[tokio::test]
 async fn login_returns_tokens_and_current_permissions() {
@@ -32,10 +36,59 @@ async fn login_returns_tokens_and_current_permissions() {
 }
 
 #[tokio::test]
+async fn login_stores_client_and_refresh_token_versions_separately() {
+    let app = seeded_app().await;
+
+    let login = login_request(&app, "admin", "password").await;
+    assert_eq!(login.status, StatusCode::OK);
+    let token_hash = hash_refresh_token(&login.body.refresh_token);
+    let row = app
+        .state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT device_name, client_kind, app_version, refresh_token_version
+            FROM auth_refresh_tokens
+            WHERE token_hash = ?
+            "#,
+            [token_hash.into()],
+        ))
+        .await
+        .expect("refresh token query should succeed")
+        .expect("refresh token row should exist");
+
+    let device_name: String = row
+        .try_get("", "device_name")
+        .expect("device should decode");
+    let client_kind: String = row.try_get("", "client_kind").expect("kind should decode");
+    let app_version: String = row
+        .try_get("", "app_version")
+        .expect("app version should decode");
+    let refresh_token_version: String = row
+        .try_get("", "refresh_token_version")
+        .expect("refresh token version should decode");
+
+    assert_eq!(device_name, "test-device");
+    assert_eq!(client_kind, "desktop");
+    assert_eq!(app_version, "0.1.0-test");
+    assert_eq!(refresh_token_version, CURRENT_REFRESH_TOKEN_VERSION);
+}
+
+#[tokio::test]
 async fn wrong_password_returns_uniform_unauthorized_error() {
     let app = seeded_app().await;
     let response = raw_login_request(&app, "admin", "wrong").await;
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(text_body(response).await, "invalid_credentials");
+}
+
+#[tokio::test]
+async fn invalid_login_payload_is_rejected_before_auth_service() {
+    let app = seeded_app().await;
+    let response = raw_login_request(&app, "   ", "password").await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(text_body(response).await, "invalid_request");
 }

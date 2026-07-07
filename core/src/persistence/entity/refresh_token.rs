@@ -19,10 +19,16 @@ pub struct Model {
     pub token_hash: String,
 
     /// 设备名称，便于用户识别登录来源。
-    pub device_name: Option<String>,
+    pub device_name: String,
 
-    /// 客户端类型，例如桌面、Android 或服务端测试。
-    pub client_kind: Option<String>,
+    /// 客户端类型，例如 desktop 或 android。
+    pub client_kind: String,
+
+    /// App 版本号，用于定位登录来源的客户端版本。
+    pub app_version: String,
+
+    /// Refresh token 格式版本，由服务端当前 token 生成规则决定。
+    pub refresh_token_version: String,
 
     /// 令牌创建时间，使用 SQLite UTC 字符串格式。
     pub created_at: String,
