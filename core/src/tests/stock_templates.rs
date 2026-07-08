@@ -31,12 +31,17 @@ async fn template_crud_copy_and_delete_follow_business_rules() {
     assert_eq!(created.status(), StatusCode::CREATED);
     let template: TemplateResponse = json_body(created).await;
     assert_eq!(template.name, "Raw Material");
-    assert_eq!(template.fields.len(), 3);
+    assert_eq!(template.fields.len(), 4);
     assert_eq!(template.fields[0].field_name, "brand");
     assert_eq!(template.fields[1].field_type, TemplateFieldType::Number);
     assert_eq!(
         template.fields[2].options.as_deref(),
         Some(&["red".to_owned(), "white".to_owned()][..])
+    );
+    assert_eq!(template.fields[3].field_type, TemplateFieldType::Url);
+    assert_eq!(
+        template.fields[3].default_value.as_deref(),
+        Some("https://example.com/spec")
     );
 
     let duplicate = authorized_json_request(
@@ -200,6 +205,27 @@ async fn template_validation_and_authorization_fail_before_write() {
     .await;
     assert_eq!(duplicate_fields.status(), StatusCode::BAD_REQUEST);
 
+    let invalid_url_default = authorized_json_request(
+        &app,
+        "POST",
+        "/api/templates",
+        &login.body.access_token,
+        &TemplateCreateRequest {
+            name: "Invalid Url Default".to_owned(),
+            description: None,
+            fields: vec![TemplateFieldDef {
+                field_name: "datasheet".to_owned(),
+                field_type: TemplateFieldType::Url,
+                required: None,
+                searchable: None,
+                options: None,
+                default_value: Some("example.com/spec".to_owned()),
+            }],
+        },
+    )
+    .await;
+    assert_eq!(invalid_url_default.status(), StatusCode::BAD_REQUEST);
+
     let forbidden_token =
         seed_user_with_permissions_and_login(&app, "template-viewer", &["stock.read"]).await;
     let forbidden = authorized_json_request(
@@ -241,6 +267,14 @@ fn template_request(name: &str) -> TemplateCreateRequest {
                 searchable: Some(true),
                 options: Some(vec!["red".to_owned(), "white".to_owned()]),
                 default_value: Some("red".to_owned()),
+            },
+            TemplateFieldDef {
+                field_name: "datasheet".to_owned(),
+                field_type: TemplateFieldType::Url,
+                required: Some(false),
+                searchable: Some(false),
+                options: None,
+                default_value: Some("https://example.com/spec".to_owned()),
             },
         ],
     }

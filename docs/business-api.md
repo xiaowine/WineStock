@@ -118,7 +118,7 @@
  | 字段 | 类型 | 必填 | 说明 |
  |------|------|------|------|
  | `field_name` | string | 是 | 字段名称 |
- | `field_type` | string (enum) | 是 | 字段类型：`text` / `number` / `select` / `date` / `file` / `boolean` |
+ | `field_type` | string (enum) | 是 | 字段类型：`text` / `number` / `select` / `date` / `file` / `url` / `boolean` |
  | `required` | boolean | 否 | 是否必填，默认 false |
  | `searchable` | boolean | 否 | 是否可用于筛选，默认 false |
  | `options` | array[string] | 否 | 当 `field_type` 为 `select` 时，预置可选值 |

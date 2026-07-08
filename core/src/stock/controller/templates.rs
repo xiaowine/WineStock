@@ -35,6 +35,9 @@ pub(crate) enum TemplateFieldType {
     /// 文件字段，值引用文件元数据。
     File,
 
+    /// 网页链接字段，值必须是 HTTP 或 HTTPS URL。
+    Url,
+
     /// 布尔字段，默认值只允许 `true` 或 `false`。
     Boolean,
 }
@@ -48,6 +51,7 @@ impl TemplateFieldType {
             Self::Select => "select",
             Self::Date => "date",
             Self::File => "file",
+            Self::Url => "url",
             Self::Boolean => "boolean",
         }
     }
@@ -60,6 +64,7 @@ impl TemplateFieldType {
             "select" => Ok(Self::Select),
             "date" => Ok(Self::Date),
             "file" => Ok(Self::File),
+            "url" => Ok(Self::Url),
             "boolean" => Ok(Self::Boolean),
             _ => Err(StockApiError::InvalidRequest),
         }

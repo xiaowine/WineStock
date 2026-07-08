@@ -159,7 +159,7 @@ core   -> desktop/android/frontend platform assets
   - 库存业务模块，承载物品 CRUD 和后续模板、出入库、看板、替代料、审计事件能力。
   - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载 `stock.read`、`stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
   - `controller.rs` 是库存 HTTP 控制器入口，声明并重新导出 `controller/` 下的业务子模块，保持 `stock::controller::*` 的内部访问面稳定。
-  - `controller/templates.rs` 定义模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
+  - `controller/templates.rs` 定义包含 `url` 链接字段的模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
   - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应和物品 Axum handler。
   - `controller/inbound.rs` 定义入库单 DTO、分页查询参数、入库请求/响应和入库 Axum handler。
   - `controller/outbound.rs` 定义出库单 DTO、分页查询参数、出库请求/响应和出库 Axum handler。

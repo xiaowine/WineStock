@@ -15,7 +15,7 @@ use crate::{
 
 use super::{
     response::template_response,
-    validation::{normalize_optional_text, normalize_required_text},
+    validation::{normalize_optional_text, normalize_required_text, validate_http_url},
     StockApiError,
 };
 
@@ -242,6 +242,7 @@ fn validate_field_default(
                 Err(StockApiError::InvalidRequest)
             }
         }
+        controller::TemplateFieldType::Url => validate_http_url(default_value),
         controller::TemplateFieldType::Select => {
             if options
                 .unwrap_or_default()

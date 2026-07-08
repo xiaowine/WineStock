@@ -1,6 +1,6 @@
 //! 库存服务输入归一化。
 //!
-//! 本模块属于 `stock` 业务服务层，负责跨库存用例复用的文本、数值、ID 和 JSON 解析规则。
+//! 本模块属于 `stock` 业务服务层，负责跨库存用例复用的文本、URL、数值、ID 和 JSON 解析规则。
 //! 它不访问数据库，也不直接构造 HTTP 响应。
 
 use serde_json::Value;
@@ -35,6 +35,22 @@ pub(super) fn normalize_optional_text(
     value
         .map(|value| normalize_required_text(&value))
         .transpose()
+}
+
+/// 校验模板 URL 字段必须是 HTTP 或 HTTPS 链接。
+pub(super) fn validate_http_url(value: &str) -> Result<(), StockApiError> {
+    let value = value.trim();
+    let Some(rest) = value
+        .strip_prefix("http://")
+        .or_else(|| value.strip_prefix("https://"))
+    else {
+        return Err(StockApiError::InvalidRequest);
+    };
+    if rest.is_empty() || rest.chars().any(char::is_whitespace) {
+        Err(StockApiError::InvalidRequest)
+    } else {
+        Ok(())
+    }
 }
 
 /// 校验可选数值必须有限且非负。

@@ -133,7 +133,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 重要字段：
 
-- `field_type`：只允许 `text`、`number`、`select`、`date`、`file` 或 `boolean`。
+- `field_type`：只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
 - `options_json`：`select` 等字段类型使用的候选值 JSON。
 - `sort_order`：模板详情展示和校验时的稳定排序依据。
 

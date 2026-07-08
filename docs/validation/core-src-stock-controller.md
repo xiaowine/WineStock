@@ -14,7 +14,7 @@
 
 ## `TemplateFieldType`
 
-字段类型使用 Serde kebab-case 枚举，当前允许 `text`、`number`、`select`、`date`、`file` 和 `boolean`。服务层会把枚举转换为数据库稳定代码。
+字段类型使用 Serde kebab-case 枚举，当前允许 `text`、`number`、`select`、`date`、`file`、`url` 和 `boolean`。服务层会把枚举转换为数据库稳定代码。
 
 ## `TemplateFieldDef`
 
@@ -27,7 +27,7 @@
 | `required` | 可空；未传时服务层按 false 处理 |
 | `searchable` | 可空；未传时服务层按 false 处理 |
 | `options` | 仅 `select` 字段允许且必填；选项数量 1 到 128；选项 trim 后非空且大小写不敏感唯一 |
-| `default_value` | 可空；存在时 trim 后非空，最大 256；`number` 必须能解析为有限数值，`boolean` 只允许 `true`/`false`，`select` 必须在选项内 |
+| `default_value` | 可空；存在时 trim 后非空，最大 256；`number` 必须能解析为有限数值，`boolean` 只允许 `true`/`false`，`select` 必须在选项内，`url` 必须是 HTTP/HTTPS 链接 |
 
 ## `TemplateCreateRequest`
 
@@ -120,7 +120,7 @@
 | `location` | 可空；存在时 trim 后非空，最大 128 |
 | `batch_no` | 可空；存在时 trim 后非空，最大 128 |
 | `expires_at` | 可空；存在时 trim 后非空，最大 64 |
-| `ext_attributes` | 可空；审批阶段必须是 JSON object；物品有关联模板时字段名必须来自模板，必填字段不能为空，字段值必须符合模板类型和选项；物品无模板时必须为空对象或不传 |
+| `ext_attributes` | 可空；审批阶段必须是 JSON object；物品有关联模板时字段名必须来自模板，必填字段不能为空，字段值必须符合模板类型和选项；`url` 字段值必须是 HTTP/HTTPS 链接；物品无模板时必须为空对象或不传 |
 
 ## `InboundCreateRequest`
 

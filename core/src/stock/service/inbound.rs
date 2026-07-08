@@ -22,7 +22,7 @@ use super::{
     response::inbound_response,
     validation::{
         normalize_optional_text, normalize_required_text, parse_attribute_object,
-        parse_options_json, validate_non_negative, validate_positive,
+        parse_options_json, validate_http_url, validate_non_negative, validate_positive,
     },
     StockApiError,
 };
@@ -226,6 +226,10 @@ fn validate_attribute_value(
         | controller::TemplateFieldType::Date
         | controller::TemplateFieldType::File => match value.as_str() {
             Some(text) if !text.trim().is_empty() => Ok(()),
+            _ => Err(StockApiError::InvalidRequest),
+        },
+        controller::TemplateFieldType::Url => match value.as_str() {
+            Some(text) => validate_http_url(text),
             _ => Err(StockApiError::InvalidRequest),
         },
         controller::TemplateFieldType::Number => match value.as_f64() {

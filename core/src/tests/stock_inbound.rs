@@ -28,7 +28,11 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
         &login.body.access_token,
         &inbound_request(
             item_id,
-            Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
+            Some(serde_json::json!({
+                "brand": "Acme",
+                "abv": 13.5,
+                "datasheet": "https://example.com/spec"
+            })),
         ),
     )
     .await;
@@ -139,6 +143,28 @@ async fn inbound_validates_template_attributes_and_permissions() {
     assert_eq!(invalid_approval.status(), StatusCode::BAD_REQUEST);
     assert_eq!(table_count(&app, "stock_batches").await, 0);
 
+    let invalid_url = authorized_json_request(
+        &app,
+        "POST",
+        "/api/inbound",
+        &login.body.access_token,
+        &inbound_request(
+            item_id,
+            Some(serde_json::json!({"brand": "Acme", "datasheet": "example.com/spec"})),
+        ),
+    )
+    .await;
+    assert_eq!(invalid_url.status(), StatusCode::CREATED);
+    let invalid_url_order: InboundResponse = json_body(invalid_url).await;
+    let invalid_url_approval = authorized_empty_request(
+        &app,
+        "POST",
+        &format!("/api/inbound/{}/approve", invalid_url_order.id),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(invalid_url_approval.status(), StatusCode::BAD_REQUEST);
+
     let viewer_token =
         seed_user_with_permissions_and_login(&app, "inbound-viewer", &["stock.read"]).await;
     let forbidden_create = authorized_json_request(
@@ -204,6 +230,14 @@ async fn seed_template_bound_item(app: &crate::test_support::TestApp, access_tok
                 TemplateFieldDef {
                     field_name: "abv".to_owned(),
                     field_type: TemplateFieldType::Number,
+                    required: Some(false),
+                    searchable: Some(false),
+                    options: None,
+                    default_value: None,
+                },
+                TemplateFieldDef {
+                    field_name: "datasheet".to_owned(),
+                    field_type: TemplateFieldType::Url,
                     required: Some(false),
                     searchable: Some(false),
                     options: None,

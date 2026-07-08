@@ -166,7 +166,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         template_id INTEGER NOT NULL,
         field_name TEXT NOT NULL,
-        field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'boolean')),
+        field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'url', 'boolean')),
         required INTEGER NOT NULL DEFAULT 0 CHECK (required IN (0, 1)),
         searchable INTEGER NOT NULL DEFAULT 0 CHECK (searchable IN (0, 1)),
         options_json TEXT,

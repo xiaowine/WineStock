@@ -145,6 +145,25 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         .await,
         1
     );
+
+    storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "INSERT INTO stock_templates (name, description) VALUES ('URL Template', NULL)"
+                .to_owned(),
+        ))
+        .await
+        .expect("template should insert");
+    storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "INSERT INTO stock_template_fields (template_id, field_name, field_type) VALUES (1, 'datasheet', 'url')"
+                .to_owned(),
+        ))
+        .await
+        .expect("url field type should pass schema check");
 }
 
 async fn query_string(database: &DatabaseConnection, sql: &str, column: &str) -> String {
