@@ -158,8 +158,27 @@ core   -> desktop/android/frontend platform assets
 - `core/src/stock/`
   - 库存业务模块，承载物品 CRUD 和后续模板、出入库、看板、替代料、审计事件能力。
   - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载 `stock.read`、`stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
-  - `controller.rs` 定义物品、模板、入库、出库、看板、替代料和事件日志 HTTP DTO、分页/趋势查询参数、Axum handler 和 utoipa 标注。
-  - `service.rs` 处理物品创建、分页、详情、更新、软删除、SKU 冲突检查、模板 CRUD/copy、模板字段业务校验、模板引用删除冲突、入库创建/列表/详情/审批/拒绝、入库模板扩展属性校验、出库创建/列表/详情/审批/拒绝、库存不足错误映射、看板总览/趋势响应组装、替代料整体替换/查询/解绑、事件日志分页/筛选响应组装、分页响应组装和库存业务错误映射。
+  - `controller.rs` 是库存 HTTP 控制器入口，声明并重新导出 `controller/` 下的业务子模块，保持 `stock::controller::*` 的内部访问面稳定。
+  - `controller/templates.rs` 定义模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
+  - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应和物品 Axum handler。
+  - `controller/inbound.rs` 定义入库单 DTO、分页查询参数、入库请求/响应和入库 Axum handler。
+  - `controller/outbound.rs` 定义出库单 DTO、分页查询参数、出库请求/响应和出库 Axum handler。
+  - `controller/dashboard.rs` 定义库存看板总览、趋势查询参数、趋势响应和看板 Axum handler。
+  - `controller/substitutes.rs` 定义替代料绑定请求、替代料响应和替代料 Axum handler。
+  - `controller/events.rs` 定义事件日志查询参数、事件日志响应和审计事件 Axum handler。
+  - `controller/common.rs` 定义多个库存 HTTP 子模块共享的单据状态枚举和正数校验函数。
+  - `service.rs` 是库存业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `stock::service::*` 的内部访问面稳定。
+  - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验和模板写库输入组装。
+  - `service/items.rs` 处理物品创建、分页、详情、更新、软删除和 SKU 冲突检查。
+  - `service/inbound.rs` 处理入库创建、列表、详情、审批、拒绝和审批前模板扩展属性校验。
+  - `service/outbound.rs` 处理出库创建、列表、详情、审批、拒绝和库存不足错误映射。
+  - `service/dashboard.rs` 处理库存看板总览和趋势只读查询，并持有趋势天数与呆滞料阈值等看板服务常量。
+  - `service/substitutes.rs` 处理替代料整体替换、查询、解绑和替代料自引用/重复/循环绑定错误映射。
+  - `service/events.rs` 处理事件日志分页、筛选条件归一化和响应分页组装。
+  - `service/error.rs` 定义 `StockApiError`，集中库存 HTTP 错误响应映射和 repository 自定义错误收敛。
+  - `service/pagination.rs` 定义库存分页默认值、`PaginatedResponse<T>` 和总页数计算。
+  - `service/response.rs` 负责把 repository 记录投影为库存 HTTP DTO，不执行数据库查询。
+  - `service/validation.rs` 负责库存服务层复用的文本、数值、ID、options JSON 和扩展属性 JSON 归一化。
   - `permissions.rs` 定义 `stock.read`、`stock.write`、`stock.item.manage`、模板、出入库、替代料和 `audit.read` 等稳定权限代码。
 
 - `core/src/rbac/`

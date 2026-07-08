@@ -1,6 +1,16 @@
-# `core/src/stock/controller.rs`
+# `core/src/stock/controller/`
 
-本文件定义库存 API 的 HTTP DTO、分页查询参数、响应体和 Axum handler。
+本目录定义库存 API 的 HTTP DTO、分页查询参数、响应体和 Axum handler。
+`core/src/stock/controller.rs` 是入口和重新导出层，具体能力按业务拆到：
+
+- `templates.rs`：模板字段、模板请求/响应和模板 handler。
+- `items.rs`：库存物品请求/响应、分页查询参数和物品 handler。
+- `inbound.rs`：入库单请求/响应、分页查询参数和入库 handler。
+- `outbound.rs`：出库单请求/响应、分页查询参数和出库 handler。
+- `dashboard.rs`：库存看板总览、趋势查询参数和看板 handler。
+- `substitutes.rs`：替代料绑定请求、替代料响应和替代料 handler。
+- `events.rs`：事件日志查询参数、响应体和事件日志 handler。
+- `common.rs`：多个库存 HTTP 子模块共享的单据状态枚举和正数校验函数。
 
 ## `TemplateFieldType`
 

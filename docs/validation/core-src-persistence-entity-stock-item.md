@@ -2,7 +2,7 @@
 
 本文件定义 `stock_items` 的 SeaORM Entity。
 
-该实体不作为 HTTP 请求体直接接收。HTTP 物品输入限制见 `core/src/stock/controller.rs`，写库输入限制见 `core-src-persistence-repository-stock-repo.md`。
+该实体不作为 HTTP 请求体直接接收。HTTP 物品输入限制见 `core/src/stock/controller/items.rs`，写库输入限制见 `core-src-persistence-repository-stock-repo.md`。
 
 ## 字段约束
 
