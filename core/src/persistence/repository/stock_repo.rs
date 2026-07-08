@@ -723,6 +723,15 @@ where
         Ok(query.one(self.database).await?.is_some())
     }
 
+    /// 查询指定模板名称是否已存在；启动补齐用它避免恢复用户软删除的默认模板。
+    pub(crate) async fn template_name_exists(&self, name: &str) -> Result<bool, DbErr> {
+        Ok(stock_template::Entity::find()
+            .filter(stock_template::Column::Name.eq(name))
+            .one(self.database)
+            .await?
+            .is_some())
+    }
+
     /// 查询全部未软删除模板，字段按模板逐个加载以保持业务结构清晰。
     pub(crate) async fn list_active_templates(&self) -> Result<Vec<StockTemplateDetail>, DbErr> {
         let templates = stock_template::Entity::find()

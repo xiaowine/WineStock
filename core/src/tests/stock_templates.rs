@@ -59,7 +59,11 @@ async fn template_crud_copy_and_delete_follow_business_rules() {
         authorized_empty_request(&app, "GET", "/api/templates", &login.body.access_token).await;
     assert_eq!(listed.status(), StatusCode::OK);
     let templates: Vec<TemplateResponse> = json_body(listed).await;
-    assert_eq!(templates.len(), 1);
+    assert_eq!(templates.len(), 4);
+    assert!(templates
+        .iter()
+        .any(|template| template.name == "Raw Material"));
+    assert!(templates.iter().any(|template| template.name == "元器件"));
 
     let updated = authorized_json_request(
         &app,

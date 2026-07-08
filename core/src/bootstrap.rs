@@ -13,6 +13,7 @@ use crate::{
         migrate_storage_schema, open_sqlite_storage, StorageBootstrapError, StorageRuntime,
     },
     rbac::{bootstrap_builtin_rbac, RbacBootstrapError},
+    stock::{bootstrap_default_templates, StockBootstrapError},
 };
 
 /// core 根据启动配置完成的初始化结果。
@@ -50,6 +51,9 @@ pub enum CoreBootstrapError {
 
     /// 内置权限初始化失败。
     Rbac(RbacBootstrapError),
+
+    /// 库存默认模板初始化失败。
+    Stock(StockBootstrapError),
 }
 
 impl fmt::Display for CoreBootstrapError {
@@ -58,6 +62,7 @@ impl fmt::Display for CoreBootstrapError {
             Self::Storage(source) => write!(f, "{source}"),
             Self::Auth(source) => write!(f, "{source}"),
             Self::Rbac(source) => write!(f, "{source}"),
+            Self::Stock(source) => write!(f, "{source}"),
         }
     }
 }
@@ -68,6 +73,7 @@ impl Error for CoreBootstrapError {
             Self::Storage(source) => Some(source),
             Self::Auth(source) => Some(source),
             Self::Rbac(source) => Some(source),
+            Self::Stock(source) => Some(source),
         }
     }
 }
@@ -95,6 +101,10 @@ pub async fn bootstrap_from_config(
     bootstrap_builtin_rbac(&storage.database)
         .await
         .map_err(CoreBootstrapError::Rbac)?;
+
+    bootstrap_default_templates(&storage.database)
+        .await
+        .map_err(CoreBootstrapError::Stock)?;
 
     let auth = bootstrap_auth(&storage.database)
         .await

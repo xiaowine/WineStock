@@ -107,6 +107,70 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
         .await,
         0
     );
+
+    let mut template_names = query_string_vec(
+        &second.storage.database,
+        "SELECT name FROM stock_templates WHERE deleted_at IS NULL",
+        "name",
+    )
+    .await;
+    template_names.sort();
+    assert_eq!(
+        template_names,
+        vec![
+            "3D打印耗材".to_owned(),
+            "元器件".to_owned(),
+            "通用".to_owned()
+        ]
+    );
+    assert_eq!(
+        query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM stock_template_fields",
+            "count",
+        )
+        .await,
+        21
+    );
+    assert_eq!(
+        query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM stock_template_fields WHERE field_type = 'url'",
+            "count",
+        )
+        .await,
+        3
+    );
+    assert_eq!(
+        template_field_names(&second.storage.database, "元器件").await,
+        vec![
+            "型号",
+            "品牌",
+            "封装",
+            "参数",
+            "包装方式",
+            "数据手册",
+            "购买链接",
+            "备注"
+        ]
+    );
+    assert_eq!(
+        template_field_names(&second.storage.database, "3D打印耗材").await,
+        vec![
+            "材质",
+            "颜色",
+            "线径",
+            "净重",
+            "是否已开封",
+            "干燥要求",
+            "产品链接",
+            "备注"
+        ]
+    );
+    assert_eq!(
+        template_field_names(&second.storage.database, "通用").await,
+        vec!["品牌", "规格型号", "供应商", "用途", "备注"]
+    );
 }
 
 #[tokio::test]
@@ -248,6 +312,76 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_
 }
 
 #[tokio::test]
+async fn default_stock_templates_are_idempotent_and_preserve_user_changes() {
+    let temp = tempdir().expect("temp dir should exist");
+    let config = test_config(
+        RuntimeMode::SelfHosted,
+        temp.path().join("winestock.sqlite").to_string_lossy(),
+        temp.path().join("files").to_string_lossy(),
+    );
+
+    let first = bootstrap_from_config(&config)
+        .await
+        .expect("first bootstrap should initialize stock defaults")
+        .local_service
+        .expect("local service should be initialized");
+    first
+        .storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "UPDATE stock_templates SET description = '自定义元器件模板' WHERE name = '元器件'"
+                .to_owned(),
+        ))
+        .await
+        .expect("template should update");
+    first
+        .storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "UPDATE stock_templates SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE name = '通用'"
+                .to_owned(),
+        ))
+        .await
+        .expect("template should soft delete");
+
+    let second = bootstrap_from_config(&config)
+        .await
+        .expect("second bootstrap should preserve stock defaults")
+        .local_service
+        .expect("local service should be initialized");
+
+    assert_eq!(
+        query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM stock_templates WHERE name IN ('元器件', '3D打印耗材', '通用')",
+            "count",
+        )
+        .await,
+        3
+    );
+    assert_eq!(
+        query_string_vec(
+            &second.storage.database,
+            "SELECT description FROM stock_templates WHERE name = '元器件'",
+            "description",
+        )
+        .await,
+        vec!["自定义元器件模板"]
+    );
+    assert_eq!(
+        query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM stock_templates WHERE name = '通用' AND deleted_at IS NULL",
+            "count",
+        )
+        .await,
+        0
+    );
+}
+
+#[tokio::test]
 async fn self_hosted_bootstrap_requires_database_directory() {
     let temp = tempdir().expect("temp dir should exist");
     let missing_database = temp.path().join("missing").join("winestock.sqlite");
@@ -312,5 +446,28 @@ async fn query_string_vec(
         .expect("query should execute")
         .into_iter()
         .map(|row| row.try_get("", column).expect("column should decode"))
+        .collect()
+}
+
+async fn template_field_names(
+    database: &sea_orm::DatabaseConnection,
+    template_name: &str,
+) -> Vec<String> {
+    database
+        .query_all(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT field.field_name
+            FROM stock_template_fields field
+            INNER JOIN stock_templates template ON template.id = field.template_id
+            WHERE template.name = ?
+            ORDER BY field.sort_order, field.id
+            "#,
+            [template_name.into()],
+        ))
+        .await
+        .expect("template fields should query")
+        .into_iter()
+        .map(|row| row.try_get("", "field_name").expect("field should decode"))
         .collect()
 }

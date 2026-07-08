@@ -100,6 +100,8 @@
  模板管理是入库的配置前置，不属于独立业务领域。
 
 当前实现状态：已实现 `POST /api/templates`、`GET /api/templates`、`GET /api/templates/{id}`、`PUT /api/templates/{id}`、`DELETE /api/templates/{id}` 和 `POST /api/templates/{id}/copy`，并纳入 OpenAPI。
+
+本地服务启动后会补齐内置模板：`元器件`、`3D打印耗材` 和 `通用`。补齐只在不存在同名模板记录时创建，不覆盖用户修改，也不恢复用户已经软删除的同名模板。
  
  #### `POST /api/templates`
  

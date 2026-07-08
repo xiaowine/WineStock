@@ -26,6 +26,7 @@ pub use persistence::{StorageBootstrapError, StorageRuntime};
 pub use rbac::RbacBootstrapError;
 pub use security::{AuthApiError, CurrentUser};
 pub use server::{bind_server, BoundServer, ServerStartError};
+pub use stock::StockBootstrapError;
 pub use winestock_shared as shared;
 
 #[cfg(test)]

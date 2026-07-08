@@ -122,7 +122,7 @@ core   -> desktop/android/frontend platform assets
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
   - 异步实现 `bootstrap_from_config()`。
-  - 仅在共享配置启用本地服务时打开本地存储，执行 migration 后先初始化顶层 `rbac` 模块的内置 RBAC，再初始化 `auth` 模块的鉴权设置和 JWT signing key。
+  - 仅在共享配置启用本地服务时打开本地存储，执行 migration 后先初始化顶层 `rbac` 模块的内置 RBAC，再补齐 `stock` 内置库存模板，最后初始化 `auth` 模块的鉴权设置和 JWT signing key。
   - 对远端-only 或禁用本地服务的模式跳过存储初始化。
 
 - `core/src/server.rs`
@@ -167,6 +167,7 @@ core   -> desktop/android/frontend platform assets
   - `controller/substitutes.rs` 定义替代料绑定请求、替代料响应和替代料 Axum handler。
   - `controller/events.rs` 定义事件日志查询参数、事件日志响应和审计事件 Axum handler。
   - `controller/common.rs` 定义多个库存 HTTP 子模块共享的单据状态枚举和正数校验函数。
+  - `bootstrap.rs` 定义 `元器件`、`3D打印耗材` 和 `通用` 三个内置库存模板的启动补齐逻辑；补齐只按同名记录缺失时创建，不覆盖用户修改，也不恢复用户软删除的模板。
   - `service.rs` 是库存业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `stock::service::*` 的内部访问面稳定。
   - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验和模板写库输入组装。
   - `service/items.rs` 处理物品创建、分页、详情、更新、软删除和 SKU 冲突检查。
@@ -224,7 +225,7 @@ core   -> desktop/android/frontend platform assets
   - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销、按用户吊销 active token 和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
-  - `StockRepository` 支撑库存物品创建、分页查询、详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测和事件日志分页筛选；handler 不直接拼接 `stock_*` 表结构。
+  - `StockRepository` 支撑库存物品创建、分页查询、详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测和事件日志分页筛选；handler 不直接拼接 `stock_*` 表结构。
 
 - `docs/database-schema.md`
   - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。

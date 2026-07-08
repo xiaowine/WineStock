@@ -11,10 +11,13 @@ use axum::{
 
 use crate::{security::AuthorizeRouteExt, state::CoreState};
 
+mod bootstrap;
 pub(crate) mod controller;
 pub(crate) mod permissions;
 pub(crate) mod service;
 
+pub(crate) use bootstrap::bootstrap_default_templates;
+pub use bootstrap::StockBootstrapError;
 pub(crate) use permissions::{
     AUDIT_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION, STOCK_INBOUND_CREATE_PERMISSION,
     STOCK_ITEM_MANAGE_PERMISSION, STOCK_OUTBOUND_APPROVE_PERMISSION,
