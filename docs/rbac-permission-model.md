@@ -15,7 +15,11 @@
 `core/src/rbac/policy.rs` 负责：
 
 - 定义稳定的角色代码。
-- 在 `stock` 正式业务模块落地前，暂存库存域权限常量。
+
+`core/src/stock/permissions.rs` 负责：
+
+- 定义库存和审计相关稳定权限代码，例如 `stock.read`、`stock.item.manage` 和 `audit.read`。
+- 让库存业务模块和 RBAC 启动逻辑共享同一份权限命名来源。
 
 `core/src/users/permissions.rs` 负责：
 
@@ -46,6 +50,7 @@
 
 - 在用户业务路由注册处挂载权限 middleware。
 - 把“数据库已有用户后注册接口需要 `user.register` 权限”这类条件鉴权规则表达为路由装配，而不是散落在 handler 中。
+- 把用户列表、用户详情、账号启停、用户角色分配、管理员重置密码、角色只读和权限只读接口统一挂载 `user.manage` 权限。
 
 `shared` 只定义 API 契约中的 `roles` 和 `permissions` 字段，不拥有 RBAC 规则。
 
@@ -108,14 +113,22 @@ RBAC 初始化是幂等的：
 | `user.manage` | 管理用户、角色和权限 |
 | `stock.read` | 查看库存数据 |
 | `stock.write` | 创建或修改库存数据 |
+| `stock.item.manage` | 创建、修改和软删除库存物品 |
+| `stock.template.manage` | 管理库存模板和模板字段 |
+| `stock.inbound.create` | 创建入库单 |
+| `stock.inbound.approve` | 审批或拒绝入库单 |
+| `stock.outbound.create` | 创建出库单 |
+| `stock.outbound.approve` | 审批或拒绝出库单 |
+| `stock.substitute.manage` | 绑定或解绑替代料关系 |
+| `audit.read` | 查询审计事件日志 |
 
 内置角色权限关系：
 
 | 角色代码 | 权限 |
 | --- | --- |
-| `admin` | `user.register`, `user.manage`, `stock.read`, `stock.write` |
-| `staff` | `stock.read`, `stock.write` |
-| `viewer` | `stock.read` |
+| `admin` | 当前全部内置权限 |
+| `staff` | `stock.read`, `stock.write`, `stock.item.manage`, `stock.inbound.create`, `stock.outbound.create`, `stock.substitute.manage` |
+| `viewer` | `stock.read`, `audit.read` |
 
 ## 首个用户
 
@@ -137,11 +150,15 @@ RBAC 初始化是幂等的：
 
 当前注册接口已经按这个规则实现：已有用户后注册新用户会在 route layer 重新查询数据库当前权限，撤销用户角色后，旧 token 不能继续注册用户。
 
+用户管理接口也按这个规则实现：拥有 `user.manage` 的用户可以查询用户、查询角色/权限、启停账号、整体替换用户角色和重置用户密码。禁用用户后，该用户已有 access token 和 refresh token 都会因为数据库中的用户状态不是 `active` 而被拒绝。
+
+为避免系统锁死，用户管理接口禁止禁用最后一个 active admin，也禁止从最后一个 active admin 身上移除 `admin` 角色。这里的 `admin` 仍然只是角色模板；业务授权继续判断 `user.manage` 等权限代码。
+
 ## 新增受保护能力
 
 新增业务接口或能力时按以下步骤处理：
 
-1. 在对应领域的权限常量文件中定义稳定权限代码，命名使用 `domain.action` 形式，例如 `stock.write`；当前用户域使用 `core/src/users/permissions.rs`，库存域在 `stock` 模块正式落地前暂存于 `core/src/rbac/policy.rs`。
+1. 在对应领域的权限常量文件中定义稳定权限代码，命名使用 `domain.action` 形式，例如 `stock.write`；当前用户域使用 `core/src/users/permissions.rs`，库存和审计权限使用 `core/src/stock/permissions.rs`。
 2. 在 `core/src/rbac/bootstrap.rs` 的内置权限中补齐权限说明，并把权限分配给合适的内置角色模板。
 3. 在对应业务模块的 `mod.rs` 路由装配处挂载权限 middleware，不在 handler 中判断角色或权限代码。
 4. 如果权限要求取决于运行时条件，复用条件鉴权封装，把条件函数和权限代码作为路由参数组合。

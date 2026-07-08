@@ -1,6 +1,6 @@
 //! WineStock v1 SQLite schema migration。
 //!
-//! 本 migration 创建当前 server/API 阶段需要的用户、鉴权、刷新令牌和文件元数据表。
+//! 本 migration 创建当前 server/API 阶段需要的用户、鉴权、刷新令牌、文件元数据和库存业务表。
 //! 这里保留显式 SQL，是为了直接表达 SQLite CHECK、局部唯一索引和默认时间格式。
 
 use sea_orm_migration::{prelude::*, sea_orm::ConnectionTrait};
@@ -163,10 +163,297 @@ const INITIAL_SCHEMA: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_storage_file_objects_owner_created
         ON storage_file_objects(owner_user_id, created_at DESC)
     "#,
+    // 库存模板定义物品分类的扩展字段，删除采用软删除以保留历史单据可追溯性。
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT
+    )
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_templates_name_active
+        ON stock_templates(name)
+        WHERE deleted_at IS NULL
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_template_fields (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        field_name TEXT NOT NULL,
+        field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'boolean')),
+        required INTEGER NOT NULL DEFAULT 0 CHECK (required IN (0, 1)),
+        searchable INTEGER NOT NULL DEFAULT 0 CHECK (searchable IN (0, 1)),
+        options_json TEXT,
+        default_value TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (template_id) REFERENCES stock_templates(id) ON DELETE CASCADE,
+        UNIQUE (template_id, field_name)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_template_fields_template_order
+        ON stock_template_fields(template_id, sort_order, id)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        sku TEXT NOT NULL,
+        category_id INTEGER,
+        unit TEXT NOT NULL,
+        description TEXT,
+        default_price REAL CHECK (default_price IS NULL OR default_price >= 0),
+        reorder_point REAL CHECK (reorder_point IS NULL OR reorder_point >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT,
+        FOREIGN KEY (category_id) REFERENCES stock_templates(id) ON DELETE SET NULL
+    )
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_items_sku_active
+        ON stock_items(sku)
+        WHERE deleted_at IS NULL
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_items_category_active
+        ON stock_items(category_id, id)
+        WHERE deleted_at IS NULL
+    "#,
+    // 出入库单据创建时保持 pending；只有审批事务会写批次、库存流水和审计事件。
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_inbound_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+        notes TEXT,
+        created_by_user_id INTEGER,
+        approved_by_user_id INTEGER,
+        rejected_by_user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        approved_at TEXT,
+        rejected_at TEXT,
+        FOREIGN KEY (created_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        FOREIGN KEY (approved_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        FOREIGN KEY (rejected_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        CHECK (status != 'approved' OR approved_at IS NOT NULL),
+        CHECK (status != 'rejected' OR rejected_at IS NOT NULL)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_inbound_orders_status_created
+        ON stock_inbound_orders(status, created_at DESC)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_inbound_order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        item_id INTEGER NOT NULL,
+        quantity REAL NOT NULL CHECK (quantity > 0),
+        unit_price REAL NOT NULL CHECK (unit_price >= 0),
+        location TEXT,
+        batch_no TEXT,
+        expires_at TEXT,
+        ext_attributes_json TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (order_id) REFERENCES stock_inbound_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_inbound_order_items_order
+        ON stock_inbound_order_items(order_id, id)
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_inbound_order_items_item
+        ON stock_inbound_order_items(item_id, id)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        inbound_order_item_id INTEGER,
+        batch_no TEXT NOT NULL,
+        location TEXT,
+        initial_quantity REAL NOT NULL CHECK (initial_quantity > 0),
+        remaining_quantity REAL NOT NULL CHECK (remaining_quantity >= 0),
+        unit_cost REAL NOT NULL CHECK (unit_cost >= 0),
+        received_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        expires_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (inbound_order_item_id) REFERENCES stock_inbound_order_items(id) ON DELETE SET NULL,
+        CHECK (remaining_quantity <= initial_quantity)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_batches_item_fifo
+        ON stock_batches(item_id, expires_at, received_at, id)
+        WHERE remaining_quantity > 0
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_batches_batch_no
+        ON stock_batches(batch_no)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_outbound_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        destination TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+        notes TEXT,
+        created_by_user_id INTEGER,
+        approved_by_user_id INTEGER,
+        rejected_by_user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        approved_at TEXT,
+        rejected_at TEXT,
+        FOREIGN KEY (created_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        FOREIGN KEY (approved_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        FOREIGN KEY (rejected_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        CHECK (status != 'approved' OR approved_at IS NOT NULL),
+        CHECK (status != 'rejected' OR rejected_at IS NOT NULL)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_outbound_orders_status_created
+        ON stock_outbound_orders(status, created_at DESC)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_outbound_order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        item_id INTEGER NOT NULL,
+        quantity REAL NOT NULL CHECK (quantity > 0),
+        batch_id INTEGER,
+        location TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (order_id) REFERENCES stock_outbound_orders(id) ON DELETE CASCADE,
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (batch_id) REFERENCES stock_batches(id) ON DELETE RESTRICT
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_outbound_order_items_order
+        ON stock_outbound_order_items(order_id, id)
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_outbound_order_items_item
+        ON stock_outbound_order_items(item_id, id)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        batch_id INTEGER,
+        movement_type TEXT NOT NULL CHECK (movement_type IN ('inbound', 'outbound', 'adjustment')),
+        quantity_delta REAL NOT NULL,
+        unit_cost REAL CHECK (unit_cost IS NULL OR unit_cost >= 0),
+        balance_after REAL NOT NULL CHECK (balance_after >= 0),
+        inbound_order_item_id INTEGER,
+        outbound_order_item_id INTEGER,
+        created_by_user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (batch_id) REFERENCES stock_batches(id) ON DELETE SET NULL,
+        FOREIGN KEY (inbound_order_item_id) REFERENCES stock_inbound_order_items(id) ON DELETE SET NULL,
+        FOREIGN KEY (outbound_order_item_id) REFERENCES stock_outbound_order_items(id) ON DELETE SET NULL,
+        FOREIGN KEY (created_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        CHECK (quantity_delta != 0)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_movements_item_created
+        ON stock_movements(item_id, created_at DESC)
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_movements_type_created
+        ON stock_movements(movement_type, created_at DESC)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_substitutes (
+        item_id INTEGER NOT NULL,
+        substitute_item_id INTEGER NOT NULL,
+        priority INTEGER NOT NULL CHECK (priority > 0),
+        notes TEXT,
+        created_by_user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        PRIMARY KEY (item_id, substitute_item_id),
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (substitute_item_id) REFERENCES stock_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        CHECK (item_id != substitute_item_id)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_substitutes_substitute
+        ON stock_substitutes(substitute_item_id)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS audit_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        user_id INTEGER,
+        entity_type TEXT NOT NULL,
+        entity_id INTEGER,
+        action TEXT NOT NULL CHECK (action IN ('created', 'updated', 'deleted', 'approved', 'rejected', 'linked', 'unlinked')),
+        details_json TEXT,
+        FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE SET NULL
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_audit_events_entity_created
+        ON audit_events(entity_type, entity_id, timestamp DESC)
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_audit_events_action_created
+        ON audit_events(action, timestamp DESC)
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_audit_events_user_created
+        ON audit_events(user_id, timestamp DESC)
+    "#,
 ];
 
 // 首版 schema 的回滚语句，顺序必须与建表依赖相反。
 const DROP_SCHEMA: &[&str] = &[
+    "DROP INDEX IF EXISTS idx_audit_events_user_created",
+    "DROP INDEX IF EXISTS idx_audit_events_action_created",
+    "DROP INDEX IF EXISTS idx_audit_events_entity_created",
+    "DROP TABLE IF EXISTS audit_events",
+    "DROP INDEX IF EXISTS idx_stock_substitutes_substitute",
+    "DROP TABLE IF EXISTS stock_substitutes",
+    "DROP INDEX IF EXISTS idx_stock_movements_type_created",
+    "DROP INDEX IF EXISTS idx_stock_movements_item_created",
+    "DROP TABLE IF EXISTS stock_movements",
+    "DROP INDEX IF EXISTS idx_stock_outbound_order_items_item",
+    "DROP INDEX IF EXISTS idx_stock_outbound_order_items_order",
+    "DROP TABLE IF EXISTS stock_outbound_order_items",
+    "DROP INDEX IF EXISTS idx_stock_outbound_orders_status_created",
+    "DROP TABLE IF EXISTS stock_outbound_orders",
+    "DROP INDEX IF EXISTS idx_stock_batches_batch_no",
+    "DROP INDEX IF EXISTS idx_stock_batches_item_fifo",
+    "DROP TABLE IF EXISTS stock_batches",
+    "DROP INDEX IF EXISTS idx_stock_inbound_order_items_item",
+    "DROP INDEX IF EXISTS idx_stock_inbound_order_items_order",
+    "DROP TABLE IF EXISTS stock_inbound_order_items",
+    "DROP INDEX IF EXISTS idx_stock_inbound_orders_status_created",
+    "DROP TABLE IF EXISTS stock_inbound_orders",
+    "DROP INDEX IF EXISTS idx_stock_items_category_active",
+    "DROP INDEX IF EXISTS idx_stock_items_sku_active",
+    "DROP TABLE IF EXISTS stock_items",
+    "DROP INDEX IF EXISTS idx_stock_template_fields_template_order",
+    "DROP TABLE IF EXISTS stock_template_fields",
+    "DROP INDEX IF EXISTS idx_stock_templates_name_active",
+    "DROP TABLE IF EXISTS stock_templates",
     "DROP INDEX IF EXISTS idx_storage_file_objects_owner_created",
     "DROP INDEX IF EXISTS idx_storage_file_objects_sha256",
     "DROP TABLE IF EXISTS storage_file_objects",

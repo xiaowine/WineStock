@@ -7,6 +7,35 @@ use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, Statement, TransactionTrait,
 };
 
+/// 角色定义读取模型。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RoleRecord {
+    /// 角色数据库 ID。
+    pub id: i64,
+
+    /// 稳定角色代码。
+    pub code: String,
+
+    /// 角色名称。
+    pub name: String,
+
+    /// 角色说明。
+    pub description: Option<String>,
+}
+
+/// 权限定义读取模型。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PermissionRecord {
+    /// 权限数据库 ID。
+    pub id: i64,
+
+    /// 稳定权限代码。
+    pub code: String,
+
+    /// 权限说明。
+    pub description: Option<String>,
+}
+
 /// 同步角色权限时对已有权限关系的处理策略。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RolePermissionSyncMode {
@@ -84,6 +113,98 @@ where
             .collect()
     }
 
+    /// 查询全部角色定义。
+    pub(crate) async fn list_roles(&self) -> Result<Vec<RoleRecord>, DbErr> {
+        let rows = self
+            .database
+            .query_all(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT id, code, name, description
+                FROM auth_roles
+                ORDER BY code
+                "#
+                .to_owned(),
+            ))
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(RoleRecord {
+                    id: row.try_get("", "id")?,
+                    code: row.try_get("", "code")?,
+                    name: row.try_get("", "name")?,
+                    description: row.try_get("", "description")?,
+                })
+            })
+            .collect()
+    }
+
+    /// 查询全部权限定义。
+    pub(crate) async fn list_permissions(&self) -> Result<Vec<PermissionRecord>, DbErr> {
+        let rows = self
+            .database
+            .query_all(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT id, code, description
+                FROM auth_permissions
+                ORDER BY code
+                "#
+                .to_owned(),
+            ))
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(PermissionRecord {
+                    id: row.try_get("", "id")?,
+                    code: row.try_get("", "code")?,
+                    description: row.try_get("", "description")?,
+                })
+            })
+            .collect()
+    }
+
+    /// 查询指定角色包含的权限代码列表。
+    pub(crate) async fn list_role_permissions(&self, role_id: i64) -> Result<Vec<String>, DbErr> {
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT DISTINCT auth_permissions.code AS code
+                FROM auth_permissions
+                INNER JOIN auth_role_permission_assignments
+                    ON auth_role_permission_assignments.permission_id = auth_permissions.id
+                WHERE auth_role_permission_assignments.role_id = ?
+                ORDER BY auth_permissions.code
+                "#,
+                [role_id.into()],
+            ))
+            .await?;
+
+        rows.into_iter()
+            .map(|row| row.try_get("", "code"))
+            .collect()
+    }
+
+    /// 按角色代码批量解析角色 ID；任一代码不存在时返回空。
+    pub(crate) async fn find_role_ids_by_codes(
+        &self,
+        codes: &[String],
+    ) -> Result<Option<Vec<i64>>, DbErr> {
+        let mut role_ids = Vec::with_capacity(codes.len());
+        for code in codes {
+            let Some(role_id) = self.find_role_id_by_code(code).await? else {
+                return Ok(None);
+            };
+            role_ids.push(role_id);
+        }
+
+        Ok(Some(role_ids))
+    }
+
     /// 确保指定角色存在，并返回角色 ID。
     pub(crate) async fn ensure_role(
         &self,
@@ -152,6 +273,56 @@ where
             .await?;
 
         Ok(())
+    }
+
+    /// 整体替换用户角色；调用方应在事务内先完成最后管理员保护等业务校验。
+    pub(crate) async fn replace_user_roles(
+        &self,
+        user_id: i64,
+        role_ids: &[i64],
+    ) -> Result<(), DbErr> {
+        self.database
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "DELETE FROM auth_user_role_assignments WHERE user_id = ?",
+                [user_id.into()],
+            ))
+            .await?;
+
+        for role_id in role_ids {
+            self.assign_role_to_user(user_id, *role_id).await?;
+        }
+
+        Ok(())
+    }
+
+    /// 判断除指定用户外是否还有 active admin，用于避免管理操作锁死系统。
+    pub(crate) async fn has_other_active_admin(
+        &self,
+        excluded_user_id: i64,
+    ) -> Result<bool, DbErr> {
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT COUNT(DISTINCT auth_users.id) AS count
+                FROM auth_users
+                INNER JOIN auth_user_role_assignments
+                    ON auth_user_role_assignments.user_id = auth_users.id
+                INNER JOIN auth_roles
+                    ON auth_roles.id = auth_user_role_assignments.role_id
+                WHERE auth_users.status = 'active'
+                    AND auth_users.id <> ?
+                    AND auth_roles.code = 'admin'
+                "#,
+                [excluded_user_id.into()],
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("active admin count".to_owned()))?;
+
+        let count: i64 = row.try_get("", "count")?;
+        Ok(count > 0)
     }
 
     /// 给角色分配权限；已有分配保持不变。

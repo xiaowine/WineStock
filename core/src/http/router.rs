@@ -5,7 +5,7 @@
 
 use axum::Router;
 
-use crate::{auth, state::CoreState, users, LocalServiceBootstrap};
+use crate::{auth, state::CoreState, stock, users, LocalServiceBootstrap};
 
 use super::docs;
 
@@ -21,6 +21,7 @@ pub fn build_router_with_local_service(local_service: &LocalServiceBootstrap) ->
     // 业务路由始终挂在统一 `CoreState` 之下，避免某个局部运行时充当全局根状态。
     base_router::<CoreState>()
         .merge(auth::router())
+        .merge(stock::router(state.clone()))
         .merge(users::router(state.clone()))
         .with_state(state)
 }

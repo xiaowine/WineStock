@@ -14,18 +14,14 @@ mod rbac;
 mod security;
 mod server;
 mod state;
+mod stock;
 mod users;
 
-pub use auth::{
-    AuthBootstrap, AuthBootstrapError, AuthSettings, AuthSigningKey, SigningKeyStatus,
-};
+pub use auth::{AuthBootstrap, AuthBootstrapError, AuthSettings, AuthSigningKey, SigningKeyStatus};
 pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };
-pub use http::{
-    build_router, build_router_with_local_service, OPENAPI_JSON_PATH,
-    SWAGGER_UI_PATH,
-};
+pub use http::{build_router, build_router_with_local_service, OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
 pub use persistence::{StorageBootstrapError, StorageRuntime};
 pub use rbac::RbacBootstrapError;
 pub use security::{AuthApiError, CurrentUser};

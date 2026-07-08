@@ -24,7 +24,20 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
     assert_eq!(user.roles, vec!["admin"]);
     assert_eq!(
         user.permissions,
-        vec!["stock.read", "stock.write", "user.manage", "user.register"]
+        vec![
+            "audit.read",
+            "stock.inbound.approve",
+            "stock.inbound.create",
+            "stock.item.manage",
+            "stock.outbound.approve",
+            "stock.outbound.create",
+            "stock.read",
+            "stock.substitute.manage",
+            "stock.template.manage",
+            "stock.write",
+            "user.manage",
+            "user.register"
+        ]
     );
 
     let login = login_request(&app, "first-admin", "password").await;

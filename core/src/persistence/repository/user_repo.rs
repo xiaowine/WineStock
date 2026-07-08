@@ -1,10 +1,11 @@
 //! users 模块用户 repository。
 //!
-//! 本模块属于 `core` 的持久化层，只封装用户创建和用户查询。
+//! 本模块属于 `core` 的持久化层，封装用户创建、查询、状态更新和密码哈希更新。
 //! 角色、权限和分配关系属于 RBAC repository，不应混入账号仓储。
 
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr,
+    EntityTrait, QueryFilter, Set, Statement, Value,
 };
 use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
@@ -26,6 +27,35 @@ pub(crate) struct CreateUser {
     /// 展示名称；为空时可回退使用用户名。
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub display_name: Option<String>,
+}
+
+/// 用户分页查询条件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ListUsers {
+    /// 页码，从 1 开始。
+    pub page: u64,
+
+    /// 每页数量。
+    pub page_size: u64,
+
+    /// 用户名或展示名模糊搜索关键字。
+    pub search: Option<String>,
+
+    /// 按用户状态筛选。
+    pub status: Option<String>,
+
+    /// 按用户拥有的角色代码筛选。
+    pub role: Option<String>,
+}
+
+/// 用户分页查询结果。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UserPage {
+    /// 当前页用户记录。
+    pub items: Vec<user::Model>,
+
+    /// 满足条件的用户总数。
+    pub total: u64,
 }
 
 /// 用户仓储层封装账号创建和查询。
@@ -82,4 +112,149 @@ where
             .one(self.database)
             .await
     }
+
+    /// 分页查询用户；角色筛选通过 RBAC 关联表完成，但只返回账号基础记录。
+    pub(crate) async fn list_users(&self, input: ListUsers) -> Result<UserPage, DbErr> {
+        let limit = input.page_size as i64;
+        let offset = ((input.page.saturating_sub(1)) * input.page_size) as i64;
+        let (join_clause, where_clause, values) = list_users_query_parts(&input);
+        let total = self
+            .count_users(&join_clause, &where_clause, values.clone())
+            .await?;
+        let mut data_values = values;
+        data_values.push(limit.into());
+        data_values.push(offset.into());
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                format!(
+                    r#"
+                    SELECT DISTINCT
+                        auth_users.id,
+                        auth_users.username,
+                        auth_users.password_hash,
+                        auth_users.display_name,
+                        auth_users.status,
+                        auth_users.created_at,
+                        auth_users.updated_at
+                    FROM auth_users
+                    {join_clause}
+                    {where_clause}
+                    ORDER BY auth_users.id ASC
+                    LIMIT ? OFFSET ?
+                    "#
+                ),
+                data_values,
+            ))
+            .await?;
+
+        let items = rows
+            .into_iter()
+            .map(|row| {
+                Ok(user::Model {
+                    id: row.try_get("", "id")?,
+                    username: row.try_get("", "username")?,
+                    password_hash: row.try_get("", "password_hash")?,
+                    display_name: row.try_get("", "display_name")?,
+                    status: row.try_get("", "status")?,
+                    created_at: row.try_get("", "created_at")?,
+                    updated_at: row.try_get("", "updated_at")?,
+                })
+            })
+            .collect::<Result<Vec<_>, DbErr>>()?;
+
+        Ok(UserPage { items, total })
+    }
+
+    /// 更新用户状态，并返回更新后的用户记录。
+    pub(crate) async fn update_status(
+        &self,
+        user: user::Model,
+        status: String,
+    ) -> Result<user::Model, DbErr> {
+        let now = sqlite_now(self.database).await?;
+        let mut active: user::ActiveModel = user.into();
+        active.status = Set(status);
+        active.updated_at = Set(now);
+        active.update(self.database).await
+    }
+
+    /// 更新用户密码哈希，并返回更新后的用户记录。
+    pub(crate) async fn update_password_hash(
+        &self,
+        user: user::Model,
+        password_hash: String,
+    ) -> Result<user::Model, DbErr> {
+        let now = sqlite_now(self.database).await?;
+        let mut active: user::ActiveModel = user.into();
+        active.password_hash = Set(password_hash);
+        active.updated_at = Set(now);
+        active.update(self.database).await
+    }
+
+    async fn count_users(
+        &self,
+        join_clause: &str,
+        where_clause: &str,
+        values: Vec<Value>,
+    ) -> Result<u64, DbErr> {
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                format!(
+                    r#"
+                    SELECT COUNT(DISTINCT auth_users.id) AS count
+                    FROM auth_users
+                    {join_clause}
+                    {where_clause}
+                    "#
+                ),
+                values,
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("user count".to_owned()))?;
+
+        row.try_get::<i64>("", "count").map(|count| count as u64)
+    }
+}
+
+fn list_users_query_parts(input: &ListUsers) -> (String, String, Vec<Value>) {
+    let mut joins = String::new();
+    let mut clauses = Vec::new();
+    let mut values = Vec::new();
+
+    if let Some(search) = input.search.as_ref() {
+        clauses.push("(auth_users.username LIKE ? OR auth_users.display_name LIKE ?)");
+        let pattern = format!("%{search}%");
+        values.push(pattern.clone().into());
+        values.push(pattern.into());
+    }
+
+    if let Some(status) = input.status.as_ref() {
+        clauses.push("auth_users.status = ?");
+        values.push(status.clone().into());
+    }
+
+    if let Some(role) = input.role.as_ref() {
+        joins.push_str(
+            r#"
+            INNER JOIN auth_user_role_assignments
+                ON auth_user_role_assignments.user_id = auth_users.id
+            INNER JOIN auth_roles
+                ON auth_roles.id = auth_user_role_assignments.role_id
+            "#,
+        );
+        clauses.push("auth_roles.code = ?");
+        values.push(role.clone().into());
+    }
+
+    let where_clause = if clauses.is_empty() {
+        String::new()
+    } else {
+        format!("WHERE {}", clauses.join(" AND "))
+    };
+
+    (joins, where_clause, values)
 }

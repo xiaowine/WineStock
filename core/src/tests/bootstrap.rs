@@ -88,7 +88,20 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
             "code",
         )
         .await,
-        vec!["stock.read", "stock.write", "user.manage", "user.register"]
+        vec![
+            "audit.read",
+            "stock.inbound.approve",
+            "stock.inbound.create",
+            "stock.item.manage",
+            "stock.outbound.approve",
+            "stock.outbound.create",
+            "stock.read",
+            "stock.substitute.manage",
+            "stock.template.manage",
+            "stock.write",
+            "user.manage",
+            "user.register",
+        ]
     );
     assert_eq!(
         query_string_vec(
@@ -106,7 +119,20 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
             "code",
         )
         .await,
-        vec!["stock.read", "stock.write", "user.manage", "user.register"]
+        vec![
+            "audit.read",
+            "stock.inbound.approve",
+            "stock.inbound.create",
+            "stock.item.manage",
+            "stock.outbound.approve",
+            "stock.outbound.create",
+            "stock.read",
+            "stock.substitute.manage",
+            "stock.template.manage",
+            "stock.write",
+            "user.manage",
+            "user.register",
+        ]
     );
 }
 
@@ -243,7 +269,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_text() {
             "count",
         )
         .await,
-        4
+        12
     );
     assert_eq!(
         query_i64(
@@ -252,7 +278,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_text() {
             "count",
         )
         .await,
-        7
+        20
     );
     assert_eq!(
         query_string_vec(

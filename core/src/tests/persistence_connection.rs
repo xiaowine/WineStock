@@ -67,6 +67,17 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         "auth_signing_keys",
         "auth_refresh_tokens",
         "storage_file_objects",
+        "stock_templates",
+        "stock_template_fields",
+        "stock_items",
+        "stock_inbound_orders",
+        "stock_inbound_order_items",
+        "stock_outbound_orders",
+        "stock_outbound_order_items",
+        "stock_batches",
+        "stock_movements",
+        "stock_substitutes",
+        "audit_events",
     ] {
         let sql = format!(
             "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = '{table}'"
@@ -95,6 +106,33 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         query_i64(
             &storage.database,
             "SELECT COUNT(*) AS count FROM pragma_table_info('auth_refresh_tokens') WHERE name = 'refresh_token_version'",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_stock_items_sku_active'",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_stock_templates_name_active'",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_audit_events_entity_created'",
             "count",
         )
         .await,

@@ -10,6 +10,8 @@ RBAC 角色、权限和授权规则见 [`rbac-permission-model.md`](rbac-permiss
 
 - `auth_`：账号、角色、权限、令牌和鉴权内部状态。
 - `storage_`：服务端可查询的存储元数据。
+- `stock_`：库存模板、物品、出入库单据、批次、流水和替代料关系。
+- `audit_`：跨业务操作审计事件。
 
 不要把 `seaql_migrations`、`sqlite_master` 或 `sqlite_sequence` 当成 WineStock 业务表。
 
@@ -63,6 +65,14 @@ RBAC 角色、权限和授权规则见 [`rbac-permission-model.md`](rbac-permiss
 - `user.manage`：管理用户、角色和权限。
 - `stock.read`：查看库存数据。
 - `stock.write`：创建或修改库存数据。
+- `stock.item.manage`：创建、修改和软删除库存物品。
+- `stock.template.manage`：管理库存模板和模板字段。
+- `stock.inbound.create`：创建入库单。
+- `stock.inbound.approve`：审批或拒绝入库单。
+- `stock.outbound.create`：创建出库单。
+- `stock.outbound.approve`：审批或拒绝出库单。
+- `stock.substitute.manage`：绑定或解绑替代料关系。
+- `audit.read`：查询审计事件日志。
 
 ### `auth_role_permission_assignments`
 
@@ -74,9 +84,9 @@ RBAC 角色、权限和授权规则见 [`rbac-permission-model.md`](rbac-permiss
 
 内置角色权限关系由启动初始化补齐：
 
-- `admin` 拥有 `user.register`、`user.manage`、`stock.read`、`stock.write`。
-- `staff` 拥有 `stock.read`、`stock.write`。
-- `viewer` 拥有 `stock.read`。
+- `admin` 拥有当前全部内置权限。
+- `staff` 拥有 `stock.read`、`stock.write`、`stock.item.manage`、`stock.inbound.create`、`stock.outbound.create` 和 `stock.substitute.manage`。
+- `viewer` 拥有 `stock.read` 和 `audit.read`。
 
 ### `auth_settings`
 
@@ -129,6 +139,119 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `sha256`：文件内容摘要。
 - `storage_path`：文件在 `files/` 目录下的相对路径。
 - `owner_user_id`：文件所有者账号；用户删除后允许置空。
+
+### `stock_templates`
+
+库存模板表。模板定义物品分类所需的扩展字段，入库审批阶段会按物品关联模板校验扩展属性。
+
+重要字段：
+
+- `name`：模板名称；未软删除记录内唯一。
+- `deleted_at`：软删除时间；为空表示当前有效。
+
+### `stock_template_fields`
+
+库存模板字段表。每条记录描述一个模板字段的名称、类型、必填性、可搜索性、候选值和默认值。
+
+重要字段：
+
+- `field_type`：只允许 `text`、`number`、`select`、`date`、`file` 或 `boolean`。
+- `options_json`：`select` 等字段类型使用的候选值 JSON。
+- `sort_order`：模板详情展示和校验时的稳定排序依据。
+
+### `stock_items`
+
+库存物品基础资料表。物品是出入库、批次和替代料关系的最小业务对象。
+
+重要字段：
+
+- `sku`：物品编号；未软删除记录内唯一。
+- `category_id`：关联模板 ID；模板删除后允许置空。
+- `default_price`：参考单价，不允许为负。
+- `reorder_point`：再订货点，不允许为负。
+- `deleted_at`：软删除时间；为空表示当前有效。
+
+### `stock_inbound_orders`
+
+入库单主表。创建单据只写入 `pending` 状态，不增加库存；审批通过后才生成批次和库存流水。
+
+重要字段：
+
+- `status`：只允许 `pending`、`approved` 或 `rejected`。
+- `approved_at`：已审批单据必须有审批时间。
+- `rejected_at`：已拒绝单据必须有拒绝时间。
+
+### `stock_inbound_order_items`
+
+入库单明细表。记录入库物品、数量、单价、库位、外部批次号、有效期和模板扩展属性。
+
+重要字段：
+
+- `quantity`：入库数量，必须大于 0。
+- `unit_price`：入库单价，不允许为负。
+- `ext_attributes_json`：按物品模板校验后的扩展属性 JSON。
+
+### `stock_batches`
+
+库存批次表。入库审批通过后生成或增加批次库存；出库审批通过后扣减 `remaining_quantity`。
+
+重要字段：
+
+- `initial_quantity`：批次初始数量，必须大于 0。
+- `remaining_quantity`：批次剩余数量，不允许为负且不能超过初始数量。
+- `unit_cost`：批次成本，不允许为负。
+- `expires_at`、`received_at` 和 `id`：未指定批次出库时的 FIFO 排序依据。
+
+### `stock_outbound_orders`
+
+出库单主表。创建单据只写入 `pending` 状态，不扣减库存；审批通过后才按指定批次或 FIFO 扣减库存。
+
+重要字段：
+
+- `status`：只允许 `pending`、`approved` 或 `rejected`。
+- `approved_at`：已审批单据必须有审批时间。
+- `rejected_at`：已拒绝单据必须有拒绝时间。
+
+### `stock_outbound_order_items`
+
+出库单明细表。记录出库物品、数量、可选指定批次和可选库位。
+
+重要字段：
+
+- `quantity`：出库数量，必须大于 0。
+- `batch_id`：指定扣减批次；为空时后续审批逻辑按 FIFO 扣减。
+
+### `stock_movements`
+
+库存流水表。审批、调整等改变库存余额的动作写入流水，用于看板统计和追溯。
+
+重要字段：
+
+- `movement_type`：只允许 `inbound`、`outbound` 或 `adjustment`。
+- `quantity_delta`：库存变化量，不能为 0。
+- `balance_after`：变动后库存余额，不允许为负。
+
+### `stock_substitutes`
+
+替代料关系表。记录某个物品可由哪些物品替代。
+
+重要字段：
+
+- `(item_id, substitute_item_id)`：同一替代关系不能重复。
+- `priority`：替代优先级，必须大于 0。
+- 数据库约束禁止自引用；循环关系由后续业务服务校验。
+
+### `audit_events`
+
+审计事件表。记录创建、更新、删除、审批、拒绝、绑定和解绑等业务操作。
+用户管理接口会把账号启停、角色变更和管理员重置密码写入该表；密码明文、token 和密码哈希不得进入 `details_json`。
+
+重要字段：
+
+- `entity_type`：被操作实体类型，例如 `item`、`inbound`、`outbound`、`template`、`user` 或 `substitute`。
+- `entity_id`：被操作实体 ID。
+- `action`：只允许 `created`、`updated`、`deleted`、`approved`、`rejected`、`linked` 或 `unlinked`。
+- `details_json`：变更摘要 JSON，不得写入 JWT、密码、refresh token、签名密钥等敏感值。
 
 ## 系统表
 

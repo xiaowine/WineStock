@@ -2,24 +2,38 @@
 //!
 //! 当前仓储命名直接对齐 `auth/users/rbac` 模块，避免继续保留 `identity` 中间层目录。
 
+mod audit_repo;
 mod auth_repo;
 #[allow(dead_code)]
 mod file_object;
 mod rbac_repo;
 mod refresh_token_repo;
+mod stock_repo;
 mod time;
 mod user_repo;
 mod validation;
 
 #[allow(unused_imports)]
+pub(crate) use audit_repo::{AuditRepository, RecordAuditEvent};
+#[allow(unused_imports)]
 pub(crate) use auth_repo::AuthRepository;
 #[allow(unused_imports)]
-pub(crate) use rbac_repo::{RbacRepository, RolePermissionSyncMode};
+pub(crate) use rbac_repo::{PermissionRecord, RbacRepository, RolePermissionSyncMode, RoleRecord};
 #[allow(unused_imports)]
 pub(crate) use refresh_token_repo::{CreateRefreshToken, RefreshTokenRepository};
+#[allow(unused_imports)]
+pub(crate) use stock_repo::{
+    AuditEventRecord, BindStockSubstitute, CreateInboundOrder, CreateInboundOrderItem,
+    CreateOutboundOrder, CreateOutboundOrderItem, CreateStockItem, CreateStockTemplate,
+    DailyMovementTrendRecord, DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord,
+    InboundOrderRecord, ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems,
+    OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
+    SlowMovingStockItemRecord, StockRepository, StockSubstituteRecord, StockTemplateDetail,
+    TemplateFieldInput, UpdateStockItem, UpdateStockTemplate,
+};
 pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
 #[allow(unused_imports)]
-pub(crate) use user_repo::{CreateUser, UserRepository};
+pub(crate) use user_repo::{CreateUser, ListUsers, UserPage, UserRepository};
 
 #[cfg(test)]
 #[path = "../../tests/persistence_repository.rs"]

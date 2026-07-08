@@ -9,10 +9,20 @@ use sea_orm::{DatabaseConnection, DbErr};
 
 use crate::{
     persistence::repository::{RbacRepository, RolePermissionSyncMode},
+    stock::{
+        AUDIT_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION, STOCK_INBOUND_CREATE_PERMISSION,
+        STOCK_ITEM_MANAGE_PERMISSION, STOCK_OUTBOUND_APPROVE_PERMISSION,
+        STOCK_OUTBOUND_CREATE_PERMISSION, STOCK_READ_PERMISSION,
+        STOCK_SUBSTITUTE_MANAGE_PERMISSION, STOCK_TEMPLATE_MANAGE_PERMISSION,
+        STOCK_WRITE_PERMISSION,
+    },
     users::{MANAGE_USER_PERMISSION, REGISTER_USER_PERMISSION},
 };
 
-use super::policy::{ADMIN_ROLE_CODE, ADMIN_ROLE_NAME, STAFF_ROLE_CODE, STAFF_ROLE_NAME, STOCK_READ_PERMISSION, STOCK_WRITE_PERMISSION, VIEWER_ROLE_CODE, VIEWER_ROLE_NAME};
+use super::policy::{
+    ADMIN_ROLE_CODE, ADMIN_ROLE_NAME, STAFF_ROLE_CODE, STAFF_ROLE_NAME, VIEWER_ROLE_CODE,
+    VIEWER_ROLE_NAME,
+};
 
 /// RBAC 基础定义初始化错误。
 #[derive(Debug)]
@@ -62,7 +72,7 @@ const BUILTIN_ROLES: &[BuiltinRole] = &[
     },
 ];
 
-// 内置权限覆盖当前用户管理入口和库存域的基础读写能力。
+// 内置权限覆盖当前用户管理入口和首版库存业务能力。
 const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
     BuiltinPermission {
         code: REGISTER_USER_PERMISSION,
@@ -80,6 +90,38 @@ const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
         code: STOCK_WRITE_PERMISSION,
         description: "创建或修改库存数据。",
     },
+    BuiltinPermission {
+        code: STOCK_ITEM_MANAGE_PERMISSION,
+        description: "创建、修改和软删除库存物品。",
+    },
+    BuiltinPermission {
+        code: STOCK_TEMPLATE_MANAGE_PERMISSION,
+        description: "管理库存模板和模板字段。",
+    },
+    BuiltinPermission {
+        code: STOCK_INBOUND_CREATE_PERMISSION,
+        description: "创建入库单。",
+    },
+    BuiltinPermission {
+        code: STOCK_INBOUND_APPROVE_PERMISSION,
+        description: "审批或拒绝入库单。",
+    },
+    BuiltinPermission {
+        code: STOCK_OUTBOUND_CREATE_PERMISSION,
+        description: "创建出库单。",
+    },
+    BuiltinPermission {
+        code: STOCK_OUTBOUND_APPROVE_PERMISSION,
+        description: "审批或拒绝出库单。",
+    },
+    BuiltinPermission {
+        code: STOCK_SUBSTITUTE_MANAGE_PERMISSION,
+        description: "绑定或解绑替代料关系。",
+    },
+    BuiltinPermission {
+        code: AUDIT_READ_PERMISSION,
+        description: "查询审计事件日志。",
+    },
 ];
 
 const BUILTIN_ROLE_PERMISSIONS: &[(&str, &[&str])] = &[
@@ -88,15 +130,33 @@ const BUILTIN_ROLE_PERMISSIONS: &[(&str, &[&str])] = &[
         &[
             REGISTER_USER_PERMISSION,
             MANAGE_USER_PERMISSION,
+            AUDIT_READ_PERMISSION,
+            STOCK_INBOUND_APPROVE_PERMISSION,
+            STOCK_INBOUND_CREATE_PERMISSION,
+            STOCK_ITEM_MANAGE_PERMISSION,
+            STOCK_OUTBOUND_APPROVE_PERMISSION,
+            STOCK_OUTBOUND_CREATE_PERMISSION,
             STOCK_READ_PERMISSION,
+            STOCK_SUBSTITUTE_MANAGE_PERMISSION,
+            STOCK_TEMPLATE_MANAGE_PERMISSION,
             STOCK_WRITE_PERMISSION,
         ],
     ),
     (
         STAFF_ROLE_CODE,
-        &[STOCK_READ_PERMISSION, STOCK_WRITE_PERMISSION],
+        &[
+            STOCK_INBOUND_CREATE_PERMISSION,
+            STOCK_ITEM_MANAGE_PERMISSION,
+            STOCK_OUTBOUND_CREATE_PERMISSION,
+            STOCK_READ_PERMISSION,
+            STOCK_SUBSTITUTE_MANAGE_PERMISSION,
+            STOCK_WRITE_PERMISSION,
+        ],
     ),
-    (VIEWER_ROLE_CODE, &[STOCK_READ_PERMISSION]),
+    (
+        VIEWER_ROLE_CODE,
+        &[AUDIT_READ_PERMISSION, STOCK_READ_PERMISSION],
+    ),
 ];
 
 /// 内置角色定义，启动时只补齐缺失记录，不覆盖已有记录。

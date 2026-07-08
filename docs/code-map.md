@@ -26,6 +26,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实体限制文档、实现笔记和本代码地图。
+- `docs/user-management-api.md`：当前用户管理、角色只读和权限只读接口文档。
 - `docs/rbac-permission-model.md`：当前 RBAC 角色/权限模型、初始化行为和业务授权规则。
 - `docs/validation/`：按实体所在源码文件归档的字段限制、校验入口和数据库约束说明。
 - `docs/implementation-notes/README.md`：实现笔记目录说明。
@@ -61,8 +62,8 @@ core   -> desktop/android/frontend platform assets
 
 单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和对应测试模块声明。
 测试仍作为被测模块的子模块挂载，因此可以访问本模块私有项；物理文件集中存放，避免生产代码文件夹中散落 `tests.rs`。
-`core` 当前已按“全局 HTTP 外壳”“security 前置层”“auth 会话认证业务”“users 用户业务”和持久化层拆分测试文件，并通过 `core/src/tests/support.rs` 复用测试搭建逻辑。
-当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
+`core` 当前已按“全局 HTTP 外壳”“security 前置层”“auth 会话认证业务”“users 用户业务”“stock 库存业务”和持久化层拆分测试文件，并通过 `core/src/tests/support.rs` 复用测试搭建逻辑。
+当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/users_management.rs`、`core/src/tests/stock_items.rs`、`core/src/tests/stock_templates.rs`、`core/src/tests/stock_inbound.rs`、`core/src/tests/stock_outbound.rs`、`core/src/tests/stock_dashboard.rs`、`core/src/tests/stock_substitutes.rs`、`core/src/tests/stock_events.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
 
 ## `shared`
 
@@ -99,7 +100,7 @@ core   -> desktop/android/frontend platform assets
 用途：供各平台 shell 复用的共享 Axum 服务库。
 
 - `core/src/lib.rs`
-  - 声明内部模块：`auth`、`bootstrap`、`http`、`persistence`、`rbac`、`security`、`server`、`state` 和 `users`。
+  - 声明内部模块：`auth`、`bootstrap`、`http`、`persistence`、`rbac`、`security`、`server`、`state`、`stock` 和 `users`。
   - 重新导出 core 的公共启动入口、HTTP 构建入口、鉴权公开类型和运行时错误类型。
   - 重新导出 `RbacBootstrapError`，供平台 shell 区分内置 RBAC 初始化失败。
   - 重新导出 `winestock_shared` 为 `shared`，供调用方通过 core 入口访问共享契约。
@@ -113,7 +114,7 @@ core   -> desktop/android/frontend platform assets
 - `core/src/http/`
   - 作为唯一的全局 HTTP 外壳层。
   - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息和 Swagger UI 挂载。
-  - `router.rs` 负责组装 Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth` 与 `users` 模块路由。
+  - `router.rs` 负责组装 Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth`、`stock` 与 `users` 模块路由。
   - `validation.rs` 定义 `ValidatedJson<T>`，在业务 handler 之前完成 JSON 解析和 `garde` 静态字段校验；校验失败统一返回 `400 invalid_request`。
 
 - `core/src/bootstrap.rs`
@@ -146,15 +147,22 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/users/`
   - 用户业务模块，承载注册、当前用户和后续用户管理能力。
-  - `mod.rs` 负责 `/api/auth/register` 与 `/api/auth/me` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限和已登录校验。
-  - `controller.rs` 提供注册与当前用户接口的 HTTP 入口和 utoipa 标注。
-  - `service.rs` 处理用户注册、事务内首个管理员分配、当前用户快照读取、用户响应组装和用户名规范化。
+  - `mod.rs` 负责 `/api/auth/register`、`/api/auth/me`、`/api/users`、`/api/users/{id}`、`/api/users/{id}/status`、`/api/users/{id}/roles`、`/api/users/{id}/password`、`/api/roles` 与 `/api/permissions` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限、已登录校验和 `user.manage` 管理权限。
+  - `controller.rs` 提供注册、当前用户、用户管理、角色只读和权限只读接口的 HTTP 入口、DTO 和 utoipa 标注。
+  - `service.rs` 处理用户注册、事务内首个管理员分配、当前用户快照读取、用户管理分页、账号启停、角色整体替换、管理员重置密码、最后 active admin 保护、审计事件写入和响应组装。
   - `permissions.rs` 定义 `user.register`、`user.manage` 等用户域稳定权限代码。
+
+- `core/src/stock/`
+  - 库存业务模块，承载物品 CRUD 和后续模板、出入库、看板、替代料、审计事件能力。
+  - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载 `stock.read`、`stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
+  - `controller.rs` 定义物品、模板、入库、出库、看板、替代料和事件日志 HTTP DTO、分页/趋势查询参数、Axum handler 和 utoipa 标注。
+  - `service.rs` 处理物品创建、分页、详情、更新、软删除、SKU 冲突检查、模板 CRUD/copy、模板字段业务校验、模板引用删除冲突、入库创建/列表/详情/审批/拒绝、入库模板扩展属性校验、出库创建/列表/详情/审批/拒绝、库存不足错误映射、看板总览/趋势响应组装、替代料整体替换/查询/解绑、事件日志分页/筛选响应组装、分页响应组装和库存业务错误映射。
+  - `permissions.rs` 定义 `stock.read`、`stock.write`、`stock.item.manage`、模板、出入库、替代料和 `audit.read` 等稳定权限代码。
 
 - `core/src/rbac/`
   - 授权模型模块，承载内置角色/权限常量和启动补齐逻辑。
-  - `policy.rs` 定义稳定角色代码，以及在 `stock` 正式模块落地前暂存的库存权限常量。
-  - `bootstrap.rs` 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和基础用户/库存权限；启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
+  - `policy.rs` 定义稳定角色代码；业务权限代码放在对应业务模块的 `permissions.rs`。
+  - `bootstrap.rs` 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和用户/库存/审计权限；启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
   - 角色只作为批量授予权限的模板，不作为业务授权等级。
   - 管理类授权由 `security/middleware.rs` 在校验 bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
   - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段表达：数据库没有用户时允许免鉴权进入；`users/service.rs` 会在同一事务内重新判断首个用户条件并分配 `admin`，已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
@@ -174,25 +182,29 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/migration/`
   - 定义 SeaORM `Migrator`。
-  - 首版 migration 创建 `auth_users`、`auth_roles`、`auth_user_role_assignments`、`auth_permissions`、`auth_role_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens` 和 `storage_file_objects`。
-  - 为 refresh token hash、文件 hash、文件 owner/created_at 和 active signing key 建立索引或约束。
+  - 首版 migration 创建 `auth_users`、`auth_roles`、`auth_user_role_assignments`、`auth_permissions`、`auth_role_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_substitutes` 和 `audit_events`。
+  - 为 refresh token hash、文件 hash、文件 owner/created_at、active signing key、未删除物品 SKU、未删除模板名称、FIFO 批次查询和审计查询建立索引或约束。
   - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端或 Android 端稳定代码。
 
 - `core/src/persistence/entity/`
   - 放置 SeaORM Entity、Model 和 ActiveModel。
   - `auth_setting.rs`、`auth_signing_key.rs`、`refresh_token.rs` 和 `user.rs` 分别映射鉴权设置、签名密钥、refresh token 和用户表。
   - `file_object.rs` 仍保存文件元数据实体。
+  - `stock_item.rs` 映射库存物品基础资料表，软删除、SKU 唯一性和库存批次关系由数据库约束与仓储层共同维护。
+  - `stock_template.rs` 和 `stock_template_field.rs` 分别映射库存模板基础资料和模板字段定义。
 
 - `core/src/persistence/repository/`
   - 放置业务语义 repository。
-  - `auth_repo.rs`、`user_repo.rs`、`rbac_repo.rs` 和 `refresh_token_repo.rs` 分别承载 auth/users/rbac/refresh token 的仓储能力。
+  - `auth_repo.rs`、`audit_repo.rs`、`user_repo.rs`、`rbac_repo.rs`、`refresh_token_repo.rs` 和 `stock_repo.rs` 分别承载 auth/audit/users/rbac/refresh token/stock 的仓储能力。
   - `time.rs` 提供仓储层共用的 SQLite UTC 时间生成工具，避免具体业务仓储各自拼接时间查询。
   - `validation.rs` 提供 repository 写库输入的 `garde` 校验入口和少量内部自定义规则。
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
-  - `UserRepository` 只支撑用户创建、按 ID/用户名查找。
-  - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、角色权限分配、角色权限同步、角色列表和权限列表查询。
+  - `AuditRepository` 支撑跨业务审计事件写入，调用方必须传入脱敏详情。
+  - `UserRepository` 支撑用户创建、按 ID/用户名查找、分页筛选、状态更新和密码哈希更新。
+  - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、用户角色整体替换、角色权限分配、角色权限同步、角色列表、权限列表、角色权限列表和 active admin 保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
+  - `StockRepository` 支撑库存物品创建、分页查询、详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测和事件日志分页筛选；handler 不直接拼接 `stock_*` 表结构。
 
 - `docs/database-schema.md`
   - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。
@@ -267,6 +279,40 @@ server/src/main.rs
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `GET /api/users`
+- `GET /api/users/{id}`
+- `PATCH /api/users/{id}/status`
+- `PUT /api/users/{id}/roles`
+- `POST /api/users/{id}/password`
+- `GET /api/roles`
+- `GET /api/permissions`
+- `POST /api/templates`
+- `GET /api/templates`
+- `GET /api/templates/{id}`
+- `PUT /api/templates/{id}`
+- `DELETE /api/templates/{id}`
+- `POST /api/templates/{id}/copy`
+- `POST /api/items`
+- `GET /api/items`
+- `GET /api/items/{id}`
+- `PUT /api/items/{id}`
+- `DELETE /api/items/{id}`
+- `POST /api/items/{id}/substitutes`
+- `GET /api/items/{id}/substitutes`
+- `DELETE /api/items/{id}/substitutes/{substitute_id}`
+- `POST /api/inbound`
+- `GET /api/inbound`
+- `GET /api/inbound/{id}`
+- `POST /api/inbound/{id}/approve`
+- `POST /api/inbound/{id}/reject`
+- `POST /api/outbound`
+- `GET /api/outbound`
+- `GET /api/outbound/{id}`
+- `POST /api/outbound/{id}/approve`
+- `POST /api/outbound/{id}/reject`
+- `GET /api/dashboard/overview`
+- `GET /api/dashboard/trends`
+- `GET /api/events`
 - `GET /api-docs/openapi.json`
 - `/swagger-ui` 下的 Swagger UI
 

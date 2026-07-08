@@ -49,6 +49,19 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
     assert_eq!(current.username, "admin");
     assert_eq!(
         current.permissions,
-        vec!["stock.read", "stock.write", "user.manage", "user.register"]
+        vec![
+            "audit.read",
+            "stock.inbound.approve",
+            "stock.inbound.create",
+            "stock.item.manage",
+            "stock.outbound.approve",
+            "stock.outbound.create",
+            "stock.read",
+            "stock.substitute.manage",
+            "stock.template.manage",
+            "stock.write",
+            "user.manage",
+            "user.register"
+        ]
     );
 }
