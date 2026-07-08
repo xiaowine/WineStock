@@ -205,6 +205,11 @@ async fn authorize(
                 Ok(current_user) => current_user,
                 Err(error) => return error.into_response(),
             };
+            if current_user.password_change_required
+                && !password_change_allowed_path(request.uri().path())
+            {
+                return AuthApiError::PasswordChangeRequired.into_response();
+            }
             if let Some(permission) = permission {
                 if !current_user.has_permission(permission) {
                     return AuthApiError::PermissionDenied.into_response();
@@ -261,6 +266,11 @@ async fn load_current_user_from_token(
 
     let rbac = RbacRepository::new(core_state.database());
     current_user.permissions = rbac.list_user_permissions(current_user.user_id).await?;
+    current_user.password_change_required = user.password_change_required;
 
     Ok(current_user)
+}
+
+fn password_change_allowed_path(path: &str) -> bool {
+    matches!(path, "/api/auth/me" | "/api/auth/me/password")
 }

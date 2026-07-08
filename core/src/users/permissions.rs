@@ -18,5 +18,5 @@ pub(crate) const UPDATE_USER_PERMISSIONS_PERMISSION: &str = "user.permissions.up
 /// 查看权限定义的权限代码。
 pub(crate) const READ_USER_PERMISSION_DEFINITION_PERMISSION: &str = "user.permission.read";
 
-/// 管理员直接重置其他用户密码的权限代码。
+/// 管理员设置其他用户临时密码的权限代码。
 pub(crate) const RESET_USER_PASSWORD_PERMISSION: &str = "user.password.reset";

@@ -8,6 +8,7 @@
 - 用户直接拥有权限，响应体不返回角色列表。
 - 管理接口会在 route layer 重新读取数据库当前权限，撤销权限后旧 access token 不能继续绕过授权。
 - 当前用户修改自己密码只要求已登录并校验当前密码。
+- 管理员设置临时密码后，目标用户登录响应会返回 `password_change_required = true`；该用户只能访问 `/api/auth/me` 和 `/api/auth/me/password`，改密成功后恢复正常访问。
 
 ## 用户域权限
 
@@ -18,7 +19,7 @@
 | `user.status.update` | 启用或停用用户账号 |
 | `user.permissions.update` | 整体替换用户权限 |
 | `user.permission.read` | 查看权限定义 |
-| `user.password.reset` | 直接重置其他用户密码 |
+| `user.password.reset` | 设置其他用户临时密码 |
 
 ## DTO
 
@@ -31,6 +32,7 @@
 | `display_name` | string/null | 展示名称 |
 | `status` | `active`/`disabled` | 用户状态 |
 | `permissions` | string[] | 用户直接拥有的权限代码 |
+| `password_change_required` | boolean | 是否必须先修改临时密码 |
 | `created_at` | string | 创建时间 |
 | `updated_at` | string | 更新时间 |
 
@@ -114,18 +116,22 @@
 
 ### `POST /api/users/{id}/password`
 
-管理员直接重置其他用户密码。
+管理员为其他用户设置临时密码。
 
 - 权限：`user.password.reset`
 - 请求：
 
 ```json
 {
-  "password": "new-password"
+  "password": "temporary-password"
 }
 ```
 
 - 响应：`204`
+- 行为：
+  - 目标用户现有 refresh token 会被吊销。
+  - 目标用户使用临时密码登录后，响应中的 `password_change_required` 为 `true`。
+  - 目标用户在改密前只能访问 `/api/auth/me` 和 `/api/auth/me/password`，其他已鉴权接口返回 `403 password_change_required`。
 - 失败：
   - `400 invalid_request`
   - `401 invalid_access_token`
@@ -172,5 +178,5 @@
 - 账号启停：`entity_type = "user"`，`action = "updated"`，详情记录旧状态和新状态。
 - 用户权限替换：`entity_type = "user"`，`action = "updated"`，详情记录旧权限和新权限。
 - 当前用户修改自己密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名和 `self_change` 模式。
-- 管理员重置密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名和 `admin_reset` 模式。
+- 管理员设置临时密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名、`admin_temporary_password` 模式和强制改密标记。
 - 审计详情不得包含明文密码、token 或密码哈希。

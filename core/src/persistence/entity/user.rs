@@ -24,6 +24,9 @@ pub struct Model {
     /// 用户状态，当前允许 `active` 或 `disabled`。
     pub status: String,
 
+    /// 是否必须先修改密码；管理员设置临时密码后会置为 true。
+    pub password_change_required: bool,
+
     /// 用户创建时间，使用 SQLite UTC 字符串格式。
     pub created_at: String,
 

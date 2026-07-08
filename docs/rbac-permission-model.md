@@ -75,7 +75,7 @@ auth_users
 | `user.status.update` | 启用或停用用户账号 |
 | `user.permissions.update` | 整体替换用户权限 |
 | `user.permission.read` | 查看权限定义 |
-| `user.password.reset` | 直接重置其他用户密码 |
+| `user.password.reset` | 设置其他用户临时密码 |
 
 ## 首个用户
 

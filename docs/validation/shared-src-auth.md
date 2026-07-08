@@ -59,6 +59,7 @@ JSON 允许值：
 | `id`          | `garde length(min = 1, max = 32)`；trim 后非空                                          |
 | `username`    | `garde length(min = 1, max = 64)`；trim 后非空                                          |
 | `permissions` | 每项 `garde inner(length(min = 1, max = 128))`；每项 trim 后非空；只允许小写 ASCII、数字、`.`、`-`、`_` |
+| `password_change_required` | 布尔响应字段；临时密码登录后为 `true`，自助改密后恢复 `false` |
 
 ## `AuthTokenResponse`
 

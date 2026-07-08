@@ -1,6 +1,6 @@
 //! users 模块用户 repository。
 //!
-//! 本模块属于 `core` 的持久化层，封装用户创建、查询、状态更新和密码哈希更新。
+//! 本模块属于 `core` 的持久化层，封装用户创建、查询、状态更新、密码哈希和强制改密标记更新。
 //! 权限定义和分配关系属于 RBAC repository，不应混入账号仓储。
 
 use sea_orm::{
@@ -81,6 +81,7 @@ where
             password_hash: Set(input.password_hash),
             display_name: Set(input.display_name),
             status: Set("active".to_owned()),
+            password_change_required: Set(false),
             created_at: Set(now.clone()),
             updated_at: Set(now),
             ..Default::default()
@@ -133,6 +134,7 @@ where
                         auth_users.password_hash,
                         auth_users.display_name,
                         auth_users.status,
+                        auth_users.password_change_required,
                         auth_users.created_at,
                         auth_users.updated_at
                     FROM auth_users
@@ -155,6 +157,7 @@ where
                     password_hash: row.try_get("", "password_hash")?,
                     display_name: row.try_get("", "display_name")?,
                     status: row.try_get("", "status")?,
+                    password_change_required: row.try_get("", "password_change_required")?,
                     created_at: row.try_get("", "created_at")?,
                     updated_at: row.try_get("", "updated_at")?,
                 })
@@ -177,15 +180,17 @@ where
         active.update(self.database).await
     }
 
-    /// 更新用户密码哈希，并返回更新后的用户记录。
+    /// 更新用户密码哈希和强制改密标记，并返回更新后的用户记录。
     pub(crate) async fn update_password_hash(
         &self,
         user: user::Model,
         password_hash: String,
+        password_change_required: bool,
     ) -> Result<user::Model, DbErr> {
         let now = sqlite_now(self.database).await?;
         let mut active: user::ActiveModel = user.into();
         active.password_hash = Set(password_hash);
+        active.password_change_required = Set(password_change_required);
         active.updated_at = Set(now);
         active.update(self.database).await
     }

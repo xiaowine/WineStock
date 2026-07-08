@@ -47,6 +47,7 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
     assert_eq!(me.status(), StatusCode::OK);
     let current: AuthUserResponse = json_body(me).await;
     assert_eq!(current.username, "admin");
+    assert!(!current.password_change_required);
     assert_eq!(
         current.permissions,
         vec![

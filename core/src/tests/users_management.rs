@@ -10,7 +10,8 @@ use tower::ServiceExt;
 use crate::{
     persistence::repository::{RbacRepository, UserRepository},
     test_support::{
-        json_body, login_request, raw_login_request, seed_plain_user, seeded_app, text_body,
+        json_body, login_request, raw_login_request, raw_refresh_request, seed_plain_user,
+        seeded_app, text_body,
     },
     users::controller::{
         PermissionResponse, UserAdminResponse, UserPasswordChangeRequest, UserPasswordResetRequest,
@@ -117,6 +118,7 @@ async fn user_management_updates_status_permissions_password_and_writes_audit() 
     assert_eq!(reset.status(), StatusCode::NO_CONTENT);
     let new_login = login_request(&app, "managed", "new-password").await;
     assert_eq!(new_login.status, StatusCode::OK);
+    assert!(new_login.body.user.password_change_required);
 
     let permissions = authorized_json_request(
         &app,
@@ -246,6 +248,16 @@ async fn user_password_reset_requires_reset_permission() {
         RESET_USER_PASSWORD_PERMISSION,
     )
     .await;
+    assign_single_permission(
+        app.state.database(),
+        "managed",
+        "managed-reader",
+        READ_USER_PERMISSION,
+    )
+    .await;
+    let old_login = login_request(&app, "managed", "old-password").await;
+    assert_eq!(old_login.status, StatusCode::OK);
+    assert!(!old_login.body.user.password_change_required);
 
     let reader_login = login_request(&app, "user-reader", "password").await;
     let forbidden = authorized_json_request(
@@ -272,8 +284,57 @@ async fn user_password_reset_requires_reset_permission() {
     )
     .await;
     assert_eq!(reset.status(), StatusCode::NO_CONTENT);
-    let new_login = login_request(&app, "managed", "new-password").await;
-    assert_eq!(new_login.status, StatusCode::OK);
+    let old_refresh = raw_refresh_request(&app, &old_login.body.refresh_token).await;
+    assert_eq!(old_refresh.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(text_body(old_refresh).await, "invalid_refresh_token");
+
+    let temporary_login = login_request(&app, "managed", "new-password").await;
+    assert_eq!(temporary_login.status, StatusCode::OK);
+    assert!(temporary_login.body.user.password_change_required);
+
+    let blocked = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/users",
+        &temporary_login.body.access_token,
+    )
+    .await;
+    assert_eq!(blocked.status(), StatusCode::FORBIDDEN);
+    assert_eq!(text_body(blocked).await, "password_change_required");
+
+    let allowed_me = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/auth/me",
+        &temporary_login.body.access_token,
+    )
+    .await;
+    assert_eq!(allowed_me.status(), StatusCode::OK);
+    let current: winestock_shared::AuthUserResponse = json_body(allowed_me).await;
+    assert!(current.password_change_required);
+
+    let changed = authorized_json_request(
+        &app,
+        "POST",
+        "/api/auth/me/password",
+        &temporary_login.body.access_token,
+        &UserPasswordChangeRequest {
+            current_password: "new-password".to_owned(),
+            new_password: "final-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(changed.status(), StatusCode::NO_CONTENT);
+
+    let temporary_password = raw_login_request(&app, "managed", "new-password").await;
+    assert_eq!(temporary_password.status(), StatusCode::UNAUTHORIZED);
+    let final_login = login_request(&app, "managed", "final-password").await;
+    assert_eq!(final_login.status, StatusCode::OK);
+    assert!(!final_login.body.user.password_change_required);
+
+    let allowed_after_change =
+        authorized_empty_request(&app, "GET", "/api/users", &final_login.body.access_token).await;
+    assert_eq!(allowed_after_change.status(), StatusCode::OK);
 }
 
 #[tokio::test]

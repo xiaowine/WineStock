@@ -108,6 +108,10 @@ pub struct AuthUserResponse {
     /// 用户权限代码列表。
     #[garde(inner(length(min = 1, max = 128)), custom(validate_code_list))]
     pub permissions: Vec<String>,
+
+    /// 是否必须先修改密码；临时密码登录后应只进入改密流程。
+    #[garde(skip)]
+    pub password_change_required: bool,
 }
 
 /// 登录和刷新接口返回的 token 包。

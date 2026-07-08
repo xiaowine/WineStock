@@ -21,6 +21,7 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
     assert_eq!(response.status(), axum::http::StatusCode::CREATED);
     let user: AuthUserResponse = json_body(response).await;
     assert_eq!(user.username, "first-admin");
+    assert!(!user.password_change_required);
     assert_eq!(
         user.permissions,
         vec![
@@ -87,6 +88,7 @@ async fn registration_requires_register_permission_after_first_user_exists() {
     let user: AuthUserResponse = json_body(created).await;
     assert_eq!(user.username, "staff");
     assert!(user.permissions.is_empty());
+    assert!(!user.password_change_required);
 }
 
 #[tokio::test]
@@ -114,6 +116,7 @@ async fn registration_service_rechecks_first_user_bypass_inside_transaction() {
         user_id: 1,
         access_token_id: "stale".to_owned(),
         permissions: vec![],
+        password_change_required: false,
     };
     let missing_permission = super::service::register(
         &app.state,

@@ -95,6 +95,7 @@ impl SecurityRuntime {
             user_id,
             access_token_id: token_data.claims.jti,
             permissions: token_data.claims.permissions,
+            password_change_required: false,
         })
     }
 }

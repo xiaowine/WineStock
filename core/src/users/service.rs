@@ -17,7 +17,7 @@ use crate::{
         entity::user,
         repository::{
             AuditRepository, AuthRepository, CreateUser, ListUsers, PermissionRecord,
-            RbacRepository, RecordAuditEvent, UserRepository,
+            RbacRepository, RecordAuditEvent, RefreshTokenRepository, UserRepository,
         },
     },
     rbac::builtin_permission_codes,
@@ -307,7 +307,9 @@ pub(crate) async fn change_own_password(
     }
 
     let password_hash = create_password_hash(&request.new_password)?;
-    let updated = users.update_password_hash(user, password_hash).await?;
+    let updated = users
+        .update_password_hash(user, password_hash, false)
+        .await?;
     audit
         .record(RecordAuditEvent {
             user_id: Some(current_user.user_id),
@@ -325,7 +327,7 @@ pub(crate) async fn change_own_password(
     Ok(())
 }
 
-/// 拥有重置密码权限的用户直接重置目标用户密码；审计详情不得包含明文密码或哈希。
+/// 拥有重置密码权限的用户设置目标用户临时密码；目标用户下次登录后必须改密。
 pub(crate) async fn reset_user_password(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -338,12 +340,16 @@ pub(crate) async fn reset_user_password(
     let password_hash = create_password_hash(&request.password)?;
     let transaction = state.database().begin().await?;
     let users = UserRepository::new(&transaction);
+    let refresh_tokens = RefreshTokenRepository::new(&transaction);
     let audit = AuditRepository::new(&transaction);
     let user = users
         .find_by_id(id)
         .await?
         .ok_or(AuthApiError::UserNotFound)?;
-    let updated = users.update_password_hash(user, password_hash).await?;
+    let updated = users
+        .update_password_hash(user, password_hash, true)
+        .await?;
+    refresh_tokens.revoke_active_for_user(updated.id).await?;
     audit
         .record(RecordAuditEvent {
             user_id: Some(current_user.user_id),
@@ -352,7 +358,8 @@ pub(crate) async fn reset_user_password(
             action: "updated".to_owned(),
             details: Some(json!({
                 "field": "password",
-                "mode": "admin_reset"
+                "mode": "admin_temporary_password",
+                "password_change_required": true
             })),
         })
         .await?;
@@ -382,6 +389,7 @@ pub(crate) async fn load_user_response(
         id: user.id.to_string(),
         username: user.username.clone(),
         permissions: rbac.list_user_permissions(user.id).await?,
+        password_change_required: user.password_change_required,
     })
 }
 
@@ -396,6 +404,7 @@ async fn load_admin_user_response(
         display_name: user.display_name.clone(),
         status: super::controller::UserStatus::from_code(&user.status)?,
         permissions: rbac.list_user_permissions(user.id).await?,
+        password_change_required: user.password_change_required,
         created_at: user.created_at.clone(),
         updated_at: user.updated_at.clone(),
     })

@@ -23,6 +23,9 @@ pub struct CurrentUser {
 
     /// access token 中携带的权限快照。
     pub permissions: Vec<String>,
+
+    /// 数据库当前是否要求该用户先修改临时密码。
+    pub password_change_required: bool,
 }
 
 impl FromRequestParts<CoreState> for CurrentUser {

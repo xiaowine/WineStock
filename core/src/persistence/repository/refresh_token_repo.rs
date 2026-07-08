@@ -5,7 +5,7 @@
 
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction, DbErr, EntityTrait,
-    QueryFilter, Set, TransactionTrait,
+    QueryFilter, Set, Statement, TransactionTrait,
 };
 use winestock_shared::validation::validate_not_blank;
 
@@ -46,13 +46,19 @@ pub(crate) struct CreateRefreshToken {
 }
 
 /// 刷新令牌仓储层管理查询、吊销和轮换的事务边界。
-pub(crate) struct RefreshTokenRepository<'db> {
-    database: &'db DatabaseConnection,
+pub(crate) struct RefreshTokenRepository<'db, C = DatabaseConnection>
+where
+    C: ConnectionTrait,
+{
+    database: &'db C,
 }
 
-impl<'db> RefreshTokenRepository<'db> {
+impl<'db, C> RefreshTokenRepository<'db, C>
+where
+    C: ConnectionTrait,
+{
     /// 创建绑定到同一个 SeaORM 连接的刷新令牌仓储。
-    pub(crate) fn new(database: &'db DatabaseConnection) -> Self {
+    pub(crate) fn new(database: &'db C) -> Self {
         Self { database }
     }
 
@@ -81,6 +87,26 @@ impl<'db> RefreshTokenRepository<'db> {
         find_by_hash_on_connection(self.database, token_hash).await
     }
 
+    /// 吊销指定用户的全部 active refresh token；管理员设置临时密码时用于强制重新登录。
+    pub(crate) async fn revoke_active_for_user(&self, user_id: i64) -> Result<(), DbErr> {
+        let now = sqlite_now(self.database).await?;
+        self.database
+            .execute(Statement::from_sql_and_values(
+                self.database.get_database_backend(),
+                r#"
+                UPDATE auth_refresh_tokens
+                SET revoked_at = ?
+                WHERE user_id = ? AND revoked_at IS NULL
+                "#,
+                [now.into(), user_id.into()],
+            ))
+            .await?;
+
+        Ok(())
+    }
+}
+
+impl<'db> RefreshTokenRepository<'db, DatabaseConnection> {
     /// 吊销当前 active 刷新令牌；不存在或已吊销时返回 false。
     pub(crate) async fn revoke(&self, token_hash: &str) -> Result<bool, DbErr> {
         let txn = self.database.begin().await?;

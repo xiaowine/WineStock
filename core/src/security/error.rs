@@ -42,6 +42,9 @@ pub enum AuthApiError {
     /// 当前用户缺少访问资源所需权限。
     PermissionDenied,
 
+    /// 当前用户必须先修改临时密码。
+    PasswordChangeRequired,
+
     /// 数据库读写失败。
     Database(DbErr),
 
@@ -70,6 +73,7 @@ impl IntoResponse for AuthApiError {
             Self::InvalidRefreshToken => (StatusCode::UNAUTHORIZED, "invalid_refresh_token"),
             Self::InvalidAccessToken => (StatusCode::UNAUTHORIZED, "invalid_access_token"),
             Self::PermissionDenied => (StatusCode::FORBIDDEN, "permission_denied"),
+            Self::PasswordChangeRequired => (StatusCode::FORBIDDEN, "password_change_required"),
             Self::Database(_) | Self::Jwt(_) | Self::Random(_) | Self::Internal => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_auth_error")
             }

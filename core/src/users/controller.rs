@@ -86,6 +86,9 @@ pub(crate) struct UserAdminResponse {
     /// 用户直接拥有的权限代码。
     pub permissions: Vec<String>,
 
+    /// 是否必须先修改密码；管理员设置临时密码后该值为 true。
+    pub password_change_required: bool,
+
     /// 创建时间，使用 SQLite UTC 字符串格式。
     pub created_at: String,
 
@@ -115,13 +118,13 @@ pub(crate) struct UserPermissionsUpdateRequest {
     pub permissions: Vec<String>,
 }
 
-/// 管理员重置密码请求。
+/// 管理员设置临时密码请求。
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
 )]
 #[serde(deny_unknown_fields)]
 pub(crate) struct UserPasswordResetRequest {
-    /// 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。
+    /// 临时明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。
     #[garde(length(min = 8, max = 128), custom(validate_not_blank))]
     pub password: String,
 }
@@ -327,14 +330,14 @@ pub(crate) async fn update_user_permissions(
     request_body = UserPasswordResetRequest,
     security(("bearerAuth" = [])),
     responses(
-        (status = 204, description = "Password reset"),
+        (status = 204, description = "Temporary password set"),
         (status = 400, description = "Invalid request", body = String),
         (status = 401, description = "Invalid access token", body = String),
         (status = 403, description = "Password reset permission required", body = String),
         (status = 404, description = "User not found", body = String)
     )
 )]
-/// 拥有重置密码权限的用户直接重置目标用户密码。
+/// 拥有重置密码权限的用户设置目标用户临时密码，目标用户下次登录后必须改密。
 pub(crate) async fn reset_user_password(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,

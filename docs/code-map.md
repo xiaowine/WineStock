@@ -76,6 +76,7 @@ core   -> desktop/android/frontend platform assets
 
 - `shared/src/auth.rs`
   - 定义鉴权 HTTP DTO：`AuthRegisterRequest`、`AuthLoginRequest`、`AuthRefreshRequest`、`AuthLogoutRequest`、`AuthUserResponse` 和 `AuthTokenResponse`。
+  - `AuthUserResponse` 返回当前权限列表和 `password_change_required`，供客户端在临时密码登录后进入强制改密流程。
   - 定义 `AuthClientKind`，登录请求的客户端类型只允许 `desktop` 和 `android`。
   - 使用 `garde` 内置 `length`、`range`、`inner` 和项目自定义 trim/code 规则定义静态字段约束。
 
@@ -135,6 +136,7 @@ core   -> desktop/android/frontend platform assets
   - `current_user.rs` 定义 `CurrentUser` extractor 和 bearer token 解析。
   - `jwt.rs` 定义 `SecurityRuntime`、JWT claims 和 access token 的签发/校验逻辑。
   - `middleware.rs` 定义 Axum route layer 鉴权中间件和 `AuthorizeRouteExt` 链式路由授权声明；普通 API 可在业务模块路由注册处声明所需权限，中间件会重新读取数据库当前权限后再放行业务 handler。
+  - 强制改密用户只允许访问 `/api/auth/me` 和 `/api/auth/me/password`；其它已鉴权接口在中间件返回 `password_change_required`。
   - `password.rs` 集中处理 Argon2 密码哈希与校验。
   - `token.rs` 集中处理 refresh token 的 SHA-256 哈希、高强度随机文本和 JWT 时间戳。
   - `error.rs` 定义 `security`、`auth` 和 `users` 共用的鉴权 HTTP 错误和响应映射。
@@ -150,7 +152,7 @@ core   -> desktop/android/frontend platform assets
   - 用户业务模块，承载注册、当前用户、当前用户修改自己密码和后续用户管理能力。
   - `mod.rs` 负责 `/api/auth/register`、`/api/auth/me`、`/api/auth/me/password`、`/api/users`、`/api/users/{id}`、`/api/users/{id}/status`、`/api/users/{id}/permissions`、`/api/users/{id}/password` 与 `/api/permissions` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限、已登录校验、用户读/状态/权限更新/权限定义只读和 `user.password.reset` 重置密码权限。
   - `controller.rs` 提供注册、当前用户、当前用户修改自己密码、用户管理和权限只读接口的 HTTP 入口、DTO 和 utoipa 标注。
-  - `service.rs` 处理用户注册、事务内首个用户直接分配全部内置权限、当前用户快照读取、当前用户修改自己密码、用户管理分页、账号启停、用户权限整体替换、管理员直接重置密码、最后 active 权限管理员保护、审计事件写入和响应组装。
+  - `service.rs` 处理用户注册、事务内首个用户直接分配全部内置权限、当前用户快照读取、当前用户修改自己密码、用户管理分页、账号启停、用户权限整体替换、管理员设置临时密码、最后 active 权限管理员保护、审计事件写入和响应组装；自助改密会清除强制改密标记。
   - `permissions.rs` 定义 `user.register`、`user.read`、`user.status.update`、`user.permissions.update`、`user.permission.read` 和 `user.password.reset` 等用户域稳定权限代码。
 
 - `core/src/stock/`
@@ -181,7 +183,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/migration/`
   - 定义 SeaORM `Migrator`。
-  - 首版 migration 创建 `auth_users`、`auth_permissions`、`auth_user_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_substitutes` 和 `audit_events`。
+  - 首版 migration 创建 `auth_users`、`auth_permissions`、`auth_user_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_substitutes` 和 `audit_events`；`auth_users.password_change_required` 使用 SQLite 0/1 布尔值保存临时密码强制改密状态。
   - 为 refresh token hash、文件 hash、文件 owner/created_at、active signing key、未删除物品 SKU、未删除模板名称、FIFO 批次查询和审计查询建立索引或约束。
   - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端或 Android 端稳定代码。
 
@@ -199,9 +201,9 @@ core   -> desktop/android/frontend platform assets
   - `validation.rs` 提供 repository 写库输入的 `garde` 校验入口和少量内部自定义规则。
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
   - `AuditRepository` 支撑跨业务审计事件写入，调用方必须传入脱敏详情。
-  - `UserRepository` 支撑用户创建、按 ID/用户名查找、分页筛选、状态更新和密码哈希更新。
+  - `UserRepository` 支撑用户创建、按 ID/用户名查找、分页筛选、状态更新、密码哈希更新和强制改密标记更新。
   - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
-  - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
+  - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销、按用户吊销 active token 和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
   - `StockRepository` 支撑库存物品创建、分页查询、详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测和事件日志分页筛选；handler 不直接拼接 `stock_*` 表结构。
 

@@ -144,6 +144,7 @@ Keep code modular and cohesive.
 Do not pile unrelated behavior into one file, function, module, or crate when a clear local boundary exists.
 When removing or simplifying behavior, also remove obsolete functions, wrappers, arguments, config keys, tests, and documentation.
 Do not keep meaningless compatibility shims unless the user explicitly requires backward compatibility.
+Before changing database schema or migration strategy, ask whether destructive database changes are acceptable unless the user has already explicitly allowed them in the current task.
 
 ## Comment Rules
 
