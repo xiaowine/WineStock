@@ -1,7 +1,7 @@
 //! stock 库存业务权限常量。
 //!
 //! 本模块属于 `stock` 业务层，保存库存 API 使用的稳定权限代码。
-//! 授权判断由 `security` 中间件执行，本模块不读取 token 或角色关系。
+//! 授权判断由 `security` 中间件执行，本模块不读取 token 或用户权限关系。
 
 /// 查看库存数据、库存列表、看板和替代料只读信息的权限代码。
 pub(crate) const STOCK_READ_PERMISSION: &str = "stock.read";

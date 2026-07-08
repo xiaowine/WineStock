@@ -47,7 +47,6 @@ async fn invalid_and_expired_access_tokens_are_rejected() {
             jti: "expired".to_owned(),
             iat: 1,
             exp: 1,
-            roles: vec![],
             permissions: vec![],
         },
         &EncodingKey::from_secret(
@@ -84,7 +83,6 @@ async fn invalid_and_expired_access_tokens_are_rejected() {
             jti: "wrong-signature".to_owned(),
             iat: unix_timestamp().expect("time should be available") as usize,
             exp: (unix_timestamp().expect("time should be available") + 900) as usize,
-            roles: vec![],
             permissions: vec![],
         },
         &EncodingKey::from_secret(b"wrong-signing-key"),

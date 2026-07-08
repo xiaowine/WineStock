@@ -75,15 +75,6 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
     assert_eq!(
         query_string_vec(
             &second.storage.database,
-            "SELECT code FROM auth_roles ORDER BY code",
-            "code",
-        )
-        .await,
-        vec!["admin", "staff", "viewer"]
-    );
-    assert_eq!(
-        query_string_vec(
-            &second.storage.database,
             "SELECT code FROM auth_permissions ORDER BY code",
             "code",
         )
@@ -99,40 +90,22 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
             "stock.substitute.manage",
             "stock.template.manage",
             "stock.write",
-            "user.manage",
+            "user.password.reset",
+            "user.permission.read",
+            "user.permissions.update",
+            "user.read",
             "user.register",
+            "user.status.update",
         ]
     );
     assert_eq!(
-        query_string_vec(
+        query_i64(
             &second.storage.database,
-            r#"
-            SELECT auth_permissions.code AS code
-            FROM auth_permissions
-            INNER JOIN auth_role_permission_assignments
-                ON auth_role_permission_assignments.permission_id = auth_permissions.id
-            INNER JOIN auth_roles
-                ON auth_roles.id = auth_role_permission_assignments.role_id
-            WHERE auth_roles.code = 'admin'
-            ORDER BY auth_permissions.code
-            "#,
-            "code",
+            "SELECT COUNT(*) AS count FROM auth_user_permission_assignments",
+            "count",
         )
         .await,
-        vec![
-            "audit.read",
-            "stock.inbound.approve",
-            "stock.inbound.create",
-            "stock.item.manage",
-            "stock.outbound.approve",
-            "stock.outbound.create",
-            "stock.read",
-            "stock.substitute.manage",
-            "stock.template.manage",
-            "stock.write",
-            "user.manage",
-            "user.register",
-        ]
+        0
     );
 }
 
@@ -224,7 +197,7 @@ async fn auth_defaults_do_not_overwrite_database_managed_settings() {
 }
 
 #[tokio::test]
-async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_text() {
+async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_text() {
     let temp = tempdir().expect("temp dir should exist");
     let config = test_config(
         RuntimeMode::SelfHosted,
@@ -242,10 +215,11 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_text() {
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "UPDATE auth_roles SET name = '自定义管理员' WHERE code = 'admin'".to_owned(),
+            "UPDATE auth_permissions SET description = '自定义用户读取说明' WHERE code = 'user.read'"
+                .to_owned(),
         ))
         .await
-        .expect("role should update");
+        .expect("permission should update");
 
     let second = bootstrap_from_config(&config)
         .await
@@ -256,38 +230,20 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_text() {
     assert_eq!(
         query_i64(
             &second.storage.database,
-            "SELECT COUNT(*) AS count FROM auth_roles",
-            "count",
-        )
-        .await,
-        3
-    );
-    assert_eq!(
-        query_i64(
-            &second.storage.database,
             "SELECT COUNT(*) AS count FROM auth_permissions",
             "count",
         )
         .await,
-        12
-    );
-    assert_eq!(
-        query_i64(
-            &second.storage.database,
-            "SELECT COUNT(*) AS count FROM auth_role_permission_assignments",
-            "count",
-        )
-        .await,
-        20
+        16
     );
     assert_eq!(
         query_string_vec(
             &second.storage.database,
-            "SELECT name FROM auth_roles WHERE code = 'admin'",
-            "name",
+            "SELECT description FROM auth_permissions WHERE code = 'user.read'",
+            "description",
         )
         .await,
-        vec!["自定义管理员"]
+        vec!["自定义用户读取说明"]
     );
 }
 

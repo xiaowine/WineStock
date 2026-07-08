@@ -58,7 +58,6 @@ JSON 允许值：
 |---------------|-------------------------------------------------------------------------------------|
 | `id`          | `garde length(min = 1, max = 32)`；trim 后非空                                          |
 | `username`    | `garde length(min = 1, max = 64)`；trim 后非空                                          |
-| `roles`       | 每项 `garde inner(length(min = 1, max = 128))`；每项 trim 后非空；只允许小写 ASCII、数字、`.`、`-`、`_` |
 | `permissions` | 每项 `garde inner(length(min = 1, max = 128))`；每项 trim 后非空；只允许小写 ASCII、数字、`.`、`-`、`_` |
 
 ## `AuthTokenResponse`

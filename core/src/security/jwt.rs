@@ -41,11 +41,10 @@ impl SecurityRuntime {
         &self.active_signing_key
     }
 
-    /// 根据用户当前 RBAC 快照签发短期 JWT access token。
+    /// 根据用户当前权限快照签发短期 JWT access token。
     pub(crate) fn issue_access_token(
         &self,
         user_id: i64,
-        roles: Vec<String>,
         permissions: Vec<String>,
     ) -> Result<String, AuthApiError> {
         let now = unix_timestamp()?;
@@ -59,7 +58,6 @@ impl SecurityRuntime {
             jti: random_urlsafe(16).map_err(AuthApiError::Random)?,
             iat: now as usize,
             exp: expires_at as usize,
-            roles,
             permissions,
         };
 
@@ -96,7 +94,6 @@ impl SecurityRuntime {
         Ok(CurrentUser {
             user_id,
             access_token_id: token_data.claims.jti,
-            roles: token_data.claims.roles,
             permissions: token_data.claims.permissions,
         })
     }
@@ -116,9 +113,6 @@ pub(crate) struct AccessClaims {
 
     /// 过期时间，Unix 时间戳。
     pub(crate) exp: usize,
-
-    /// 签发时用户角色快照。
-    pub(crate) roles: Vec<String>,
 
     /// 签发时用户权限快照。
     pub(crate) permissions: Vec<String>,

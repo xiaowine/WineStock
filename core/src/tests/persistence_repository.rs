@@ -10,7 +10,7 @@ use crate::persistence::{migrate_storage_schema, open_sqlite_storage, StorageRun
 
 use super::{
     file_object::{CreateFileObject, FileObjectRepository},
-    rbac_repo::{RbacRepository, RolePermissionSyncMode},
+    rbac_repo::RbacRepository,
     refresh_token_repo::{CreateRefreshToken, RefreshTokenRepository},
     user_repo::{CreateUser, UserRepository},
 };
@@ -143,14 +143,19 @@ async fn file_object_repository_stores_metadata_while_content_stays_in_files_dir
 }
 
 #[tokio::test]
-async fn rbac_role_permission_sync_can_preserve_or_replace_existing_permissions() {
+async fn rbac_user_permission_assignment_can_append_or_replace_permissions() {
     let test_storage = migrated_storage().await;
     let storage = &test_storage.storage;
-    let rbac = RbacRepository::new(&storage.database);
-    let role_id = rbac
-        .ensure_role("ops", "Ops", Some("测试角色"))
+    let users = UserRepository::new(&storage.database);
+    let user = users
+        .create_user(CreateUser {
+            username: "ops".to_owned(),
+            password_hash: "password-hash".to_owned(),
+            display_name: Some("Ops".to_owned()),
+        })
         .await
-        .expect("role should be created");
+        .expect("user should be created");
+    let rbac = RbacRepository::new(&storage.database);
     let read_permission_id = rbac
         .ensure_permission("stock.read", Some("查看库存"))
         .await
@@ -159,38 +164,30 @@ async fn rbac_role_permission_sync_can_preserve_or_replace_existing_permissions(
         .ensure_permission("stock.write", Some("修改库存"))
         .await
         .expect("write permission should be created");
-    let manage_permission_id = rbac
-        .ensure_permission("user.manage", Some("管理用户"))
+    let user_read_permission_id = rbac
+        .ensure_permission("user.read", Some("查看用户"))
         .await
-        .expect("manage permission should be created");
+        .expect("user read permission should be created");
 
-    rbac.assign_permission_to_role(role_id, read_permission_id)
+    rbac.assign_permission_to_user(user.id, read_permission_id)
         .await
         .expect("read permission should be assigned");
-    rbac.sync_role_permissions(
-        role_id,
-        &[write_permission_id],
-        RolePermissionSyncMode::PreserveExisting,
-    )
-    .await
-    .expect("preserve sync should succeed");
+    rbac.assign_permission_to_user(user.id, write_permission_id)
+        .await
+        .expect("write permission should be assigned");
 
     assert_eq!(
-        role_permission_codes(storage, role_id).await,
+        user_permission_codes(storage, user.id).await,
         vec!["stock.read".to_owned(), "stock.write".to_owned()]
     );
 
-    rbac.sync_role_permissions(
-        role_id,
-        &[manage_permission_id],
-        RolePermissionSyncMode::ReplaceExisting,
-    )
-    .await
-    .expect("replace sync should succeed");
+    rbac.replace_user_permissions(user.id, &[user_read_permission_id])
+        .await
+        .expect("replace should succeed");
 
     assert_eq!(
-        role_permission_codes(storage, role_id).await,
-        vec!["user.manage".to_owned()]
+        user_permission_codes(storage, user.id).await,
+        vec!["user.read".to_owned()]
     );
 }
 
@@ -275,7 +272,7 @@ async fn query_i64(storage: &StorageRuntime, sql: &str, column: &str) -> i64 {
         .expect("column should decode")
 }
 
-async fn role_permission_codes(storage: &StorageRuntime, role_id: i64) -> Vec<String> {
+async fn user_permission_codes(storage: &StorageRuntime, user_id: i64) -> Vec<String> {
     storage
         .database
         .query_all(Statement::from_sql_and_values(
@@ -283,15 +280,15 @@ async fn role_permission_codes(storage: &StorageRuntime, role_id: i64) -> Vec<St
             r#"
             SELECT auth_permissions.code AS code
             FROM auth_permissions
-            INNER JOIN auth_role_permission_assignments
-                ON auth_role_permission_assignments.permission_id = auth_permissions.id
-            WHERE auth_role_permission_assignments.role_id = ?
+            INNER JOIN auth_user_permission_assignments
+                ON auth_user_permission_assignments.permission_id = auth_permissions.id
+            WHERE auth_user_permission_assignments.user_id = ?
             ORDER BY auth_permissions.code
             "#,
-            [role_id.into()],
+            [user_id.into()],
         ))
         .await
-        .expect("role permission query should execute")
+        .expect("user permission query should execute")
         .into_iter()
         .map(|row| row.try_get("", "code").expect("code should decode"))
         .collect()

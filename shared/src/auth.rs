@@ -105,10 +105,6 @@ pub struct AuthUserResponse {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub username: String,
 
-    /// 用户角色代码列表。
-    #[garde(inner(length(min = 1, max = 128)), custom(validate_code_list))]
-    pub roles: Vec<String>,
-
     /// 用户权限代码列表。
     #[garde(inner(length(min = 1, max = 128)), custom(validate_code_list))]
     pub permissions: Vec<String>,

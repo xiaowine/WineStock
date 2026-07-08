@@ -26,12 +26,13 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实体限制文档、实现笔记和本代码地图。
-- `docs/user-management-api.md`：当前用户管理、角色只读和权限只读接口文档。
-- `docs/rbac-permission-model.md`：当前 RBAC 角色/权限模型、初始化行为和业务授权规则。
+- `docs/user-management-api.md`：当前用户管理和权限只读接口文档。
+- `docs/rbac-permission-model.md`：当前用户直接权限模型、初始化行为和业务授权规则。
 - `docs/validation/`：按实体所在源码文件归档的字段限制、校验入口和数据库约束说明。
 - `docs/implementation-notes/README.md`：实现笔记目录说明。
 - `docs/implementation-notes/core-axum-structure-refactor-plan.md`：面向后续 API 扩展的 `core\src` 领域切片重整方案。
 - `docs/implementation-notes/core-spring-boot-style-refactor-plan.md`：后续把 `core\src` 从 `identity` 结构继续收敛为 `http / security / auth / users / rbac` 的实施方案。
+- `docs/implementation-notes/direct-user-permissions-plan.md`：将角色间接授权收敛为用户直接权限分配的实施方案。
 - `docs/implementation-notes/json-config-and-db-auth-settings.md`：JSON 启动配置与数据库托管鉴权设置的边界说明。
 - `docs/implementation-notes/jwt-access-refresh-token.md`：JWT access token 与 refresh token 机制实现笔记。
 - `docs/implementation-notes/seaorm-sqlite-wal.md`：SeaORM、SQLite 和 WAL 存储行为实现笔记。
@@ -146,11 +147,11 @@ core   -> desktop/android/frontend platform assets
   - `bootstrap.rs` 定义鉴权启动设置、签名密钥状态和鉴权启动结果；通过 `AuthRepository` 写入默认鉴权设置但不覆盖数据库管理的已有值，并创建或读取当前 active 访问令牌签名密钥。
 
 - `core/src/users/`
-  - 用户业务模块，承载注册、当前用户和后续用户管理能力。
-  - `mod.rs` 负责 `/api/auth/register`、`/api/auth/me`、`/api/users`、`/api/users/{id}`、`/api/users/{id}/status`、`/api/users/{id}/roles`、`/api/users/{id}/password`、`/api/roles` 与 `/api/permissions` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限、已登录校验和 `user.manage` 管理权限。
-  - `controller.rs` 提供注册、当前用户、用户管理、角色只读和权限只读接口的 HTTP 入口、DTO 和 utoipa 标注。
-  - `service.rs` 处理用户注册、事务内首个管理员分配、当前用户快照读取、用户管理分页、账号启停、角色整体替换、管理员重置密码、最后 active admin 保护、审计事件写入和响应组装。
-  - `permissions.rs` 定义 `user.register`、`user.manage` 等用户域稳定权限代码。
+  - 用户业务模块，承载注册、当前用户、当前用户修改自己密码和后续用户管理能力。
+  - `mod.rs` 负责 `/api/auth/register`、`/api/auth/me`、`/api/auth/me/password`、`/api/users`、`/api/users/{id}`、`/api/users/{id}/status`、`/api/users/{id}/permissions`、`/api/users/{id}/password` 与 `/api/permissions` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限、已登录校验、用户读/状态/权限更新/权限定义只读和 `user.password.reset` 重置密码权限。
+  - `controller.rs` 提供注册、当前用户、当前用户修改自己密码、用户管理和权限只读接口的 HTTP 入口、DTO 和 utoipa 标注。
+  - `service.rs` 处理用户注册、事务内首个用户直接分配全部内置权限、当前用户快照读取、当前用户修改自己密码、用户管理分页、账号启停、用户权限整体替换、管理员直接重置密码、最后 active 权限管理员保护、审计事件写入和响应组装。
+  - `permissions.rs` 定义 `user.register`、`user.read`、`user.status.update`、`user.permissions.update`、`user.permission.read` 和 `user.password.reset` 等用户域稳定权限代码。
 
 - `core/src/stock/`
   - 库存业务模块，承载物品 CRUD 和后续模板、出入库、看板、替代料、审计事件能力。
@@ -160,12 +161,10 @@ core   -> desktop/android/frontend platform assets
   - `permissions.rs` 定义 `stock.read`、`stock.write`、`stock.item.manage`、模板、出入库、替代料和 `audit.read` 等稳定权限代码。
 
 - `core/src/rbac/`
-  - 授权模型模块，承载内置角色/权限常量和启动补齐逻辑。
-  - `policy.rs` 定义稳定角色代码；业务权限代码放在对应业务模块的 `permissions.rs`。
-  - `bootstrap.rs` 定义内置 RBAC 基础数据，包括 `admin`、`staff`、`viewer` 角色和用户/库存/审计权限；启动时补齐角色、权限和角色权限关系，不创建用户，也不覆盖已有角色或权限文本。
-  - 角色只作为批量授予权限的模板，不作为业务授权等级。
+  - 授权模型模块，承载内置权限定义和启动补齐逻辑。
+  - `bootstrap.rs` 定义内置用户、库存和审计权限；启动时只补齐权限定义，不创建用户，不补齐角色或角色权限关系，也不覆盖已有权限文本。
   - 管理类授权由 `security/middleware.rs` 在校验 bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
-  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段表达：数据库没有用户时允许免鉴权进入；`users/service.rs` 会在同一事务内重新判断首个用户条件并分配 `admin`，已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
+  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段表达：数据库没有用户时允许免鉴权进入；`users/service.rs` 会在同一事务内重新判断首个用户条件并直接分配全部内置权限，已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
 
 - `core/src/persistence/`
   - 定义 `StorageRuntime` 和存储启动错误。
@@ -182,7 +181,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/migration/`
   - 定义 SeaORM `Migrator`。
-  - 首版 migration 创建 `auth_users`、`auth_roles`、`auth_user_role_assignments`、`auth_permissions`、`auth_role_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_substitutes` 和 `audit_events`。
+  - 首版 migration 创建 `auth_users`、`auth_permissions`、`auth_user_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_substitutes` 和 `audit_events`。
   - 为 refresh token hash、文件 hash、文件 owner/created_at、active signing key、未删除物品 SKU、未删除模板名称、FIFO 批次查询和审计查询建立索引或约束。
   - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端或 Android 端稳定代码。
 
@@ -201,7 +200,7 @@ core   -> desktop/android/frontend platform assets
   - `AuthRepository` 支撑鉴权默认设置、active signing key 和首次管理员判断。
   - `AuditRepository` 支撑跨业务审计事件写入，调用方必须传入脱敏详情。
   - `UserRepository` 支撑用户创建、按 ID/用户名查找、分页筛选、状态更新和密码哈希更新。
-  - `RbacRepository` 支撑角色/权限定义补齐、用户角色分配、用户角色整体替换、角色权限分配、角色权限同步、角色列表、权限列表、角色权限列表和 active admin 保护查询。
+  - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
   - `StockRepository` 支撑库存物品创建、分页查询、详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测和事件日志分页筛选；handler 不直接拼接 `stock_*` 表结构。
@@ -220,10 +219,9 @@ core   -> desktop/android/frontend platform assets
   - `core-src-persistence-repository-*.md` 记录当前 repository 写库输入结构的限制和事务边界。
 
 - `docs/rbac-permission-model.md`
-  - 记录当前 RBAC 模型的正式规则。
+  - 记录当前用户直接权限模型的正式规则。
   - 明确业务授权统一判断权限代码，不判断角色代码。
-  - 说明角色只作为批量授予权限的模板，不作为业务授权等级。
-  - 记录内置角色、内置权限、角色权限关系、启动补齐顺序和新增受保护能力的流程。
+  - 记录内置权限、用户权限分配关系、启动补齐顺序和新增受保护能力的流程。
 
 ## `server`
 
@@ -279,12 +277,12 @@ server/src/main.rs
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `POST /api/auth/me/password`
 - `GET /api/users`
 - `GET /api/users/{id}`
 - `PATCH /api/users/{id}/status`
-- `PUT /api/users/{id}/roles`
+- `PUT /api/users/{id}/permissions`
 - `POST /api/users/{id}/password`
-- `GET /api/roles`
 - `GET /api/permissions`
 - `POST /api/templates`
 - `GET /api/templates`

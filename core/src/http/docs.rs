@@ -29,12 +29,12 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::auth::controller::refresh,
         crate::auth::controller::logout,
         crate::users::controller::me,
+        crate::users::controller::change_own_password,
         crate::users::controller::list_users,
         crate::users::controller::get_user,
         crate::users::controller::update_user_status,
-        crate::users::controller::update_user_roles,
+        crate::users::controller::update_user_permissions,
         crate::users::controller::reset_user_password,
-        crate::users::controller::list_roles,
         crate::users::controller::list_permissions,
         crate::stock::controller::create_template,
         crate::stock::controller::list_templates,
@@ -75,9 +75,9 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::users::controller::UserStatus,
         crate::users::controller::UserAdminResponse,
         crate::users::controller::UserStatusUpdateRequest,
-        crate::users::controller::UserRolesUpdateRequest,
+        crate::users::controller::UserPermissionsUpdateRequest,
+        crate::users::controller::UserPasswordChangeRequest,
         crate::users::controller::UserPasswordResetRequest,
-        crate::users::controller::RoleResponse,
         crate::users::controller::PermissionResponse,
         crate::users::service::PaginatedResponse<crate::users::controller::UserAdminResponse>,
         crate::stock::controller::TemplateFieldType,
@@ -116,7 +116,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     info(title = "WineStock API", version = "0.1.0"),
     tags(
         (name = "auth", description = "Authentication endpoints"),
-        (name = "users", description = "User and RBAC management endpoints")
+        (name = "users", description = "User and permission management endpoints")
     )
 )]
 struct ApiDoc;

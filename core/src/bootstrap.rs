@@ -48,7 +48,7 @@ pub enum CoreBootstrapError {
     /// 鉴权设置或签名密钥初始化失败。
     Auth(AuthBootstrapError),
 
-    /// 内置角色和权限初始化失败。
+    /// 内置权限初始化失败。
     Rbac(RbacBootstrapError),
 }
 

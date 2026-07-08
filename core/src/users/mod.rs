@@ -1,6 +1,6 @@
 //! users 用户业务模块入口。
 //!
-//! 本模块属于 `core axum library` 的业务层，负责注册、当前用户和用户管理能力。
+//! 本模块属于 `core axum library` 的业务层，负责注册、当前用户、自助改密码和用户管理能力。
 //! 它依赖 `security` 提供当前用户上下文和权限校验，但不直接承担 token 解析。
 
 use axum::{
@@ -17,7 +17,11 @@ pub(crate) mod controller;
 mod permissions;
 pub(crate) mod service;
 
-pub(crate) use permissions::{MANAGE_USER_PERMISSION, REGISTER_USER_PERMISSION};
+pub(crate) use permissions::{
+    READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION, REGISTER_USER_PERMISSION,
+    RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
+    UPDATE_USER_STATUS_PERMISSION,
+};
 
 /// 注册用户业务 HTTP 路由集合。
 pub(crate) fn router(state: CoreState) -> Router<CoreState> {
@@ -35,36 +39,36 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             get(controller::me).require_authenticated(state.clone()),
         )
         .route(
+            "/api/auth/me/password",
+            post(controller::change_own_password).require_authenticated(state.clone()),
+        )
+        .route(
             "/api/users",
-            get(controller::list_users).require_permission(state.clone(), MANAGE_USER_PERMISSION),
+            get(controller::list_users).require_permission(state.clone(), READ_USER_PERMISSION),
         )
         .route(
             "/api/users/{id}",
-            get(controller::get_user).require_permission(state.clone(), MANAGE_USER_PERMISSION),
+            get(controller::get_user).require_permission(state.clone(), READ_USER_PERMISSION),
         )
         .route(
             "/api/users/{id}/status",
             patch(controller::update_user_status)
-                .require_permission(state.clone(), MANAGE_USER_PERMISSION),
+                .require_permission(state.clone(), UPDATE_USER_STATUS_PERMISSION),
         )
         .route(
-            "/api/users/{id}/roles",
-            put(controller::update_user_roles)
-                .require_permission(state.clone(), MANAGE_USER_PERMISSION),
+            "/api/users/{id}/permissions",
+            put(controller::update_user_permissions)
+                .require_permission(state.clone(), UPDATE_USER_PERMISSIONS_PERMISSION),
         )
         .route(
             "/api/users/{id}/password",
             post(controller::reset_user_password)
-                .require_permission(state.clone(), MANAGE_USER_PERMISSION),
-        )
-        .route(
-            "/api/roles",
-            get(controller::list_roles).require_permission(state.clone(), MANAGE_USER_PERMISSION),
+                .require_permission(state.clone(), RESET_USER_PASSWORD_PERMISSION),
         )
         .route(
             "/api/permissions",
             get(controller::list_permissions)
-                .require_permission(state.clone(), MANAGE_USER_PERMISSION),
+                .require_permission(state.clone(), READ_USER_PERMISSION_DEFINITION_PERMISSION),
         )
 }
 

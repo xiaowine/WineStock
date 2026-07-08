@@ -26,13 +26,15 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert!(value["paths"]["/api/auth/refresh"].is_object());
     assert!(value["paths"]["/api/auth/logout"].is_object());
     assert!(value["paths"]["/api/auth/me"].is_object());
+    assert!(value["paths"]["/api/auth/me/password"].is_object());
     assert!(value["paths"]["/api/users"].is_object());
     assert!(value["paths"]["/api/users/{id}"].is_object());
     assert!(value["paths"]["/api/users/{id}/status"].is_object());
-    assert!(value["paths"]["/api/users/{id}/roles"].is_object());
+    assert!(value["paths"]["/api/users/{id}/permissions"].is_object());
     assert!(value["paths"]["/api/users/{id}/password"].is_object());
-    assert!(value["paths"]["/api/roles"].is_object());
     assert!(value["paths"]["/api/permissions"].is_object());
+    assert!(value["paths"]["/api/users/{id}/roles"].is_null());
+    assert!(value["paths"]["/api/roles"].is_null());
     assert!(value["paths"]["/api/templates"].is_object());
     assert!(value["paths"]["/api/templates/{id}"].is_object());
     assert!(value["paths"]["/api/templates/{id}/copy"].is_object());

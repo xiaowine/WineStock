@@ -10,7 +10,7 @@
 
 - 字符串 trim 后不能是空白。
 - 可选字符串存在时不能是空白；长度限制优先交给 `garde length`。
-- 角色和权限代码只能使用项目允许的字符集。
+- 权限代码只能使用项目允许的字符集。
 - `remote_base_url` 允许空字符串，但非空时必须是 HTTP(S) URL。
 
 ## 函数
@@ -19,5 +19,5 @@
 |-------------------------------|--------------------------------------------|
 | `validate_not_blank`          | 字符串 trim 后非空                               |
 | `validate_optional_not_blank` | 可空；存在时 trim 后非空                            |
-| `validate_code_list`          | 角色和权限代码列表，每项必须满足项目代码格式                     |
+| `validate_code_list`          | 权限代码列表，每项必须满足项目代码格式                           |
 | `validate_optional_http_url`  | 空字符串表示未配置；非空时必须以 `http://` 或 `https://` 开头 |

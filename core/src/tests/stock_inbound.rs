@@ -139,7 +139,8 @@ async fn inbound_validates_template_attributes_and_permissions() {
     assert_eq!(invalid_approval.status(), StatusCode::BAD_REQUEST);
     assert_eq!(table_count(&app, "stock_batches").await, 0);
 
-    let viewer_token = seed_user_with_role_and_login(&app, "inbound-viewer", "viewer").await;
+    let viewer_token =
+        seed_user_with_permissions_and_login(&app, "inbound-viewer", &["stock.read"]).await;
     let forbidden_create = authorized_json_request(
         &app,
         "POST",
@@ -153,7 +154,9 @@ async fn inbound_validates_template_attributes_and_permissions() {
     .await;
     assert_eq!(forbidden_create.status(), StatusCode::FORBIDDEN);
 
-    let staff_token = seed_user_with_role_and_login(&app, "inbound-staff", "staff").await;
+    let staff_token =
+        seed_user_with_permissions_and_login(&app, "inbound-staff", &["stock.inbound.create"])
+            .await;
     let created_by_staff = authorized_json_request(
         &app,
         "POST",
@@ -251,26 +254,28 @@ fn inbound_request(
     }
 }
 
-async fn seed_user_with_role_and_login(
+async fn seed_user_with_permissions_and_login(
     app: &crate::test_support::TestApp,
     username: &str,
-    role_code: &str,
+    permissions: &[&str],
 ) -> String {
     crate::test_support::seed_plain_user(app.state.database(), username, "password").await;
     let rbac = crate::persistence::repository::RbacRepository::new(app.state.database());
-    let role_id = rbac
-        .ensure_role(role_code, role_code, None)
-        .await
-        .expect("role should exist");
     let users = crate::persistence::repository::UserRepository::new(app.state.database());
     let user = users
         .find_by_username(username)
         .await
         .expect("user lookup should succeed")
         .expect("user should exist");
-    rbac.assign_role_to_user(user.id, role_id)
-        .await
-        .expect("role should assign");
+    for permission in permissions {
+        let permission_id = rbac
+            .ensure_permission(permission, None)
+            .await
+            .expect("permission should exist");
+        rbac.assign_permission_to_user(user.id, permission_id)
+            .await
+            .expect("permission should assign");
+    }
 
     login_request(app, username, "password")
         .await

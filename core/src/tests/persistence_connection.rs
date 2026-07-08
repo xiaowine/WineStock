@@ -59,10 +59,8 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
 
     for table in [
         "auth_users",
-        "auth_roles",
-        "auth_user_role_assignments",
         "auth_permissions",
-        "auth_role_permission_assignments",
+        "auth_user_permission_assignments",
         "auth_settings",
         "auth_signing_keys",
         "auth_refresh_tokens",

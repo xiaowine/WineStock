@@ -38,7 +38,7 @@ impl MigrationTrait for Migration {
 
 // 首版 schema 的建表和索引语句，按外键依赖顺序执行。
 const INITIAL_SCHEMA: &[&str] = &[
-    // 鉴权账号、角色和权限表统一使用 auth_ 前缀，避免和 SQLite/SeaORM 系统表混淆。
+    // 鉴权账号、权限定义和用户权限分配统一使用 auth_ 前缀，避免和 SQLite/SeaORM 系统表混淆。
     r#"
     CREATE TABLE IF NOT EXISTS auth_users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,25 +51,6 @@ const INITIAL_SCHEMA: &[&str] = &[
     )
     "#,
     r#"
-    CREATE TABLE IF NOT EXISTS auth_roles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        code TEXT NOT NULL UNIQUE,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )
-    "#,
-    r#"
-    CREATE TABLE IF NOT EXISTS auth_user_role_assignments (
-        user_id INTEGER NOT NULL,
-        role_id INTEGER NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-        PRIMARY KEY (user_id, role_id),
-        FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
-        FOREIGN KEY (role_id) REFERENCES auth_roles(id) ON DELETE CASCADE
-    )
-    "#,
-    r#"
     CREATE TABLE IF NOT EXISTS auth_permissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code TEXT NOT NULL UNIQUE,
@@ -78,12 +59,12 @@ const INITIAL_SCHEMA: &[&str] = &[
     )
     "#,
     r#"
-    CREATE TABLE IF NOT EXISTS auth_role_permission_assignments (
-        role_id INTEGER NOT NULL,
+    CREATE TABLE IF NOT EXISTS auth_user_permission_assignments (
+        user_id INTEGER NOT NULL,
         permission_id INTEGER NOT NULL,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-        PRIMARY KEY (role_id, permission_id),
-        FOREIGN KEY (role_id) REFERENCES auth_roles(id) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, permission_id),
+        FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
         FOREIGN KEY (permission_id) REFERENCES auth_permissions(id) ON DELETE CASCADE
     )
     "#,
@@ -463,9 +444,7 @@ const DROP_SCHEMA: &[&str] = &[
     "DROP INDEX IF EXISTS idx_auth_signing_keys_single_active",
     "DROP TABLE IF EXISTS auth_signing_keys",
     "DROP TABLE IF EXISTS auth_settings",
-    "DROP TABLE IF EXISTS auth_role_permission_assignments",
+    "DROP TABLE IF EXISTS auth_user_permission_assignments",
     "DROP TABLE IF EXISTS auth_permissions",
-    "DROP TABLE IF EXISTS auth_user_role_assignments",
-    "DROP TABLE IF EXISTS auth_roles",
     "DROP TABLE IF EXISTS auth_users",
 ];

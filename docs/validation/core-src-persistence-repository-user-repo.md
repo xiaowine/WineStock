@@ -19,7 +19,7 @@
 写库约束：
 
 - `create_user()` 只创建 `active` 用户。
-- `list_users()` 支持按用户名/展示名模糊搜索、状态和角色筛选；分页参数由服务层归一化。
+- `list_users()` 支持按用户名/展示名模糊搜索和状态筛选；分页参数由服务层归一化。
 - `update_status()` 只写入服务层已经校验过的 `active` 或 `disabled`。
 - `update_password_hash()` 只接收服务端生成的 Argon2 哈希，不接收明文密码。
 - `created_at` 和 `updated_at` 使用 SQLite UTC 时间生成。

@@ -4,35 +4,53 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use tower::ServiceExt;
 
 use crate::{
     persistence::repository::{RbacRepository, UserRepository},
-    rbac::ADMIN_ROLE_CODE,
     test_support::{
         json_body, login_request, raw_login_request, seed_plain_user, seeded_app, text_body,
     },
     users::controller::{
-        PermissionResponse, RoleResponse, UserAdminResponse, UserPasswordResetRequest,
-        UserRolesUpdateRequest, UserStatus, UserStatusUpdateRequest,
+        PermissionResponse, UserAdminResponse, UserPasswordChangeRequest, UserPasswordResetRequest,
+        UserPermissionsUpdateRequest, UserStatus, UserStatusUpdateRequest,
     },
     users::service::PaginatedResponse,
+    users::{
+        READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
+        RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
+        UPDATE_USER_STATUS_PERMISSION,
+    },
 };
 
-const STAFF_ROLE_CODE: &str = "staff";
-
 #[tokio::test]
-async fn user_management_lists_and_reads_rbac_with_manage_permission() {
+async fn user_management_reads_use_specific_permissions() {
     let app = seeded_app().await;
     seed_plain_user(app.state.database(), "staff-a", "password").await;
-    let admin_login = login_request(&app, "admin", "password").await;
+    seed_plain_user(app.state.database(), "user-reader", "password").await;
+    seed_plain_user(app.state.database(), "permission-reader", "password").await;
+    assign_single_permission(
+        app.state.database(),
+        "user-reader",
+        "user-reader-only",
+        READ_USER_PERMISSION,
+    )
+    .await;
+    assign_single_permission(
+        app.state.database(),
+        "permission-reader",
+        "permission-reader-only",
+        READ_USER_PERMISSION_DEFINITION_PERMISSION,
+    )
+    .await;
 
+    let user_reader_login = login_request(&app, "user-reader", "password").await;
     let users = authorized_empty_request(
         &app,
         "GET",
         "/api/users?search=staff&page_size=10",
-        &admin_login.body.access_token,
+        &user_reader_login.body.access_token,
     )
     .await;
     assert_eq!(users.status(), StatusCode::OK);
@@ -45,29 +63,33 @@ async fn user_management_lists_and_reads_rbac_with_manage_permission() {
         &app,
         "GET",
         &format!("/api/users/{}", users.items[0].id),
-        &admin_login.body.access_token,
+        &user_reader_login.body.access_token,
     )
     .await;
     assert_eq!(detail.status(), StatusCode::OK);
 
-    let roles =
-        authorized_empty_request(&app, "GET", "/api/roles", &admin_login.body.access_token).await;
-    assert_eq!(roles.status(), StatusCode::OK);
-    let roles: Vec<RoleResponse> = json_body(roles).await;
-    assert!(roles.iter().any(|role| role.code == ADMIN_ROLE_CODE));
+    let removed_roles = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/roles",
+        &user_reader_login.body.access_token,
+    )
+    .await;
+    assert_eq!(removed_roles.status(), StatusCode::NOT_FOUND);
 
+    let permission_reader_login = login_request(&app, "permission-reader", "password").await;
     let permissions = authorized_empty_request(
         &app,
         "GET",
         "/api/permissions",
-        &admin_login.body.access_token,
+        &permission_reader_login.body.access_token,
     )
     .await;
     assert_eq!(permissions.status(), StatusCode::OK);
     let permissions: Vec<PermissionResponse> = json_body(permissions).await;
     assert!(permissions
         .iter()
-        .any(|permission| permission.code == "user.manage"));
+        .any(|permission| permission.code == READ_USER_PERMISSION));
 
     let staff_login = login_request(&app, "staff-a", "password").await;
     let forbidden =
@@ -76,7 +98,7 @@ async fn user_management_lists_and_reads_rbac_with_manage_permission() {
 }
 
 #[tokio::test]
-async fn user_management_updates_status_roles_password_and_writes_audit() {
+async fn user_management_updates_status_permissions_password_and_writes_audit() {
     let app = seeded_app().await;
     seed_plain_user(app.state.database(), "managed", "old-password").await;
     let managed_id = user_id(&app, "managed").await;
@@ -96,24 +118,22 @@ async fn user_management_updates_status_roles_password_and_writes_audit() {
     let new_login = login_request(&app, "managed", "new-password").await;
     assert_eq!(new_login.status, StatusCode::OK);
 
-    let staff_role_id = RbacRepository::new(app.state.database())
-        .ensure_role(STAFF_ROLE_CODE, "Staff", None)
-        .await
-        .expect("staff role should exist");
-    assert!(staff_role_id > 0);
-    let roles = authorized_json_request(
+    let permissions = authorized_json_request(
         &app,
         "PUT",
-        &format!("/api/users/{managed_id}/roles"),
+        &format!("/api/users/{managed_id}/permissions"),
         &admin_login.body.access_token,
-        &UserRolesUpdateRequest {
-            roles: vec![STAFF_ROLE_CODE.to_owned()],
+        &UserPermissionsUpdateRequest {
+            permissions: vec![READ_USER_PERMISSION.to_owned()],
         },
     )
     .await;
-    assert_eq!(roles.status(), StatusCode::OK);
-    let updated_roles: UserAdminResponse = json_body(roles).await;
-    assert_eq!(updated_roles.roles, vec![STAFF_ROLE_CODE.to_owned()]);
+    assert_eq!(permissions.status(), StatusCode::OK);
+    let updated_permissions: UserAdminResponse = json_body(permissions).await;
+    assert_eq!(
+        updated_permissions.permissions,
+        vec![READ_USER_PERMISSION.to_owned()]
+    );
 
     let disabled = authorized_json_request(
         &app,
@@ -135,12 +155,173 @@ async fn user_management_updates_status_roles_password_and_writes_audit() {
 }
 
 #[tokio::test]
-async fn user_management_protects_last_active_admin() {
+async fn user_management_writes_use_specific_permissions() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "managed", "password").await;
+    seed_plain_user(app.state.database(), "status-updater", "password").await;
+    seed_plain_user(app.state.database(), "permissions-updater", "password").await;
+    let managed_id = user_id(&app, "managed").await;
+    assign_single_permission(
+        app.state.database(),
+        "status-updater",
+        "status-updater-only",
+        UPDATE_USER_STATUS_PERMISSION,
+    )
+    .await;
+    assign_single_permission(
+        app.state.database(),
+        "permissions-updater",
+        "permissions-updater-only",
+        UPDATE_USER_PERMISSIONS_PERMISSION,
+    )
+    .await;
+
+    let status_login = login_request(&app, "status-updater", "password").await;
+    let forbidden_permissions = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/users/{managed_id}/permissions"),
+        &status_login.body.access_token,
+        &UserPermissionsUpdateRequest {
+            permissions: vec![],
+        },
+    )
+    .await;
+    assert_eq!(forbidden_permissions.status(), StatusCode::FORBIDDEN);
+    let disabled = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/status"),
+        &status_login.body.access_token,
+        &UserStatusUpdateRequest {
+            status: UserStatus::Disabled,
+        },
+    )
+    .await;
+    assert_eq!(disabled.status(), StatusCode::OK);
+
+    let permissions_login = login_request(&app, "permissions-updater", "password").await;
+    let forbidden_status = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/status"),
+        &permissions_login.body.access_token,
+        &UserStatusUpdateRequest {
+            status: UserStatus::Active,
+        },
+    )
+    .await;
+    assert_eq!(forbidden_status.status(), StatusCode::FORBIDDEN);
+    let permissions = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/users/{managed_id}/permissions"),
+        &permissions_login.body.access_token,
+        &UserPermissionsUpdateRequest {
+            permissions: vec![],
+        },
+    )
+    .await;
+    assert_eq!(permissions.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn user_password_reset_requires_reset_permission() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "managed", "old-password").await;
+    seed_plain_user(app.state.database(), "user-reader", "password").await;
+    seed_plain_user(app.state.database(), "password-resetter", "password").await;
+    let managed_id = user_id(&app, "managed").await;
+    assign_single_permission(
+        app.state.database(),
+        "user-reader",
+        "reader-only",
+        READ_USER_PERMISSION,
+    )
+    .await;
+    assign_single_permission(
+        app.state.database(),
+        "password-resetter",
+        "password-resetter-only",
+        RESET_USER_PASSWORD_PERMISSION,
+    )
+    .await;
+
+    let reader_login = login_request(&app, "user-reader", "password").await;
+    let forbidden = authorized_json_request(
+        &app,
+        "POST",
+        &format!("/api/users/{managed_id}/password"),
+        &reader_login.body.access_token,
+        &UserPasswordResetRequest {
+            password: "new-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+    let resetter_login = login_request(&app, "password-resetter", "password").await;
+    let reset = authorized_json_request(
+        &app,
+        "POST",
+        &format!("/api/users/{managed_id}/password"),
+        &resetter_login.body.access_token,
+        &UserPasswordResetRequest {
+            password: "new-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(reset.status(), StatusCode::NO_CONTENT);
+    let new_login = login_request(&app, "managed", "new-password").await;
+    assert_eq!(new_login.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn current_user_changes_only_own_password_with_current_password() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "self-user", "old-password").await;
+    let login = login_request(&app, "self-user", "old-password").await;
+
+    let wrong_current = authorized_json_request(
+        &app,
+        "POST",
+        "/api/auth/me/password",
+        &login.body.access_token,
+        &UserPasswordChangeRequest {
+            current_password: "wrong-password".to_owned(),
+            new_password: "new-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(wrong_current.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(text_body(wrong_current).await, "invalid_credentials");
+
+    let changed = authorized_json_request(
+        &app,
+        "POST",
+        "/api/auth/me/password",
+        &login.body.access_token,
+        &UserPasswordChangeRequest {
+            current_password: "old-password".to_owned(),
+            new_password: "new-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(changed.status(), StatusCode::NO_CONTENT);
+
+    let old_login = raw_login_request(&app, "self-user", "old-password").await;
+    assert_eq!(old_login.status(), StatusCode::UNAUTHORIZED);
+    let new_login = login_request(&app, "self-user", "new-password").await;
+    assert_eq!(new_login.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn user_management_protects_last_active_permission_manager() {
     let app = seeded_app().await;
     let admin_login = login_request(&app, "admin", "password").await;
     let admin_id = user_id(&app, "admin").await;
 
-    let disable_last_admin = authorized_json_request(
+    let disable_last_manager = authorized_json_request(
         &app,
         "PATCH",
         &format!("/api/users/{admin_id}/status"),
@@ -150,29 +331,34 @@ async fn user_management_protects_last_active_admin() {
         },
     )
     .await;
-    assert_eq!(disable_last_admin.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(disable_last_admin).await, "last_admin_required");
+    assert_eq!(disable_last_manager.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        text_body(disable_last_manager).await,
+        "last_permission_manager_required"
+    );
 
-    seed_plain_user(app.state.database(), "second-admin", "password").await;
-    let second_id = user_id(&app, "second-admin").await;
+    seed_plain_user(app.state.database(), "second-manager", "password").await;
+    let second_id = user_id(&app, "second-manager").await;
     let rbac = RbacRepository::new(app.state.database());
-    let admin_role_id = rbac
-        .ensure_role(ADMIN_ROLE_CODE, "Admin", None)
+    let permission_id = rbac
+        .ensure_permission(UPDATE_USER_PERMISSIONS_PERMISSION, None)
         .await
-        .expect("admin role should exist");
-    rbac.assign_role_to_user(second_id, admin_role_id)
+        .expect("permission should exist");
+    rbac.assign_permission_to_user(second_id, permission_id)
         .await
-        .expect("second admin should assign");
+        .expect("second manager should assign");
 
-    let remove_admin_role = authorized_json_request(
+    let remove_manage_permission = authorized_json_request(
         &app,
         "PUT",
-        &format!("/api/users/{admin_id}/roles"),
+        &format!("/api/users/{admin_id}/permissions"),
         &admin_login.body.access_token,
-        &UserRolesUpdateRequest { roles: vec![] },
+        &UserPermissionsUpdateRequest {
+            permissions: vec![],
+        },
     )
     .await;
-    assert_eq!(remove_admin_role.status(), StatusCode::OK);
+    assert_eq!(remove_manage_permission.status(), StatusCode::OK);
 }
 
 async fn user_id(app: &crate::test_support::TestApp, username: &str) -> i64 {
@@ -182,6 +368,27 @@ async fn user_id(app: &crate::test_support::TestApp, username: &str) -> i64 {
         .expect("user lookup should succeed")
         .expect("user should exist")
         .id
+}
+
+async fn assign_single_permission(
+    database: &DatabaseConnection,
+    username: &str,
+    _label: &str,
+    permission_code: &str,
+) {
+    let user = UserRepository::new(database)
+        .find_by_username(username)
+        .await
+        .expect("user lookup should succeed")
+        .expect("user should exist");
+    let rbac = RbacRepository::new(database);
+    let permission_id = rbac
+        .ensure_permission(permission_code, None)
+        .await
+        .expect("permission should exist");
+    rbac.assign_permission_to_user(user.id, permission_id)
+        .await
+        .expect("permission should assign");
 }
 
 async fn audit_count(app: &crate::test_support::TestApp, user_id: i64) -> i64 {

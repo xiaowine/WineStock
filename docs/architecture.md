@@ -57,12 +57,12 @@ Current implemented surface:
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
+- `POST /api/auth/me/password`
 - `GET /api/users`
 - `GET /api/users/{id}`
 - `PATCH /api/users/{id}/status`
-- `PUT /api/users/{id}/roles`
+- `PUT /api/users/{id}/permissions`
 - `POST /api/users/{id}/password`
-- `GET /api/roles`
 - `GET /api/permissions`
 - OpenAPI JSON at `/api-docs/openapi.json`
 - Swagger UI at `/swagger-ui`

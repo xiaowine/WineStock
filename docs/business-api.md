@@ -473,13 +473,8 @@
  | `stock.substitute.manage` | 替代料管理 | 绑定/解绑替代关系 |
  | `audit.read` | 事件日志 | 查看审计日志 |
  
- 角色权限推荐方案（后续随实际情况调整）：
- 
- | 角色 | 应拥有的权限 |
- |------|--------------|
- | `admin` | 全部 |
- | `staff` | `stock.read`、`stock.write`、`stock.inbound.create`、`stock.outbound.create`、`stock.item.manage`、`stock.substitute.manage` |
- | `viewer` | `stock.read`、`audit.read` |
+权限分配由用户管理接口直接写入用户权限关系。
+首个用户获得全部内置权限；后续用户默认无权限，需要由拥有 `user.permissions.update` 的用户显式分配。
  
  ---
  

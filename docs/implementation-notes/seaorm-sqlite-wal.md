@@ -134,17 +134,15 @@ core/src/persistence/
 
 ```text
 auth_users
-auth_roles
-auth_user_role_assignments
 auth_permissions
-auth_role_permission_assignments
+auth_user_permission_assignments
 auth_settings
 auth_signing_keys
 auth_refresh_tokens
 storage_file_objects
 ```
 
-RBAC 表的角色、权限和授权语义见 [`../rbac-permission-model.md`](../rbac-permission-model.md)。
+权限表和授权语义见 [`../rbac-permission-model.md`](../rbac-permission-model.md)。
 
 `auth_settings` 表用于保存鉴权策略，不放入 JSON 配置：
 
@@ -211,12 +209,12 @@ UserRepository
   create_user
 
 RbacRepository
-  list_user_roles
   list_user_permissions
-  ensure_role
+  list_permissions
   ensure_permission
-  assign_role_to_user
-  assign_permission_to_role
+  assign_permission_to_user
+  replace_user_permissions
+  find_permission_ids_by_codes
 
 RefreshTokenRepository
   create

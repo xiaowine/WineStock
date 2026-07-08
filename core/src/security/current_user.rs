@@ -21,9 +21,6 @@ pub struct CurrentUser {
     /// JWT `jti`，当前用于审计上下文，不作为 refresh token 状态。
     pub access_token_id: String,
 
-    /// access token 中携带的角色快照。
-    pub roles: Vec<String>,
-
     /// access token 中携带的权限快照。
     pub permissions: Vec<String>,
 }

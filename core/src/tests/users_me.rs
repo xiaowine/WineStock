@@ -60,8 +60,12 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
             "stock.substitute.manage",
             "stock.template.manage",
             "stock.write",
-            "user.manage",
-            "user.register"
+            "user.password.reset",
+            "user.permission.read",
+            "user.permissions.update",
+            "user.read",
+            "user.register",
+            "user.status.update"
         ]
     );
 }

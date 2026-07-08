@@ -23,7 +23,7 @@ use winestock_shared::{
 use crate::{
     bootstrap_from_config,
     persistence::repository::{CreateUser, RbacRepository, UserRepository},
-    rbac::{ADMIN_ROLE_CODE, ADMIN_ROLE_NAME},
+    rbac::builtin_permission_codes,
     state::CoreState,
 };
 
@@ -50,13 +50,14 @@ pub(crate) async fn seeded_app() -> TestApp {
         })
         .await
         .expect("user should be created");
-    let admin_role_id = rbac
-        .ensure_role(ADMIN_ROLE_CODE, ADMIN_ROLE_NAME, None)
+    let permission_ids = rbac
+        .find_permission_ids_by_codes(&builtin_permission_codes())
         .await
-        .expect("admin role should exist");
-    rbac.assign_role_to_user(user.id, admin_role_id)
+        .expect("permissions should query")
+        .expect("built-in permissions should exist");
+    rbac.replace_user_permissions(user.id, &permission_ids)
         .await
-        .expect("admin role should assign");
+        .expect("admin permissions should assign");
 
     app
 }

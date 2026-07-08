@@ -245,7 +245,7 @@ enum AuthorizationRequirement {
     Permission(&'static str),
 }
 
-/// 从 bearer token 得到当前用户，并重新读取数据库中的当前角色和权限。
+/// 从 bearer token 得到当前用户，并重新读取数据库中的当前权限。
 async fn load_current_user_from_token(
     core_state: &CoreState,
     token: &str,
@@ -260,7 +260,6 @@ async fn load_current_user_from_token(
     }
 
     let rbac = RbacRepository::new(core_state.database());
-    current_user.roles = rbac.list_user_roles(current_user.user_id).await?;
     current_user.permissions = rbac.list_user_permissions(current_user.user_id).await?;
 
     Ok(current_user)

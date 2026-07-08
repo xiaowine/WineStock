@@ -1,7 +1,7 @@
 //! users 模块 HTTP 控制器。
 //!
 //! 本模块属于 `users` 业务层，负责把用户业务相关 HTTP 请求转发到服务实现。
-//! 注册和当前用户 URL 仍保持 `/api/auth/*` 兼容路径，管理接口使用 `/api/users` 和 RBAC 只读路径。
+//! 注册和当前用户相关 URL 仍保持 `/api/auth/*` 兼容路径，管理接口使用 `/api/users` 和权限只读路径。
 
 use axum::{
     extract::{Extension, Path, Query, State},
@@ -66,9 +66,6 @@ pub(crate) struct UserListQuery {
 
     /// 按用户状态筛选，允许 `active` 或 `disabled`。
     pub status: Option<String>,
-
-    /// 按角色代码筛选。
-    pub role: Option<String>,
 }
 
 /// 用户管理响应。
@@ -86,10 +83,7 @@ pub(crate) struct UserAdminResponse {
     /// 用户状态。
     pub status: UserStatus,
 
-    /// 用户直接拥有的角色代码。
-    pub roles: Vec<String>,
-
-    /// 用户经由角色获得的权限代码。
+    /// 用户直接拥有的权限代码。
     pub permissions: Vec<String>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。
@@ -110,15 +104,15 @@ pub(crate) struct UserStatusUpdateRequest {
     pub status: UserStatus,
 }
 
-/// 用户角色整体替换请求。
+/// 用户权限整体替换请求。
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
 )]
 #[serde(deny_unknown_fields)]
-pub(crate) struct UserRolesUpdateRequest {
-    /// 角色代码列表；空列表表示清空该用户角色。
+pub(crate) struct UserPermissionsUpdateRequest {
+    /// 权限代码列表；空列表表示清空该用户权限。
     #[garde(length(max = 32), custom(validate_code_list))]
-    pub roles: Vec<String>,
+    pub permissions: Vec<String>,
 }
 
 /// 管理员重置密码请求。
@@ -132,20 +126,19 @@ pub(crate) struct UserPasswordResetRequest {
     pub password: String,
 }
 
-/// 角色响应。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
-pub(crate) struct RoleResponse {
-    /// 稳定角色代码。
-    pub code: String,
+/// 当前用户修改自己密码的请求。
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
+)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct UserPasswordChangeRequest {
+    /// 当前明文密码，用于确认操作者仍掌握原凭据。
+    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    pub current_password: String,
 
-    /// 角色名称。
-    pub name: String,
-
-    /// 角色说明。
-    pub description: Option<String>,
-
-    /// 该角色包含的权限代码。
-    pub permissions: Vec<String>,
+    /// 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。
+    #[garde(length(min = 8, max = 128), custom(validate_not_blank))]
+    pub new_password: String,
 }
 
 /// 权限响应。
@@ -175,7 +168,7 @@ pub(crate) struct PermissionResponse {
         (status = 409, description = "Username already exists", body = String)
     )
 )]
-/// 注册新用户；首个用户免鉴权并自动成为 admin，之后必须拥有注册用户权限。
+/// 注册新用户；首个用户免鉴权并自动获得全部内置权限，之后必须拥有注册用户权限。
 pub(crate) async fn register(
     State(state): State<CoreState>,
     current_user: Option<Extension<CurrentUser>>,
@@ -205,6 +198,28 @@ pub(crate) async fn me(
     Extension(current_user): Extension<CurrentUser>,
 ) -> Result<Json<AuthUserResponse>, AuthApiError> {
     Ok(Json(service::current_user(&state, &current_user).await?))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/auth/me/password",
+    tag = "auth",
+    request_body = UserPasswordChangeRequest,
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 204, description = "Password changed"),
+        (status = 400, description = "Invalid request", body = String),
+        (status = 401, description = "Invalid access token or current password", body = String)
+    )
+)]
+/// 当前登录用户修改自己的密码；该接口不允许指定其他用户 ID。
+pub(crate) async fn change_own_password(
+    State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
+    ValidatedJson(request): ValidatedJson<UserPasswordChangeRequest>,
+) -> Result<StatusCode, AuthApiError> {
+    service::change_own_password(&state, &current_user, request).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(
@@ -261,7 +276,7 @@ pub(crate) async fn get_user(
         (status = 401, description = "Invalid access token", body = String),
         (status = 403, description = "User manage permission required", body = String),
         (status = 404, description = "User not found", body = String),
-        (status = 409, description = "Last active admin cannot be disabled", body = String)
+        (status = 409, description = "Last active permission manager cannot be disabled", body = String)
     )
 )]
 /// 更新用户状态。
@@ -278,29 +293,29 @@ pub(crate) async fn update_user_status(
 
 #[utoipa::path(
     put,
-    path = "/api/users/{id}/roles",
+    path = "/api/users/{id}/permissions",
     tag = "users",
     params(("id" = i64, Path, description = "User ID")),
-    request_body = UserRolesUpdateRequest,
+    request_body = UserPermissionsUpdateRequest,
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "User roles updated", body = UserAdminResponse),
+        (status = 200, description = "User permissions updated", body = UserAdminResponse),
         (status = 400, description = "Invalid request", body = String),
         (status = 401, description = "Invalid access token", body = String),
         (status = 403, description = "User manage permission required", body = String),
-        (status = 404, description = "User or role not found", body = String),
-        (status = 409, description = "Last active admin cannot lose admin role", body = String)
+        (status = 404, description = "User or permission not found", body = String),
+        (status = 409, description = "Last active permission manager cannot lose manage permission", body = String)
     )
 )]
-/// 整体替换用户角色。
-pub(crate) async fn update_user_roles(
+/// 整体替换用户权限。
+pub(crate) async fn update_user_permissions(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
     Path(id): Path<i64>,
-    ValidatedJson(request): ValidatedJson<UserRolesUpdateRequest>,
+    ValidatedJson(request): ValidatedJson<UserPermissionsUpdateRequest>,
 ) -> Result<Json<UserAdminResponse>, AuthApiError> {
     Ok(Json(
-        service::update_user_roles(&state, &current_user, id, request).await?,
+        service::update_user_permissions(&state, &current_user, id, request).await?,
     ))
 }
 
@@ -315,11 +330,11 @@ pub(crate) async fn update_user_roles(
         (status = 204, description = "Password reset"),
         (status = 400, description = "Invalid request", body = String),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String),
+        (status = 403, description = "Password reset permission required", body = String),
         (status = 404, description = "User not found", body = String)
     )
 )]
-/// 管理员重置用户密码。
+/// 拥有重置密码权限的用户直接重置目标用户密码。
 pub(crate) async fn reset_user_password(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
@@ -328,24 +343,6 @@ pub(crate) async fn reset_user_password(
 ) -> Result<StatusCode, AuthApiError> {
     service::reset_user_password(&state, &current_user, id, request).await?;
     Ok(StatusCode::NO_CONTENT)
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/roles",
-    tag = "users",
-    security(("bearerAuth" = [])),
-    responses(
-        (status = 200, description = "Role list", body = Vec<RoleResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String)
-    )
-)]
-/// 查询角色定义列表。
-pub(crate) async fn list_roles(
-    State(state): State<CoreState>,
-) -> Result<Json<Vec<RoleResponse>>, AuthApiError> {
-    Ok(Json(service::list_roles(&state).await?))
 }
 
 #[utoipa::path(

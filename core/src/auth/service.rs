@@ -39,11 +39,9 @@ pub(crate) async fn login(
 
     let rbac = RbacRepository::new(state.database());
     let user_response = load_user_response(&rbac, &user).await?;
-    let access_token = state.security().issue_access_token(
-        user.id,
-        user_response.roles.clone(),
-        user_response.permissions.clone(),
-    )?;
+    let access_token = state
+        .security()
+        .issue_access_token(user.id, user_response.permissions.clone())?;
     let refresh_token = create_refresh_token(
         state,
         user.id,
@@ -105,11 +103,9 @@ pub(crate) async fn refresh(
         )
         .await?
         .ok_or(AuthApiError::InvalidRefreshToken)?;
-    let access_token = state.security().issue_access_token(
-        user.id,
-        user_response.roles.clone(),
-        user_response.permissions.clone(),
-    )?;
+    let access_token = state
+        .security()
+        .issue_access_token(user.id, user_response.permissions.clone())?;
 
     debug_assert_eq!(rotated.user_id, user.id);
     Ok(AuthTokenResponse {

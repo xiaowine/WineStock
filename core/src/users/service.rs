@@ -1,6 +1,6 @@
 //! users 模块业务服务。
 //!
-//! 本模块属于 `users` 业务层，负责注册、当前用户查询、用户管理以及用户响应组装。
+//! 本模块属于 `users` 业务层，负责注册、当前用户查询、自助改密码、用户管理以及用户响应组装。
 //! 它不负责路由级鉴权条件，也不直接解析 bearer token。
 
 use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
@@ -17,11 +17,11 @@ use crate::{
         entity::user,
         repository::{
             AuditRepository, AuthRepository, CreateUser, ListUsers, PermissionRecord,
-            RbacRepository, RecordAuditEvent, RoleRecord, UserRepository,
+            RbacRepository, RecordAuditEvent, UserRepository,
         },
     },
-    rbac::{ADMIN_ROLE_CODE, ADMIN_ROLE_NAME},
-    security::{create_password_hash, AuthApiError, CurrentUser},
+    rbac::builtin_permission_codes,
+    security::{create_password_hash, verify_password, AuthApiError, CurrentUser},
     state::CoreState,
 };
 
@@ -53,7 +53,7 @@ pub(crate) struct PaginatedResponse<T> {
     pub total_pages: u64,
 }
 
-/// 执行注册用例；当数据库尚无用户时，首个用户会被分配为 admin。
+/// 执行注册用例；当数据库尚无用户时，首个用户会获得全部内置权限。
 pub(crate) async fn register(
     state: &CoreState,
     request: AuthRegisterRequest,
@@ -80,7 +80,7 @@ pub(crate) async fn register(
     load_user_response(&rbac, &user).await
 }
 
-/// 在同一事务中完成注册、首个用户判断和首个 admin 分配，避免并发首登产生多个管理员。
+/// 在同一事务中完成注册、首个用户判断和首个用户权限分配，避免并发首登产生多个初始权限用户。
 async fn register_user_transactionally(
     database: &DatabaseConnection,
     input: CreateUser,
@@ -110,14 +110,13 @@ async fn register_user_transactionally(
     let user = users.create_user(input).await?;
 
     if !has_users {
-        let admin_role_id = rbac
-            .ensure_role(
-                ADMIN_ROLE_CODE,
-                ADMIN_ROLE_NAME,
-                Some("系统管理员，拥有全部内置权限。"),
-            )
+        let permission_codes = builtin_permission_codes();
+        let permission_ids = rbac
+            .find_permission_ids_by_codes(&permission_codes)
+            .await?
+            .ok_or(AuthApiError::PermissionNotFound)?;
+        rbac.replace_user_permissions(user.id, &permission_ids)
             .await?;
-        rbac.assign_role_to_user(user.id, admin_role_id).await?;
     }
 
     transaction.commit().await?;
@@ -138,7 +137,7 @@ async fn acquire_registration_write_lock(transaction: &impl ConnectionTrait) -> 
     Ok(())
 }
 
-/// 根据当前认证上下文读取数据库中的最新用户、角色和权限快照。
+/// 根据当前认证上下文读取数据库中的最新用户和权限快照。
 pub(crate) async fn current_user(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -172,7 +171,6 @@ pub(crate) async fn list_users(
             page_size,
             search: normalize_optional_text(query.search)?,
             status: normalize_optional_status(query.status)?,
-            role: normalize_optional_text(query.role)?,
         })
         .await?;
     let rbac = RbacRepository::new(state.database());
@@ -204,7 +202,7 @@ pub(crate) async fn get_user(
     load_admin_user_response(&rbac, &user).await
 }
 
-/// 更新用户状态；禁止禁用最后一个 active admin。
+/// 更新用户状态；禁止禁用最后一个拥有用户权限管理能力的 active 用户。
 pub(crate) async fn update_user_status(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -220,7 +218,7 @@ pub(crate) async fn update_user_status(
         .find_by_id(id)
         .await?
         .ok_or(AuthApiError::UserNotFound)?;
-    ensure_user_can_lose_active_admin(&rbac, &user, Some(&status), None).await?;
+    ensure_user_can_lose_permission_management(&rbac, &user, Some(&status), None).await?;
     let previous_status = user.status.clone();
     let updated = users.update_status(user, status.clone()).await?;
     audit
@@ -242,14 +240,14 @@ pub(crate) async fn update_user_status(
     Ok(response)
 }
 
-/// 整体替换用户角色；禁止移除最后一个 active admin 的 admin 角色。
-pub(crate) async fn update_user_roles(
+/// 整体替换用户权限；禁止移除最后一个 active 权限管理员的管理权限。
+pub(crate) async fn update_user_permissions(
     state: &CoreState,
     current_user: &CurrentUser,
     id: i64,
-    request: super::controller::UserRolesUpdateRequest,
+    request: super::controller::UserPermissionsUpdateRequest,
 ) -> Result<super::controller::UserAdminResponse, AuthApiError> {
-    let role_codes = normalize_role_codes(request.roles)?;
+    let permission_codes = normalize_permission_codes(request.permissions)?;
     let transaction = state.database().begin().await?;
     let users = UserRepository::new(&transaction);
     let rbac = RbacRepository::new(&transaction);
@@ -258,13 +256,14 @@ pub(crate) async fn update_user_roles(
         .find_by_id(id)
         .await?
         .ok_or(AuthApiError::UserNotFound)?;
-    let role_ids = rbac
-        .find_role_ids_by_codes(&role_codes)
+    let permission_ids = rbac
+        .find_permission_ids_by_codes(&permission_codes)
         .await?
-        .ok_or(AuthApiError::RoleNotFound)?;
-    ensure_user_can_lose_active_admin(&rbac, &user, None, Some(&role_codes)).await?;
-    let previous_roles = rbac.list_user_roles(user.id).await?;
-    rbac.replace_user_roles(user.id, &role_ids).await?;
+        .ok_or(AuthApiError::PermissionNotFound)?;
+    ensure_user_can_lose_permission_management(&rbac, &user, None, Some(&permission_codes)).await?;
+    let previous_permissions = rbac.list_user_permissions(user.id).await?;
+    rbac.replace_user_permissions(user.id, &permission_ids)
+        .await?;
     audit
         .record(RecordAuditEvent {
             user_id: Some(current_user.user_id),
@@ -272,9 +271,9 @@ pub(crate) async fn update_user_roles(
             entity_id: Some(user.id),
             action: "updated".to_owned(),
             details: Some(json!({
-                "field": "roles",
-                "previous_roles": previous_roles,
-                "new_roles": role_codes
+                "field": "permissions",
+                "previous_permissions": previous_permissions,
+                "new_permissions": permission_codes
             })),
         })
         .await?;
@@ -284,7 +283,49 @@ pub(crate) async fn update_user_roles(
     Ok(response)
 }
 
-/// 管理员重置用户密码；审计详情不得包含明文密码或哈希。
+/// 当前用户修改自己的密码；必须先校验当前密码，审计详情不得包含明文密码或哈希。
+pub(crate) async fn change_own_password(
+    state: &CoreState,
+    current_user: &CurrentUser,
+    request: super::controller::UserPasswordChangeRequest,
+) -> Result<(), AuthApiError> {
+    if request.current_password.is_empty() || request.new_password.is_empty() {
+        return Err(AuthApiError::InvalidRequest);
+    }
+    let transaction = state.database().begin().await?;
+    let users = UserRepository::new(&transaction);
+    let audit = AuditRepository::new(&transaction);
+    let user = users
+        .find_by_id(current_user.user_id)
+        .await?
+        .ok_or(AuthApiError::InvalidAccessToken)?;
+    if user.status != "active" {
+        return Err(AuthApiError::InvalidAccessToken);
+    }
+    if !verify_password(&request.current_password, &user.password_hash) {
+        return Err(AuthApiError::InvalidCredentials);
+    }
+
+    let password_hash = create_password_hash(&request.new_password)?;
+    let updated = users.update_password_hash(user, password_hash).await?;
+    audit
+        .record(RecordAuditEvent {
+            user_id: Some(current_user.user_id),
+            entity_type: "user".to_owned(),
+            entity_id: Some(updated.id),
+            action: "updated".to_owned(),
+            details: Some(json!({
+                "field": "password",
+                "mode": "self_change"
+            })),
+        })
+        .await?;
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// 拥有重置密码权限的用户直接重置目标用户密码；审计详情不得包含明文密码或哈希。
 pub(crate) async fn reset_user_password(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -309,26 +350,15 @@ pub(crate) async fn reset_user_password(
             entity_type: "user".to_owned(),
             entity_id: Some(updated.id),
             action: "updated".to_owned(),
-            details: Some(json!({ "field": "password" })),
+            details: Some(json!({
+                "field": "password",
+                "mode": "admin_reset"
+            })),
         })
         .await?;
     transaction.commit().await?;
 
     Ok(())
-}
-
-/// 查询角色列表和每个角色包含的权限代码。
-pub(crate) async fn list_roles(
-    state: &CoreState,
-) -> Result<Vec<super::controller::RoleResponse>, AuthApiError> {
-    let rbac = RbacRepository::new(state.database());
-    let roles = rbac.list_roles().await?;
-    let mut responses = Vec::with_capacity(roles.len());
-    for role in roles {
-        responses.push(role_response(&rbac, role).await?);
-    }
-
-    Ok(responses)
 }
 
 /// 查询权限列表。
@@ -343,7 +373,7 @@ pub(crate) async fn list_permissions(
         .collect())
 }
 
-/// 组装 API 返回和 JWT claims 共享的用户、角色、权限快照。
+/// 组装 API 返回和 JWT claims 共享的用户权限快照。
 pub(crate) async fn load_user_response(
     rbac: &RbacRepository<'_, impl ConnectionTrait>,
     user: &user::Model,
@@ -351,7 +381,6 @@ pub(crate) async fn load_user_response(
     Ok(AuthUserResponse {
         id: user.id.to_string(),
         username: user.username.clone(),
-        roles: rbac.list_user_roles(user.id).await?,
         permissions: rbac.list_user_permissions(user.id).await?,
     })
 }
@@ -366,22 +395,9 @@ async fn load_admin_user_response(
         username: user.username.clone(),
         display_name: user.display_name.clone(),
         status: super::controller::UserStatus::from_code(&user.status)?,
-        roles: rbac.list_user_roles(user.id).await?,
         permissions: rbac.list_user_permissions(user.id).await?,
         created_at: user.created_at.clone(),
         updated_at: user.updated_at.clone(),
-    })
-}
-
-async fn role_response(
-    rbac: &RbacRepository<'_, impl ConnectionTrait>,
-    role: RoleRecord,
-) -> Result<super::controller::RoleResponse, AuthApiError> {
-    Ok(super::controller::RoleResponse {
-        code: role.code,
-        name: role.name,
-        description: role.description,
-        permissions: rbac.list_role_permissions(role.id).await?,
     })
 }
 
@@ -392,26 +408,40 @@ fn permission_response(record: PermissionRecord) -> super::controller::Permissio
     }
 }
 
-async fn ensure_user_can_lose_active_admin(
+async fn ensure_user_can_lose_permission_management(
     rbac: &RbacRepository<'_, impl ConnectionTrait>,
     user: &user::Model,
     next_status: Option<&str>,
-    next_roles: Option<&[String]>,
+    next_permissions: Option<&[String]>,
 ) -> Result<(), AuthApiError> {
     if user.status != "active" {
         return Ok(());
     }
-    let current_roles = rbac.list_user_roles(user.id).await?;
-    if !current_roles.iter().any(|role| role == ADMIN_ROLE_CODE) {
+    let current_permissions = rbac.list_user_permissions(user.id).await?;
+    if !current_permissions
+        .iter()
+        .any(|permission| permission == super::UPDATE_USER_PERMISSIONS_PERMISSION)
+    {
         return Ok(());
     }
 
     let will_be_active = next_status.unwrap_or(&user.status) == "active";
-    let will_have_admin = next_roles
-        .map(|roles| roles.iter().any(|role| role == ADMIN_ROLE_CODE))
+    let will_manage_permissions = next_permissions
+        .map(|permissions| {
+            permissions
+                .iter()
+                .any(|permission| permission == super::UPDATE_USER_PERMISSIONS_PERMISSION)
+        })
         .unwrap_or(true);
-    if (!will_be_active || !will_have_admin) && !rbac.has_other_active_admin(user.id).await? {
-        return Err(AuthApiError::LastAdminRequired);
+    if (!will_be_active || !will_manage_permissions)
+        && !rbac
+            .has_other_active_user_with_permission(
+                user.id,
+                super::UPDATE_USER_PERMISSIONS_PERMISSION,
+            )
+            .await?
+    {
+        return Err(AuthApiError::LastPermissionManagerRequired);
     }
 
     Ok(())
@@ -446,7 +476,7 @@ fn normalize_optional_status(value: Option<String>) -> Result<Option<String>, Au
         .transpose()
 }
 
-fn normalize_role_codes(values: Vec<String>) -> Result<Vec<String>, AuthApiError> {
+fn normalize_permission_codes(values: Vec<String>) -> Result<Vec<String>, AuthApiError> {
     let mut codes = BTreeSet::new();
     for value in values {
         let trimmed = value.trim();

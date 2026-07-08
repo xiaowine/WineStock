@@ -21,7 +21,6 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
     assert_eq!(response.status(), axum::http::StatusCode::CREATED);
     let user: AuthUserResponse = json_body(response).await;
     assert_eq!(user.username, "first-admin");
-    assert_eq!(user.roles, vec!["admin"]);
     assert_eq!(
         user.permissions,
         vec![
@@ -35,14 +34,22 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
             "stock.substitute.manage",
             "stock.template.manage",
             "stock.write",
-            "user.manage",
-            "user.register"
+            "user.password.reset",
+            "user.permission.read",
+            "user.permissions.update",
+            "user.read",
+            "user.register",
+            "user.status.update"
         ]
     );
 
     let login = login_request(&app, "first-admin", "password").await;
     assert_eq!(login.status, axum::http::StatusCode::OK);
-    assert_eq!(login.body.user.roles, vec!["admin"]);
+    assert!(login
+        .body
+        .user
+        .permissions
+        .contains(&"user.permissions.update".to_owned()));
 }
 
 #[tokio::test]
@@ -57,7 +64,7 @@ async fn registration_requires_register_permission_after_first_user_exists() {
     seed_plain_user(app.state.database(), "plain", "password").await;
     let plain_login = login_request(&app, "plain", "password").await;
     assert_eq!(plain_login.status, axum::http::StatusCode::OK);
-    assert!(plain_login.body.user.roles.is_empty());
+    assert!(plain_login.body.user.permissions.is_empty());
 
     let forbidden = raw_register_request(
         &app,
@@ -79,7 +86,7 @@ async fn registration_requires_register_permission_after_first_user_exists() {
     assert_eq!(created.status(), axum::http::StatusCode::CREATED);
     let user: AuthUserResponse = json_body(created).await;
     assert_eq!(user.username, "staff");
-    assert!(user.roles.is_empty());
+    assert!(user.permissions.is_empty());
 }
 
 #[tokio::test]
@@ -106,7 +113,6 @@ async fn registration_service_rechecks_first_user_bypass_inside_transaction() {
     let stale_current_user = CurrentUser {
         user_id: 1,
         access_token_id: "stale".to_owned(),
-        roles: vec![],
         permissions: vec![],
     };
     let missing_permission = super::service::register(
@@ -123,37 +129,29 @@ async fn registration_service_rechecks_first_user_bypass_inside_transaction() {
 }
 
 #[tokio::test]
-async fn registration_allows_non_admin_role_with_register_permission() {
+async fn registration_allows_user_with_register_permission() {
     let app = empty_app().await;
     let first = raw_register_request(&app, "admin", "password", None).await;
     assert_eq!(first.status(), axum::http::StatusCode::CREATED);
 
     seed_plain_user(app.state.database(), "registrar", "password").await;
     let rbac = RbacRepository::new(app.state.database());
-    let registrar_role = rbac
-        .ensure_role("registrar", "Registrar", Some("允许注册用户的业务角色。"))
-        .await
-        .expect("registrar role should exist");
     let register_permission = rbac
         .ensure_permission(REGISTER_USER_PERMISSION, Some("注册新用户。"))
         .await
         .expect("register permission should exist");
-    rbac.assign_permission_to_role(registrar_role, register_permission)
-        .await
-        .expect("register permission should assign");
     let users = UserRepository::new(app.state.database());
     let registrar = users
         .find_by_username("registrar")
         .await
         .expect("registrar lookup should succeed")
         .expect("registrar should exist");
-    rbac.assign_role_to_user(registrar.id, registrar_role)
+    rbac.assign_permission_to_user(registrar.id, register_permission)
         .await
-        .expect("registrar role should assign");
+        .expect("registrar permission should assign");
 
     let registrar_login = login_request(&app, "registrar", "password").await;
     assert_eq!(registrar_login.status, axum::http::StatusCode::OK);
-    assert_eq!(registrar_login.body.user.roles, vec!["registrar"]);
     assert_eq!(
         registrar_login.body.user.permissions,
         vec![REGISTER_USER_PERMISSION.to_owned()]
@@ -182,7 +180,7 @@ async fn registration_checks_current_register_permission_in_database() {
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"
-                DELETE FROM auth_user_role_assignments
+                DELETE FROM auth_user_permission_assignments
                 WHERE user_id = (
                     SELECT id FROM auth_users WHERE username = 'admin'
                 )
@@ -190,7 +188,7 @@ async fn registration_checks_current_register_permission_in_database() {
             .to_owned(),
         ))
         .await
-        .expect("admin role assignment should be removable");
+        .expect("admin permission assignments should be removable");
 
     let stale_register_permission = raw_register_request(
         &app,

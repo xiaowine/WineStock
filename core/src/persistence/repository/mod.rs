@@ -18,7 +18,7 @@ pub(crate) use audit_repo::{AuditRepository, RecordAuditEvent};
 #[allow(unused_imports)]
 pub(crate) use auth_repo::AuthRepository;
 #[allow(unused_imports)]
-pub(crate) use rbac_repo::{PermissionRecord, RbacRepository, RolePermissionSyncMode, RoleRecord};
+pub(crate) use rbac_repo::{PermissionRecord, RbacRepository};
 #[allow(unused_imports)]
 pub(crate) use refresh_token_repo::{CreateRefreshToken, RefreshTokenRepository};
 #[allow(unused_imports)]

@@ -24,11 +24,11 @@ pub enum AuthApiError {
     /// 指定用户不存在。
     UserNotFound,
 
-    /// 指定角色不存在。
-    RoleNotFound,
+    /// 指定权限不存在。
+    PermissionNotFound,
 
-    /// 操作会导致系统没有可用管理员。
-    LastAdminRequired,
+    /// 操作会导致系统没有可分配权限的 active 用户。
+    LastPermissionManagerRequired,
 
     /// 用户名或密码错误，响应不暴露具体失败点。
     InvalidCredentials,
@@ -62,8 +62,10 @@ impl IntoResponse for AuthApiError {
             Self::InvalidRegisterRequest => (StatusCode::BAD_REQUEST, "invalid_register_request"),
             Self::UsernameTaken => (StatusCode::CONFLICT, "username_taken"),
             Self::UserNotFound => (StatusCode::NOT_FOUND, "user_not_found"),
-            Self::RoleNotFound => (StatusCode::NOT_FOUND, "role_not_found"),
-            Self::LastAdminRequired => (StatusCode::CONFLICT, "last_admin_required"),
+            Self::PermissionNotFound => (StatusCode::NOT_FOUND, "permission_not_found"),
+            Self::LastPermissionManagerRequired => {
+                (StatusCode::CONFLICT, "last_permission_manager_required")
+            }
             Self::InvalidCredentials => (StatusCode::UNAUTHORIZED, "invalid_credentials"),
             Self::InvalidRefreshToken => (StatusCode::UNAUTHORIZED, "invalid_refresh_token"),
             Self::InvalidAccessToken => (StatusCode::UNAUTHORIZED, "invalid_access_token"),

@@ -21,7 +21,7 @@ pub fn validate_optional_not_blank(value: &Option<String>, _: &()) -> garde::Res
     Ok(())
 }
 
-/// 校验角色和权限代码列表，列表项必须是非空短代码。
+/// 校验权限代码列表，列表项必须是非空短代码。
 pub fn validate_code_list(values: &[String], _: &()) -> garde::Result {
     for value in values {
         validate_code(value, &())?;

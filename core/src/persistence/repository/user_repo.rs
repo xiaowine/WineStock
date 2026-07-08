@@ -1,7 +1,7 @@
 //! users 模块用户 repository。
 //!
 //! 本模块属于 `core` 的持久化层，封装用户创建、查询、状态更新和密码哈希更新。
-//! 角色、权限和分配关系属于 RBAC repository，不应混入账号仓储。
+//! 权限定义和分配关系属于 RBAC repository，不应混入账号仓储。
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr,
@@ -43,9 +43,6 @@ pub(crate) struct ListUsers {
 
     /// 按用户状态筛选。
     pub status: Option<String>,
-
-    /// 按用户拥有的角色代码筛选。
-    pub role: Option<String>,
 }
 
 /// 用户分页查询结果。
@@ -113,7 +110,7 @@ where
             .await
     }
 
-    /// 分页查询用户；角色筛选通过 RBAC 关联表完成，但只返回账号基础记录。
+    /// 分页查询用户，只返回账号基础记录。
     pub(crate) async fn list_users(&self, input: ListUsers) -> Result<UserPage, DbErr> {
         let limit = input.page_size as i64;
         let offset = ((input.page.saturating_sub(1)) * input.page_size) as i64;
@@ -221,7 +218,7 @@ where
 }
 
 fn list_users_query_parts(input: &ListUsers) -> (String, String, Vec<Value>) {
-    let mut joins = String::new();
+    let joins = String::new();
     let mut clauses = Vec::new();
     let mut values = Vec::new();
 
@@ -235,19 +232,6 @@ fn list_users_query_parts(input: &ListUsers) -> (String, String, Vec<Value>) {
     if let Some(status) = input.status.as_ref() {
         clauses.push("auth_users.status = ?");
         values.push(status.clone().into());
-    }
-
-    if let Some(role) = input.role.as_ref() {
-        joins.push_str(
-            r#"
-            INNER JOIN auth_user_role_assignments
-                ON auth_user_role_assignments.user_id = auth_users.id
-            INNER JOIN auth_roles
-                ON auth_roles.id = auth_user_role_assignments.role_id
-            "#,
-        );
-        clauses.push("auth_roles.code = ?");
-        values.push(role.clone().into());
     }
 
     let where_clause = if clauses.is_empty() {

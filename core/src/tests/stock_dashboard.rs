@@ -100,7 +100,8 @@ async fn dashboard_reports_slow_moving_items_and_requires_stock_read() {
     seed_approved_inbound(&app, &login.body.access_token, item_id, 3.0, "DASH-SLOW").await;
     age_item_movements(&app, item_id, 40).await;
 
-    let viewer_token = seed_user_with_role_and_login(&app, "dashboard-viewer", "viewer").await;
+    let viewer_token =
+        seed_user_with_permissions_and_login(&app, "dashboard-viewer", &["stock.read"]).await;
     let overview =
         authorized_empty_request(&app, "GET", "/api/dashboard/overview", &viewer_token).await;
     assert_eq!(overview.status(), StatusCode::OK);
@@ -239,26 +240,28 @@ async fn age_item_movements(app: &crate::test_support::TestApp, item_id: i64, da
         .expect("movement aging should succeed");
 }
 
-async fn seed_user_with_role_and_login(
+async fn seed_user_with_permissions_and_login(
     app: &crate::test_support::TestApp,
     username: &str,
-    role_code: &str,
+    permissions: &[&str],
 ) -> String {
     crate::test_support::seed_plain_user(app.state.database(), username, "password").await;
     let rbac = crate::persistence::repository::RbacRepository::new(app.state.database());
-    let role_id = rbac
-        .ensure_role(role_code, role_code, None)
-        .await
-        .expect("role should exist");
     let users = crate::persistence::repository::UserRepository::new(app.state.database());
     let user = users
         .find_by_username(username)
         .await
         .expect("user lookup should succeed")
         .expect("user should exist");
-    rbac.assign_role_to_user(user.id, role_id)
-        .await
-        .expect("role should assign");
+    for permission in permissions {
+        let permission_id = rbac
+            .ensure_permission(permission, None)
+            .await
+            .expect("permission should exist");
+        rbac.assign_permission_to_user(user.id, permission_id)
+            .await
+            .expect("permission should assign");
+    }
 
     login_request(app, username, "password")
         .await

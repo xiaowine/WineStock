@@ -200,7 +200,8 @@ async fn template_validation_and_authorization_fail_before_write() {
     .await;
     assert_eq!(duplicate_fields.status(), StatusCode::BAD_REQUEST);
 
-    let forbidden_token = seed_viewer_and_login(&app).await;
+    let forbidden_token =
+        seed_user_with_permissions_and_login(&app, "template-viewer", &["stock.read"]).await;
     let forbidden = authorized_json_request(
         &app,
         "POST",
@@ -245,24 +246,30 @@ fn template_request(name: &str) -> TemplateCreateRequest {
     }
 }
 
-async fn seed_viewer_and_login(app: &crate::test_support::TestApp) -> String {
-    crate::test_support::seed_plain_user(app.state.database(), "template-viewer", "password").await;
+async fn seed_user_with_permissions_and_login(
+    app: &crate::test_support::TestApp,
+    username: &str,
+    permissions: &[&str],
+) -> String {
+    crate::test_support::seed_plain_user(app.state.database(), username, "password").await;
     let rbac = crate::persistence::repository::RbacRepository::new(app.state.database());
-    let viewer_role = rbac
-        .ensure_role("viewer", "Viewer", None)
-        .await
-        .expect("viewer role should exist");
     let users = crate::persistence::repository::UserRepository::new(app.state.database());
-    let viewer = users
-        .find_by_username("template-viewer")
+    let user = users
+        .find_by_username(username)
         .await
-        .expect("viewer lookup should succeed")
-        .expect("viewer should exist");
-    rbac.assign_role_to_user(viewer.id, viewer_role)
-        .await
-        .expect("viewer role should assign");
+        .expect("user lookup should succeed")
+        .expect("user should exist");
+    for permission in permissions {
+        let permission_id = rbac
+            .ensure_permission(permission, None)
+            .await
+            .expect("permission should exist");
+        rbac.assign_permission_to_user(user.id, permission_id)
+            .await
+            .expect("permission should assign");
+    }
 
-    login_request(app, "template-viewer", "password")
+    login_request(app, username, "password")
         .await
         .body
         .access_token

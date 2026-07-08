@@ -24,7 +24,6 @@ async fn login_returns_tokens_and_current_permissions() {
         AuthUserResponse {
             id: login.body.user.id.clone(),
             username: "admin".to_owned(),
-            roles: vec!["admin".to_owned()],
             permissions: vec![
                 "audit.read".to_owned(),
                 "stock.inbound.approve".to_owned(),
@@ -36,8 +35,12 @@ async fn login_returns_tokens_and_current_permissions() {
                 "stock.substitute.manage".to_owned(),
                 "stock.template.manage".to_owned(),
                 "stock.write".to_owned(),
-                "user.manage".to_owned(),
+                "user.password.reset".to_owned(),
+                "user.permission.read".to_owned(),
+                "user.permissions.update".to_owned(),
+                "user.read".to_owned(),
                 "user.register".to_owned(),
+                "user.status.update".to_owned(),
             ],
         }
     );

@@ -1,6 +1,6 @@
 //! `auth_users` 表的 SeaORM Entity。
 //!
-//! 该表是账号体系基础表。角色、权限和登录流程不在 Entity 中实现，由 migration 外键和 repository 查询表达。
+//! 该表是账号体系基础表。权限分配和登录流程不在 Entity 中实现，由 migration 外键和 repository 查询表达。
 
 use sea_orm::entity::prelude::*;
 
@@ -9,7 +9,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "auth_users")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    /// 数据库自增主键，用于内部关联角色、令牌和文件所有者。
+    /// 数据库自增主键，用于内部关联权限、令牌和文件所有者。
     pub id: i64,
 
     /// 登录用户名，数据库中保持唯一。
@@ -31,7 +31,7 @@ pub struct Model {
     pub updated_at: String,
 }
 
-/// 用户与角色的多对多关系通过 `auth_user_role_assignments` 表和仓储层查询表达。
+/// 用户与权限的多对多关系通过 `auth_user_permission_assignments` 表和仓储层查询表达。
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 

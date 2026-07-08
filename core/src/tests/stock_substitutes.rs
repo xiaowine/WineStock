@@ -30,7 +30,8 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     )
     .await;
 
-    let viewer_token = seed_user_with_role_and_login(&app, "sub-viewer", "viewer").await;
+    let viewer_token =
+        seed_user_with_permissions_and_login(&app, "sub-viewer", &["stock.read"]).await;
     let forbidden_bind = authorized_json_request(
         &app,
         "POST",
@@ -239,26 +240,28 @@ fn substitute_request(items: Vec<(i64, i32, Option<&str>)>) -> SubstituteBindReq
     }
 }
 
-async fn seed_user_with_role_and_login(
+async fn seed_user_with_permissions_and_login(
     app: &crate::test_support::TestApp,
     username: &str,
-    role_code: &str,
+    permissions: &[&str],
 ) -> String {
     crate::test_support::seed_plain_user(app.state.database(), username, "password").await;
     let rbac = crate::persistence::repository::RbacRepository::new(app.state.database());
-    let role_id = rbac
-        .ensure_role(role_code, role_code, None)
-        .await
-        .expect("role should exist");
     let users = crate::persistence::repository::UserRepository::new(app.state.database());
     let user = users
         .find_by_username(username)
         .await
         .expect("user lookup should succeed")
         .expect("user should exist");
-    rbac.assign_role_to_user(user.id, role_id)
-        .await
-        .expect("role should assign");
+    for permission in permissions {
+        let permission_id = rbac
+            .ensure_permission(permission, None)
+            .await
+            .expect("permission should exist");
+        rbac.assign_permission_to_user(user.id, permission_id)
+            .await
+            .expect("permission should assign");
+    }
 
     login_request(app, username, "password")
         .await
