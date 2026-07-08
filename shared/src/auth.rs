@@ -16,6 +16,9 @@ pub enum AuthClientKind {
 
     /// Android 端客户端。
     Android,
+
+    /// Web 端客户端。
+    Web,
 }
 
 impl AuthClientKind {
@@ -24,6 +27,7 @@ impl AuthClientKind {
         match self {
             Self::Desktop => "desktop",
             Self::Android => "android",
+            Self::Web => "web",
         }
     }
 }
