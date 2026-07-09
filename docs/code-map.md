@@ -119,7 +119,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/http/`
   - 作为唯一的全局 HTTP 外壳层。
-  - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息和 Swagger UI 挂载。
+  - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息、按业务域拆分的 Swagger tag 和 Swagger UI 挂载。
   - `router.rs` 负责组装 Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth`、`stock` 与 `users` 模块路由。
   - `validation.rs` 定义 `ValidatedJson<T>`，在业务 handler 之前完成 JSON 解析和 `garde` 静态字段校验；校验失败统一返回 `400 invalid_request`。
 

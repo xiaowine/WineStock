@@ -81,7 +81,7 @@ pub(crate) struct EventLogResponse {
 #[utoipa::path(
     get,
     path = "/api/events",
-    tag = "stock",
+    tag = "events",
     params(EventListQuery),
     security(("bearerAuth" = [])),
     responses(

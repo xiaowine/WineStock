@@ -277,7 +277,7 @@ pub(crate) struct LocationTransferResponse {
 #[utoipa::path(
     get,
     path = "/api/location-groups/tree",
-    tag = "stock",
+    tag = "locations",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Location group tree", body = serde_json::Value),
@@ -295,7 +295,7 @@ pub(crate) async fn list_location_group_tree(
 #[utoipa::path(
     post,
     path = "/api/location-groups",
-    tag = "stock",
+    tag = "locations",
     request_body = LocationGroupCreateRequest,
     security(("bearerAuth" = [])),
     responses(
@@ -322,7 +322,7 @@ pub(crate) async fn create_location_group(
 #[utoipa::path(
     put,
     path = "/api/location-groups/{id}",
-    tag = "stock",
+    tag = "locations",
     request_body = LocationGroupUpdateRequest,
     params(("id" = i64, Path, description = "Location group ID")),
     security(("bearerAuth" = [])),
@@ -350,7 +350,7 @@ pub(crate) async fn update_location_group(
 #[utoipa::path(
     delete,
     path = "/api/location-groups/{id}",
-    tag = "stock",
+    tag = "locations",
     params(("id" = i64, Path, description = "Location group ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -374,7 +374,7 @@ pub(crate) async fn delete_location_group(
 #[utoipa::path(
     get,
     path = "/api/locations",
-    tag = "stock",
+    tag = "locations",
     params(LocationListQuery),
     security(("bearerAuth" = [])),
     responses(
@@ -394,7 +394,7 @@ pub(crate) async fn list_locations(
 #[utoipa::path(
     post,
     path = "/api/locations",
-    tag = "stock",
+    tag = "locations",
     request_body = LocationCreateRequest,
     security(("bearerAuth" = [])),
     responses(
@@ -421,7 +421,7 @@ pub(crate) async fn create_location(
 #[utoipa::path(
     put,
     path = "/api/locations/{id}",
-    tag = "stock",
+    tag = "locations",
     request_body = LocationUpdateRequest,
     params(("id" = i64, Path, description = "Location ID")),
     security(("bearerAuth" = [])),
@@ -449,7 +449,7 @@ pub(crate) async fn update_location(
 #[utoipa::path(
     delete,
     path = "/api/locations/{id}",
-    tag = "stock",
+    tag = "locations",
     params(("id" = i64, Path, description = "Location ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -473,7 +473,7 @@ pub(crate) async fn delete_location(
 #[utoipa::path(
     post,
     path = "/api/location-transfers",
-    tag = "stock",
+    tag = "locations",
     request_body = LocationTransferCreateRequest,
     security(("bearerAuth" = [])),
     responses(

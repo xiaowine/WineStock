@@ -222,7 +222,7 @@ pub(crate) struct TemplateResponse {
 #[utoipa::path(
     post,
     path = "/api/templates",
-    tag = "stock",
+    tag = "templates",
     request_body = TemplateCreateRequest,
     security(("bearerAuth" = [])),
     responses(
@@ -248,7 +248,7 @@ pub(crate) async fn create_template(
 #[utoipa::path(
     get,
     path = "/api/templates",
-    tag = "stock",
+    tag = "templates",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Template list", body = Vec<TemplateResponse>),
@@ -266,7 +266,7 @@ pub(crate) async fn list_templates(
 #[utoipa::path(
     get,
     path = "/api/templates/{id}",
-    tag = "stock",
+    tag = "templates",
     params(("id" = i64, Path, description = "Template ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -287,7 +287,7 @@ pub(crate) async fn get_template(
 #[utoipa::path(
     put,
     path = "/api/templates/{id}",
-    tag = "stock",
+    tag = "templates",
     request_body = TemplateUpdateRequest,
     params(("id" = i64, Path, description = "Template ID")),
     security(("bearerAuth" = [])),
@@ -315,7 +315,7 @@ pub(crate) async fn update_template(
 #[utoipa::path(
     delete,
     path = "/api/templates/{id}",
-    tag = "stock",
+    tag = "templates",
     params(("id" = i64, Path, description = "Template ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -339,7 +339,7 @@ pub(crate) async fn delete_template(
 #[utoipa::path(
     post,
     path = "/api/templates/{id}/copy",
-    tag = "stock",
+    tag = "templates",
     request_body = TemplateCopyRequest,
     params(("id" = i64, Path, description = "Template ID")),
     security(("bearerAuth" = [])),

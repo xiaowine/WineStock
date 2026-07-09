@@ -196,7 +196,7 @@ pub(crate) struct InboundResponse {
 #[utoipa::path(
     post,
     path = "/api/inbound",
-    tag = "stock",
+    tag = "inbound",
     request_body = InboundCreateRequest,
     security(("bearerAuth" = [])),
     responses(
@@ -222,7 +222,7 @@ pub(crate) async fn create_inbound(
 #[utoipa::path(
     get,
     path = "/api/inbound",
-    tag = "stock",
+    tag = "inbound",
     params(InboundListQuery),
     security(("bearerAuth" = [])),
     responses(
@@ -242,7 +242,7 @@ pub(crate) async fn list_inbound(
 #[utoipa::path(
     get,
     path = "/api/inbound/filter-values",
-    tag = "stock",
+    tag = "inbound",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Inbound history filter values", body = super::FilterValuesResponse),
@@ -260,7 +260,7 @@ pub(crate) async fn inbound_filter_values(
 #[utoipa::path(
     get,
     path = "/api/inbound/{id}",
-    tag = "stock",
+    tag = "inbound",
     params(("id" = i64, Path, description = "Inbound order ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -281,7 +281,7 @@ pub(crate) async fn get_inbound(
 #[utoipa::path(
     post,
     path = "/api/stock-approvals/inbound/{id}/approve",
-    tag = "stock",
+    tag = "stock-approvals",
     params(("id" = i64, Path, description = "Inbound order ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -307,7 +307,7 @@ pub(crate) async fn approve_inbound(
 #[utoipa::path(
     post,
     path = "/api/stock-approvals/inbound/{id}/reject",
-    tag = "stock",
+    tag = "stock-approvals",
     params(("id" = i64, Path, description = "Inbound order ID")),
     security(("bearerAuth" = [])),
     responses(

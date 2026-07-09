@@ -279,7 +279,7 @@ pub(crate) struct ItemBatchStockResponse {
 #[utoipa::path(
     post,
     path = "/api/items",
-    tag = "stock",
+    tag = "items",
     request_body = ItemCreateRequest,
     security(("bearerAuth" = [])),
     responses(
@@ -305,7 +305,7 @@ pub(crate) async fn create_item(
 #[utoipa::path(
     get,
     path = "/api/items",
-    tag = "stock",
+    tag = "items",
     params(ItemListQuery),
     security(("bearerAuth" = [])),
     responses(
@@ -325,7 +325,7 @@ pub(crate) async fn list_items(
 #[utoipa::path(
     get,
     path = "/api/items/filter-values",
-    tag = "stock",
+    tag = "items",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Current inventory item filter values", body = super::FilterValuesResponse),
@@ -343,7 +343,7 @@ pub(crate) async fn item_filter_values(
 #[utoipa::path(
     get,
     path = "/api/items/{id}",
-    tag = "stock",
+    tag = "items",
     params(("id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -364,7 +364,7 @@ pub(crate) async fn get_item(
 #[utoipa::path(
     put,
     path = "/api/items/{id}",
-    tag = "stock",
+    tag = "items",
     request_body = ItemUpdateRequest,
     params(("id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
@@ -392,7 +392,7 @@ pub(crate) async fn update_item(
 #[utoipa::path(
     delete,
     path = "/api/items/{id}",
-    tag = "stock",
+    tag = "items",
     params(("id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(

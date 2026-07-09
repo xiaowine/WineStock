@@ -99,7 +99,7 @@ pub(crate) struct TrendsResponse {
 #[utoipa::path(
     get,
     path = "/api/dashboard/overview",
-    tag = "stock",
+    tag = "dashboard",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Dashboard overview", body = DashboardOverviewResponse),
@@ -117,7 +117,7 @@ pub(crate) async fn dashboard_overview(
 #[utoipa::path(
     get,
     path = "/api/dashboard/trends",
-    tag = "stock",
+    tag = "dashboard",
     params(TrendsQuery),
     security(("bearerAuth" = [])),
     responses(

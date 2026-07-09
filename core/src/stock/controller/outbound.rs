@@ -171,7 +171,7 @@ pub(crate) struct OutboundResponse {
 #[utoipa::path(
     post,
     path = "/api/outbound",
-    tag = "stock",
+    tag = "outbound",
     request_body = OutboundCreateRequest,
     security(("bearerAuth" = [])),
     responses(
@@ -197,7 +197,7 @@ pub(crate) async fn create_outbound(
 #[utoipa::path(
     get,
     path = "/api/outbound",
-    tag = "stock",
+    tag = "outbound",
     params(OutboundListQuery),
     security(("bearerAuth" = [])),
     responses(
@@ -217,7 +217,7 @@ pub(crate) async fn list_outbound(
 #[utoipa::path(
     get,
     path = "/api/outbound/filter-values",
-    tag = "stock",
+    tag = "outbound",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Outbound history filter values", body = super::FilterValuesResponse),
@@ -235,7 +235,7 @@ pub(crate) async fn outbound_filter_values(
 #[utoipa::path(
     get,
     path = "/api/outbound/{id}",
-    tag = "stock",
+    tag = "outbound",
     params(("id" = i64, Path, description = "Outbound order ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -256,7 +256,7 @@ pub(crate) async fn get_outbound(
 #[utoipa::path(
     post,
     path = "/api/stock-approvals/outbound/{id}/approve",
-    tag = "stock",
+    tag = "stock-approvals",
     params(("id" = i64, Path, description = "Outbound order ID")),
     security(("bearerAuth" = [])),
     responses(
@@ -281,7 +281,7 @@ pub(crate) async fn approve_outbound(
 #[utoipa::path(
     post,
     path = "/api/stock-approvals/outbound/{id}/reject",
-    tag = "stock",
+    tag = "stock-approvals",
     params(("id" = i64, Path, description = "Outbound order ID")),
     security(("bearerAuth" = [])),
     responses(

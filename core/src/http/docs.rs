@@ -147,7 +147,15 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     tags(
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User and permission management endpoints"),
-        (name = "substitutes", description = "Substitute item management endpoints")
+        (name = "templates", description = "Stock template endpoints"),
+        (name = "items", description = "Stock item endpoints"),
+        (name = "locations", description = "Location group, location, and transfer endpoints"),
+        (name = "inbound", description = "Inbound order endpoints"),
+        (name = "outbound", description = "Outbound order endpoints"),
+        (name = "stock-approvals", description = "Stock approval endpoints"),
+        (name = "substitutes", description = "Substitute item management endpoints"),
+        (name = "dashboard", description = "Stock dashboard endpoints"),
+        (name = "events", description = "Stock event log endpoints")
     )
 )]
 struct ApiDoc;
