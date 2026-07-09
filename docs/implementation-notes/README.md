@@ -10,3 +10,4 @@ Files here are non-normative by default. They do not add standing agent constrai
 - `core-axum-structure-refactor-plan.md`: domain-oriented refactor plan for `core\src` API growth.
 - `core-spring-boot-style-refactor-plan.md`: historical implementation record for the refactor that moved `core\src` to `http / security / auth / users / rbac` with `controller + service` modules.
 - `stock-search-filter-values-plan.md`: design and implementation constraints for stock item, inbound, and outbound search/filter-values APIs.
+- `substitute-api-domain-migration-plan.md`: implementation plan for moving substitute management from item child paths to the standalone `/api/substitutes` business domain without compatibility routes.

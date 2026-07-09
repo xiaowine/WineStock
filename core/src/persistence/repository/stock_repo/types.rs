@@ -570,9 +570,9 @@ pub(crate) struct DailyMovementTrendRecord {
     pub outbound_quantity: f64,
 }
 
-/// 绑定替代料的仓储输入。
+/// 替代料关系写库输入。
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
-pub(crate) struct BindStockSubstitute {
+pub(crate) struct StockSubstituteInput {
     /// 替代料物品 ID。
     #[garde(range(min = 1))]
     pub substitute_item_id: i64,

@@ -1,6 +1,6 @@
 //! 替代料 HTTP DTO 和 handler。
 //!
-//! 本模块属于 `stock` HTTP 控制器层，负责替代料绑定、查询和解绑入口。
+//! 本模块属于 `stock` HTTP 控制器层，负责替代料整体替换、查询和删除入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
 use axum::{
@@ -14,11 +14,11 @@ use winestock_shared::validation::{validate_not_blank, validate_optional_not_bla
 use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
 
 use crate::stock::service::{self, StockApiError};
-/// 替代料绑定条目。
+/// 替代料替换条目。
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
 )]
-pub(crate) struct SubstituteItem {
+pub(crate) struct SubstituteReplacementItem {
     /// 替代料物品 ID。
     #[garde(range(min = 1))]
     pub substitute_item_id: i64,
@@ -32,20 +32,20 @@ pub(crate) struct SubstituteItem {
     pub notes: Option<String>,
 }
 
-/// 替代料绑定请求；提交列表会整体替换当前物品的替代料关系。
+/// 替代料整体替换请求；提交列表会整体替换当前物品的替代料关系。
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
 )]
 #[serde(deny_unknown_fields)]
-pub(crate) struct SubstituteBindRequest {
+pub(crate) struct SubstituteReplaceRequest {
     /// 替代料列表；允许空列表，用于清空当前物品的所有替代料关系。
     #[garde(dive)]
-    pub substitutes: Vec<SubstituteItem>,
+    pub substitutes: Vec<SubstituteReplacementItem>,
 }
 
-/// 替代料详情响应。
+/// 指定物品的替代料响应。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
-pub(crate) struct SubstituteDetailResponse {
+pub(crate) struct ItemSubstituteResponse {
     /// 主物品 ID。
     #[garde(skip)]
     pub item_id: i64,
@@ -128,14 +128,14 @@ pub(crate) struct SubstituteRelationResponse {
 }
 
 #[utoipa::path(
-    post,
-    path = "/api/items/{id}/substitutes",
-    tag = "stock",
-    request_body = SubstituteBindRequest,
-    params(("id" = i64, Path, description = "Item ID")),
+    put,
+    path = "/api/substitutes/{item_id}",
+    tag = "substitutes",
+    request_body = SubstituteReplaceRequest,
+    params(("item_id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Substitutes replaced", body = Vec<SubstituteDetailResponse>),
+        (status = 200, description = "Substitutes replaced", body = Vec<ItemSubstituteResponse>),
         (status = 400, description = "Invalid substitute request", body = String),
         (status = 401, description = "Invalid access token", body = String),
         (status = 403, description = "Substitute manage permission required", body = String),
@@ -143,21 +143,21 @@ pub(crate) struct SubstituteRelationResponse {
     )
 )]
 /// 整体替换指定物品的替代料列表。
-pub(crate) async fn bind_substitutes(
+pub(crate) async fn replace_substitutes(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
-    ValidatedJson(request): ValidatedJson<SubstituteBindRequest>,
-) -> Result<Json<Vec<SubstituteDetailResponse>>, StockApiError> {
+    Path(item_id): Path<i64>,
+    ValidatedJson(request): ValidatedJson<SubstituteReplaceRequest>,
+) -> Result<Json<Vec<ItemSubstituteResponse>>, StockApiError> {
     Ok(Json(
-        service::bind_substitutes(&state, &current_user, id, request).await?,
+        service::replace_substitutes(&state, &current_user, item_id, request).await?,
     ))
 }
 
 #[utoipa::path(
     get,
-    path = "/api/items/substitutes",
-    tag = "stock",
+    path = "/api/substitutes",
+    tag = "substitutes",
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "All substitute relations", body = Vec<SubstituteRelationResponse>),
@@ -166,40 +166,40 @@ pub(crate) async fn bind_substitutes(
     )
 )]
 /// 查询全部物品替代料关系。
-pub(crate) async fn list_all_substitutes(
+pub(crate) async fn list_substitute_relations(
     State(state): State<CoreState>,
 ) -> Result<Json<Vec<SubstituteRelationResponse>>, StockApiError> {
-    Ok(Json(service::list_all_substitutes(&state).await?))
+    Ok(Json(service::list_substitute_relations(&state).await?))
 }
 
 #[utoipa::path(
     get,
-    path = "/api/items/{id}/substitutes",
-    tag = "stock",
-    params(("id" = i64, Path, description = "Item ID")),
+    path = "/api/substitutes/{item_id}",
+    tag = "substitutes",
+    params(("item_id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Substitute list", body = Vec<SubstituteDetailResponse>),
+        (status = 200, description = "Substitute list", body = Vec<ItemSubstituteResponse>),
         (status = 401, description = "Invalid access token", body = String),
         (status = 403, description = "Substitute read permission required", body = String),
         (status = 404, description = "Item not found", body = String)
     )
 )]
 /// 查询指定物品的替代料列表。
-pub(crate) async fn list_substitutes(
+pub(crate) async fn list_item_substitutes(
     State(state): State<CoreState>,
-    Path(id): Path<i64>,
-) -> Result<Json<Vec<SubstituteDetailResponse>>, StockApiError> {
-    Ok(Json(service::list_substitutes(&state, id).await?))
+    Path(item_id): Path<i64>,
+) -> Result<Json<Vec<ItemSubstituteResponse>>, StockApiError> {
+    Ok(Json(service::list_item_substitutes(&state, item_id).await?))
 }
 
 #[utoipa::path(
     delete,
-    path = "/api/items/{id}/substitutes/{substitute_id}",
-    tag = "stock",
+    path = "/api/substitutes/{item_id}/{substitute_item_id}",
+    tag = "substitutes",
     params(
-        ("id" = i64, Path, description = "Item ID"),
-        ("substitute_id" = i64, Path, description = "Substitute item ID")
+        ("item_id" = i64, Path, description = "Item ID"),
+        ("substitute_item_id" = i64, Path, description = "Substitute item ID")
     ),
     security(("bearerAuth" = [])),
     responses(
@@ -209,12 +209,12 @@ pub(crate) async fn list_substitutes(
         (status = 404, description = "Item or substitute relation not found", body = String)
     )
 )]
-/// 解绑单个替代料关系。
-pub(crate) async fn delete_substitute(
+/// 删除单个替代料关系。
+pub(crate) async fn delete_substitute_relation(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path((id, substitute_id)): Path<(i64, i64)>,
+    Path((item_id, substitute_item_id)): Path<(i64, i64)>,
 ) -> Result<StatusCode, StockApiError> {
-    service::delete_substitute(&state, &current_user, id, substitute_id).await?;
+    service::delete_substitute_relation(&state, &current_user, item_id, substitute_item_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

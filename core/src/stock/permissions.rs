@@ -45,7 +45,7 @@ pub(crate) const STOCK_DASHBOARD_READ_PERMISSION: &str = "stock.dashboard.read";
 /// 查看替代料关系的权限代码。
 pub(crate) const STOCK_SUBSTITUTE_READ_PERMISSION: &str = "stock.substitute.read";
 
-/// 绑定或解绑替代料关系的权限代码。
+/// 整体替换或删除替代料关系的权限代码。
 pub(crate) const STOCK_SUBSTITUTE_MANAGE_PERMISSION: &str = "stock.substitute.manage";
 
 /// 查询审计事件日志的权限代码。

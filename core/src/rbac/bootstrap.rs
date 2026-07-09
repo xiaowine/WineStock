@@ -102,7 +102,7 @@ const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
     },
     BuiltinPermission {
         code: STOCK_SUBSTITUTE_MANAGE_PERMISSION,
-        description: "绑定或解绑替代料关系。",
+        description: "整体替换或删除替代料关系。",
     },
     BuiltinPermission {
         code: STOCK_SUBSTITUTE_READ_PERMISSION,

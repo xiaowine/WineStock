@@ -240,8 +240,8 @@ pub(super) fn dashboard_overview_response(
 /// 把替代料记录转换为 HTTP 响应，并保留替代物品当前库存量。
 pub(super) fn substitute_response(
     record: StockSubstituteRecord,
-) -> controller::SubstituteDetailResponse {
-    controller::SubstituteDetailResponse {
+) -> controller::ItemSubstituteResponse {
+    controller::ItemSubstituteResponse {
         item_id: record.item_id,
         substitute_item_id: record.substitute_item_id,
         substitute_item_name: record.substitute_item_name,

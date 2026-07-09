@@ -1,11 +1,11 @@
 # WineStock 业务 API 实施方案
 
-本文档记录 `docs/business-api.md` 对应的首版业务核心 API 落地方案。
+本文档记录 `docs/business-api.md` 入口及 `docs/business-api/` 拆分文档对应的首版业务核心 API 落地方案。
 它是实施计划，不直接改变项目架构约束；实施时仍以 `docs/architecture.md`、`docs/runtime-networking.md`、`docs/platforms.md`、`docs/project-structure.md`、`docs/agent-checklist.md` 和 `docs/code-map.md` 为准。
 
 ## 目标和范围
 
-按 `docs/business-api.md` 落地首版业务核心 API，范围限定在 `core` 共享 Axum 服务库、SQLite 持久化、RBAC、OpenAPI 和文档同步，不涉及桌面、Android、WebView 或前端打包。
+按 `docs/business-api.md` 与 `docs/business-api/` 落地首版业务核心 API，范围限定在 `core` 共享 Axum 服务库、SQLite 持久化、RBAC、OpenAPI 和文档同步，不涉及桌面、Android、WebView 或前端打包。
 
 业务默认规则：
 
@@ -34,7 +34,7 @@
   - `core/src/http/docs.rs` 纳入新 DTO、响应体和 endpoint。
   - `core/src/rbac/bootstrap.rs` 补齐新权限和角色权限关系。
 - 更新项目文档：
-  - `docs/business-api.md` 记录已实现接口、审批 endpoint、状态枚举和软删除规则。
+  - `docs/business-api.md` 作为入口，`docs/business-api/` 记录已实现接口、审批 endpoint、状态枚举和软删除规则。
   - `docs/code-map.md`、`docs/database-schema.md`、`docs/rbac-permission-model.md`、`docs/validation/*` 同步更新。
 
 ## HTTP API 和类型
@@ -49,7 +49,7 @@
 - Outbound：`POST /api/outbound`、`GET /api/outbound`、`GET /api/outbound/{id}`。
 - Stock approvals：`POST /api/stock-approvals/inbound/{id}/approve`、`POST /api/stock-approvals/inbound/{id}/reject`、`POST /api/stock-approvals/outbound/{id}/approve`、`POST /api/stock-approvals/outbound/{id}/reject`。
 - Dashboard：`GET /api/dashboard/overview`、`GET /api/dashboard/trends`。
-- Substitutes：`POST /api/items/{id}/substitutes`、`GET /api/items/substitutes`、`GET /api/items/{id}/substitutes`、`DELETE /api/items/{id}/substitutes/{substitute_id}`。
+- Substitutes：`GET /api/substitutes`、`GET /api/substitutes/{item_id}`、`PUT /api/substitutes/{item_id}`、`DELETE /api/substitutes/{item_id}/{substitute_item_id}`。
 - Events：`GET /api/events`。
 
 新增通用响应：
@@ -92,7 +92,7 @@ DTO 统一使用：
 - 软删除表使用 `deleted_at TEXT NULL`。
 - 数量、价格、库存余额必须非负，出入库明细数量必须大于 `0`。
 - 单据状态使用 SQLite `CHECK`。
-- 替代料禁止自引用并禁止重复绑定。
+- 替代料禁止自引用并禁止重复替代物品或重复优先级。
 
 入库事务：
 
@@ -110,7 +110,7 @@ DTO 统一使用：
 
 审计事件：
 
-- 创建、更新、删除、审批、拒绝、绑定、解绑写 `audit_events`。
+- 创建、更新、删除、审批、拒绝、替代料关系变更和删除关系写 `audit_events`。
 - `details` 保存 JSON 差异或关键输入摘要。
 - 不记录 JWT、密码、refresh token、签名密钥等敏感值。
 
@@ -133,10 +133,10 @@ DTO 统一使用：
    - 审批时实现指定批次扣减和 FIFO 自动扣减。
 5. 派生能力：
    - 实现看板 overview/trends。
-   - 实现替代料绑定、查询、解绑和循环绑定检测。
+   - 实现替代料整体替换、查询、删除关系和循环绑定检测。
    - 实现事件日志查询。
 6. 收尾：
-   - 更新 `docs/code-map.md`、`docs/database-schema.md`、`docs/business-api.md`、`docs/rbac-permission-model.md`、`docs/validation/*`。
+   - 更新 `docs/code-map.md`、`docs/database-schema.md`、`docs/business-api.md`、`docs/business-api/`、`docs/rbac-permission-model.md`、`docs/validation/*`。
    - 全量注释审计：搜索 `//`、`///`、`//!`、`/*`，确保变更源文件中的说明性注释为中文且不陈旧。
 
 ## 测试计划
@@ -158,7 +158,7 @@ DTO 统一使用：
   - FIFO、指定批次、库存不足回滚均覆盖。
 - Dashboard/Substitutes/Events：
   - 看板统计与已审批流水一致。
-  - 替代料禁止自引用、重复绑定和循环绑定。
+  - 替代料禁止自引用、重复替代物品、重复优先级和循环绑定。
   - 事件日志分页和筛选正确。
 
 验证命令：

@@ -68,17 +68,17 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                     .merge(auth.item_manage(delete(controller::delete_item))),
             )
             .route(
-                "/items/{id}/substitutes",
-                auth.substitute_manage(post(controller::bind_substitutes))
-                    .merge(auth.substitute_read(get(controller::list_substitutes))),
+                "/substitutes",
+                auth.substitute_read(get(controller::list_substitute_relations)),
             )
             .route(
-                "/items/substitutes",
-                auth.substitute_read(get(controller::list_all_substitutes)),
+                "/substitutes/{item_id}",
+                auth.substitute_manage(put(controller::replace_substitutes))
+                    .merge(auth.substitute_read(get(controller::list_item_substitutes))),
             )
             .route(
-                "/items/{id}/substitutes/{substitute_id}",
-                auth.substitute_manage(delete(controller::delete_substitute)),
+                "/substitutes/{item_id}/{substitute_item_id}",
+                auth.substitute_manage(delete(controller::delete_substitute_relation)),
             )
             .route(
                 "/inbound",

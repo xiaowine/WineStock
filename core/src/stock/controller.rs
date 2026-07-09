@@ -37,8 +37,9 @@ pub(crate) use outbound::{
     OutboundListQuery, OutboundResponse,
 };
 pub(crate) use substitutes::{
-    bind_substitutes, delete_substitute, list_all_substitutes, list_substitutes,
-    SubstituteBindRequest, SubstituteDetailResponse, SubstituteItem, SubstituteRelationResponse,
+    delete_substitute_relation, list_item_substitutes, list_substitute_relations,
+    replace_substitutes, ItemSubstituteResponse, SubstituteRelationResponse,
+    SubstituteReplaceRequest, SubstituteReplacementItem,
 };
 pub(crate) use templates::{
     copy_template, create_template, delete_template, get_template, list_templates, update_template,

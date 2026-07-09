@@ -18,7 +18,7 @@
 | `stock.template.manage` | 模板管理 | 管理分类模板 |
 | `stock.dashboard.read` | 总览看板 | 查看看板总览和趋势 |
 | `stock.substitute.read` | 替代料管理 | 查看替代关系 |
-| `stock.substitute.manage` | 替代料管理 | 绑定/解绑替代关系 |
+| `stock.substitute.manage` | 替代料管理 | 整体替换或删除替代关系 |
 | `audit.read` | 事件日志 | 查看审计日志 |
 
 权限分配由用户管理接口直接写入用户权限关系。

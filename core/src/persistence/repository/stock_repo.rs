@@ -18,12 +18,12 @@ mod types;
 
 pub(crate) use search::{StockFilterFieldRecord, StockFilterValueRecord};
 pub(crate) use types::{
-    AuditEventRecord, BindStockSubstitute, CreateInboundOrder, CreateInboundOrderItem,
-    CreateOutboundOrder, CreateOutboundOrderItem, CreateStockItem, CreateStockTemplate,
-    DailyMovementTrendRecord, DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord,
-    InboundOrderRecord, ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems,
-    OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
-    SlowMovingStockItemRecord, StockItemBatchRecord, StockItemDetail, StockItemLocationRecord,
+    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateOutboundOrder,
+    CreateOutboundOrderItem, CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord,
+    DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord,
+    ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
+    OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
+    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockSubstituteInput,
     StockSubstituteRecord, StockTemplateDetail, TemplateFieldInput, UpdateStockItem,
     UpdateStockTemplate,
 };

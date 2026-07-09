@@ -57,7 +57,7 @@
 - `stock.outbound.create`：创建出库单。
 - `stock.outbound.read`：查看出库单列表、详情和出库历史筛选值。
 - `stock.outbound.approve`：审批或拒绝出库单。
-- `stock.substitute.manage`：绑定或解绑替代料关系。
+- `stock.substitute.manage`：整体替换或删除替代料关系。
 - `stock.substitute.read`：查看替代料关系。
 - `stock.dashboard.read`：查看库存看板总览和趋势。
 - `audit.read`：查询审计事件日志。
@@ -228,7 +228,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `audit_events`
 
-审计事件表。记录创建、更新、删除、审批、拒绝、绑定和解绑等业务操作。
+审计事件表。记录创建、更新、删除、审批、拒绝、替代料关系变更和删除关系等业务操作。
 用户管理接口会把账号启停、权限变更、当前用户修改自己密码和管理员设置临时密码写入该表；密码明文、token 和密码哈希不得进入 `details_json`。
 
 重要字段：

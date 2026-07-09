@@ -31,7 +31,8 @@ pub(crate) use outbound::{
 };
 pub(crate) use pagination::PaginatedResponse;
 pub(crate) use substitutes::{
-    bind_substitutes, delete_substitute, list_all_substitutes, list_substitutes,
+    delete_substitute_relation, list_item_substitutes, list_substitute_relations,
+    replace_substitutes,
 };
 pub(crate) use templates::{
     copy_template, create_template, delete_template, get_template, list_templates, update_template,

@@ -48,10 +48,10 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::stock::controller::items::get_item,
         crate::stock::controller::items::update_item,
         crate::stock::controller::items::delete_item,
-        crate::stock::controller::substitutes::bind_substitutes,
-        crate::stock::controller::substitutes::list_all_substitutes,
-        crate::stock::controller::substitutes::list_substitutes,
-        crate::stock::controller::substitutes::delete_substitute,
+        crate::stock::controller::substitutes::replace_substitutes,
+        crate::stock::controller::substitutes::list_substitute_relations,
+        crate::stock::controller::substitutes::list_item_substitutes,
+        crate::stock::controller::substitutes::delete_substitute_relation,
         crate::stock::controller::inbound::create_inbound,
         crate::stock::controller::inbound::list_inbound,
         crate::stock::controller::inbound::inbound_filter_values,
@@ -115,9 +115,9 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::stock::controller::DashboardOverviewResponse,
         crate::stock::controller::DailyTrend,
         crate::stock::controller::TrendsResponse,
-        crate::stock::controller::SubstituteItem,
-        crate::stock::controller::SubstituteBindRequest,
-        crate::stock::controller::SubstituteDetailResponse,
+        crate::stock::controller::SubstituteReplacementItem,
+        crate::stock::controller::SubstituteReplaceRequest,
+        crate::stock::controller::ItemSubstituteResponse,
         crate::stock::controller::SubstituteRelationResponse,
         crate::stock::controller::EventLogResponse,
         crate::stock::service::PaginatedResponse<crate::stock::controller::ItemResponse>,
@@ -129,7 +129,8 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     info(title = "WineStock API", version = "0.1.0"),
     tags(
         (name = "auth", description = "Authentication endpoints"),
-        (name = "users", description = "User and permission management endpoints")
+        (name = "users", description = "User and permission management endpoints"),
+        (name = "substitutes", description = "Substitute item management endpoints")
     )
 )]
 struct ApiDoc;

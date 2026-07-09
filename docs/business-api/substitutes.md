@@ -2,28 +2,41 @@
 
 管理物品之间的替代关系，当主料缺货或停产时快速查找可用替代品。
 
-当前实现状态：已实现 `POST /api/items/{id}/substitutes`、`GET /api/items/substitutes`、`GET /api/items/{id}/substitutes` 和 `DELETE /api/items/{id}/substitutes/{substitute_id}`，并纳入 OpenAPI。绑定接口采用整体替换语义：请求体中的列表会成为该物品替代料关系的最新完整列表。
+当前实现状态：已实现 `GET /api/substitutes`、`GET /api/substitutes/{item_id}`、`PUT /api/substitutes/{item_id}` 和 `DELETE /api/substitutes/{item_id}/{substitute_item_id}`，并纳入 OpenAPI。替换接口采用整体替换语义：请求体中的列表会成为该物品替代料关系的最新完整列表。
 
 ## 所需权限
 
-
 - `stock.substitute.read` — 查看替代关系
-- `stock.substitute.manage` — 绑定/解绑替代关系
+- `stock.substitute.manage` — 整体替换或删除替代关系
 
-### `POST /api/items/{id}/substitutes`
+### `GET /api/substitutes`
 
+查看全部物品替代关系，用于全局替代料关系列表。
 
-为指定物品绑定替代品列表。该接口会整体替换当前物品已有替代料关系，并写入 `linked` 审计事件；空列表会清空当前物品所有替代料关系。
+- 权限：`stock.substitute.read`
+- 响应：`200` + `Vec<SubstituteRelationResponse>`（含主物品 ID、名称、SKU，替代品 ID、名称、SKU，替代品当前库存量、优先级、备注和创建时间）
+
+### `GET /api/substitutes/{item_id}`
+
+查看指定物品的替代品列表。
+
+- 权限：`stock.substitute.read`
+- 响应：`200` + `Vec<ItemSubstituteResponse>`（含替代品的名称、库存量、优先级、备注和创建时间）
+- 错误：`404` 物品不存在
+
+### `PUT /api/substitutes/{item_id}`
+
+整体替换指定物品的替代品列表。该接口会删除旧替代料关系、写入请求体中的新关系，并写入 `linked` 审计事件；空列表会清空当前物品所有替代料关系。
 
 - 权限：`stock.substitute.manage`
 
-**请求体：`SubstituteBindRequest`**
+**请求体：`SubstituteReplaceRequest`**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `substitutes` | array | 是 | 替代品列表 |
+| `substitutes` | array | 是 | 替代品列表；空数组表示清空 |
 
-**替代品条目：`SubstituteItem`**
+**替代品条目：`SubstituteReplacementItem`**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
@@ -31,27 +44,12 @@
 | `priority` | integer | 是 | 优先级（1=首选，2=次选，以此类推） |
 | `notes` | string | 否 | 兼容性备注 |
 
+- 响应：`200` + `Vec<ItemSubstituteResponse>`
 - 错误：`400` 自引用、重复替代品、重复优先级或循环绑定（A→B→A）检测到 / `404` 物品不存在
 
-### `GET /api/items/substitutes`
+### `DELETE /api/substitutes/{item_id}/{substitute_item_id}`
 
-查看全部物品替代关系，用于全局替代料关系列表。
-
-- 权限：`stock.substitute.read`
-- 响应：`200` + `Vec<SubstituteRelationResponse>`（含主物品 ID、名称、SKU，替代品 ID、名称、SKU，替代品当前库存量、优先级、备注和创建时间）
-
-### `GET /api/items/{id}/substitutes`
-
-
-查看物品的替代品列表。
-
-- 权限：`stock.substitute.read`
-- 响应：`200` + `Vec<SubstituteDetailResponse>`（含替代品的名称、库存量、优先级、备注和创建时间）
-
-### `DELETE /api/items/{id}/substitutes/{substitute_id}`
-
-
-解绑单个替代关系。
+删除单个替代关系。
 
 - 权限：`stock.substitute.manage`
 - 响应：`204 No Content`

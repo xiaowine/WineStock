@@ -8,7 +8,7 @@
 - `inbound.rs`：入库单请求/响应、分页查询参数和入库 handler。
 - `outbound.rs`：出库单请求/响应、分页查询参数和出库 handler。
 - `dashboard.rs`：库存看板总览、趋势查询参数和看板 handler。
-- `substitutes.rs`：替代料绑定请求、替代料响应和替代料 handler。
+- `substitutes.rs`：替代料整体替换请求、替代料响应和替代料 handler。
 - `events.rs`：事件日志查询参数、响应体和事件日志 handler。
 - `common.rs`：多个库存 HTTP 子模块共享的单据状态枚举和正数校验函数。
 
@@ -211,9 +211,9 @@
 
 响应体按日期升序返回每日入库/出库数量。无流水日期也会返回数量 0，便于前端直接绘制连续趋势图。
 
-## `SubstituteItem`
+## `SubstituteReplacementItem`
 
-校验入口：`ValidatedJson<SubstituteBindRequest>`。`garde` 负责静态字段限制，服务层和 repository 负责物品存在性、去重和循环绑定检测。
+校验入口：`ValidatedJson<SubstituteReplaceRequest>`。`garde` 负责静态字段限制，服务层和 repository 负责物品存在性、去重和循环绑定检测。
 
 | 字段 | 限制 |
 | --- | --- |
@@ -221,11 +221,11 @@
 | `priority` | 必填；必须大于 0；同一次提交内不能重复 |
 | `notes` | 可空；存在时 trim 后非空，最大 1024 |
 
-## `SubstituteBindRequest`
+## `SubstituteReplaceRequest`
 
-校验入口：`ValidatedJson<SubstituteBindRequest>`。提交列表会整体替换该物品已有替代料关系；空列表表示清空当前物品的替代料。
+校验入口：`ValidatedJson<SubstituteReplaceRequest>`。提交列表会整体替换该物品已有替代料关系；空列表表示清空当前物品的替代料。
 
-## `SubstituteDetailResponse`
+## `ItemSubstituteResponse`
 
 响应体包含主物品 ID、替代料 ID、替代料名称、当前库存量、优先级、备注、创建人和创建时间。软删除主物品或替代物品不会出现在替代料列表中。
 

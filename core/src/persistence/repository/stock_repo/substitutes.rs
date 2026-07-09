@@ -1,13 +1,13 @@
 //! 替代料仓储操作。
 //!
-//! 本模块属于 `core` 持久化层，封装替代料关系整体替换、查询、解绑和环路检测。
+//! 本模块属于 `core` 持久化层，封装替代料关系整体替换、查询、删除和环路检测。
 //! 替换操作必须在事务中同时完成关系写入和审计事件写入。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait};
 use std::collections::HashSet;
 
 use super::{
-    common::insert_audit_event_on_connection, BindStockSubstitute, StockRepository,
+    common::insert_audit_event_on_connection, StockRepository, StockSubstituteInput,
     StockSubstituteRecord,
 };
 use crate::persistence::repository::validation::validate_repository_input;
@@ -20,7 +20,7 @@ where
     pub(crate) async fn replace_substitutes(
         &self,
         item_id: i64,
-        substitutes: Vec<BindStockSubstitute>,
+        substitutes: Vec<StockSubstituteInput>,
         user_id: Option<i64>,
     ) -> Result<Option<Vec<StockSubstituteRecord>>, DbErr>
     where
@@ -85,11 +85,11 @@ where
         .await?;
         transaction.commit().await?;
 
-        self.list_substitutes(item_id).await.map(Some)
+        self.list_item_substitutes(item_id).await.map(Some)
     }
 
     /// 查询指定物品的替代料列表；只返回未软删除的主物品和替代物品。
-    pub(crate) async fn list_substitutes(
+    pub(crate) async fn list_item_substitutes(
         &self,
         item_id: i64,
     ) -> Result<Vec<StockSubstituteRecord>, DbErr> {
@@ -141,7 +141,9 @@ where
     }
 
     /// 查询全部替代料关系；只返回未软删除的主物品和替代物品。
-    pub(crate) async fn list_all_substitutes(&self) -> Result<Vec<StockSubstituteRecord>, DbErr> {
+    pub(crate) async fn list_substitute_relations(
+        &self,
+    ) -> Result<Vec<StockSubstituteRecord>, DbErr> {
         let rows = self
             .database
             .query_all(Statement::from_string(
@@ -188,8 +190,8 @@ where
         rows.into_iter().map(substitute_from_row).collect()
     }
 
-    /// 解绑单个替代料关系；返回 false 表示关系原本不存在。
-    pub(crate) async fn delete_substitute(
+    /// 删除单个替代料关系；返回 false 表示关系原本不存在。
+    pub(crate) async fn delete_substitute_relation(
         &self,
         item_id: i64,
         substitute_item_id: i64,
@@ -266,7 +268,7 @@ where
 
 fn validate_substitute_inputs(
     item_id: i64,
-    substitutes: &[BindStockSubstitute],
+    substitutes: &[StockSubstituteInput],
 ) -> Result<(), DbErr> {
     let mut ids = HashSet::with_capacity(substitutes.len());
     let mut priorities = HashSet::with_capacity(substitutes.len());

@@ -142,7 +142,7 @@
 - 呆滞料查询由服务层传入固定阈值 30 天，repository 只按阈值筛选当前有库存的未软删除物品。
 - 趋势查询由服务层把 `days` 限制为 1 到 365，repository 负责补齐无流水日期的 0 值。
 
-## `BindStockSubstitute`
+## `StockSubstituteInput`
 
 该实体由 `stock` 服务层构造，不作为 HTTP 请求体直接接收。HTTP 替代料输入限制见 `core-src-stock-controller.md`。
 
@@ -192,6 +192,6 @@
 - `dashboard_overview()` 仅读取未软删除物品、当前批次剩余库存和审批后库存流水，返回总览、近三天流转和呆滞料聚合。
 - `dashboard_trends()` 按日期升序返回连续趋势数据，无流水日期补 0。
 - `replace_substitutes()` 整体替换指定物品的替代料列表，在同一事务内删除旧关系、插入新关系并写 `linked` 审计事件；自引用、重复替代物品、重复优先级或循环绑定返回稳定的 repository 自定义错误供服务层映射为 `400 invalid_request`。
-- `list_substitutes()` 返回替代料列表并聚合替代物品当前库存。
-- `delete_substitute()` 删除单条替代料关系并写 `unlinked` 审计事件；关系不存在时返回 false。
+- `list_item_substitutes()` 返回指定物品的替代料列表并聚合替代物品当前库存。
+- `delete_substitute_relation()` 删除单条替代料关系并写 `unlinked` 审计事件；关系不存在时返回 false。
 - `list_audit_events()` 分页读取审计事件，支持按实体类型、实体 ID、动作、用户 ID 和时间字符串范围筛选。

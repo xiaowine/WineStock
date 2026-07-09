@@ -9,14 +9,14 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
-        SubstituteBindRequest, SubstituteDetailResponse, SubstituteItem,
-        SubstituteRelationResponse,
+        ItemSubstituteResponse, SubstituteRelationResponse, SubstituteReplaceRequest,
+        SubstituteReplacementItem,
     },
     test_support::{json_body, login_request, seeded_app, text_body},
 };
 
 #[tokio::test]
-async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
+async fn substitutes_can_be_replaced_listed_and_deleted_with_permissions() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let main_id = seed_item(&app, &login.body.access_token, "MAIN").await;
@@ -33,20 +33,20 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
 
     let viewer_token =
         seed_user_with_permissions_and_login(&app, "sub-viewer", &["stock.substitute.read"]).await;
-    let forbidden_bind = authorized_json_request(
+    let forbidden_replace = authorized_json_request(
         &app,
-        "POST",
-        &format!("/api/items/{main_id}/substitutes"),
+        "PUT",
+        &format!("/api/substitutes/{main_id}"),
         &viewer_token,
         &substitute_request(vec![(substitute_a, 1, None)]),
     )
     .await;
-    assert_eq!(forbidden_bind.status(), StatusCode::FORBIDDEN);
+    assert_eq!(forbidden_replace.status(), StatusCode::FORBIDDEN);
 
     let bound = authorized_json_request(
         &app,
-        "POST",
-        &format!("/api/items/{main_id}/substitutes"),
+        "PUT",
+        &format!("/api/substitutes/{main_id}"),
         &login.body.access_token,
         &substitute_request(vec![
             (substitute_b, 2, Some("fallback")),
@@ -55,7 +55,7 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     )
     .await;
     assert_eq!(bound.status(), StatusCode::OK);
-    let bound: Vec<SubstituteDetailResponse> = json_body(bound).await;
+    let bound: Vec<ItemSubstituteResponse> = json_body(bound).await;
     assert_eq!(bound.len(), 2);
     assert_eq!(bound[0].substitute_item_id, substitute_a);
     assert_eq!(bound[0].priority, 1);
@@ -66,16 +66,16 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     let listed = authorized_empty_request(
         &app,
         "GET",
-        &format!("/api/items/{main_id}/substitutes"),
+        &format!("/api/substitutes/{main_id}"),
         &viewer_token,
     )
     .await;
     assert_eq!(listed.status(), StatusCode::OK);
-    let listed: Vec<SubstituteDetailResponse> = json_body(listed).await;
+    let listed: Vec<ItemSubstituteResponse> = json_body(listed).await;
     assert_eq!(listed.len(), 2);
 
     let all_relations =
-        authorized_empty_request(&app, "GET", "/api/items/substitutes", &viewer_token).await;
+        authorized_empty_request(&app, "GET", "/api/substitutes", &viewer_token).await;
     assert_eq!(all_relations.status(), StatusCode::OK);
     let all_relations: Vec<SubstituteRelationResponse> = json_body(all_relations).await;
     assert_eq!(all_relations.len(), 2);
@@ -93,7 +93,7 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     let deleted = authorized_empty_request(
         &app,
         "DELETE",
-        &format!("/api/items/{main_id}/substitutes/{substitute_a}"),
+        &format!("/api/substitutes/{main_id}/{substitute_a}"),
         &login.body.access_token,
     )
     .await;
@@ -102,23 +102,45 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     let listed_after_delete = authorized_empty_request(
         &app,
         "GET",
-        &format!("/api/items/{main_id}/substitutes"),
+        &format!("/api/substitutes/{main_id}"),
         &login.body.access_token,
     )
     .await;
-    let listed_after_delete: Vec<SubstituteDetailResponse> = json_body(listed_after_delete).await;
+    let listed_after_delete: Vec<ItemSubstituteResponse> = json_body(listed_after_delete).await;
     assert_eq!(listed_after_delete.len(), 1);
     assert_eq!(listed_after_delete[0].substitute_item_id, substitute_b);
 
     let delete_again = authorized_empty_request(
         &app,
         "DELETE",
-        &format!("/api/items/{main_id}/substitutes/{substitute_a}"),
+        &format!("/api/substitutes/{main_id}/{substitute_a}"),
         &login.body.access_token,
     )
     .await;
     assert_eq!(delete_again.status(), StatusCode::NOT_FOUND);
     assert_eq!(text_body(delete_again).await, "substitute_not_found");
+
+    let cleared = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/substitutes/{main_id}"),
+        &login.body.access_token,
+        &substitute_request(Vec::new()),
+    )
+    .await;
+    assert_eq!(cleared.status(), StatusCode::OK);
+    let cleared: Vec<ItemSubstituteResponse> = json_body(cleared).await;
+    assert!(cleared.is_empty());
+
+    let old_item_child_path = authorized_json_request(
+        &app,
+        "POST",
+        &format!("/api/items/{main_id}/{}", concat!("sub", "stitutes")),
+        &login.body.access_token,
+        &substitute_request(vec![(substitute_b, 1, None)]),
+    )
+    .await;
+    assert_eq!(old_item_child_path.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -127,11 +149,12 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     let login = login_request(&app, "admin", "password").await;
     let item_a = seed_item(&app, &login.body.access_token, "A").await;
     let item_b = seed_item(&app, &login.body.access_token, "B").await;
+    let item_c = seed_item(&app, &login.body.access_token, "C").await;
 
     let self_reference = authorized_json_request(
         &app,
-        "POST",
-        &format!("/api/items/{item_a}/substitutes"),
+        "PUT",
+        &format!("/api/substitutes/{item_a}"),
         &login.body.access_token,
         &substitute_request(vec![(item_a, 1, None)]),
     )
@@ -141,8 +164,8 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
 
     let missing_target = authorized_json_request(
         &app,
-        "POST",
-        &format!("/api/items/{item_a}/substitutes"),
+        "PUT",
+        &format!("/api/substitutes/{item_a}"),
         &login.body.access_token,
         &substitute_request(vec![(99_999, 1, None)]),
     )
@@ -150,20 +173,42 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     assert_eq!(missing_target.status(), StatusCode::NOT_FOUND);
     assert_eq!(text_body(missing_target).await, "item_not_found");
 
-    let bind_b_to_a = authorized_json_request(
+    let duplicate_item = authorized_json_request(
         &app,
-        "POST",
-        &format!("/api/items/{item_b}/substitutes"),
+        "PUT",
+        &format!("/api/substitutes/{item_a}"),
+        &login.body.access_token,
+        &substitute_request(vec![(item_b, 1, None), (item_b, 2, Some("duplicate"))]),
+    )
+    .await;
+    assert_eq!(duplicate_item.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(text_body(duplicate_item).await, "invalid_request");
+
+    let duplicate_priority = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/substitutes/{item_a}"),
+        &login.body.access_token,
+        &substitute_request(vec![(item_b, 1, None), (item_c, 1, Some("same priority"))]),
+    )
+    .await;
+    assert_eq!(duplicate_priority.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(text_body(duplicate_priority).await, "invalid_request");
+
+    let replace_b_to_a = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/substitutes/{item_b}"),
         &login.body.access_token,
         &substitute_request(vec![(item_a, 1, None)]),
     )
     .await;
-    assert_eq!(bind_b_to_a.status(), StatusCode::OK);
+    assert_eq!(replace_b_to_a.status(), StatusCode::OK);
 
     let cyclic = authorized_json_request(
         &app,
-        "POST",
-        &format!("/api/items/{item_a}/substitutes"),
+        "PUT",
+        &format!("/api/substitutes/{item_a}"),
         &login.body.access_token,
         &substitute_request(vec![(item_b, 1, None)]),
     )
@@ -174,11 +219,11 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     let listed = authorized_empty_request(
         &app,
         "GET",
-        &format!("/api/items/{item_a}/substitutes"),
+        &format!("/api/substitutes/{item_a}"),
         &login.body.access_token,
     )
     .await;
-    let listed: Vec<SubstituteDetailResponse> = json_body(listed).await;
+    let listed: Vec<ItemSubstituteResponse> = json_body(listed).await;
     assert!(listed.is_empty());
 }
 
@@ -244,15 +289,17 @@ async fn seed_approved_inbound(
     assert_eq!(approved.status(), StatusCode::OK);
 }
 
-fn substitute_request(items: Vec<(i64, i32, Option<&str>)>) -> SubstituteBindRequest {
-    SubstituteBindRequest {
+fn substitute_request(items: Vec<(i64, i32, Option<&str>)>) -> SubstituteReplaceRequest {
+    SubstituteReplaceRequest {
         substitutes: items
             .into_iter()
-            .map(|(substitute_item_id, priority, notes)| SubstituteItem {
-                substitute_item_id,
-                priority,
-                notes: notes.map(str::to_owned),
-            })
+            .map(
+                |(substitute_item_id, priority, notes)| SubstituteReplacementItem {
+                    substitute_item_id,
+                    priority,
+                    notes: notes.map(str::to_owned),
+                },
+            )
             .collect(),
     }
 }
