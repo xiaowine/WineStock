@@ -101,18 +101,44 @@ When the relevant code exists, verify:
 - service status reporting
 - frontend artifacts stay out of the Axum crate
 
-Current Rust checks:
+## Cargo Verification Scope
+
+Default to the narrowest Cargo command that covers the touched code path.
+Small server-shell edits should usually start with:
 
 ```text
-cargo check --workspace --all-targets
-cargo test --workspace
-cargo build -p winestock-server
+cargo +stable check -p winestock-server
+```
+
+Small shared-library or core-library edits should target the owning package first:
+
+```text
+cargo +stable check -p winestock-shared
+cargo +stable check -p winestock-core
+```
+
+Do not run broad workspace checks as the default AI verification step.
+`cargo +stable check --workspace --all-targets` checks every workspace crate, every target, and dev/test dependency paths, so it can invalidate or populate a much larger Cargo fingerprint set than a targeted check.
+Use it only when the change is cross-crate, touches public API or dependency/features, affects test-only code, prepares a release/readiness pass, or when the user explicitly asks for full workspace validation.
+
+Formatting checks are separate from compile checks:
+
+```text
+cargo +stable fmt --all -- --check
+```
+
+Full Rust verification, when justified:
+
+```text
+cargo +stable check --workspace --all-targets
+cargo +stable test --workspace
+cargo +stable build -p winestock-server
 ```
 
 For local API documentation smoke testing, run:
 
 ```text
-cargo run -p winestock-server
+cargo +stable run -p winestock-server
 ```
 
 The server shell creates `data/config.json` next to the executable with default values if it does not exist.

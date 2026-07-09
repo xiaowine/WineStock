@@ -137,6 +137,14 @@ Read the config model before changing startup behavior.
 Read the networking model before changing URLs or bind addresses.
 Read the platform lifecycle rules before changing service startup or shutdown.
 
+## Verification Discipline
+
+Do not run broad Cargo verification by default after every small edit.
+Prefer the narrowest command that covers the touched crate or behavior, such as `cargo +stable check -p winestock-server`.
+Use `cargo +stable check --workspace --all-targets` only for broad or cross-crate changes, release/readiness checks, or when the user explicitly asks for full workspace validation.
+`cargo +stable fmt --all -- --check` is formatting-only and does not replace targeted compile or test checks.
+When choosing a broader command, state why the broader cache/fingerprint impact is justified.
+
 Keep shared code in shared crates.
 Keep platform code in platform shells.
 Keep frontend packaging platform-specific.
