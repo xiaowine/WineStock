@@ -5,7 +5,7 @@ edition.workspace = true
 publish = false
 
 [lib]
-# shared 只放平台无关的配置、契约和通用类型，不能反向依赖 core。
+# shared 只放平台无关配置和基础辅助类型，不能反向依赖 core。
 name = "winestock_shared"
 path = "src/lib.rs"
 crate-type = ["lib"]
@@ -14,4 +14,3 @@ crate-type = ["lib"]
 garde = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-utoipa = { workspace = true }

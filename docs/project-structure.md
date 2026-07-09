@@ -28,8 +28,9 @@ Current additional Rust crate:
 `core` means the shared Rust/Axum service core.
 It owns the Axum router, service lifecycle, network bind behavior, business behavior, shared service state, and persistence integration.
 
-`shared` means Rust code reused by core and platform shells.
-It owns shared config, platform-neutral contracts, common value types, and other code that should not depend on Axum, Tauri, Android, or WebView packaging.
+`shared` means Rust code reused by core and platform shells for runtime configuration and primitive platform-neutral helpers.
+It owns shared config, runtime modes, config parsing errors, basic text validation, and other platform-neutral startup contracts that should not depend on Axum, Tauri, Android, or WebView packaging.
+HTTP API DTOs and business validation belong to `core`, because they are part of the Axum service contract.
 
 Avoid `share-core` for shared project modules.
 Use `share` only for user-facing sharing features, if those exist later.
@@ -64,11 +65,11 @@ WineStock/
   shared/                        # current winestock-shared library crate
     Cargo.toml
     src/
-      auth.rs
       config.rs
+      config_validation.rs
       error.rs
       lib.rs
-      validation.rs
+      text_validation.rs
   desktop/
     tauri/
   android/
@@ -145,6 +146,7 @@ Current `core` HTTP surface:
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
+- `GET /api/health`
 - `GET /api/auth/me`
 - `POST /api/auth/me/password`
 - `GET /api/users`
@@ -156,7 +158,7 @@ Current `core` HTTP surface:
 - `GET /api-docs/openapi.json`
 - Swagger UI under `/swagger-ui`
 
-`shared` owns the shared runtime configuration model and platform-neutral contracts.
+`shared` owns the shared runtime configuration model, platform-neutral startup contracts, and primitive text validation helpers.
 It must not depend on `core`, Axum, Tauri, Android shell code, or frontend build output.
 
 `desktop/tauri` owns the Tauri v2 desktop shell.

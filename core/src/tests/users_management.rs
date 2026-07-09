@@ -10,8 +10,8 @@ use tower::ServiceExt;
 use crate::{
     persistence::repository::{RbacRepository, UserRepository},
     test_support::{
-        json_body, login_request, raw_login_request, raw_refresh_request, seed_plain_user,
-        seeded_app, text_body,
+        error_code, json_body, login_request, raw_login_request, raw_refresh_request,
+        seed_plain_user, seeded_app,
     },
     users::controller::{
         PermissionResponse, UserAdminResponse, UserPasswordChangeRequest, UserPasswordResetRequest,
@@ -286,7 +286,7 @@ async fn user_password_reset_requires_reset_permission() {
     assert_eq!(reset.status(), StatusCode::NO_CONTENT);
     let old_refresh = raw_refresh_request(&app, &old_login.body.refresh_token).await;
     assert_eq!(old_refresh.status(), StatusCode::UNAUTHORIZED);
-    assert_eq!(text_body(old_refresh).await, "invalid_refresh_token");
+    assert_eq!(error_code(old_refresh).await, "invalid_refresh_token");
 
     let temporary_login = login_request(&app, "managed", "new-password").await;
     assert_eq!(temporary_login.status, StatusCode::OK);
@@ -300,7 +300,7 @@ async fn user_password_reset_requires_reset_permission() {
     )
     .await;
     assert_eq!(blocked.status(), StatusCode::FORBIDDEN);
-    assert_eq!(text_body(blocked).await, "password_change_required");
+    assert_eq!(error_code(blocked).await, "password_change_required");
 
     let allowed_me = authorized_empty_request(
         &app,
@@ -310,7 +310,7 @@ async fn user_password_reset_requires_reset_permission() {
     )
     .await;
     assert_eq!(allowed_me.status(), StatusCode::OK);
-    let current: winestock_shared::AuthUserResponse = json_body(allowed_me).await;
+    let current: crate::auth::AuthUserResponse = json_body(allowed_me).await;
     assert!(current.password_change_required);
 
     let changed = authorized_json_request(
@@ -355,7 +355,7 @@ async fn current_user_changes_only_own_password_with_current_password() {
     )
     .await;
     assert_eq!(wrong_current.status(), StatusCode::UNAUTHORIZED);
-    assert_eq!(text_body(wrong_current).await, "invalid_credentials");
+    assert_eq!(error_code(wrong_current).await, "invalid_credentials");
 
     let changed = authorized_json_request(
         &app,
@@ -394,7 +394,7 @@ async fn user_management_protects_last_active_permission_manager() {
     .await;
     assert_eq!(disable_last_manager.status(), StatusCode::CONFLICT);
     assert_eq!(
-        text_body(disable_last_manager).await,
+        error_code(disable_last_manager).await,
         "last_permission_manager_required"
     );
 

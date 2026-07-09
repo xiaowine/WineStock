@@ -2,9 +2,11 @@
 
 use axum::http::StatusCode;
 use tower::ServiceExt;
-use winestock_shared::AuthLogoutRequest;
 
-use crate::test_support::{json_request, login_request, raw_refresh_request, seeded_app};
+use crate::{
+    auth::AuthLogoutRequest,
+    test_support::{json_request, login_request, raw_refresh_request, seeded_app},
+};
 
 #[tokio::test]
 async fn logout_revokes_refresh_token() {

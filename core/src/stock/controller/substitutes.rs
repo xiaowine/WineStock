@@ -3,15 +3,19 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责替代料整体替换、查询和删除入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use axum::{
-    extract::{Extension, Path, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
+use crate::{
+    http::{ValidatedJson, ValidatedPath},
+    security::CurrentUser,
+    state::CoreState,
+};
 
 use crate::stock::service::{self, StockApiError};
 /// 替代料替换条目。
@@ -136,17 +140,17 @@ pub(crate) struct SubstituteRelationResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Substitutes replaced", body = Vec<ItemSubstituteResponse>),
-        (status = 400, description = "Invalid substitute request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Substitute manage permission required", body = String),
-        (status = 404, description = "Item not found", body = String)
+        (status = 400, description = "Invalid substitute request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Substitute manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 整体替换指定物品的替代料列表。
 pub(crate) async fn replace_substitutes(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(item_id): Path<i64>,
+    ValidatedPath(item_id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<SubstituteReplaceRequest>,
 ) -> Result<Json<Vec<ItemSubstituteResponse>>, StockApiError> {
     Ok(Json(
@@ -161,8 +165,8 @@ pub(crate) async fn replace_substitutes(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "All substitute relations", body = Vec<SubstituteRelationResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Substitute read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Substitute read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询全部物品替代料关系。
@@ -180,15 +184,15 @@ pub(crate) async fn list_substitute_relations(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Substitute list", body = Vec<ItemSubstituteResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Substitute read permission required", body = String),
-        (status = 404, description = "Item not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Substitute read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询指定物品的替代料列表。
 pub(crate) async fn list_item_substitutes(
     State(state): State<CoreState>,
-    Path(item_id): Path<i64>,
+    ValidatedPath(item_id): ValidatedPath<i64>,
 ) -> Result<Json<Vec<ItemSubstituteResponse>>, StockApiError> {
     Ok(Json(service::list_item_substitutes(&state, item_id).await?))
 }
@@ -204,16 +208,16 @@ pub(crate) async fn list_item_substitutes(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Substitute relation deleted"),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Substitute manage permission required", body = String),
-        (status = 404, description = "Item or substitute relation not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Substitute manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item or substitute relation not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 删除单个替代料关系。
 pub(crate) async fn delete_substitute_relation(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path((item_id, substitute_item_id)): Path<(i64, i64)>,
+    ValidatedPath((item_id, substitute_item_id)): ValidatedPath<(i64, i64)>,
 ) -> Result<StatusCode, StockApiError> {
     service::delete_substitute_relation(&state, &current_user, item_id, substitute_item_id).await?;
     Ok(StatusCode::NO_CONTENT)

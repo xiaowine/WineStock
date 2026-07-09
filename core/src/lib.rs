@@ -16,8 +16,13 @@ mod server;
 mod state;
 mod stock;
 mod users;
+mod validation;
 
-pub use auth::{AuthBootstrap, AuthBootstrapError, AuthSettings, AuthSigningKey, SigningKeyStatus};
+pub use auth::{
+    AuthBootstrap, AuthBootstrapError, AuthClientKind, AuthLoginRequest, AuthLogoutRequest,
+    AuthRefreshRequest, AuthRegisterRequest, AuthSettings, AuthSigningKey, AuthTokenResponse,
+    AuthUserResponse, SigningKeyStatus,
+};
 pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };

@@ -4,9 +4,9 @@
 //! 它不处理注册、改密或权限替换事务。
 
 use sea_orm::ConnectionTrait;
-use winestock_shared::AuthUserResponse;
 
 use crate::{
+    auth::AuthUserResponse,
     persistence::{
         entity::user,
         repository::{PermissionRecord, RbacRepository},

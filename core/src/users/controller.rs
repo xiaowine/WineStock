@@ -4,18 +4,18 @@
 //! 注册和当前用户相关 URL 仍保持 `/api/auth/*` 兼容路径，管理接口使用 `/api/users` 和权限只读路径。
 
 use axum::{
-    extract::{Extension, Path, Query, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::{validate_code_list, validate_not_blank};
-use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
 use crate::{
-    http::ValidatedJson,
+    auth::{AuthRegisterRequest, AuthUserResponse},
+    http::{ValidatedJson, ValidatedPath, ValidatedQuery},
     security::{AuthApiError, CurrentUser},
     state::CoreState,
+    validation::{validate_code_list, validate_not_blank},
 };
 
 use super::service::{self, PaginatedResponse};
@@ -165,10 +165,10 @@ pub(crate) struct PermissionResponse {
     ),
     responses(
         (status = 201, description = "User registered", body = AuthUserResponse),
-        (status = 400, description = "Invalid register request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Register permission required", body = String),
-        (status = 409, description = "Username already exists", body = String)
+        (status = 400, description = "Invalid register request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Register permission required", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Username already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 注册新用户；首个用户免鉴权并自动获得全部内置权限，之后必须拥有注册用户权限。
@@ -191,8 +191,8 @@ pub(crate) async fn register(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Current user", body = AuthUserResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Permission denied", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Permission denied", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 返回 bearer token 对应的当前用户。
@@ -211,8 +211,8 @@ pub(crate) async fn me(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Password changed"),
-        (status = 400, description = "Invalid request", body = String),
-        (status = 401, description = "Invalid access token or current password", body = String)
+        (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token or current password", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 当前登录用户修改自己的密码；该接口不允许指定其他用户 ID。
@@ -233,14 +233,14 @@ pub(crate) async fn change_own_password(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "User list", body = PaginatedResponse<UserAdminResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 分页查询用户管理列表。
 pub(crate) async fn list_users(
     State(state): State<CoreState>,
-    Query(query): Query<UserListQuery>,
+    ValidatedQuery(query): ValidatedQuery<UserListQuery>,
 ) -> Result<Json<PaginatedResponse<UserAdminResponse>>, AuthApiError> {
     Ok(Json(service::list_users(&state, query).await?))
 }
@@ -253,15 +253,15 @@ pub(crate) async fn list_users(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "User detail", body = UserAdminResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String),
-        (status = 404, description = "User not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "User not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询单个用户管理详情。
 pub(crate) async fn get_user(
     State(state): State<CoreState>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<UserAdminResponse>, AuthApiError> {
     Ok(Json(service::get_user(&state, id).await?))
 }
@@ -275,18 +275,18 @@ pub(crate) async fn get_user(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "User status updated", body = UserAdminResponse),
-        (status = 400, description = "Invalid request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String),
-        (status = 404, description = "User not found", body = String),
-        (status = 409, description = "Last active permission manager cannot be disabled", body = String)
+        (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "User not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Last active permission manager cannot be disabled", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 更新用户状态。
 pub(crate) async fn update_user_status(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<UserStatusUpdateRequest>,
 ) -> Result<Json<UserAdminResponse>, AuthApiError> {
     Ok(Json(
@@ -303,18 +303,18 @@ pub(crate) async fn update_user_status(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "User permissions updated", body = UserAdminResponse),
-        (status = 400, description = "Invalid request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String),
-        (status = 404, description = "User or permission not found", body = String),
-        (status = 409, description = "Last active permission manager cannot lose manage permission", body = String)
+        (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "User or permission not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Last active permission manager cannot lose manage permission", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 整体替换用户权限。
 pub(crate) async fn update_user_permissions(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<UserPermissionsUpdateRequest>,
 ) -> Result<Json<UserAdminResponse>, AuthApiError> {
     Ok(Json(
@@ -331,17 +331,17 @@ pub(crate) async fn update_user_permissions(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Temporary password set"),
-        (status = 400, description = "Invalid request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Password reset permission required", body = String),
-        (status = 404, description = "User not found", body = String)
+        (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Password reset permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "User not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 拥有重置密码权限的用户设置目标用户临时密码，目标用户下次登录后必须改密。
 pub(crate) async fn reset_user_password(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<UserPasswordResetRequest>,
 ) -> Result<StatusCode, AuthApiError> {
     service::reset_user_password(&state, &current_user, id, request).await?;
@@ -355,8 +355,8 @@ pub(crate) async fn reset_user_password(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Permission list", body = Vec<PermissionResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "User manage permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询权限定义列表。

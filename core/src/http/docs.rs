@@ -3,16 +3,17 @@
 //! 本模块属于 `core axum library` 层，只负责接口文档元信息和 Swagger UI 路由。
 //! 它不决定具体业务实现，也不承载桌面或 Android 的平台前端资源。
 
+use super::{health::HealthResponse, ApiErrorResponse};
+use crate::auth::{
+    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthTokenResponse, AuthUserResponse,
+};
 use axum::Router;
 use utoipa::{
     openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
     Modify, OpenApi,
 };
 use utoipa_swagger_ui::SwaggerUi;
-use winestock_shared::{
-    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
-    AuthTokenResponse, AuthUserResponse,
-};
 
 /// OpenAPI JSON 文档的服务路径。
 pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
@@ -24,6 +25,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        crate::http::health::health,
         crate::users::controller::register,
         crate::auth::controller::login,
         crate::auth::controller::refresh,
@@ -85,6 +87,8 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         AuthLogoutRequest,
         AuthUserResponse,
         AuthTokenResponse,
+        ApiErrorResponse,
+        HealthResponse,
         crate::users::controller::UserStatus,
         crate::users::controller::UserAdminResponse,
         crate::users::controller::UserStatusUpdateRequest,
@@ -145,6 +149,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     modifiers(&SecurityAddon),
     info(title = "WineStock API", version = "0.1.0"),
     tags(
+        (name = "health", description = "Health check endpoints"),
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User and permission management endpoints"),
         (name = "templates", description = "Stock template endpoints"),

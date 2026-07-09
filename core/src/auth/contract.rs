@@ -1,6 +1,6 @@
-//! 鉴权 HTTP 契约实体。
+//! auth HTTP 契约实体。
 //!
-//! 本模块属于 `shared` 层，只定义平台无关请求和响应 DTO。
+//! 本模块属于 `core axum library` 的 auth 业务边界，定义会话认证请求和响应 DTO。
 //! 它不处理密码哈希、令牌持久化、权限查询或 Axum 路由。
 
 use serde::{Deserialize, Serialize};

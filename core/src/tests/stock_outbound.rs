@@ -14,7 +14,8 @@ use crate::{
         TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
     test_support::{
-        bootstrap_location_id, json_body, login_request, seed_stock_location, seeded_app, text_body,
+        bootstrap_location_id, error_code, json_body, login_request, seed_stock_location,
+        seeded_app,
     },
 };
 
@@ -93,7 +94,7 @@ async fn outbound_approval_uses_fifo_and_writes_movements() {
     )
     .await;
     assert_eq!(approve_again.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(approve_again).await, "order_not_pending");
+    assert_eq!(error_code(approve_again).await, "order_not_pending");
 }
 
 #[tokio::test]
@@ -174,7 +175,7 @@ async fn outbound_shortage_rolls_back_inventory_changes() {
     )
     .await;
     assert_eq!(failed.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(failed).await, "insufficient_stock");
+    assert_eq!(error_code(failed).await, "insufficient_stock");
     assert_eq!(batch_remaining(&app, "SHORT-A").await, 5.0);
     assert_eq!(
         table_count(&app, "stock_movements", "movement_type = 'outbound'").await,
@@ -375,7 +376,7 @@ async fn outbound_search_uses_history_scope() {
     )
     .await;
     assert_eq!(empty_search.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(empty_search).await, "invalid_request");
+    assert_eq!(error_code(empty_search).await, "invalid_request");
 }
 
 async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffix: &str) -> i64 {

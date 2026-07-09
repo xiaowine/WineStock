@@ -1,6 +1,6 @@
-# `shared/src/auth.rs`
+# `core/src/auth/contract.rs`
 
-本文件定义平台无关鉴权 HTTP DTO。
+本文件定义 core 鉴权 HTTP DTO，属于 Axum 服务 API 契约，不属于 `shared` 运行配置层。
 
 ## `AuthLoginRequest`
 

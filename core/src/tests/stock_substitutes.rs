@@ -13,7 +13,7 @@ use crate::{
         ItemSubstituteResponse, SubstituteRelationResponse, SubstituteReplaceRequest,
         SubstituteReplacementItem,
     },
-    test_support::{bootstrap_location_id, json_body, login_request, seeded_app, text_body},
+    test_support::{bootstrap_location_id, error_code, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
@@ -119,7 +119,7 @@ async fn substitutes_can_be_replaced_listed_and_deleted_with_permissions() {
     )
     .await;
     assert_eq!(delete_again.status(), StatusCode::NOT_FOUND);
-    assert_eq!(text_body(delete_again).await, "substitute_not_found");
+    assert_eq!(error_code(delete_again).await, "substitute_not_found");
 
     let cleared = authorized_json_request(
         &app,
@@ -176,7 +176,7 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     )
     .await;
     assert_eq!(self_reference.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(self_reference).await, "invalid_request");
+    assert_eq!(error_code(self_reference).await, "invalid_request");
 
     let missing_target = authorized_json_request(
         &app,
@@ -187,7 +187,7 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     )
     .await;
     assert_eq!(missing_target.status(), StatusCode::NOT_FOUND);
-    assert_eq!(text_body(missing_target).await, "item_not_found");
+    assert_eq!(error_code(missing_target).await, "item_not_found");
 
     let duplicate_item = authorized_json_request(
         &app,
@@ -198,7 +198,7 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     )
     .await;
     assert_eq!(duplicate_item.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(duplicate_item).await, "invalid_request");
+    assert_eq!(error_code(duplicate_item).await, "invalid_request");
 
     let duplicate_priority = authorized_json_request(
         &app,
@@ -209,7 +209,7 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     )
     .await;
     assert_eq!(duplicate_priority.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(duplicate_priority).await, "invalid_request");
+    assert_eq!(error_code(duplicate_priority).await, "invalid_request");
 
     let replace_b_to_a = authorized_json_request(
         &app,
@@ -230,7 +230,7 @@ async fn substitutes_reject_invalid_targets_and_cycles() {
     )
     .await;
     assert_eq!(cyclic.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(cyclic).await, "invalid_request");
+    assert_eq!(error_code(cyclic).await, "invalid_request");
 
     let listed = authorized_empty_request(
         &app,

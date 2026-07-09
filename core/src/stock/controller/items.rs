@@ -3,15 +3,19 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责物品 CRUD、列表筛选值的请求、响应和 Axum 入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use axum::{
-    extract::{Extension, Path, Query, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
+use crate::{
+    http::{ValidatedJson, ValidatedPath, ValidatedQuery},
+    security::CurrentUser,
+    state::CoreState,
+};
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 /// 创建库存物品请求。
@@ -284,10 +288,10 @@ pub(crate) struct ItemBatchStockResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Item created", body = ItemResponse),
-        (status = 400, description = "Invalid item request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Item manage permission required", body = String),
-        (status = 409, description = "SKU already exists", body = String)
+        (status = 400, description = "Invalid item request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "SKU already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建库存物品。
@@ -310,14 +314,14 @@ pub(crate) async fn create_item(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Item list", body = PaginatedResponse<ItemResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Item read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 分页查询库存物品。
 pub(crate) async fn list_items(
     State(state): State<CoreState>,
-    Query(query): Query<ItemListQuery>,
+    ValidatedQuery(query): ValidatedQuery<ItemListQuery>,
 ) -> Result<Json<PaginatedResponse<ItemResponse>>, StockApiError> {
     Ok(Json(service::list_items(&state, query).await?))
 }
@@ -329,8 +333,8 @@ pub(crate) async fn list_items(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Current inventory item filter values", body = super::FilterValuesResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Item read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询当前库存视角下的物品筛选值。
@@ -348,15 +352,15 @@ pub(crate) async fn item_filter_values(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Item detail", body = ItemDetailResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Item read permission required", body = String),
-        (status = 404, description = "Item not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询单个库存物品。
 pub(crate) async fn get_item(
     State(state): State<CoreState>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<ItemDetailResponse>, StockApiError> {
     Ok(Json(service::get_item(&state, id).await?))
 }
@@ -370,18 +374,18 @@ pub(crate) async fn get_item(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Item updated", body = ItemResponse),
-        (status = 400, description = "Invalid item request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Item manage permission required", body = String),
-        (status = 404, description = "Item not found", body = String),
-        (status = 409, description = "SKU already exists", body = String)
+        (status = 400, description = "Invalid item request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "SKU already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 更新库存物品。
 pub(crate) async fn update_item(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<ItemUpdateRequest>,
 ) -> Result<Json<ItemResponse>, StockApiError> {
     Ok(Json(
@@ -397,16 +401,16 @@ pub(crate) async fn update_item(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Item deleted"),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Item manage permission required", body = String),
-        (status = 404, description = "Item not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 软删除库存物品。
 pub(crate) async fn delete_item(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<StatusCode, StockApiError> {
     service::delete_item(&state, &current_user, id).await?;
     Ok(StatusCode::NO_CONTENT)

@@ -3,11 +3,10 @@
 //! 本模块属于 `core axum library` 层，只负责拼装全局 HTTP 外壳和业务模块路由。
 //! 它不直接实现 `auth`、`users` 或 `rbac` 的业务流程。
 
-use axum::Router;
-
+use super::{docs, error_response, health};
 use crate::{auth, state::CoreState, stock, users, LocalServiceBootstrap};
-
-use super::docs;
+use axum::routing::get;
+use axum::Router;
 
 /// 构建平台壳共用的 Axum 路由器。
 pub fn build_router() -> Router {
@@ -30,5 +29,9 @@ fn base_router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new().merge(docs::router())
+    Router::new()
+        .route("/api/health", get(health::health))
+        .merge(docs::router())
+        .fallback(error_response::not_found)
+        .method_not_allowed_fallback(error_response::method_not_allowed)
 }

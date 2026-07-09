@@ -1,6 +1,4 @@
-//! shared 配置和 DTO 测试。
-
-use garde::Validate;
+//! shared 配置测试。
 
 use super::*;
 
@@ -100,44 +98,6 @@ fn runtime_mode_reports_storage_need() {
     assert!(RuntimeMode::SelfHosted.uses_local_service());
     assert!(RuntimeMode::ServerMode.uses_local_service());
     assert!(!RuntimeMode::ConnectToRemote.uses_local_service());
-}
-
-#[test]
-fn auth_request_validation_rejects_blank_or_oversized_fields() {
-    let register = AuthRegisterRequest {
-        username: "   ".to_owned(),
-        password: "password".to_owned(),
-    };
-    assert!(register.validate().is_err());
-
-    let login = AuthLoginRequest {
-        username: "admin".to_owned(),
-        password: "password".to_owned(),
-        device_name: "   ".to_owned(),
-        client_kind: AuthClientKind::Desktop,
-        version: "1.0.0".to_owned(),
-    };
-    assert!(login.validate().is_err());
-
-    let refresh = AuthRefreshRequest {
-        refresh_token: String::new(),
-    };
-    assert!(refresh.validate().is_err());
-}
-
-#[test]
-fn auth_login_client_kind_only_accepts_formal_platforms() {
-    let json = r#"
-    {
-      "username": "admin",
-      "password": "password",
-      "device_name": "workstation",
-      "client_kind": "web",
-      "version": "1.0.0"
-    }
-    "#;
-
-    assert!(serde_json::from_str::<AuthLoginRequest>(json).is_err());
 }
 
 #[test]

@@ -15,12 +15,13 @@ use axum::{
 use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use tempfile::{tempdir, TempDir};
 use tower::ServiceExt;
-use winestock_shared::{
-    AppConfig, AuthClientKind, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest,
-    AuthTokenResponse, RuntimeMode, ServerConfig, StorageConfig,
-};
+use winestock_shared::{AppConfig, RuntimeMode, ServerConfig, StorageConfig};
 
 use crate::{
+    auth::{
+        AuthClientKind, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest,
+        AuthTokenResponse,
+    },
     bootstrap_from_config,
     persistence::repository::{CreateUser, RbacRepository, UserRepository},
     rbac::builtin_permission_codes,
@@ -281,9 +282,10 @@ pub(crate) async fn json_body<T: for<'de> serde::Deserialize<'de>>(
     serde_json::from_slice(&bytes).expect("body should decode")
 }
 
-pub(crate) async fn text_body(response: axum::response::Response) -> String {
-    let bytes = to_bytes(response.into_body(), usize::MAX)
-        .await
-        .expect("body should read");
-    String::from_utf8(bytes.to_vec()).expect("body should be utf8")
+pub(crate) async fn error_code(response: axum::response::Response) -> String {
+    let value: serde_json::Value = json_body(response).await;
+    value["error"]["code"]
+        .as_str()
+        .expect("error code should be a string")
+        .to_owned()
 }

@@ -7,8 +7,8 @@ use garde::Validate;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    error::ConfigParseError,
-    validation::{validate_not_blank, validate_optional_http_url},
+    config_validation::validate_optional_http_url, error::ConfigParseError,
+    text_validation::validate_not_blank,
 };
 
 /// WineStock v1 启动配置，只包含服务启动和本地存储两类信息。

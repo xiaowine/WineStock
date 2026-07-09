@@ -1,13 +1,54 @@
 //! auth 模块登录相关测试。
 
 use axum::http::StatusCode;
+use garde::Validate;
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-use winestock_shared::AuthUserResponse;
 
 use crate::{
+    auth::{
+        AuthClientKind, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest, AuthUserResponse,
+    },
     security::{hash_refresh_token, CURRENT_REFRESH_TOKEN_VERSION},
-    test_support::{login_request, raw_login_request, seeded_app, text_body},
+    test_support::{error_code, login_request, raw_login_request, seeded_app},
 };
+
+#[test]
+fn auth_request_validation_rejects_blank_or_oversized_fields() {
+    let register = AuthRegisterRequest {
+        username: "   ".to_owned(),
+        password: "password".to_owned(),
+    };
+    assert!(register.validate().is_err());
+
+    let login = AuthLoginRequest {
+        username: "admin".to_owned(),
+        password: "password".to_owned(),
+        device_name: "   ".to_owned(),
+        client_kind: AuthClientKind::Desktop,
+        version: "1.0.0".to_owned(),
+    };
+    assert!(login.validate().is_err());
+
+    let refresh = AuthRefreshRequest {
+        refresh_token: String::new(),
+    };
+    assert!(refresh.validate().is_err());
+}
+
+#[test]
+fn auth_login_client_kind_only_accepts_formal_platforms() {
+    let json = r#"
+    {
+      "username": "admin",
+      "password": "password",
+      "device_name": "workstation",
+      "client_kind": "web",
+      "version": "1.0.0"
+    }
+    "#;
+
+    assert!(serde_json::from_str::<AuthLoginRequest>(json).is_err());
+}
 
 #[tokio::test]
 async fn login_returns_tokens_and_current_permissions() {
@@ -101,7 +142,7 @@ async fn wrong_password_returns_uniform_unauthorized_error() {
     let response = raw_login_request(&app, "admin", "wrong").await;
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert_eq!(text_body(response).await, "invalid_credentials");
+    assert_eq!(error_code(response).await, "invalid_credentials");
 }
 
 #[tokio::test]
@@ -110,5 +151,5 @@ async fn invalid_login_payload_is_rejected_before_auth_service() {
     let response = raw_login_request(&app, "   ", "password").await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(response).await, "invalid_request");
+    assert_eq!(error_code(response).await, "invalid_request");
 }

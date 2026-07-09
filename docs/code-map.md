@@ -41,7 +41,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `docs/implementation-notes/stock-search-filter-values-plan.md`：库存物品、入库历史和出库历史搜索、筛选值 API 的设计与实现约束。
 - `docs/implementation-notes/substitute-api-domain-migration-plan.md`：替代料管理迁移为独立 `/api/substitutes` 业务域且不保留旧路径兼容的实施方案。
 - `core/`：共享 Rust/Axum 服务库。
-- `shared/`：平台无关配置、契约和通用类型。
+- `shared/`：平台无关运行配置、配置解析错误和基础文本校验。
 - `server/`：运行共享服务的无头服务端 shell。
 - `frontend/`：仅作为前端脚手架和源码区域。
 - `desktop/`：非正式的普通 Rust 脚手架。
@@ -72,17 +72,11 @@ core   -> desktop/android/frontend platform assets
 
 ## `shared`
 
-用途：平台无关配置和契约。
+用途：平台无关运行配置、配置解析错误和基础文本校验。
 
 - `shared/src/lib.rs`
-  - 作为 `shared` crate 的薄入口，只声明 `auth`、`config`、`error` 和 `validation` 模块，并重新导出公共契约类型。
+  - 作为 `shared` crate 的薄入口，公开 `config`、`error` 和 `text_validation` 模块，私有声明 `config_validation` 模块，并重新导出启动配置公共类型。
   - 不直接承载 DTO、配置实体或校验函数实现。
-
-- `shared/src/auth.rs`
-  - 定义鉴权 HTTP DTO：`AuthRegisterRequest`、`AuthLoginRequest`、`AuthRefreshRequest`、`AuthLogoutRequest`、`AuthUserResponse` 和 `AuthTokenResponse`。
-  - `AuthUserResponse` 返回当前权限列表和 `password_change_required`，供客户端在临时密码登录后进入强制改密流程。
-  - 定义 `AuthClientKind`，登录请求的客户端类型只允许 `desktop` 和 `android`。
-  - 使用 `garde` 内置 `length`、`range`、`inner` 和项目自定义 trim/code 规则定义静态字段约束。
 
 - `shared/src/config.rs`
   - 定义 `AppConfig`、`ServerConfig`、`StorageConfig` 和 `RuntimeMode`。
@@ -95,11 +89,15 @@ core   -> desktop/android/frontend platform assets
 - `shared/src/error.rs`
   - 定义 `ConfigParseError`，区分 JSON 结构错误和 `garde` 字段约束错误。
 
-- `shared/src/validation.rs`
-  - 定义 DTO 和配置复用的 `garde` 自定义校验函数。
-  - 只保留内置规则无法直接表达的项目语义，例如 trim 后非空、可选短标签、权限代码格式和空字符串远端 URL。
+- `shared/src/config_validation.rs`
+  - 定义配置实体内部使用的 `garde` 自定义校验函数。
+  - 只保留配置内置规则无法直接表达的项目语义，例如空字符串远端 URL。
 
-`shared` 不能依赖 `core`、Axum、平台 shell 代码、WebView 代码或前端构建产物。
+- `shared/src/text_validation.rs`
+  - 定义平台无关、无业务语义的基础文本校验函数。
+  - 目前提供 trim 后非空和可选字符串非空规则，供配置、core HTTP DTO 和 repository 写库输入复用。
+
+`shared` 不能依赖 `core`、Axum、平台 shell 代码、WebView 代码或前端构建产物，也不承载 HTTP DTO 或带业务语义的字段校验。
 
 ## `core`
 
@@ -112,6 +110,10 @@ core   -> desktop/android/frontend platform assets
   - 重新导出 `winestock_shared` 为 `shared`，供调用方通过 core 入口访问共享契约。
   - 保留 `build_router()` 和 `build_router_with_local_service()` 两个稳定入口，但不直接承担 Router 细节和 OpenAPI 元信息。
 
+- `core/src/validation.rs`
+  - 定义 core HTTP DTO 和 repository 写库输入复用的业务字段校验函数。
+  - 复用 `shared/src/text_validation.rs` 的基础文本规则，只在 core 内新增权限代码格式等业务约束，不访问数据库或平台 shell。
+
 - `core/src/state.rs`
   - 定义统一的 `CoreState`。
   - 把 `StorageRuntime` 和 `SecurityRuntime` 组合成全局 Axum state 根对象。
@@ -120,8 +122,10 @@ core   -> desktop/android/frontend platform assets
 - `core/src/http/`
   - 作为唯一的全局 HTTP 外壳层。
   - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息、按业务域拆分的 Swagger tag 和 Swagger UI 挂载。
-  - `router.rs` 负责组装 Swagger/OpenAPI 和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth`、`stock` 与 `users` 模块路由。
-  - `validation.rs` 定义 `ValidatedJson<T>`，在业务 handler 之前完成 JSON 解析和 `garde` 静态字段校验；校验失败统一返回 `400 invalid_request`。
+  - `error_response.rs` 定义统一的非 2xx JSON 错误响应结构、领域错误响应辅助函数，以及全局 404/405 兜底响应；业务模块只映射状态码和稳定错误码，不自行拼装错误响应体。
+  - `health.rs` 定义无状态 `/api/health` 健康检查 DTO 和 handler；该接口不访问数据库，也不要求鉴权。
+  - `router.rs` 负责组装 Swagger/OpenAPI、健康检查和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth`、`stock` 与 `users` 模块路由。
+  - `validation.rs` 定义 `ValidatedJson<T>`、`ValidatedPath<T>` 和 `ValidatedQuery<T>`，在业务 handler 之前完成 JSON 解析、`garde` 静态字段校验、路径参数解析和查询参数解析；解析或校验失败统一返回 `400 invalid_request` 的 JSON 错误响应。
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。
@@ -148,6 +152,7 @@ core   -> desktop/android/frontend platform assets
 - `core/src/auth/`
   - 会话认证业务模块，承载登录、refresh、logout 和 auth bootstrap。
   - `mod.rs` 负责 `/api/auth/login`、`/api/auth/refresh` 和 `/api/auth/logout` 的路由注册。
+  - `contract.rs` 定义鉴权 HTTP DTO：`AuthRegisterRequest`、`AuthLoginRequest`、`AuthRefreshRequest`、`AuthLogoutRequest`、`AuthUserResponse`、`AuthTokenResponse` 和 `AuthClientKind`；这些类型属于 core API 契约，不放在 `shared`。
   - `controller.rs` 提供对应 HTTP 入口和 utoipa 标注。
   - `service.rs` 处理登录、refresh token 轮换、旧 token 复用检测和登出吊销逻辑。
   - `bootstrap.rs` 定义鉴权启动设置、签名密钥状态和鉴权启动结果；通过 `AuthRepository` 写入默认鉴权设置但不覆盖数据库管理的已有值，并创建或读取当前 active 访问令牌签名密钥。
@@ -250,10 +255,12 @@ core   -> desktop/android/frontend platform assets
 
 - `docs/validation/`
   - `README.md` 说明限制文档的命名规则和约束来源。
-  - `shared-src-auth.md` 记录鉴权 HTTP DTO 和响应实体的 `garde`/Serde 限制。
   - `shared-src-config.md` 记录启动配置和运行模式的 `garde`/Serde 限制。
   - `shared-src-error.md` 记录共享配置解析错误。
-  - `shared-src-validation.md` 记录共享自定义校验函数的使用边界。
+  - `shared-src-config-validation.md` 记录共享配置校验函数的使用边界。
+  - `shared-src-text-validation.md` 记录共享基础文本校验函数的使用边界。
+  - `core-src-auth-contract.md` 记录鉴权 HTTP DTO 和响应实体的 `garde`/Serde 限制。
+  - `core-src-validation.md` 记录 core 业务字段校验函数的使用边界。
   - `core-src-persistence-entity-*.md` 记录当前 SeaORM 数据库实体的字段约束来源。
   - `core-src-persistence-repository-*.md` 记录当前 repository 写库输入结构的限制和事务边界。
 
@@ -315,6 +322,7 @@ server/src/main.rs
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
+- `GET /api/health`
 - `GET /api/auth/me`
 - `POST /api/auth/me/password`
 - `GET /api/users`

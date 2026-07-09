@@ -3,7 +3,10 @@
 use axum::{body::Body, http::Request};
 use tower::ServiceExt;
 
-use crate::{test_support::json_body, OPENAPI_JSON_PATH};
+use crate::{
+    test_support::{error_code, json_body},
+    OPENAPI_JSON_PATH,
+};
 
 #[tokio::test]
 async fn openapi_includes_bearer_auth_and_auth_paths() {
@@ -20,7 +23,10 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
 
     assert_eq!(response.status(), axum::http::StatusCode::OK);
     let value: serde_json::Value = json_body(response).await;
+    assert!(value["components"]["schemas"]["ApiErrorResponse"].is_object());
     assert!(value["components"]["securitySchemes"]["bearerAuth"].is_object());
+    assert!(value["paths"]["/api/health"].is_object());
+    assert!(value["paths"]["/api/health"]["get"]["security"].is_null());
     assert!(value["paths"]["/api/auth/register"].is_object());
     assert!(value["paths"]["/api/auth/login"].is_object());
     assert!(value["paths"]["/api/auth/refresh"].is_object());
@@ -87,6 +93,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         })
         .collect::<Vec<_>>();
     for expected in [
+        "health",
         "auth",
         "users",
         "templates",
@@ -108,6 +115,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         tags.iter().all(|tag| tag != "stock"),
         "stock tag should be split into business tags"
     );
+    assert_operation_tag(&value, "/api/health", "get", "health");
     assert_operation_tag(&value, "/api/templates", "post", "templates");
     assert_operation_tag(&value, "/api/items", "post", "items");
     assert_operation_tag(&value, "/api/location-groups/tree", "get", "locations");
@@ -129,6 +137,63 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_operation_tag(&value, "/api/dashboard/overview", "get", "dashboard");
     assert_operation_tag(&value, "/api/events", "get", "events");
     assert_no_operation_tag(&value, "stock");
+}
+
+#[tokio::test]
+async fn health_endpoint_is_available_without_local_service_state() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/health")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let value: serde_json::Value = json_body(response).await;
+    assert_eq!(value["status"], "OK");
+}
+
+#[tokio::test]
+async fn unknown_route_returns_json_error() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/missing")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(response.headers()["content-type"], "application/json");
+    assert_eq!(error_code(response).await, "not_found");
+}
+
+#[tokio::test]
+async fn unsupported_method_returns_json_error() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/health")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(
+        response.status(),
+        axum::http::StatusCode::METHOD_NOT_ALLOWED
+    );
+    assert_eq!(response.headers()["content-type"], "application/json");
+    assert_eq!(error_code(response).await, "method_not_allowed");
 }
 
 fn assert_operation_tag(value: &serde_json::Value, path: &str, method: &str, expected: &str) {

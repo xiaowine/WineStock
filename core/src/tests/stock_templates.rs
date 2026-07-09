@@ -12,7 +12,7 @@ use crate::{
         ItemCreateRequest, TemplateCopyRequest, TemplateCreateRequest, TemplateFieldDef,
         TemplateFieldType, TemplateResponse, TemplateUpdateRequest,
     },
-    test_support::{json_body, login_request, seeded_app, text_body},
+    test_support::{error_code, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
@@ -54,7 +54,7 @@ async fn template_crud_copy_and_delete_follow_business_rules() {
     )
     .await;
     assert_eq!(duplicate.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(duplicate).await, "template_name_taken");
+    assert_eq!(error_code(duplicate).await, "template_name_taken");
 
     let listed =
         authorized_empty_request(&app, "GET", "/api/templates", &login.body.access_token).await;
@@ -132,7 +132,7 @@ async fn template_crud_copy_and_delete_follow_business_rules() {
     )
     .await;
     assert_eq!(delete_in_use.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(delete_in_use).await, "template_in_use");
+    assert_eq!(error_code(delete_in_use).await, "template_in_use");
 
     let deleted = authorized_empty_request(
         &app,

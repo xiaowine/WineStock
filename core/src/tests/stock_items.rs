@@ -14,7 +14,7 @@ use crate::{
         TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
     test_support::{
-        json_body, json_request, login_request, seed_stock_location, seeded_app, text_body,
+        error_code, json_body, json_request, login_request, seed_stock_location, seeded_app,
     },
 };
 
@@ -75,7 +75,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     )
     .await;
     assert_eq!(duplicate.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(duplicate).await, "sku_taken");
+    assert_eq!(error_code(duplicate).await, "sku_taken");
 
     let listed = authorized_empty_request(
         &app,
@@ -250,7 +250,23 @@ async fn item_validation_and_authorization_fail_before_write() {
     )
     .await;
     assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(invalid).await, "invalid_request");
+    assert_eq!(error_code(invalid).await, "invalid_request");
+
+    let invalid_path = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items/not-number",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(invalid_path.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(invalid_path).await, "invalid_request");
+
+    let invalid_query =
+        authorized_empty_request(&app, "GET", "/api/items?page=abc", &login.body.access_token)
+            .await;
+    assert_eq!(invalid_query.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(invalid_query).await, "invalid_request");
 
     let forbidden_token =
         seed_user_with_permissions_and_login(&app, "viewer", &["stock.item.read"]).await;
@@ -375,7 +391,7 @@ async fn item_search_and_filter_values_use_current_inventory_template_values() {
     let empty_search =
         authorized_empty_request(&app, "GET", "/api/items?search=", &login.body.access_token).await;
     assert_eq!(empty_search.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(empty_search).await, "invalid_request");
+    assert_eq!(error_code(empty_search).await, "invalid_request");
 
     let missing_token = app
         .router

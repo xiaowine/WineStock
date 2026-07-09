@@ -4,11 +4,11 @@
 //! 它会调用 `security` 提供的密码、JWT 和令牌工具，但不负责路由级鉴权装配。
 
 use sea_orm::DatabaseConnection;
-use winestock_shared::{
-    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
-};
 
 use crate::{
+    auth::{
+        AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
+    },
     persistence::{
         entity::refresh_token,
         repository::{

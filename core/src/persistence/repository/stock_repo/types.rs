@@ -3,7 +3,7 @@
 //! 本模块属于 `core` 持久化层的 stock repository，集中定义仓储边界使用的数据结构。
 //! 它不执行数据库查询，也不拥有 HTTP DTO。
 
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 
 use crate::persistence::entity::{stock_template, stock_template_field};
 

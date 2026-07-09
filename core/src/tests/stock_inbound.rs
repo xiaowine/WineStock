@@ -12,7 +12,7 @@ use crate::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest, ItemResponse,
         TemplateCreateRequest, TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
-    test_support::{json_body, login_request, seed_stock_location, seeded_app, text_body},
+    test_support::{error_code, json_body, login_request, seed_stock_location, seeded_app},
 };
 
 #[tokio::test]
@@ -73,7 +73,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     )
     .await;
     assert_eq!(approve_again.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(approve_again).await, "order_not_pending");
+    assert_eq!(error_code(approve_again).await, "order_not_pending");
 }
 
 #[tokio::test]
@@ -161,7 +161,7 @@ async fn inbound_approval_rejects_location_removed_after_order_creation() {
     )
     .await;
     assert_eq!(approval.status(), StatusCode::NOT_FOUND);
-    assert_eq!(text_body(approval).await, "location_not_found");
+    assert_eq!(error_code(approval).await, "location_not_found");
     assert_eq!(table_count(&app, "stock_batches").await, 0);
 }
 
@@ -339,7 +339,7 @@ async fn inbound_search_and_filter_values_use_history_scope() {
     )
     .await;
     assert_eq!(empty_search.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(empty_search).await, "invalid_request");
+    assert_eq!(error_code(empty_search).await, "invalid_request");
 
     let missing_token = app
         .router

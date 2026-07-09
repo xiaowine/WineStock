@@ -5,9 +5,9 @@
 
 use sea_orm::TransactionTrait;
 use serde_json::json;
-use winestock_shared::AuthUserResponse;
 
 use crate::{
+    auth::AuthUserResponse,
     persistence::repository::{AuditRepository, RbacRepository, RecordAuditEvent, UserRepository},
     security::{create_password_hash, verify_password, AuthApiError, CurrentUser},
     state::CoreState,

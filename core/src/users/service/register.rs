@@ -7,9 +7,9 @@ use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, Statement, TransactionTrait,
 };
 use serde_json::json;
-use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
 use crate::{
+    auth::{AuthRegisterRequest, AuthUserResponse},
     persistence::{
         entity::user,
         repository::{

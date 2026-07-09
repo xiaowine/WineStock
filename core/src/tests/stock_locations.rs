@@ -17,7 +17,7 @@ use crate::{
         },
         service::PaginatedResponse,
     },
-    test_support::{json_body, login_request, seeded_app, text_body},
+    test_support::{error_code, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
@@ -60,7 +60,7 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
     .await;
     assert_eq!(duplicate_child.status(), StatusCode::CONFLICT);
     assert_eq!(
-        text_body(duplicate_child).await,
+        error_code(duplicate_child).await,
         "location_group_name_taken"
     );
 
@@ -77,7 +77,7 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
     )
     .await;
     assert_eq!(cycle.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(cycle).await, "location_group_cycle");
+    assert_eq!(error_code(cycle).await, "location_group_cycle");
 
     let delete_root = authorized_empty_request(
         &app,
@@ -87,7 +87,7 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
     )
     .await;
     assert_eq!(delete_root.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(delete_root).await, "location_group_in_use");
+    assert_eq!(error_code(delete_root).await, "location_group_in_use");
 }
 
 #[tokio::test]
@@ -147,7 +147,7 @@ async fn locations_can_be_created_moved_and_protected_by_current_stock() {
     )
     .await;
     assert_eq!(delete_busy_location.status(), StatusCode::CONFLICT);
-    assert_eq!(text_body(delete_busy_location).await, "location_in_use");
+    assert_eq!(error_code(delete_busy_location).await, "location_in_use");
 
     let delete_empty_location = authorized_empty_request(
         &app,

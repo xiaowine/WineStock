@@ -3,8 +3,8 @@
 //! 本模块属于 `stock` 业务服务层，负责跨库存用例复用的文本、URL、数值、ID 和 JSON 解析规则。
 //! 它不访问数据库，也不直接构造 HTTP 响应。
 
+use crate::validation::validate_not_blank;
 use serde_json::Value;
-use winestock_shared::validation::validate_not_blank;
 
 use super::StockApiError;
 

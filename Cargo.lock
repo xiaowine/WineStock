@@ -2734,7 +2734,6 @@ dependencies = [
  "garde",
  "serde",
  "serde_json",
- "utoipa",
 ]
 
 [[package]]

@@ -5,9 +5,11 @@ use axum::{
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
-use winestock_shared::AuthUserResponse;
 
-use crate::test_support::{json_body, login_request, seeded_app};
+use crate::{
+    auth::AuthUserResponse,
+    test_support::{json_body, login_request, seeded_app},
+};
 
 #[tokio::test]
 async fn me_requires_token_and_returns_latest_user_snapshot() {

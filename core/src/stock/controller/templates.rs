@@ -3,15 +3,19 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责模板相关请求、响应和 Axum 入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use axum::{
-    extract::{Extension, Path, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
+use crate::{
+    http::{ValidatedJson, ValidatedPath},
+    security::CurrentUser,
+    state::CoreState,
+};
 
 use crate::stock::service::{self, StockApiError};
 /// 模板字段类型。
@@ -227,10 +231,10 @@ pub(crate) struct TemplateResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Template created", body = TemplateResponse),
-        (status = 400, description = "Invalid template request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Template manage permission required", body = String),
-        (status = 409, description = "Template name already exists", body = String)
+        (status = 400, description = "Invalid template request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Template manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Template name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建库存模板。
@@ -252,8 +256,8 @@ pub(crate) async fn create_template(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Template list", body = Vec<TemplateResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Template read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Template read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询库存模板列表。
@@ -271,15 +275,15 @@ pub(crate) async fn list_templates(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Template detail", body = TemplateResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Template read permission required", body = String),
-        (status = 404, description = "Template not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Template read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Template not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询单个库存模板。
 pub(crate) async fn get_template(
     State(state): State<CoreState>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<TemplateResponse>, StockApiError> {
     Ok(Json(service::get_template(&state, id).await?))
 }
@@ -293,18 +297,18 @@ pub(crate) async fn get_template(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Template updated", body = TemplateResponse),
-        (status = 400, description = "Invalid template request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Template manage permission required", body = String),
-        (status = 404, description = "Template not found", body = String),
-        (status = 409, description = "Template name already exists", body = String)
+        (status = 400, description = "Invalid template request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Template manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Template not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Template name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 更新库存模板。
 pub(crate) async fn update_template(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<TemplateUpdateRequest>,
 ) -> Result<Json<TemplateResponse>, StockApiError> {
     Ok(Json(
@@ -320,17 +324,17 @@ pub(crate) async fn update_template(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Template deleted"),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Template manage permission required", body = String),
-        (status = 404, description = "Template not found", body = String),
-        (status = 409, description = "Template is referenced by active items", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Template manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Template not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Template is referenced by active items", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 软删除库存模板。
 pub(crate) async fn delete_template(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<StatusCode, StockApiError> {
     service::delete_template(&state, &current_user, id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -345,18 +349,18 @@ pub(crate) async fn delete_template(
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Template copied", body = TemplateResponse),
-        (status = 400, description = "Invalid template request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Template manage permission required", body = String),
-        (status = 404, description = "Template not found", body = String),
-        (status = 409, description = "Template name already exists", body = String)
+        (status = 400, description = "Invalid template request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Template manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Template not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Template name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 复制库存模板。
 pub(crate) async fn copy_template(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<TemplateCopyRequest>,
 ) -> Result<(StatusCode, Json<TemplateResponse>), StockApiError> {
     Ok((

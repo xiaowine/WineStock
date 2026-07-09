@@ -5,7 +5,7 @@
 ## `CreateRefreshToken`
 
 该实体由服务端鉴权业务构造，不作为 HTTP 请求体直接接收。HTTP refresh/logout 请求只接收 refresh token 明文，限制见
-`shared-src-auth.md`。
+`core-src-auth-contract.md`。
 
 校验入口：`RefreshTokenRepository::create()` 和 `rotate()` 写库前调用 `validate_repository_input()`。
 

@@ -9,6 +9,8 @@ use axum::{
 };
 use sea_orm::DbErr;
 
+use crate::http::api_error_response;
+
 /// 库存业务 API 错误。
 #[derive(Debug)]
 pub(crate) enum StockApiError {
@@ -76,32 +78,81 @@ pub(crate) enum StockApiError {
 impl IntoResponse for StockApiError {
     // 将库存业务错误固定映射为 HTTP 状态码和稳定错误代码，避免 controller 分散处理。
     fn into_response(self) -> Response {
-        match self {
-            Self::InvalidRequest => (StatusCode::BAD_REQUEST, "invalid_request"),
-            Self::ItemNotFound => (StatusCode::NOT_FOUND, "item_not_found"),
-            Self::TemplateNotFound => (StatusCode::NOT_FOUND, "template_not_found"),
-            Self::InboundOrderNotFound => (StatusCode::NOT_FOUND, "inbound_order_not_found"),
-            Self::OutboundOrderNotFound => (StatusCode::NOT_FOUND, "outbound_order_not_found"),
-            Self::SkuTaken => (StatusCode::CONFLICT, "sku_taken"),
-            Self::TemplateNameTaken => (StatusCode::CONFLICT, "template_name_taken"),
-            Self::TemplateInUse => (StatusCode::CONFLICT, "template_in_use"),
-            Self::OrderNotPending => (StatusCode::CONFLICT, "order_not_pending"),
-            Self::InsufficientStock => (StatusCode::CONFLICT, "insufficient_stock"),
-            Self::SubstituteNotFound => (StatusCode::NOT_FOUND, "substitute_not_found"),
-            Self::LocationGroupNotFound => (StatusCode::NOT_FOUND, "location_group_not_found"),
-            Self::LocationNotFound => (StatusCode::NOT_FOUND, "location_not_found"),
-            Self::LocationGroupNameTaken => (StatusCode::CONFLICT, "location_group_name_taken"),
-            Self::LocationCodeTaken => (StatusCode::CONFLICT, "location_code_taken"),
-            Self::LocationGroupInUse => (StatusCode::CONFLICT, "location_group_in_use"),
-            Self::LocationInUse => (StatusCode::CONFLICT, "location_in_use"),
-            Self::LocationGroupCycle => (StatusCode::BAD_REQUEST, "location_group_cycle"),
-            Self::StockBatchNotFound => (StatusCode::NOT_FOUND, "stock_batch_not_found"),
+        let (status, code, message) = match self {
+            Self::InvalidRequest => (StatusCode::BAD_REQUEST, "invalid_request", "请求参数无效"),
+            Self::ItemNotFound => (StatusCode::NOT_FOUND, "item_not_found", "物品不存在"),
+            Self::TemplateNotFound => (StatusCode::NOT_FOUND, "template_not_found", "模板不存在"),
+            Self::InboundOrderNotFound => (
+                StatusCode::NOT_FOUND,
+                "inbound_order_not_found",
+                "入库单不存在",
+            ),
+            Self::OutboundOrderNotFound => (
+                StatusCode::NOT_FOUND,
+                "outbound_order_not_found",
+                "出库单不存在",
+            ),
+            Self::SkuTaken => (StatusCode::CONFLICT, "sku_taken", "SKU 已存在"),
+            Self::TemplateNameTaken => (
+                StatusCode::CONFLICT,
+                "template_name_taken",
+                "模板名称已存在",
+            ),
+            Self::TemplateInUse => (StatusCode::CONFLICT, "template_in_use", "模板正在使用中"),
+            Self::OrderNotPending => (
+                StatusCode::CONFLICT,
+                "order_not_pending",
+                "单据不是待审批状态",
+            ),
+            Self::InsufficientStock => (StatusCode::CONFLICT, "insufficient_stock", "库存不足"),
+            Self::SubstituteNotFound => (
+                StatusCode::NOT_FOUND,
+                "substitute_not_found",
+                "替代料关系不存在",
+            ),
+            Self::LocationGroupNotFound => (
+                StatusCode::NOT_FOUND,
+                "location_group_not_found",
+                "库位分组不存在",
+            ),
+            Self::LocationNotFound => (StatusCode::NOT_FOUND, "location_not_found", "库位不存在"),
+            Self::LocationGroupNameTaken => (
+                StatusCode::CONFLICT,
+                "location_group_name_taken",
+                "库位分组名称已存在",
+            ),
+            Self::LocationCodeTaken => (
+                StatusCode::CONFLICT,
+                "location_code_taken",
+                "库位编码已存在",
+            ),
+            Self::LocationGroupInUse => (
+                StatusCode::CONFLICT,
+                "location_group_in_use",
+                "库位分组正在使用中",
+            ),
+            Self::LocationInUse => (StatusCode::CONFLICT, "location_in_use", "库位正在使用中"),
+            Self::LocationGroupCycle => (
+                StatusCode::BAD_REQUEST,
+                "location_group_cycle",
+                "库位分组不能移动到自己的子级",
+            ),
+            Self::StockBatchNotFound => (
+                StatusCode::NOT_FOUND,
+                "stock_batch_not_found",
+                "库存批次不存在",
+            ),
             Self::Database(source) => {
                 let _ = source;
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal_stock_error")
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal_stock_error",
+                    "库存服务内部错误",
+                )
             }
-        }
-        .into_response()
+        };
+
+        api_error_response(status, code, message)
     }
 }
 

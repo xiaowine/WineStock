@@ -3,15 +3,19 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责出库单创建、查询、搜索、筛选值、审批和拒绝入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use axum::{
-    extract::{Extension, Path, Query, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
+use crate::{
+    http::{ValidatedJson, ValidatedPath, ValidatedQuery},
+    security::CurrentUser,
+    state::CoreState,
+};
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 
@@ -176,10 +180,10 @@ pub(crate) struct OutboundResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Outbound order created", body = OutboundResponse),
-        (status = 400, description = "Invalid outbound request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Outbound create permission required", body = String),
-        (status = 404, description = "Item not found", body = String)
+        (status = 400, description = "Invalid outbound request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Outbound create permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建 pending 出库单；创建阶段不扣减库存。
@@ -202,14 +206,14 @@ pub(crate) async fn create_outbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Outbound order list", body = PaginatedResponse<OutboundResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Outbound read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Outbound read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 分页查询出库单。
 pub(crate) async fn list_outbound(
     State(state): State<CoreState>,
-    Query(query): Query<OutboundListQuery>,
+    ValidatedQuery(query): ValidatedQuery<OutboundListQuery>,
 ) -> Result<Json<PaginatedResponse<OutboundResponse>>, StockApiError> {
     Ok(Json(service::list_outbound(&state, query).await?))
 }
@@ -221,8 +225,8 @@ pub(crate) async fn list_outbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Outbound history filter values", body = super::FilterValuesResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Outbound read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Outbound read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询出库历史视角下的筛选值。
@@ -240,15 +244,15 @@ pub(crate) async fn outbound_filter_values(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Outbound order detail", body = OutboundResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Outbound read permission required", body = String),
-        (status = 404, description = "Outbound order not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Outbound read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Outbound order not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询出库单详情。
 pub(crate) async fn get_outbound(
     State(state): State<CoreState>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<OutboundResponse>, StockApiError> {
     Ok(Json(service::get_outbound(&state, id).await?))
 }
@@ -261,17 +265,17 @@ pub(crate) async fn get_outbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Outbound order approved", body = OutboundResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Outbound approve permission required", body = String),
-        (status = 404, description = "Outbound order not found", body = String),
-        (status = 409, description = "Order is not pending or stock is insufficient", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Outbound approve permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Outbound order not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Order is not pending or stock is insufficient", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 审批 pending 出库单；审批事务会按指定批次或 FIFO 扣减库存。
 pub(crate) async fn approve_outbound(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<OutboundResponse>, StockApiError> {
     Ok(Json(
         service::approve_outbound(&state, &current_user, id).await?,
@@ -286,17 +290,17 @@ pub(crate) async fn approve_outbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Outbound order rejected", body = OutboundResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Outbound approve permission required", body = String),
-        (status = 404, description = "Outbound order not found", body = String),
-        (status = 409, description = "Outbound order is not pending", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Outbound approve permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Outbound order not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Outbound order is not pending", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 拒绝 pending 出库单；拒绝不扣减库存。
 pub(crate) async fn reject_outbound(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<OutboundResponse>, StockApiError> {
     Ok(Json(
         service::reject_outbound(&state, &current_user, id).await?,

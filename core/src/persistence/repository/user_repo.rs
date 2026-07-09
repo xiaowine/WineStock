@@ -3,11 +3,11 @@
 //! 本模块属于 `core` 的持久化层，封装用户创建、查询、状态更新、密码哈希和强制改密标记更新。
 //! 权限定义和分配关系属于 RBAC repository，不应混入账号仓储。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr,
     EntityTrait, QueryFilter, Set, Statement, Value,
 };
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
 use crate::persistence::entity::user;
 

@@ -4,12 +4,15 @@
 //! 它不实现具体业务规则，具体 endpoint 由各领域模块自行提供。
 
 mod docs;
+mod error_response;
+mod health;
 mod router;
 mod validation;
 
 pub use docs::{OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
+pub(crate) use error_response::{api_error_response, ApiErrorResponse};
 pub use router::{build_router, build_router_with_local_service};
-pub(crate) use validation::ValidatedJson;
+pub(crate) use validation::{ValidatedJson, ValidatedPath, ValidatedQuery};
 #[cfg(test)]
 #[path = "../tests/http_openapi.rs"]
 mod http_openapi_tests;

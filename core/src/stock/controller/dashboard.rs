@@ -3,16 +3,12 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责库存总览和趋势查询入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use crate::validation::validate_not_blank;
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::validate_not_blank;
-
-use crate::state::CoreState;
 
 use crate::stock::service::{self, StockApiError};
+use crate::{http::ValidatedQuery, state::CoreState};
 /// 呆滞料看板条目。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
 pub(crate) struct SlowMovingItem {
@@ -103,8 +99,8 @@ pub(crate) struct TrendsResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Dashboard overview", body = DashboardOverviewResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Dashboard read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Dashboard read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询库存看板总览。
@@ -122,14 +118,14 @@ pub(crate) async fn dashboard_overview(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Dashboard trends", body = TrendsResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Dashboard read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Dashboard read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询库存看板出入库趋势。
 pub(crate) async fn dashboard_trends(
     State(state): State<CoreState>,
-    Query(query): Query<TrendsQuery>,
+    ValidatedQuery(query): ValidatedQuery<TrendsQuery>,
 ) -> Result<Json<TrendsResponse>, StockApiError> {
     Ok(Json(service::dashboard_trends(&state, query).await?))
 }

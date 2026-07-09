@@ -3,17 +3,13 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责审计事件列表查询入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
-
-use crate::state::CoreState;
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
+use crate::{http::ValidatedQuery, state::CoreState};
 /// 事件日志分页查询参数。
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, utoipa::IntoParams)]
 pub(crate) struct EventListQuery {
@@ -86,14 +82,14 @@ pub(crate) struct EventLogResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Event log list", body = PaginatedResponse<EventLogResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Audit read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Audit read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 分页查询事件日志。
 pub(crate) async fn list_events(
     State(state): State<CoreState>,
-    Query(query): Query<EventListQuery>,
+    ValidatedQuery(query): ValidatedQuery<EventListQuery>,
 ) -> Result<Json<PaginatedResponse<EventLogResponse>>, StockApiError> {
     Ok(Json(service::list_events(&state, query).await?))
 }

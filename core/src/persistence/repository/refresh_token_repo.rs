@@ -3,11 +3,11 @@
 //! 本模块属于 `core` 的持久化层，封装 refresh token 的创建、查询、吊销和轮换事务。
 //! 明文令牌不进入本模块，调用方只能传入哈希和设备元数据。
 
+use crate::validation::validate_not_blank;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction, DbErr, EntityTrait,
     QueryFilter, Set, Statement, TransactionTrait,
 };
-use winestock_shared::validation::validate_not_blank;
 
 use crate::persistence::entity::refresh_token;
 

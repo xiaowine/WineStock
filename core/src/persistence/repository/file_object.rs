@@ -3,8 +3,8 @@
 //! 本模块属于 core 持久化层，只管理 SQLite 中的文件元数据。
 //! 文件内容读写属于 `StorageRuntime.files_dir` 对应的文件系统目录，不在 repository 中处理。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set};
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
 use crate::persistence::entity::file_object;
 

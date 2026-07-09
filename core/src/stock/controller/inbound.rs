@@ -3,16 +3,20 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责入库单创建、查询、筛选值、审批和拒绝入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use axum::{
-    extract::{Extension, Path, Query, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
+use crate::{
+    http::{ValidatedJson, ValidatedPath, ValidatedQuery},
+    security::CurrentUser,
+    state::CoreState,
+};
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 
@@ -201,10 +205,10 @@ pub(crate) struct InboundResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Inbound order created", body = InboundResponse),
-        (status = 400, description = "Invalid inbound request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Inbound create permission required", body = String),
-        (status = 404, description = "Item not found", body = String)
+        (status = 400, description = "Invalid inbound request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound create permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建 pending 入库单；创建阶段不写库存批次或流水。
@@ -227,14 +231,14 @@ pub(crate) async fn create_inbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Inbound order list", body = PaginatedResponse<InboundResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Inbound read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 分页查询入库单。
 pub(crate) async fn list_inbound(
     State(state): State<CoreState>,
-    Query(query): Query<InboundListQuery>,
+    ValidatedQuery(query): ValidatedQuery<InboundListQuery>,
 ) -> Result<Json<PaginatedResponse<InboundResponse>>, StockApiError> {
     Ok(Json(service::list_inbound(&state, query).await?))
 }
@@ -246,8 +250,8 @@ pub(crate) async fn list_inbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Inbound history filter values", body = super::FilterValuesResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Inbound read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询入库历史视角下的筛选值。
@@ -265,15 +269,15 @@ pub(crate) async fn inbound_filter_values(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Inbound order detail", body = InboundResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Inbound read permission required", body = String),
-        (status = 404, description = "Inbound order not found", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Inbound order not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询入库单详情。
 pub(crate) async fn get_inbound(
     State(state): State<CoreState>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<InboundResponse>, StockApiError> {
     Ok(Json(service::get_inbound(&state, id).await?))
 }
@@ -286,18 +290,18 @@ pub(crate) async fn get_inbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Inbound order approved", body = InboundResponse),
-        (status = 400, description = "Invalid inbound attributes", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Inbound approve permission required", body = String),
-        (status = 404, description = "Inbound order not found", body = String),
-        (status = 409, description = "Inbound order is not pending", body = String)
+        (status = 400, description = "Invalid inbound attributes", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound approve permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Inbound order not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Inbound order is not pending", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 审批 pending 入库单；审批事务会写批次、库存流水和审计事件。
 pub(crate) async fn approve_inbound(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<InboundResponse>, StockApiError> {
     Ok(Json(
         service::approve_inbound(&state, &current_user, id).await?,
@@ -312,17 +316,17 @@ pub(crate) async fn approve_inbound(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Inbound order rejected", body = InboundResponse),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Inbound approve permission required", body = String),
-        (status = 404, description = "Inbound order not found", body = String),
-        (status = 409, description = "Inbound order is not pending", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound approve permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Inbound order not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Inbound order is not pending", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 拒绝 pending 入库单；拒绝不改变库存。
 pub(crate) async fn reject_inbound(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<InboundResponse>, StockApiError> {
     Ok(Json(
         service::reject_inbound(&state, &current_user, id).await?,

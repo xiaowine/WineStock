@@ -3,15 +3,19 @@
 //! 本模块属于 `stock` HTTP 控制器层，负责库位树、库位主数据和整批次移库入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 use axum::{
-    extract::{Extension, Path, Query, State},
+    extract::{Extension, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
-use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
+use crate::{
+    http::{ValidatedJson, ValidatedPath, ValidatedQuery},
+    security::CurrentUser,
+    state::CoreState,
+};
 
 use crate::stock::service::{self, StockApiError};
 
@@ -281,8 +285,8 @@ pub(crate) struct LocationTransferResponse {
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Location group tree", body = serde_json::Value),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询库位分组树。
@@ -300,11 +304,11 @@ pub(crate) async fn list_location_group_tree(
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Location group created", body = LocationGroupResponse),
-        (status = 400, description = "Invalid location group request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Parent location group not found", body = String),
-        (status = 409, description = "Location group name already exists", body = String)
+        (status = 400, description = "Invalid location group request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Parent location group not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Location group name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建库位分组。
@@ -328,18 +332,18 @@ pub(crate) async fn create_location_group(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Location group updated", body = LocationGroupResponse),
-        (status = 400, description = "Invalid location group request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Location group not found", body = String),
-        (status = 409, description = "Location group name already exists", body = String)
+        (status = 400, description = "Invalid location group request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Location group not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Location group name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 更新库位分组。
 pub(crate) async fn update_location_group(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<LocationGroupUpdateRequest>,
 ) -> Result<Json<LocationGroupResponse>, StockApiError> {
     Ok(Json(
@@ -355,17 +359,17 @@ pub(crate) async fn update_location_group(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Location group deleted"),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Location group not found", body = String),
-        (status = 409, description = "Location group is in use", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Location group not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Location group is in use", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 删除库位分组。
 pub(crate) async fn delete_location_group(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<StatusCode, StockApiError> {
     service::delete_location_group(&state, &current_user, id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -379,14 +383,14 @@ pub(crate) async fn delete_location_group(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Location list", body = Vec<LocationResponse>),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location read permission required", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 查询库位列表。
 pub(crate) async fn list_locations(
     State(state): State<CoreState>,
-    Query(query): Query<LocationListQuery>,
+    ValidatedQuery(query): ValidatedQuery<LocationListQuery>,
 ) -> Result<Json<Vec<LocationResponse>>, StockApiError> {
     Ok(Json(service::list_locations(&state, query).await?))
 }
@@ -399,11 +403,11 @@ pub(crate) async fn list_locations(
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Location created", body = LocationResponse),
-        (status = 400, description = "Invalid location request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Location group not found", body = String),
-        (status = 409, description = "Location code already exists", body = String)
+        (status = 400, description = "Invalid location request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Location group not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Location code already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建库位。
@@ -427,18 +431,18 @@ pub(crate) async fn create_location(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Location updated", body = LocationResponse),
-        (status = 400, description = "Invalid location request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Location not found", body = String),
-        (status = 409, description = "Location code already exists", body = String)
+        (status = 400, description = "Invalid location request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Location not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Location code already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 更新库位。
 pub(crate) async fn update_location(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<LocationUpdateRequest>,
 ) -> Result<Json<LocationResponse>, StockApiError> {
     Ok(Json(
@@ -454,17 +458,17 @@ pub(crate) async fn update_location(
     security(("bearerAuth" = [])),
     responses(
         (status = 204, description = "Location deleted"),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Location not found", body = String),
-        (status = 409, description = "Location is in use", body = String)
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Location not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Location is in use", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 删除库位。
 pub(crate) async fn delete_location(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
-    Path(id): Path<i64>,
+    ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<StatusCode, StockApiError> {
     service::delete_location(&state, &current_user, id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -478,10 +482,10 @@ pub(crate) async fn delete_location(
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Location transfer created", body = LocationTransferResponse),
-        (status = 400, description = "Invalid location transfer request", body = String),
-        (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Location manage permission required", body = String),
-        (status = 404, description = "Batch or location not found", body = String)
+        (status = 400, description = "Invalid location transfer request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Batch or location not found", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建整批次移库记录并移动批次库位。

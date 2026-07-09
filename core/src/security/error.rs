@@ -9,6 +9,8 @@ use axum::{
 };
 use sea_orm::DbErr;
 
+use crate::http::api_error_response;
+
 /// 鉴权相关 API 的错误响应。
 #[derive(Debug)]
 pub enum AuthApiError {
@@ -60,25 +62,53 @@ pub enum AuthApiError {
 
 impl IntoResponse for AuthApiError {
     fn into_response(self) -> Response {
-        match self {
-            Self::InvalidRequest => (StatusCode::BAD_REQUEST, "invalid_request"),
-            Self::InvalidRegisterRequest => (StatusCode::BAD_REQUEST, "invalid_register_request"),
-            Self::UsernameTaken => (StatusCode::CONFLICT, "username_taken"),
-            Self::UserNotFound => (StatusCode::NOT_FOUND, "user_not_found"),
-            Self::PermissionNotFound => (StatusCode::NOT_FOUND, "permission_not_found"),
-            Self::LastPermissionManagerRequired => {
-                (StatusCode::CONFLICT, "last_permission_manager_required")
+        // 对外固定 JSON 错误契约，内部异常只收敛为稳定错误码。
+        let (status, code, message) = match self {
+            Self::InvalidRequest => (StatusCode::BAD_REQUEST, "invalid_request", "请求参数无效"),
+            Self::InvalidRegisterRequest => (
+                StatusCode::BAD_REQUEST,
+                "invalid_register_request",
+                "注册请求无效",
+            ),
+            Self::UsernameTaken => (StatusCode::CONFLICT, "username_taken", "用户名已存在"),
+            Self::UserNotFound => (StatusCode::NOT_FOUND, "user_not_found", "用户不存在"),
+            Self::PermissionNotFound => {
+                (StatusCode::NOT_FOUND, "permission_not_found", "权限不存在")
             }
-            Self::InvalidCredentials => (StatusCode::UNAUTHORIZED, "invalid_credentials"),
-            Self::InvalidRefreshToken => (StatusCode::UNAUTHORIZED, "invalid_refresh_token"),
-            Self::InvalidAccessToken => (StatusCode::UNAUTHORIZED, "invalid_access_token"),
-            Self::PermissionDenied => (StatusCode::FORBIDDEN, "permission_denied"),
-            Self::PasswordChangeRequired => (StatusCode::FORBIDDEN, "password_change_required"),
-            Self::Database(_) | Self::Jwt(_) | Self::Random(_) | Self::Internal => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal_auth_error")
-            }
-        }
-        .into_response()
+            Self::LastPermissionManagerRequired => (
+                StatusCode::CONFLICT,
+                "last_permission_manager_required",
+                "至少需要保留一个可管理权限的启用用户",
+            ),
+            Self::InvalidCredentials => (
+                StatusCode::UNAUTHORIZED,
+                "invalid_credentials",
+                "用户名或密码错误",
+            ),
+            Self::InvalidRefreshToken => (
+                StatusCode::UNAUTHORIZED,
+                "invalid_refresh_token",
+                "刷新令牌无效",
+            ),
+            Self::InvalidAccessToken => (
+                StatusCode::UNAUTHORIZED,
+                "invalid_access_token",
+                "访问令牌无效",
+            ),
+            Self::PermissionDenied => (StatusCode::FORBIDDEN, "permission_denied", "没有操作权限"),
+            Self::PasswordChangeRequired => (
+                StatusCode::FORBIDDEN,
+                "password_change_required",
+                "需要先修改临时密码",
+            ),
+            Self::Database(_) | Self::Jwt(_) | Self::Random(_) | Self::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal_auth_error",
+                "鉴权服务内部错误",
+            ),
+        };
+
+        api_error_response(status, code, message)
     }
 }
 

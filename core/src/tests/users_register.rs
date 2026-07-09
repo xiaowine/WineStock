@@ -1,13 +1,13 @@
 //! users 模块注册相关测试。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
 use crate::{
+    auth::{AuthRegisterRequest, AuthUserResponse},
     persistence::repository::{RbacRepository, UserRepository},
     security::{AuthApiError, CurrentUser},
     test_support::{
-        empty_app, json_body, login_request, raw_register_request, seed_plain_user, text_body,
+        empty_app, error_code, json_body, login_request, raw_register_request, seed_plain_user,
     },
     users::REGISTER_USER_PERMISSION,
 };
@@ -245,7 +245,7 @@ async fn registration_rejects_duplicate_or_invalid_usernames() {
     )
     .await;
     assert_eq!(duplicate.status(), axum::http::StatusCode::CONFLICT);
-    assert_eq!(text_body(duplicate).await, "username_taken");
+    assert_eq!(error_code(duplicate).await, "username_taken");
 
     let empty_username = raw_register_request(
         &app,
@@ -255,7 +255,7 @@ async fn registration_rejects_duplicate_or_invalid_usernames() {
     )
     .await;
     assert_eq!(empty_username.status(), axum::http::StatusCode::BAD_REQUEST);
-    assert_eq!(text_body(empty_username).await, "invalid_request");
+    assert_eq!(error_code(empty_username).await, "invalid_request");
 }
 
 async fn user_id_by_username(app: &crate::test_support::TestApp, username: &str) -> i64 {

@@ -4,11 +4,13 @@
 //! 它不直接拼接数据库查询，也不自行维护令牌状态。
 
 use axum::{extract::State, http::StatusCode, Json};
-use winestock_shared::{
-    AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
-};
 
-use crate::{http::ValidatedJson, security::AuthApiError, state::CoreState};
+use crate::{
+    auth::{AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse},
+    http::ValidatedJson,
+    security::AuthApiError,
+    state::CoreState,
+};
 
 use super::service;
 
@@ -19,7 +21,7 @@ use super::service;
     request_body = AuthLoginRequest,
     responses(
         (status = 200, description = "Login succeeded", body = AuthTokenResponse),
-        (status = 401, description = "Invalid credentials", body = String)
+        (status = 401, description = "Invalid credentials", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 用户名密码登录，成功后返回 JWT access token 和 opaque refresh token。
@@ -37,7 +39,7 @@ pub(crate) async fn login(
     request_body = AuthRefreshRequest,
     responses(
         (status = 200, description = "Token refreshed", body = AuthTokenResponse),
-        (status = 401, description = "Invalid refresh token", body = String)
+        (status = 401, description = "Invalid refresh token", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 使用 refresh token 轮换并签发新的 access token。
@@ -55,7 +57,7 @@ pub(crate) async fn refresh(
     request_body = AuthLogoutRequest,
     responses(
         (status = 204, description = "Logged out"),
-        (status = 401, description = "Invalid refresh token", body = String)
+        (status = 401, description = "Invalid refresh token", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 吊销当前 refresh token；access token 自身仍按短 TTL 自然过期。

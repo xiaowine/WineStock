@@ -56,6 +56,7 @@ Current implemented surface:
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
+- `GET /api/health`
 - `GET /api/auth/me`
 - `POST /api/auth/me/password`
 - `GET /api/users`
@@ -142,6 +143,7 @@ The shared Rust library defines runtime mode, bind behavior, port selection, rem
 
 All platforms should use the same logical config model.
 Platform shells may store config differently, but they should map to the same keys and meanings.
+HTTP API request/response DTOs belong to the `core axum library`, not to `shared`.
 
 See `docs/runtime-networking.md` for the network model.
 See `docs/project-structure.md` for concrete project naming and directory layout.
@@ -200,7 +202,7 @@ The root Cargo workspace currently contains:
 - `shared` as package `winestock-shared`, crate `winestock_shared`
 
 `core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, Garde, SeaORM/SQLx SQLite bootstrap dependencies, and `shared`.
-`shared` contains the platform-neutral JSON startup config model.
+`shared` contains the platform-neutral JSON startup config model, config parsing errors, and primitive text validation helpers.
 
 Desktop and Android platform shells are not implemented yet.
 

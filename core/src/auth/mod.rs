@@ -8,11 +8,16 @@ use axum::{routing::post, Router};
 use crate::state::CoreState;
 
 mod bootstrap;
+mod contract;
 pub(crate) mod controller;
 pub(crate) mod service;
 
 pub use bootstrap::{
     AuthBootstrap, AuthBootstrapError, AuthSettings, AuthSigningKey, SigningKeyStatus,
+};
+pub use contract::{
+    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthTokenResponse, AuthUserResponse,
 };
 
 pub(crate) use bootstrap::bootstrap_auth;

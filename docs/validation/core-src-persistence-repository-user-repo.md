@@ -4,7 +4,7 @@
 
 ## `CreateUser`
 
-该实体由服务端业务层构造，不作为 HTTP 请求体直接接收。HTTP 注册输入限制见 `shared-src-auth.md` 中的 `AuthRegisterRequest`。
+该实体由服务端业务层构造，不作为 HTTP 请求体直接接收。HTTP 注册输入限制见 `core-src-auth-contract.md` 中的 `AuthRegisterRequest`。
 
 校验入口：`UserRepository::create_user()` 写库前调用 `validate_repository_input()`。
 

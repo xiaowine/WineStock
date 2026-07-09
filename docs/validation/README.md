@@ -2,7 +2,7 @@
 
 本目录记录当前实体的字段限制、校验入口和约束来源。
 
-文件按实体所在源码文件命名，路径分隔符用 `-` 展开。例如 `shared/src/auth.rs` 对应 `shared-src-auth.md`。
+文件按实体所在源码文件命名，路径分隔符用 `-` 展开。例如 `core/src/auth/contract.rs` 对应 `core-src-auth-contract.md`。
 
 ## 约束来源
 
