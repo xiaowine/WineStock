@@ -3,13 +3,14 @@
 use axum::http::StatusCode;
 use garde::Validate;
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+use tower::ServiceExt;
 
 use crate::{
     auth::{
         AuthClientKind, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest, AuthUserResponse,
     },
     security::{hash_refresh_token, CURRENT_REFRESH_TOKEN_VERSION},
-    test_support::{error_code, login_request, raw_login_request, seeded_app},
+    test_support::{error_code, json_request, login_request, raw_login_request, seeded_app},
 };
 
 #[test]
@@ -36,7 +37,7 @@ fn auth_request_validation_rejects_blank_or_oversized_fields() {
 }
 
 #[test]
-fn auth_login_client_kind_only_accepts_formal_platforms() {
+fn auth_login_client_kind_accepts_formal_platforms() {
     let json = r#"
     {
       "username": "admin",
@@ -47,7 +48,8 @@ fn auth_login_client_kind_only_accepts_formal_platforms() {
     }
     "#;
 
-    assert!(serde_json::from_str::<AuthLoginRequest>(json).is_err());
+    let request = serde_json::from_str::<AuthLoginRequest>(json).expect("web should be accepted");
+    assert_eq!(request.client_kind, AuthClientKind::Web);
 }
 
 #[tokio::test]
@@ -94,6 +96,51 @@ async fn login_returns_tokens_and_current_permissions() {
             password_change_required: false,
         }
     );
+}
+
+#[tokio::test]
+async fn login_accepts_web_client_kind_and_stores_it() {
+    let app = seeded_app().await;
+    let response = app
+        .router
+        .clone()
+        .oneshot(json_request(
+            "POST",
+            "/api/auth/login",
+            &AuthLoginRequest {
+                username: "admin".to_owned(),
+                password: "password".to_owned(),
+                device_name: "browser".to_owned(),
+                client_kind: AuthClientKind::Web,
+                version: "0.1.0-web".to_owned(),
+            },
+        ))
+        .await
+        .expect("request should complete");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let row = app
+        .state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT client_kind, app_version
+            FROM auth_refresh_tokens
+            WHERE device_name = ?
+            "#,
+            ["browser".into()],
+        ))
+        .await
+        .expect("refresh token query should succeed")
+        .expect("refresh token row should exist");
+    let client_kind: String = row.try_get("", "client_kind").expect("kind should decode");
+    let app_version: String = row
+        .try_get("", "app_version")
+        .expect("app version should decode");
+
+    assert_eq!(client_kind, "web");
+    assert_eq!(app_version, "0.1.0-web");
 }
 
 #[tokio::test]

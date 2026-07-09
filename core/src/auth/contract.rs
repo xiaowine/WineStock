@@ -16,6 +16,9 @@ pub enum AuthClientKind {
 
     /// Android 端客户端。
     Android,
+
+    /// Web 前端客户端，用于浏览器调试或后续正式 Web 外壳。
+    Web,
 }
 
 impl AuthClientKind {
@@ -24,6 +27,7 @@ impl AuthClientKind {
         match self {
             Self::Desktop => "desktop",
             Self::Android => "android",
+            Self::Web => "web",
         }
     }
 }
@@ -46,7 +50,7 @@ pub struct AuthLoginRequest {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub device_name: String,
 
-    /// 客户端类型，仅允许桌面端或 Android 端。
+    /// 客户端类型，仅允许桌面端、Android 端或 Web 前端。
     #[garde(skip)]
     pub client_kind: AuthClientKind,
 

@@ -10,7 +10,7 @@
 | `user_id`              | 数据库 `NOT NULL` 外键，删除用户时级联删除                |
 | `token_hash`           | 数据库 `NOT NULL UNIQUE`；明文 refresh token 不入库 |
 | `device_name`          | 数据库 `NOT NULL`；登录请求要求 trim 后非空、最大 64 字节      |
-| `client_kind`          | 数据库 `NOT NULL`；只允许 `desktop` 或 `android`           |
+| `client_kind`          | 数据库 `NOT NULL`；只允许 `desktop`、`android` 或 `web`        |
 | `app_version`          | 数据库 `NOT NULL`；登录请求要求 trim 后非空、最大 64 字节      |
 | `refresh_token_version` | 数据库 `NOT NULL`；由服务端当前 refresh token 生成规则决定     |
 | `created_at`           | 数据库 UTC 文本时间                               |

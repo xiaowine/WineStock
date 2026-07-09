@@ -153,6 +153,7 @@ core   -> desktop/android/frontend platform assets
   - 会话认证业务模块，承载登录、refresh、logout 和 auth bootstrap。
   - `mod.rs` 负责 `/api/auth/login`、`/api/auth/refresh` 和 `/api/auth/logout` 的路由注册。
   - `contract.rs` 定义鉴权 HTTP DTO：`AuthRegisterRequest`、`AuthLoginRequest`、`AuthRefreshRequest`、`AuthLogoutRequest`、`AuthUserResponse`、`AuthTokenResponse` 和 `AuthClientKind`；这些类型属于 core API 契约，不放在 `shared`。
+  - `AuthClientKind` 允许 `desktop`、`android` 和 `web`，用于 refresh token 设备来源记录。
   - `controller.rs` 提供对应 HTTP 入口和 utoipa 标注。
   - `service.rs` 处理登录、refresh token 轮换、旧 token 复用检测和登出吊销逻辑。
   - `bootstrap.rs` 定义鉴权启动设置、签名密钥状态和鉴权启动结果；通过 `AuthRepository` 写入默认鉴权设置但不覆盖数据库管理的已有值，并创建或读取当前 active 访问令牌签名密钥。
@@ -222,7 +223,7 @@ core   -> desktop/android/frontend platform assets
   - 定义 SeaORM `Migrator`。
   - 首版 migration 创建 `auth_users`、`auth_permissions`、`auth_user_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_location_groups`、`stock_locations`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_location_transfers`、`stock_substitutes` 和 `audit_events`；`auth_users.password_change_required` 使用 SQLite 0/1 布尔值保存临时密码强制改密状态。
   - 为 refresh token hash、文件 hash、文件 owner/created_at、active signing key、未删除物品 SKU、未删除模板名称、FIFO 批次查询和审计查询建立索引或约束。
-  - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端或 Android 端稳定代码。
+  - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端、Android 端或 Web 前端稳定代码。
 
 - `core/src/persistence/entity/`
   - 放置 SeaORM Entity、Model 和 ActiveModel。

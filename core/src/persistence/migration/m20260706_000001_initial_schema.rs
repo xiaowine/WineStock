@@ -103,7 +103,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         user_id INTEGER NOT NULL,
         token_hash TEXT NOT NULL UNIQUE,
         device_name TEXT NOT NULL,
-        client_kind TEXT NOT NULL CHECK (client_kind IN ('desktop', 'android')),
+        client_kind TEXT NOT NULL CHECK (client_kind IN ('desktop', 'android', 'web')),
         app_version TEXT NOT NULL,
         refresh_token_version TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

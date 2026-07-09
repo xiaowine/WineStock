@@ -11,7 +11,7 @@
 | `username`    | `garde length(min = 1, max = 64)`；trim 后非空  |
 | `password`    | `garde length(min = 1, max = 256)`；trim 后非空 |
 | `device_name` | `garde length(min = 1, max = 64)`；trim 后非空   |
-| `client_kind` | enum 值由 Serde 限制，只允许 `desktop` 或 `android` |
+| `client_kind` | enum 值由 Serde 限制，只允许 `desktop`、`android` 或 `web` |
 | `version`     | `garde length(min = 1, max = 64)`；trim 后非空   |
 
 ## `AuthClientKind`
@@ -22,6 +22,7 @@ JSON 允许值：
 
 - `desktop`
 - `android`
+- `web`
 
 ## `AuthRegisterRequest`
 

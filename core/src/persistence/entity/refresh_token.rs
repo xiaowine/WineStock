@@ -21,7 +21,7 @@ pub struct Model {
     /// 设备名称，便于用户识别登录来源。
     pub device_name: String,
 
-    /// 客户端类型，例如 desktop 或 android。
+    /// 客户端类型，例如 desktop、android 或 web。
     pub client_kind: String,
 
     /// App 版本号，用于定位登录来源的客户端版本。

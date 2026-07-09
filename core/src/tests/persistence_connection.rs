@@ -164,6 +164,44 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         ))
         .await
         .expect("url field type should pass schema check");
+
+    storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "INSERT INTO auth_users (username, password_hash) VALUES ('web-user', 'hash')"
+                .to_owned(),
+        ))
+        .await
+        .expect("web user should insert");
+    storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            r#"
+            INSERT INTO auth_refresh_tokens (
+                user_id,
+                token_hash,
+                device_name,
+                client_kind,
+                app_version,
+                refresh_token_version,
+                expires_at
+            )
+            VALUES (
+                1,
+                'web-token-hash',
+                'browser',
+                'web',
+                '0.1.0-web',
+                'v1',
+                '2099-01-01T00:00:00.000Z'
+            )
+            "#
+            .to_owned(),
+        ))
+        .await
+        .expect("web client kind should pass schema check");
 }
 
 async fn query_string(database: &DatabaseConnection, sql: &str, column: &str) -> String {
