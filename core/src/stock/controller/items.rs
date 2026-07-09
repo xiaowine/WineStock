@@ -1,6 +1,6 @@
 //! 库存物品 HTTP DTO 和 handler。
 //!
-//! 本模块属于 `stock` HTTP 控制器层，负责物品 CRUD 的请求、响应和 Axum 入口。
+//! 本模块属于 `stock` HTTP 控制器层，负责物品 CRUD、列表筛选值的请求、响应和 Axum 入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
 use axum::{
@@ -89,7 +89,7 @@ pub(crate) struct ItemListQuery {
     /// 每页数量，默认 50，最大 200。
     pub page_size: Option<u64>,
 
-    /// 按名称或 SKU 模糊搜索。
+    /// 按物品基础字段、模板元数据和当前库存模板值模糊搜索。
     pub search: Option<String>,
 
     /// 按关联模板 ID 筛选。
@@ -183,6 +183,24 @@ pub(crate) async fn list_items(
     Query(query): Query<ItemListQuery>,
 ) -> Result<Json<PaginatedResponse<ItemResponse>>, StockApiError> {
     Ok(Json(service::list_items(&state, query).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/items/filter-values",
+    tag = "stock",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Current inventory item filter values", body = super::FilterValuesResponse),
+        (status = 401, description = "Invalid access token", body = String),
+        (status = 403, description = "Stock read permission required", body = String)
+    )
+)]
+/// 查询当前库存视角下的物品筛选值。
+pub(crate) async fn item_filter_values(
+    State(state): State<CoreState>,
+) -> Result<Json<super::FilterValuesResponse>, StockApiError> {
+    Ok(Json(service::item_filter_values(&state).await?))
 }
 
 #[utoipa::path(

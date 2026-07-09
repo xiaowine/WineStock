@@ -56,6 +56,10 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                     .merge(auth.read(get(controller::list_items))),
             )
             .route(
+                "/items/filter-values",
+                auth.read(get(controller::item_filter_values)),
+            )
+            .route(
                 "/items/{id}",
                 auth.read(get(controller::get_item))
                     .merge(auth.item_manage(put(controller::update_item)))
@@ -74,6 +78,10 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 "/inbound",
                 auth.inbound_create(post(controller::create_inbound))
                     .merge(auth.read(get(controller::list_inbound))),
+            )
+            .route(
+                "/inbound/filter-values",
+                auth.read(get(controller::inbound_filter_values)),
             )
             .route("/inbound/{id}", auth.read(get(controller::get_inbound)))
             .route(

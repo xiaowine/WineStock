@@ -19,9 +19,12 @@ pub(crate) use dashboard::{dashboard_overview, dashboard_trends};
 pub(crate) use error::StockApiError;
 pub(crate) use events::list_events;
 pub(crate) use inbound::{
-    approve_inbound, create_inbound, get_inbound, list_inbound, reject_inbound,
+    approve_inbound, create_inbound, get_inbound, inbound_filter_values, list_inbound,
+    reject_inbound,
 };
-pub(crate) use items::{create_item, delete_item, get_item, list_items, update_item};
+pub(crate) use items::{
+    create_item, delete_item, get_item, item_filter_values, list_items, update_item,
+};
 pub(crate) use outbound::{
     approve_outbound, create_outbound, get_outbound, list_outbound, reject_outbound,
 };

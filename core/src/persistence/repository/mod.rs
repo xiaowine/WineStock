@@ -28,8 +28,9 @@ pub(crate) use stock_repo::{
     DailyMovementTrendRecord, DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord,
     InboundOrderRecord, ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems,
     OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
-    SlowMovingStockItemRecord, StockRepository, StockSubstituteRecord, StockTemplateDetail,
-    TemplateFieldInput, UpdateStockItem, UpdateStockTemplate,
+    SlowMovingStockItemRecord, StockFilterFieldRecord, StockFilterValueRecord, StockRepository,
+    StockSubstituteRecord, StockTemplateDetail, TemplateFieldInput, UpdateStockItem,
+    UpdateStockTemplate,
 };
 pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
 #[allow(unused_imports)]

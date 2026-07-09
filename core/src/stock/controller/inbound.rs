@@ -1,6 +1,6 @@
 //! 入库单 HTTP DTO 和 handler。
 //!
-//! 本模块属于 `stock` HTTP 控制器层，负责入库单创建、查询、审批和拒绝入口。
+//! 本模块属于 `stock` HTTP 控制器层，负责入库单创建、查询、筛选值、审批和拒绝入口。
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
 use axum::{
@@ -84,6 +84,9 @@ pub(crate) struct InboundListQuery {
 
     /// 创建时间终点，使用 SQLite UTC 字符串格式。
     pub date_to: Option<String>,
+
+    /// 按入库单、明细、关联物品和模板值模糊搜索。
+    pub search: Option<String>,
 }
 
 /// 入库单明细响应。
@@ -226,6 +229,24 @@ pub(crate) async fn list_inbound(
     Query(query): Query<InboundListQuery>,
 ) -> Result<Json<PaginatedResponse<InboundResponse>>, StockApiError> {
     Ok(Json(service::list_inbound(&state, query).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/inbound/filter-values",
+    tag = "stock",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Inbound history filter values", body = super::FilterValuesResponse),
+        (status = 401, description = "Invalid access token", body = String),
+        (status = 403, description = "Stock read permission required", body = String)
+    )
+)]
+/// 查询入库历史视角下的筛选值。
+pub(crate) async fn inbound_filter_values(
+    State(state): State<CoreState>,
+) -> Result<Json<super::FilterValuesResponse>, StockApiError> {
+    Ok(Json(service::inbound_filter_values(&state).await?))
 }
 
 #[utoipa::path(

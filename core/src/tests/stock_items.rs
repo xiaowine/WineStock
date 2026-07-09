@@ -4,10 +4,15 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 use tower::ServiceExt;
 
 use crate::{
-    stock::controller::{ItemCreateRequest, ItemResponse, ItemUpdateRequest},
+    stock::controller::{
+        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest, ItemResponse,
+        ItemUpdateRequest, TemplateCreateRequest, TemplateFieldDef, TemplateFieldType,
+        TemplateResponse,
+    },
     test_support::{json_body, json_request, login_request, seeded_app, text_body},
 };
 
@@ -161,6 +166,296 @@ async fn item_validation_and_authorization_fail_before_write() {
     )
     .await;
     assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn item_search_and_filter_values_use_current_inventory_template_values() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let template_id = seed_item_search_template(&app, &login.body.access_token).await;
+    let item_id = seed_item(
+        &app,
+        &login.body.access_token,
+        template_id,
+        "Searchable Sensor",
+        "SEARCH-001",
+    )
+    .await;
+    create_and_approve_inbound(
+        &app,
+        &login.body.access_token,
+        item_id,
+        "CurrentNeedle",
+        "PrivateNeedle",
+        "A-01",
+        "CUR-001",
+    )
+    .await;
+    create_and_approve_inbound(
+        &app,
+        &login.body.access_token,
+        item_id,
+        "CurrentNeedle",
+        "PrivateNeedle",
+        "A-02",
+        "CUR-002",
+    )
+    .await;
+
+    let historical_item_id = seed_item(
+        &app,
+        &login.body.access_token,
+        template_id,
+        "Historical Sensor",
+        "HIST-001",
+    )
+    .await;
+    create_and_approve_inbound(
+        &app,
+        &login.body.access_token,
+        historical_item_id,
+        "GoneNeedle",
+        "HiddenGoneNeedle",
+        "Z-99",
+        "GONE-001",
+    )
+    .await;
+    zero_item_inventory(&app, historical_item_id).await;
+
+    let by_template_value = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?page=1&page_size=20&search=CurrentNeedle",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(by_template_value.status(), StatusCode::OK);
+    let by_template_value: serde_json::Value = json_body(by_template_value).await;
+    assert_eq!(by_template_value["total"], 1);
+    assert_eq!(by_template_value["items"][0]["id"], item_id);
+
+    let by_non_searchable_value = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?page=1&page_size=20&search=PrivateNeedle",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(by_non_searchable_value.status(), StatusCode::OK);
+    let by_non_searchable_value: serde_json::Value = json_body(by_non_searchable_value).await;
+    assert_eq!(by_non_searchable_value["total"], 1);
+
+    let by_template_name = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?page=1&page_size=20&search=SearchFilterTemplate",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(by_template_name.status(), StatusCode::OK);
+    let by_template_name: serde_json::Value = json_body(by_template_name).await;
+    assert_eq!(by_template_name["total"], 2);
+
+    let by_exhausted_value = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?page=1&page_size=20&search=GoneNeedle",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(by_exhausted_value.status(), StatusCode::OK);
+    let by_exhausted_value: serde_json::Value = json_body(by_exhausted_value).await;
+    assert_eq!(by_exhausted_value["total"], 0);
+
+    let empty_search =
+        authorized_empty_request(&app, "GET", "/api/items?search=", &login.body.access_token).await;
+    assert_eq!(empty_search.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(text_body(empty_search).await, "invalid_request");
+
+    let missing_token = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/items/filter-values")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+    assert_eq!(missing_token.status(), StatusCode::UNAUTHORIZED);
+
+    let filter_values = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items/filter-values",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(filter_values.status(), StatusCode::OK);
+    let filter_values: serde_json::Value = json_body(filter_values).await;
+    assert_eq!(
+        filter_value_count(&filter_values, "template:brand", "CurrentNeedle"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "template:brand", "GoneNeedle"),
+        None
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "base:unit", "pcs"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "base:location", "A-01"),
+        Some(1)
+    );
+    assert!(!has_filter_field(&filter_values, "template:internal_note"));
+}
+
+async fn seed_item_search_template(app: &crate::test_support::TestApp, access_token: &str) -> i64 {
+    let response = authorized_json_request(
+        app,
+        "POST",
+        "/api/templates",
+        access_token,
+        &TemplateCreateRequest {
+            name: "SearchFilterTemplate".to_owned(),
+            description: Some("search metadata template".to_owned()),
+            fields: vec![
+                TemplateFieldDef {
+                    field_name: "brand".to_owned(),
+                    field_type: TemplateFieldType::Text,
+                    required: Some(false),
+                    searchable: Some(true),
+                    options: None,
+                    default_value: None,
+                },
+                TemplateFieldDef {
+                    field_name: "internal_note".to_owned(),
+                    field_type: TemplateFieldType::Text,
+                    required: Some(false),
+                    searchable: Some(false),
+                    options: None,
+                    default_value: None,
+                },
+            ],
+        },
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let template: TemplateResponse = json_body(response).await;
+
+    template.id
+}
+
+async fn seed_item(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    template_id: i64,
+    name: &str,
+    sku: &str,
+) -> i64 {
+    let response = authorized_json_request(
+        app,
+        "POST",
+        "/api/items",
+        access_token,
+        &ItemCreateRequest {
+            name: name.to_owned(),
+            sku: sku.to_owned(),
+            category_id: Some(template_id),
+            unit: "pcs".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+        },
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let item: ItemResponse = json_body(response).await;
+
+    item.id
+}
+
+async fn create_and_approve_inbound(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    item_id: i64,
+    brand: &str,
+    internal_note: &str,
+    location: &str,
+    batch_no: &str,
+) -> InboundResponse {
+    let created = authorized_json_request(
+        app,
+        "POST",
+        "/api/inbound",
+        access_token,
+        &InboundCreateRequest {
+            source: "Search Supplier".to_owned(),
+            notes: Some("search fixture".to_owned()),
+            items: vec![InboundItemRequest {
+                item_id,
+                quantity: 10.0,
+                unit_price: 2.5,
+                location: Some(location.to_owned()),
+                batch_no: Some(batch_no.to_owned()),
+                expires_at: Some("2028-01-01".to_owned()),
+                ext_attributes: Some(serde_json::json!({
+                    "brand": brand,
+                    "internal_note": internal_note
+                })),
+            }],
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let order: InboundResponse = json_body(created).await;
+
+    let approved = authorized_empty_request(
+        app,
+        "POST",
+        &format!("/api/inbound/{}/approve", order.id),
+        access_token,
+    )
+    .await;
+    assert_eq!(approved.status(), StatusCode::OK);
+    json_body(approved).await
+}
+
+async fn zero_item_inventory(app: &crate::test_support::TestApp, item_id: i64) {
+    app.state
+        .database()
+        .execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "UPDATE stock_batches SET remaining_quantity = 0 WHERE item_id = ?",
+            [item_id.into()],
+        ))
+        .await
+        .expect("inventory update should succeed");
+}
+
+fn filter_value_count(payload: &serde_json::Value, key: &str, value: &str) -> Option<u64> {
+    payload["fields"]
+        .as_array()?
+        .iter()
+        .find(|field| field.get("key").and_then(serde_json::Value::as_str) == Some(key))?
+        .get("values")?
+        .as_array()?
+        .iter()
+        .find(|entry| entry.get("value").and_then(serde_json::Value::as_str) == Some(value))?
+        .get("count")?
+        .as_u64()
+}
+
+fn has_filter_field(payload: &serde_json::Value, key: &str) -> bool {
+    payload["fields"].as_array().is_some_and(|fields| {
+        fields
+            .iter()
+            .any(|field| field.get("key").and_then(serde_json::Value::as_str) == Some(key))
+    })
 }
 
 async fn seed_user_with_permissions_and_login(

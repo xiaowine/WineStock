@@ -12,20 +12,23 @@ pub(crate) mod outbound;
 pub(crate) mod substitutes;
 pub(crate) mod templates;
 
-pub(crate) use common::OrderStatus;
+pub(crate) use common::{
+    FilterFieldResponse, FilterFieldSource, FilterValueResponse, FilterValueType,
+    FilterValuesResponse, OrderStatus,
+};
 pub(crate) use dashboard::{
     dashboard_overview, dashboard_trends, DailyTrend, DashboardOverviewResponse, SlowMovingItem,
     TrendsQuery, TrendsResponse,
 };
 pub(crate) use events::{list_events, EventListQuery, EventLogResponse};
 pub(crate) use inbound::{
-    approve_inbound, create_inbound, get_inbound, list_inbound, reject_inbound,
-    InboundCreateRequest, InboundItemRequest, InboundItemResponse, InboundListQuery,
-    InboundResponse,
+    approve_inbound, create_inbound, get_inbound, inbound_filter_values, list_inbound,
+    reject_inbound, InboundCreateRequest, InboundItemRequest, InboundItemResponse,
+    InboundListQuery, InboundResponse,
 };
 pub(crate) use items::{
-    create_item, delete_item, get_item, list_items, update_item, ItemCreateRequest, ItemListQuery,
-    ItemResponse, ItemUpdateRequest,
+    create_item, delete_item, get_item, item_filter_values, list_items, update_item,
+    ItemCreateRequest, ItemListQuery, ItemResponse, ItemUpdateRequest,
 };
 pub(crate) use outbound::{
     approve_outbound, create_outbound, get_outbound, list_outbound, reject_outbound,

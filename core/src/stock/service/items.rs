@@ -1,6 +1,6 @@
 //! 库存物品服务。
 //!
-//! 本模块属于 `stock` 业务服务层，负责物品创建、分页、详情、更新、软删除和 SKU 冲突检查。
+//! 本模块属于 `stock` 业务服务层，负责物品创建、分页、筛选值、详情、更新、软删除和 SKU 冲突检查。
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-    response::item_response,
+    response::{filter_values_response, item_response},
     validation::{normalize_optional_text, normalize_required_text, validate_non_negative},
     StockApiError,
 };
@@ -69,6 +69,14 @@ pub(crate) async fn list_items(
         page_size,
         total_pages: total_pages(result.total, page_size),
     })
+}
+
+/// 查询当前库存视角下的物品筛选值；只返回有库存批次贡献出的值。
+pub(crate) async fn item_filter_values(
+    state: &CoreState,
+) -> Result<controller::FilterValuesResponse, StockApiError> {
+    let repository = StockRepository::new(state.database());
+    filter_values_response(repository.list_item_filter_values().await?)
 }
 
 /// 查询单个库存物品；只读取未软删除物品。

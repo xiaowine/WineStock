@@ -1,6 +1,6 @@
-# `core/src/persistence/repository/stock_repo.rs`
+# `core/src/persistence/repository/stock_repo.rs` 和 `stock_repo/`
 
-本文件定义库存业务 repository 和物品写库输入。
+库存仓储以 `stock_repo.rs` 作为模块入口，具体输入模型和查询实现拆分在 `stock_repo/` 子模块中。
 
 ## `TemplateFieldInput`
 

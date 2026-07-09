@@ -10,7 +10,7 @@ use crate::{
         entity::stock_item,
         repository::{
             AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, OutboundOrderDetail,
-            StockSubstituteRecord, StockTemplateDetail,
+            StockFilterFieldRecord, StockSubstituteRecord, StockTemplateDetail,
         },
     },
     stock::controller,
@@ -35,6 +35,33 @@ pub(super) fn item_response(item: stock_item::Model) -> controller::ItemResponse
         created_at: item.created_at,
         updated_at: item.updated_at,
     }
+}
+
+/// 把筛选值聚合记录转换为 HTTP 响应；字段来源和类型代码必须是服务端已知值。
+pub(super) fn filter_values_response(
+    fields: Vec<StockFilterFieldRecord>,
+) -> Result<controller::FilterValuesResponse, StockApiError> {
+    Ok(controller::FilterValuesResponse {
+        fields: fields
+            .into_iter()
+            .map(|field| {
+                Ok(controller::FilterFieldResponse {
+                    key: field.key,
+                    label: field.label,
+                    source: controller::FilterFieldSource::from_code(&field.source)?,
+                    value_type: controller::FilterValueType::from_code(&field.value_type)?,
+                    values: field
+                        .values
+                        .into_iter()
+                        .map(|value| controller::FilterValueResponse {
+                            value: value.value,
+                            count: value.count,
+                        })
+                        .collect(),
+                })
+            })
+            .collect::<Result<Vec<_>, StockApiError>>()?,
+    })
 }
 
 /// 把模板详情记录转换为 HTTP 响应；会把字段类型代码和 options JSON 恢复为 API 结构。

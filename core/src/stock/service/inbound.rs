@@ -1,6 +1,6 @@
 //! 入库单服务。
 //!
-//! 本模块属于 `stock` 业务服务层，负责入库单创建、分页、详情、审批、拒绝和模板扩展属性校验。
+//! 本模块属于 `stock` 业务服务层，负责入库单创建、分页、筛选值、详情、审批、拒绝和模板扩展属性校验。
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use serde_json::Value;
@@ -19,7 +19,7 @@ use crate::{
 use super::{
     error::map_stock_db_error,
     pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-    response::inbound_response,
+    response::{filter_values_response, inbound_response},
     validation::{
         normalize_optional_text, normalize_required_text, parse_attribute_object,
         parse_options_json, validate_http_url, validate_non_negative, validate_positive,
@@ -96,6 +96,7 @@ pub(crate) async fn list_inbound(
             item_id: query.item_id,
             date_from: normalize_optional_text(query.date_from)?,
             date_to: normalize_optional_text(query.date_to)?,
+            search: normalize_optional_text(query.search)?,
         })
         .await?;
 
@@ -110,6 +111,14 @@ pub(crate) async fn list_inbound(
         page_size,
         total_pages: total_pages(result.total, page_size),
     })
+}
+
+/// 查询入库历史视角下的筛选值；历史值不受当前库存余额影响。
+pub(crate) async fn inbound_filter_values(
+    state: &CoreState,
+) -> Result<controller::FilterValuesResponse, StockApiError> {
+    let repository = StockRepository::new(state.database());
+    filter_values_response(repository.list_inbound_filter_values().await?)
 }
 
 /// 查询入库单详情；单据不存在时返回 `InboundOrderNotFound`。

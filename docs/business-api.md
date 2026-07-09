@@ -16,7 +16,7 @@
  
 基础库存物品实体 CRUD。物品是库存流转的最小单位。
 
-当前实现状态：已实现 `POST /api/items`、`GET /api/items`、`GET /api/items/{id}`、`PUT /api/items/{id}` 和 `DELETE /api/items/{id}`，并纳入 OpenAPI。
+当前实现状态：已实现 `POST /api/items`、`GET /api/items`、`GET /api/items/filter-values`、`GET /api/items/{id}`、`PUT /api/items/{id}` 和 `DELETE /api/items/{id}`，并纳入 OpenAPI。
  
  ### 所需新增权限
  
@@ -52,9 +52,22 @@
  
  分页查询物品列表。
  
- - 权限：`stock.read`
- - 查询参数：`page`、`page_size`、`search`（按名称/SKU 模糊搜索）、`category_id`（按分类筛选）
- - 响应：`200` + `PaginatedResponse<ItemResponse>`
+- 权限：`stock.read`
+- 查询参数：`page`、`page_size`、`search`（按物品基础字段、模板元数据和当前库存模板值模糊搜索）、`category_id`（按分类筛选）
+- 响应：`200` + `PaginatedResponse<ItemResponse>`
+- 说明：模板实际值只从 `stock_batches.remaining_quantity > 0` 的当前库存批次追溯；同一物品多批次命中时结果仍按物品去重。空 `search` 返回 `400 invalid_request`。
+
+#### `GET /api/items/filter-values`
+
+查询物品列表筛选值。
+
+- 权限：`stock.read`
+- 查询参数：无
+- 响应：`200` + `FilterValuesResponse`
+- 统计范围：当前库存视角，只统计 `remaining_quantity > 0` 的批次。
+- 首版内置字段：`base:category`、`base:unit`、`base:location`
+- 模板字段：只返回 `stock_template_fields.searchable = true` 的一层 JSON 标量值；同名字段跨模板合并。
+- 计数：`count` 表示拥有该字段值的去重物品数量。
  
 #### `GET /api/items/{id}`
  
@@ -200,9 +213,22 @@
  
  分页查询入库单列表。
  
- - 权限：`stock.read`
- - 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`
- - 响应：`200` + `PaginatedResponse<InboundResponse>`
+- 权限：`stock.read`
+- 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`
+- 响应：`200` + `PaginatedResponse<InboundResponse>`
+- 说明：`search` 会匹配入库来源、备注、状态、明细库位、批次号、有效期、关联物品基础字段和入库模板实际值；结果按入库单去重。空 `search` 返回 `400 invalid_request`。
+
+#### `GET /api/inbound/filter-values`
+
+查询入库历史筛选值。
+
+- 权限：`stock.read`
+- 查询参数：无
+- 响应：`200` + `FilterValuesResponse`
+- 统计范围：入库历史视角，不受当前库存余额影响。
+- 首版内置字段：`base:source`、`base:status`、`base:item`、`base:sku`、`base:location`、`base:batch_no`
+- 模板字段：只返回 `stock_template_fields.searchable = true` 的一层 JSON 标量值；同名字段跨模板合并。
+- 计数：`count` 表示拥有该字段值的去重入库单数量。
  
  #### `GET /api/inbound/{id}`
  
@@ -444,7 +470,7 @@
  
  ---
  
- ## 分页响应通用结构
+## 分页响应通用结构
  
  `PaginatedResponse<T>`
  
@@ -454,7 +480,32 @@
  | `total` | integer | 总记录数 |
  | `page` | integer | 当前页码 |
  | `page_size` | integer | 每页条数 |
- | `total_pages` | integer | 总页数 |
+| `total_pages` | integer | 总页数 |
+
+## 筛选值响应通用结构
+
+`FilterValuesResponse`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `fields` | array[`FilterFieldResponse`] | 可用于当前列表筛选的字段集合 |
+
+`FilterFieldResponse`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `key` | string | 稳定筛选字段 key，内置字段使用 `base:*`，模板字段使用 `template:*` |
+| `label` | string | 字段展示名称 |
+| `source` | string enum | `base` 或 `template` |
+| `value_type` | string enum | `text`、`number`、`select`、`date`、`file`、`url`、`boolean` 或 `mixed` |
+| `values` | array[`FilterValueResponse`] | 当前视角下出现过的值和计数，按 `count DESC, value ASC` 排序 |
+
+`FilterValueResponse`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `value` | string | 后端统一转成字符串的筛选值 |
+| `count` | integer | 命中数量；物品筛选值按去重物品计数，入库筛选值按去重入库单计数 |
  
  ---
  
