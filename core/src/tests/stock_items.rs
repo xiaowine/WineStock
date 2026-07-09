@@ -88,6 +88,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     assert_eq!(list["total_pages"], 1);
     assert_eq!(list["items"][0]["sku"], "CORK-001");
 
+    let category_template_id = seed_item_search_template(&app, &login.body.access_token).await;
     let updated = authorized_json_request(
         &app,
         "PUT",
@@ -96,7 +97,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
         &ItemUpdateRequest {
             name: Some("Reserve Cork".to_owned()),
             sku: Some("CORK-002".to_owned()),
-            category_id: None,
+            category_id: Some(category_template_id),
             unit: None,
             description: Some("Updated closure".to_owned()),
             default_price: Some(1.50),
@@ -108,6 +109,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     let updated: ItemResponse = json_body(updated).await;
     assert_eq!(updated.name, "Reserve Cork");
     assert_eq!(updated.sku, "CORK-002");
+    assert_eq!(updated.category_id, Some(category_template_id));
 
     let deleted = authorized_empty_request(
         &app,
@@ -126,6 +128,27 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     )
     .await;
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+    let audit_events = audit_events_for_entity(&app, "item", item.id).await;
+    assert_eq!(audit_events.len(), 3);
+    assert_eq!(audit_events[0].action, "created");
+    assert_eq!(audit_events[1].action, "updated");
+    assert_eq!(audit_events[2].action, "deleted");
+    assert_eq!(
+        audit_events[1].details["changed_fields"],
+        serde_json::json!([
+            "name",
+            "sku",
+            "category_id",
+            "description",
+            "default_price",
+            "reorder_point"
+        ])
+    );
+    assert_eq!(
+        audit_events[1].details["new"]["category_id"],
+        category_template_id
+    );
 }
 
 #[tokio::test]
@@ -515,6 +538,43 @@ async fn zero_item_inventory(app: &crate::test_support::TestApp, item_id: i64) {
         ))
         .await
         .expect("inventory update should succeed");
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct AuditEventRow {
+    action: String,
+    details: serde_json::Value,
+}
+
+async fn audit_events_for_entity(
+    app: &crate::test_support::TestApp,
+    entity_type: &str,
+    entity_id: i64,
+) -> Vec<AuditEventRow> {
+    app.state
+        .database()
+        .query_all(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT action, details_json
+            FROM audit_events
+            WHERE entity_type = ? AND entity_id = ?
+            ORDER BY id ASC
+            "#,
+            vec![entity_type.into(), entity_id.into()],
+        ))
+        .await
+        .expect("audit events should query")
+        .into_iter()
+        .map(|row| AuditEventRow {
+            action: row.try_get("", "action").expect("action should decode"),
+            details: row
+                .try_get::<Option<String>>("", "details_json")
+                .expect("details should decode")
+                .and_then(|details| serde_json::from_str(&details).ok())
+                .expect("details should be json"),
+        })
+        .collect()
 }
 
 fn filter_value_count(payload: &serde_json::Value, key: &str, value: &str) -> Option<u64> {

@@ -157,7 +157,7 @@ core   -> desktop/android/frontend platform assets
   - `mod.rs` 负责 `/api/auth/register`、`/api/auth/me`、`/api/auth/me/password`、`/api/users`、`/api/users/{id}`、`/api/users/{id}/status`、`/api/users/{id}/permissions`、`/api/users/{id}/password` 与 `/api/permissions` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限、已登录校验、用户读/状态/权限更新/权限定义只读和 `user.password.reset` 重置密码权限。
   - `controller.rs` 提供注册、当前用户、当前用户修改自己密码、用户管理和权限只读接口的 HTTP 入口、DTO 和 utoipa 标注。
   - `service.rs` 是用户业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `users::service::*` 的内部访问面稳定。
-  - `service/register.rs` 处理用户注册、事务内首个用户判断和首个用户直接分配全部内置权限。
+  - `service/register.rs` 处理用户注册、事务内首个用户判断、首个用户直接分配全部内置权限和 `user/created` 审计事件写入。
   - `service/me.rs` 处理当前用户快照读取与自助改密；自助改密会清除强制改密标记。
   - `service/management.rs` 处理用户管理分页、详情、账号启停、用户权限整体替换、管理员设置临时密码、最后 active 权限管理员保护和权限定义只读查询。
   - `service/response.rs` 组装 API/JWT 共享用户快照、用户管理响应和权限定义响应。
@@ -179,12 +179,12 @@ core   -> desktop/android/frontend platform assets
   - `controller/common.rs` 定义多个库存 HTTP 子模块共享的单据状态枚举、筛选值响应 DTO 和正数校验函数。
   - `bootstrap.rs` 定义 `元器件`、`3D打印耗材` 和 `通用` 三个内置库存模板的启动补齐逻辑；补齐只按同名记录缺失时创建，不覆盖用户修改，也不恢复用户软删除的模板。
   - `service.rs` 是库存业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `stock::service::*` 的内部访问面稳定。
-  - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验和模板写库输入组装。
-  - `service/items.rs` 处理物品创建、分页、当前库存筛选值、带当前库存快照的详情、更新、软删除和 SKU 冲突检查。
+  - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验、模板写库输入组装和模板审计操作者传递。
+  - `service/items.rs` 处理物品创建、分页、当前库存筛选值、带当前库存快照的详情、更新、软删除、SKU 冲突检查和物品审计操作者传递。
   - `service/inbound.rs` 处理入库创建、列表、入库历史筛选值、详情、审批、拒绝和审批前模板扩展属性校验。
   - `service/outbound.rs` 处理出库创建、列表搜索、出库历史筛选值、详情、审批、拒绝和库存不足错误映射。
   - `service/dashboard.rs` 处理库存看板总览和趋势只读查询，并持有趋势天数与呆滞料阈值等看板服务常量。
-  - `service/substitutes.rs` 处理替代料整体替换、指定物品查询、全量关系查询、删除关系和替代料自引用/重复/循环绑定错误映射。
+  - `service/substitutes.rs` 处理替代料整体替换、指定物品查询、全量关系查询、删除关系、替代料自引用/重复/循环绑定错误映射和替代料审计操作者传递。
   - `service/events.rs` 处理事件日志分页、筛选条件归一化和响应分页组装。
   - `service/error.rs` 定义 `StockApiError`，集中库存 HTTP 错误响应映射和 repository 自定义错误收敛。
   - `service/pagination.rs` 定义库存分页默认值、`PaginatedResponse<T>` 和总页数计算。
@@ -235,7 +235,7 @@ core   -> desktop/android/frontend platform assets
   - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销、按用户吊销 active token 和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
-  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表搜索/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/指定物品查询/全量关系查询/删除关系、循环绑定检测、事件日志分页筛选以及库存物品/入库历史/出库历史搜索和筛选值聚合；handler 不直接拼接 `stock_*` 表结构。
+  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表搜索/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/指定物品查询/全量关系查询/删除关系、循环绑定检测、事件日志分页筛选以及库存物品/入库历史/出库历史搜索和筛选值聚合；物品、模板和替代料写操作在事务内同步写入脱敏审计详情；handler 不直接拼接 `stock_*` 表结构。
   - `stock_repo.rs` 是库存仓储模块入口，声明 `StockRepository`，并重新导出库存仓储输入、读取模型和筛选值记录，保持上层 `repository::StockRepository` 等导入路径稳定。
   - `stock_repo/types.rs` 定义库存仓储输入和读取模型，包括物品详情的当前库存、库位分布和批次摘要读取模型；不执行数据库查询，不拥有 HTTP DTO。
   - `stock_repo/items.rs`、`templates.rs`、`inbound.rs`、`outbound.rs`、`dashboard.rs`、`substitutes.rs` 和 `events.rs` 分别封装库存物品、模板、入库、出库、看板、替代料和审计事件查询/写入能力。

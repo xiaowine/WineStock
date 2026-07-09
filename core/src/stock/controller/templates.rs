@@ -4,14 +4,14 @@
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
 use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, state::CoreState};
+use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
 
 use crate::stock::service::{self, StockApiError};
 /// 模板字段类型。
@@ -236,11 +236,12 @@ pub(crate) struct TemplateResponse {
 /// 创建库存模板。
 pub(crate) async fn create_template(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     ValidatedJson(request): ValidatedJson<TemplateCreateRequest>,
 ) -> Result<(StatusCode, Json<TemplateResponse>), StockApiError> {
     Ok((
         StatusCode::CREATED,
-        Json(service::create_template(&state, request).await?),
+        Json(service::create_template(&state, &current_user, request).await?),
     ))
 }
 
@@ -302,10 +303,13 @@ pub(crate) async fn get_template(
 /// 更新库存模板。
 pub(crate) async fn update_template(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     Path(id): Path<i64>,
     ValidatedJson(request): ValidatedJson<TemplateUpdateRequest>,
 ) -> Result<Json<TemplateResponse>, StockApiError> {
-    Ok(Json(service::update_template(&state, id, request).await?))
+    Ok(Json(
+        service::update_template(&state, &current_user, id, request).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -325,9 +329,10 @@ pub(crate) async fn update_template(
 /// 软删除库存模板。
 pub(crate) async fn delete_template(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, StockApiError> {
-    service::delete_template(&state, id).await?;
+    service::delete_template(&state, &current_user, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -350,11 +355,12 @@ pub(crate) async fn delete_template(
 /// 复制库存模板。
 pub(crate) async fn copy_template(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     Path(id): Path<i64>,
     ValidatedJson(request): ValidatedJson<TemplateCopyRequest>,
 ) -> Result<(StatusCode, Json<TemplateResponse>), StockApiError> {
     Ok((
         StatusCode::CREATED,
-        Json(service::copy_template(&state, id, request).await?),
+        Json(service::copy_template(&state, &current_user, id, request).await?),
     ))
 }

@@ -51,11 +51,14 @@ pub(crate) async fn bootstrap_default_templates(
             continue;
         }
         repository
-            .create_template(CreateStockTemplate {
-                name: template.name.to_owned(),
-                description: Some(template.description.to_owned()),
-                fields: template_field_inputs(template.fields),
-            })
+            .create_template(
+                CreateStockTemplate {
+                    name: template.name.to_owned(),
+                    description: Some(template.description.to_owned()),
+                    fields: template_field_inputs(template.fields),
+                },
+                None,
+            )
             .await?;
     }
 

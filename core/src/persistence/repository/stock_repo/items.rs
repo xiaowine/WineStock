@@ -1,16 +1,18 @@
 //! 库存物品仓储操作。
 //!
-//! 本模块属于 `core` 持久化层，封装 `stock_items` 的创建、查询、更新、软删除和物品详情库存快照。
+//! 本模块属于 `core` 持久化层，封装 `stock_items` 的创建、查询、更新、软删除、物品详情库存快照和物品审计写入。
 //! service 不应直接拼接库存物品表查询。
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    QueryFilter, Set, Statement,
+    QueryFilter, Set, Statement, TransactionTrait,
 };
+use serde_json::json;
 
 use super::{
-    search, CreateStockItem, ListStockItems, Page, StockItemBatchRecord, StockItemDetail,
-    StockItemLocationRecord, StockRepository, UpdateStockItem,
+    common::insert_audit_event_on_connection, search, CreateStockItem, ListStockItems, Page,
+    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockRepository,
+    UpdateStockItem,
 };
 use crate::persistence::{
     entity::stock_item,
@@ -21,13 +23,18 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 创建未删除库存物品，并使用数据库统一时间戳填充时间字段。
+    /// 创建未删除库存物品，并在同一事务内写入可选审计事件。
     pub(crate) async fn create_item(
         &self,
         input: CreateStockItem,
-    ) -> Result<stock_item::Model, DbErr> {
+        audit_user_id: Option<i64>,
+    ) -> Result<stock_item::Model, DbErr>
+    where
+        C: TransactionTrait,
+    {
         validate_repository_input(&input)?;
-        let now = sqlite_now(self.database).await?;
+        let transaction = self.database.begin().await?;
+        let now = sqlite_now(&transaction).await?;
         let active_model = stock_item::ActiveModel {
             name: Set(input.name),
             sku: Set(input.sku),
@@ -42,12 +49,26 @@ where
             ..Default::default()
         };
         let result = stock_item::Entity::insert(active_model)
-            .exec(self.database)
+            .exec(&transaction)
             .await?;
 
-        self.find_active_item_by_id(result.last_insert_id)
+        let item = find_active_item_by_id_on_connection(&transaction, result.last_insert_id)
             .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created stock item".to_owned()))
+            .ok_or_else(|| DbErr::RecordNotFound("created stock item".to_owned()))?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "item",
+                Some(item.id),
+                "created",
+                Some(item_created_details(&item)),
+            )
+            .await?;
+        }
+        transaction.commit().await?;
+
+        Ok(item)
     }
 
     /// 查询未软删除物品详情；软删除记录不会返回给业务服务层。
@@ -55,10 +76,7 @@ where
         &self,
         id: i64,
     ) -> Result<Option<stock_item::Model>, DbErr> {
-        stock_item::Entity::find_by_id(id)
-            .filter(stock_item::Column::DeletedAt.is_null())
-            .one(self.database)
-            .await
+        find_active_item_by_id_on_connection(self.database, id).await
     }
 
     /// 查询未软删除物品详情，并附带当前库存、库位分布和有效批次摘要。
@@ -120,17 +138,24 @@ where
         Ok(Page { items, total })
     }
 
-    /// 更新未软删除物品；返回 None 表示目标物品不存在或已删除。
+    /// 更新未软删除物品，并在同一事务内记录字段前后快照；返回 None 表示目标物品不存在或已删除。
     pub(crate) async fn update_item(
         &self,
         id: i64,
         input: UpdateStockItem,
-    ) -> Result<Option<stock_item::Model>, DbErr> {
+        audit_user_id: Option<i64>,
+    ) -> Result<Option<stock_item::Model>, DbErr>
+    where
+        C: TransactionTrait,
+    {
         validate_repository_input(&input)?;
-        let Some(item) = self.find_active_item_by_id(id).await? else {
+        let transaction = self.database.begin().await?;
+        let Some(item) = find_active_item_by_id_on_connection(&transaction, id).await? else {
+            transaction.commit().await?;
             return Ok(None);
         };
-        let now = sqlite_now(self.database).await?;
+        let previous = item.clone();
+        let now = sqlite_now(&transaction).await?;
         let mut active_model: stock_item::ActiveModel = item.into();
 
         if let Some(name) = input.name {
@@ -156,20 +181,55 @@ where
         }
         active_model.updated_at = Set(now);
 
-        let updated = active_model.update(self.database).await?;
+        let updated = active_model.update(&transaction).await?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "item",
+                Some(updated.id),
+                "updated",
+                Some(item_updated_details(&previous, &updated)),
+            )
+            .await?;
+        }
+        transaction.commit().await?;
+
         Ok(Some(updated))
     }
 
-    /// 软删除物品；已有出入库记录可继续通过历史 ID 追溯。
-    pub(crate) async fn soft_delete_item(&self, id: i64) -> Result<bool, DbErr> {
-        let Some(item) = self.find_active_item_by_id(id).await? else {
+    /// 软删除物品，并在同一事务内记录删除前快照；已有出入库记录可继续通过历史 ID 追溯。
+    pub(crate) async fn soft_delete_item(
+        &self,
+        id: i64,
+        audit_user_id: Option<i64>,
+    ) -> Result<bool, DbErr>
+    where
+        C: TransactionTrait,
+    {
+        let transaction = self.database.begin().await?;
+        let Some(item) = find_active_item_by_id_on_connection(&transaction, id).await? else {
+            transaction.commit().await?;
             return Ok(false);
         };
-        let now = sqlite_now(self.database).await?;
+        let previous = item.clone();
+        let now = sqlite_now(&transaction).await?;
         let mut active_model: stock_item::ActiveModel = item.into();
         active_model.updated_at = Set(now.clone());
         active_model.deleted_at = Set(Some(now));
-        active_model.update(self.database).await?;
+        let deleted = active_model.update(&transaction).await?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "item",
+                Some(deleted.id),
+                "deleted",
+                Some(item_deleted_details(&previous)),
+            )
+            .await?;
+        }
+        transaction.commit().await?;
 
         Ok(true)
     }
@@ -336,6 +396,89 @@ where
             })
             .collect()
     }
+}
+
+async fn find_active_item_by_id_on_connection<C>(
+    connection: &C,
+    id: i64,
+) -> Result<Option<stock_item::Model>, DbErr>
+where
+    C: ConnectionTrait,
+{
+    stock_item::Entity::find_by_id(id)
+        .filter(stock_item::Column::DeletedAt.is_null())
+        .one(connection)
+        .await
+}
+
+fn item_created_details(item: &stock_item::Model) -> String {
+    json!({
+        "name": item.name,
+        "sku": item.sku,
+        "category_id": item.category_id,
+        "unit": item.unit,
+        "default_price": item.default_price,
+        "reorder_point": item.reorder_point
+    })
+    .to_string()
+}
+
+fn item_updated_details(previous: &stock_item::Model, updated: &stock_item::Model) -> String {
+    json!({
+        "changed_fields": item_changed_fields(previous, updated),
+        "previous": item_audit_snapshot(previous),
+        "new": item_audit_snapshot(updated)
+    })
+    .to_string()
+}
+
+fn item_deleted_details(item: &stock_item::Model) -> String {
+    json!({
+        "previous": item_audit_snapshot(item)
+    })
+    .to_string()
+}
+
+fn item_audit_snapshot(item: &stock_item::Model) -> serde_json::Value {
+    json!({
+        "name": item.name,
+        "sku": item.sku,
+        "category_id": item.category_id,
+        "unit": item.unit,
+        "description": item.description,
+        "default_price": item.default_price,
+        "reorder_point": item.reorder_point
+    })
+}
+
+fn item_changed_fields(
+    previous: &stock_item::Model,
+    updated: &stock_item::Model,
+) -> Vec<&'static str> {
+    let mut fields = Vec::new();
+    if previous.name != updated.name {
+        fields.push("name");
+    }
+    if previous.sku != updated.sku {
+        fields.push("sku");
+    }
+    if previous.category_id != updated.category_id {
+        fields.push("category_id");
+    }
+    if previous.unit != updated.unit {
+        fields.push("unit");
+    }
+    if previous.description != updated.description {
+        fields.push("description");
+    }
+    if previous.default_price != updated.default_price {
+        fields.push("default_price");
+    }
+    if previous.reorder_point != updated.reorder_point {
+        fields.push("reorder_point");
+    }
+
+    fields
 }
 
 fn stock_item_query(

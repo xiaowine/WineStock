@@ -4,6 +4,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 use tower::ServiceExt;
 
 use crate::{
@@ -150,6 +151,24 @@ async fn template_crud_copy_and_delete_follow_business_rules() {
     )
     .await;
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+    let template_audit_events = audit_events_for_entity(&app, "template", template.id).await;
+    assert_eq!(template_audit_events.len(), 2);
+    assert_eq!(template_audit_events[0].action, "created");
+    assert_eq!(template_audit_events[1].action, "updated");
+    assert_eq!(
+        template_audit_events[1].details["changed_fields"],
+        serde_json::json!(["name", "description", "fields"])
+    );
+
+    let copied_audit_events = audit_events_for_entity(&app, "template", copied.id).await;
+    assert_eq!(copied_audit_events.len(), 2);
+    assert_eq!(copied_audit_events[0].action, "created");
+    assert_eq!(
+        copied_audit_events[0].details["source_template_id"],
+        template.id
+    );
+    assert_eq!(copied_audit_events[1].action, "deleted");
 }
 
 #[tokio::test]
@@ -312,6 +331,43 @@ async fn seed_user_with_permissions_and_login(
         .await
         .body
         .access_token
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct AuditEventRow {
+    action: String,
+    details: serde_json::Value,
+}
+
+async fn audit_events_for_entity(
+    app: &crate::test_support::TestApp,
+    entity_type: &str,
+    entity_id: i64,
+) -> Vec<AuditEventRow> {
+    app.state
+        .database()
+        .query_all(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT action, details_json
+            FROM audit_events
+            WHERE entity_type = ? AND entity_id = ?
+            ORDER BY id ASC
+            "#,
+            vec![entity_type.into(), entity_id.into()],
+        ))
+        .await
+        .expect("audit events should query")
+        .into_iter()
+        .map(|row| AuditEventRow {
+            action: row.try_get("", "action").expect("action should decode"),
+            details: row
+                .try_get::<Option<String>>("", "details_json")
+                .expect("details should decode")
+                .and_then(|details| serde_json::from_str(&details).ok())
+                .expect("details should be json"),
+        })
+        .collect()
 }
 
 async fn authorized_json_request<T: serde::Serialize>(

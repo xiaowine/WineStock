@@ -1,9 +1,10 @@
 //! 替代料仓储操作。
 //!
 //! 本模块属于 `core` 持久化层，封装替代料关系整体替换、查询、删除和环路检测。
-//! 替换操作必须在事务中同时完成关系写入和审计事件写入。
+//! 替换操作必须在事务中同时完成关系写入和包含前后列表的审计事件写入。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait};
+use serde_json::json;
 use std::collections::HashSet;
 
 use super::{
@@ -16,7 +17,7 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 整体替换指定物品的替代料列表；替换、环路校验和审计事件必须在同一事务内完成。
+    /// 整体替换指定物品的替代料列表；替换、环路校验和前后列表审计事件必须在同一事务内完成。
     pub(crate) async fn replace_substitutes(
         &self,
         item_id: i64,
@@ -46,7 +47,13 @@ where
             }
         }
 
+        let new_substitute_item_ids = substitutes
+            .iter()
+            .map(|substitute| substitute.substitute_item_id)
+            .collect::<Vec<_>>();
         let transaction = self.database.begin().await?;
+        let previous_substitute_item_ids =
+            list_substitute_item_ids_on_connection(&transaction, item_id).await?;
         transaction
             .execute(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
@@ -79,8 +86,15 @@ where
             user_id,
             "substitute",
             Some(item_id),
-            "linked",
-            Some(r#"{"mode":"replace"}"#.to_owned()),
+            if new_substitute_item_ids.is_empty() {
+                "unlinked"
+            } else {
+                "linked"
+            },
+            Some(substitute_replace_details(
+                &previous_substitute_item_ids,
+                &new_substitute_item_ids,
+            )),
         )
         .await?;
         transaction.commit().await?;
@@ -264,6 +278,55 @@ where
 
         Ok(has_cycle != 0)
     }
+}
+
+async fn list_substitute_item_ids_on_connection<C>(
+    connection: &C,
+    item_id: i64,
+) -> Result<Vec<i64>, DbErr>
+where
+    C: ConnectionTrait,
+{
+    let rows = connection
+        .query_all(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT substitute_item_id
+            FROM stock_substitutes
+            WHERE item_id = ?
+            ORDER BY priority ASC, substitute_item_id ASC
+            "#,
+            [item_id.into()],
+        ))
+        .await?;
+
+    rows.into_iter()
+        .map(|row| row.try_get("", "substitute_item_id"))
+        .collect()
+}
+
+fn substitute_replace_details(previous: &[i64], new: &[i64]) -> String {
+    let previous_set = previous.iter().copied().collect::<HashSet<_>>();
+    let new_set = new.iter().copied().collect::<HashSet<_>>();
+    let added = new
+        .iter()
+        .copied()
+        .filter(|id| !previous_set.contains(id))
+        .collect::<Vec<_>>();
+    let removed = previous
+        .iter()
+        .copied()
+        .filter(|id| !new_set.contains(id))
+        .collect::<Vec<_>>();
+
+    json!({
+        "mode": "replace",
+        "previous_substitute_item_ids": previous,
+        "new_substitute_item_ids": new,
+        "added_substitute_item_ids": added,
+        "removed_substitute_item_ids": removed
+    })
+    .to_string()
 }
 
 fn validate_substitute_inputs(

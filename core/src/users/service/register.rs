@@ -1,17 +1,21 @@
 //! 用户注册服务。
 //!
-//! 本模块属于 `users` 业务服务层，负责注册用例、首个用户判断和首个用户权限分配。
+//! 本模块属于 `users` 业务服务层，负责注册用例、首个用户判断、首个用户权限分配和注册审计写入。
 //! 它不处理登录会话、用户管理列表或 HTTP 路由。
 
 use sea_orm::{
     ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, Statement, TransactionTrait,
 };
+use serde_json::json;
 use winestock_shared::{AuthRegisterRequest, AuthUserResponse};
 
 use crate::{
     persistence::{
         entity::user,
-        repository::{AuthRepository, CreateUser, RbacRepository, UserRepository},
+        repository::{
+            AuditRepository, AuthRepository, CreateUser, RbacRepository, RecordAuditEvent,
+            UserRepository,
+        },
     },
     rbac::builtin_permission_codes,
     security::{create_password_hash, AuthApiError, CurrentUser},
@@ -21,7 +25,7 @@ use crate::{
 
 use super::{response::load_user_response, validation::normalize_username};
 
-/// 执行注册用例；当数据库尚无用户时，首个用户会获得全部内置权限。
+/// 执行注册用例；当数据库尚无用户时，首个用户会获得全部内置权限，并记录创建审计事件。
 pub(crate) async fn register(
     state: &CoreState,
     request: AuthRegisterRequest,
@@ -48,7 +52,7 @@ pub(crate) async fn register(
     load_user_response(&rbac, &user).await
 }
 
-/// 在同一事务中完成注册、首个用户判断和首个用户权限分配，避免并发首登产生多个初始权限用户。
+/// 在同一事务中完成注册、首个用户判断、首个用户权限分配和审计写入，避免并发首登产生多个初始权限用户。
 async fn register_user_transactionally(
     database: &DatabaseConnection,
     input: CreateUser,
@@ -60,6 +64,7 @@ async fn register_user_transactionally(
     let auth_repository = AuthRepository::new(&transaction);
     let users = UserRepository::new(&transaction);
     let rbac = RbacRepository::new(&transaction);
+    let audit = AuditRepository::new(&transaction);
     let has_users = auth_repository.has_any_user().await?;
 
     if has_users {
@@ -86,6 +91,20 @@ async fn register_user_transactionally(
         rbac.replace_user_permissions(user.id, &permission_ids)
             .await?;
     }
+
+    let operator_user_id = current_user.map(|user| user.user_id).unwrap_or(user.id);
+    audit
+        .record(RecordAuditEvent {
+            user_id: Some(operator_user_id),
+            entity_type: "user".to_owned(),
+            entity_id: Some(user.id),
+            action: "created".to_owned(),
+            details: Some(json!({
+                "username": user.username.clone(),
+                "first_user": !has_users
+            })),
+        })
+        .await?;
 
     transaction.commit().await?;
 

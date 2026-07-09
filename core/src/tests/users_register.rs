@@ -57,6 +57,13 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
         .user
         .permissions
         .contains(&"user.permissions.update".to_owned()));
+
+    let first_admin_id = user_id_by_username(&app, "first-admin").await;
+    let audit_events = audit_events_for_user(&app, first_admin_id).await;
+    assert_eq!(audit_events.len(), 1);
+    assert_eq!(audit_events[0].action, "created");
+    assert_eq!(audit_events[0].user_id, Some(first_admin_id));
+    assert_eq!(audit_events[0].details["first_user"], true);
 }
 
 #[tokio::test]
@@ -95,6 +102,14 @@ async fn registration_requires_register_permission_after_first_user_exists() {
     assert_eq!(user.username, "staff");
     assert!(user.permissions.is_empty());
     assert!(!user.password_change_required);
+
+    let admin_id = user_id_by_username(&app, "admin").await;
+    let staff_id = user_id_by_username(&app, "staff").await;
+    let audit_events = audit_events_for_user(&app, staff_id).await;
+    assert_eq!(audit_events.len(), 1);
+    assert_eq!(audit_events[0].action, "created");
+    assert_eq!(audit_events[0].user_id, Some(admin_id));
+    assert_eq!(audit_events[0].details["first_user"], false);
 }
 
 #[tokio::test]
@@ -239,4 +254,51 @@ async fn registration_rejects_duplicate_or_invalid_usernames() {
     .await;
     assert_eq!(empty_username.status(), axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(text_body(empty_username).await, "invalid_request");
+}
+
+async fn user_id_by_username(app: &crate::test_support::TestApp, username: &str) -> i64 {
+    UserRepository::new(app.state.database())
+        .find_by_username(username)
+        .await
+        .expect("user lookup should query")
+        .expect("user should exist")
+        .id
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct AuditEventRow {
+    user_id: Option<i64>,
+    action: String,
+    details: serde_json::Value,
+}
+
+async fn audit_events_for_user(
+    app: &crate::test_support::TestApp,
+    user_id: i64,
+) -> Vec<AuditEventRow> {
+    app.state
+        .database()
+        .query_all(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT user_id, action, details_json
+            FROM audit_events
+            WHERE entity_type = 'user' AND entity_id = ?
+            ORDER BY id ASC
+            "#,
+            [user_id.into()],
+        ))
+        .await
+        .expect("audit events should query")
+        .into_iter()
+        .map(|row| AuditEventRow {
+            user_id: row.try_get("", "user_id").expect("user id should decode"),
+            action: row.try_get("", "action").expect("action should decode"),
+            details: row
+                .try_get::<Option<String>>("", "details_json")
+                .expect("details should decode")
+                .and_then(|details| serde_json::from_str(&details).ok())
+                .expect("details should be json"),
+        })
+        .collect()
 }

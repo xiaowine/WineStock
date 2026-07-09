@@ -61,7 +61,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     );
     assert_eq!(table_count(&app, "stock_batches").await, 1);
     assert_eq!(table_count(&app, "stock_movements").await, 1);
-    assert_eq!(table_count(&app, "audit_events").await, 2);
+    assert_eq!(audit_count_for_entity(&app, "inbound").await, 2);
 
     let approve_again = authorized_empty_request(
         &app,
@@ -601,6 +601,22 @@ async fn table_count(app: &crate::test_support::TestApp, table: &str) -> i64 {
         .expect("count row should exist");
 
     row.try_get("", "count").expect("count should decode")
+}
+
+async fn audit_count_for_entity(app: &crate::test_support::TestApp, entity_type: &str) -> i64 {
+    let row = app
+        .state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "SELECT COUNT(*) AS count FROM audit_events WHERE entity_type = ?",
+            [entity_type.into()],
+        ))
+        .await
+        .expect("audit count query should succeed")
+        .expect("audit count row should exist");
+
+    row.try_get("", "count").expect("audit count should decode")
 }
 
 async fn authorized_json_request<T: serde::Serialize>(

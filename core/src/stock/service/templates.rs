@@ -1,6 +1,6 @@
 //! 库存模板服务。
 //!
-//! 本模块属于 `stock` 业务服务层，负责模板 CRUD、复制、字段组合校验和模板响应组装调用。
+//! 本模块属于 `stock` 业务服务层，负责模板 CRUD、复制、字段组合校验、模板响应组装和审计操作者传递。
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use std::collections::HashSet;
@@ -9,6 +9,7 @@ use crate::{
     persistence::repository::{
         CreateStockTemplate, StockRepository, TemplateFieldInput, UpdateStockTemplate,
     },
+    security::CurrentUser,
     state::CoreState,
     stock::controller,
 };
@@ -19,11 +20,12 @@ use super::{
     StockApiError,
 };
 
-/// 创建库存模板；会写入模板主表和字段定义。
+/// 创建库存模板；会写入模板主表、字段定义和创建审计事件。
 ///
 /// 名称冲突返回 `TemplateNameTaken`，字段组合不合法返回 `InvalidRequest`。
 pub(crate) async fn create_template(
     state: &CoreState,
+    current_user: &CurrentUser,
     request: controller::TemplateCreateRequest,
 ) -> Result<controller::TemplateResponse, StockApiError> {
     let name = normalize_required_text(&request.name)?;
@@ -35,11 +37,14 @@ pub(crate) async fn create_template(
         return Err(StockApiError::TemplateNameTaken);
     }
     let detail = repository
-        .create_template(CreateStockTemplate {
-            name,
-            description: normalize_optional_text(request.description)?,
-            fields: normalize_template_fields(request.fields)?,
-        })
+        .create_template(
+            CreateStockTemplate {
+                name,
+                description: normalize_optional_text(request.description)?,
+                fields: normalize_template_fields(request.fields)?,
+            },
+            Some(current_user.user_id),
+        )
         .await?;
 
     template_response(detail)
@@ -73,9 +78,10 @@ pub(crate) async fn get_template(
 
 /// 更新库存模板；字段存在时会整体替换旧字段定义。
 ///
-/// 本函数会检查模板名称唯一性，并保持“未传字段不修改”的 HTTP 语义。
+/// 本函数会检查模板名称唯一性，保持“未传字段不修改”的 HTTP 语义，并记录更新审计事件。
 pub(crate) async fn update_template(
     state: &CoreState,
+    current_user: &CurrentUser,
     id: i64,
     request: controller::TemplateUpdateRequest,
 ) -> Result<controller::TemplateResponse, StockApiError> {
@@ -106,6 +112,7 @@ pub(crate) async fn update_template(
                     .map(Some),
                 fields,
             },
+            Some(current_user.user_id),
         )
         .await?
     else {
@@ -115,22 +122,30 @@ pub(crate) async fn update_template(
     template_response(detail)
 }
 
-/// 软删除库存模板；仍有关联未软删除物品时拒绝删除。
-pub(crate) async fn delete_template(state: &CoreState, id: i64) -> Result<(), StockApiError> {
+/// 软删除库存模板；仍有关联未软删除物品时拒绝删除，成功删除时记录审计事件。
+pub(crate) async fn delete_template(
+    state: &CoreState,
+    current_user: &CurrentUser,
+    id: i64,
+) -> Result<(), StockApiError> {
     let repository = StockRepository::new(state.database());
     if repository.active_items_reference_template(id).await? {
         return Err(StockApiError::TemplateInUse);
     }
-    if repository.soft_delete_template(id).await? {
+    if repository
+        .soft_delete_template(id, Some(current_user.user_id))
+        .await?
+    {
         Ok(())
     } else {
         Err(StockApiError::TemplateNotFound)
     }
 }
 
-/// 复制库存模板及字段定义；源模板不存在时返回 `TemplateNotFound`。
+/// 复制库存模板及字段定义；源模板不存在时返回 `TemplateNotFound`，成功复制时记录新模板创建审计事件。
 pub(crate) async fn copy_template(
     state: &CoreState,
+    current_user: &CurrentUser,
     id: i64,
     request: controller::TemplateCopyRequest,
 ) -> Result<controller::TemplateResponse, StockApiError> {
@@ -143,7 +158,10 @@ pub(crate) async fn copy_template(
         return Err(StockApiError::TemplateNameTaken);
     }
 
-    let Some(detail) = repository.copy_template(id, name).await? else {
+    let Some(detail) = repository
+        .copy_template(id, name, Some(current_user.user_id))
+        .await?
+    else {
         return Err(StockApiError::TemplateNotFound);
     };
 

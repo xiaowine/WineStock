@@ -1,16 +1,17 @@
 //! 库存模板仓储操作。
 //!
-//! 本模块属于 `core` 持久化层，封装模板主表和字段定义的事务写入与读取。
+//! 本模块属于 `core` 持久化层，封装模板主表、字段定义和模板审计事件的事务写入与读取。
 //! 它不处理模板字段的业务级组合校验。
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
     QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
 };
+use serde_json::json;
 
 use super::{
-    CreateStockTemplate, StockRepository, StockTemplateDetail, TemplateFieldInput,
-    UpdateStockTemplate,
+    common::insert_audit_event_on_connection, CreateStockTemplate, StockRepository,
+    StockTemplateDetail, TemplateFieldInput, UpdateStockTemplate,
 };
 use crate::persistence::{
     entity::{stock_template, stock_template_field},
@@ -21,10 +22,11 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 创建模板和字段定义；父模板与字段必须在同一事务内写入。
+    /// 创建模板和字段定义；父模板、字段和可选审计事件必须在同一事务内写入。
     pub(crate) async fn create_template(
         &self,
         input: CreateStockTemplate,
+        audit_user_id: Option<i64>,
     ) -> Result<StockTemplateDetail, DbErr>
     where
         C: TransactionTrait,
@@ -35,6 +37,17 @@ where
             insert_template_on_connection(&transaction, &input.name, input.description.clone())
                 .await?;
         replace_template_fields_on_connection(&transaction, template.id, &input.fields).await?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "template",
+                Some(template.id),
+                "created",
+                Some(template_created_details(&template, input.fields.len())),
+            )
+            .await?;
+        }
         transaction.commit().await?;
 
         self.find_active_template_by_id(template.id)
@@ -101,25 +114,32 @@ where
         Ok(result)
     }
 
-    /// 更新模板和可选字段定义；字段替换必须与模板更新时间在同一事务内完成。
+    /// 更新模板和可选字段定义；字段替换、模板更新时间和可选审计事件必须在同一事务内完成。
     pub(crate) async fn update_template(
         &self,
         id: i64,
         input: UpdateStockTemplate,
+        audit_user_id: Option<i64>,
     ) -> Result<Option<StockTemplateDetail>, DbErr>
     where
         C: TransactionTrait,
     {
         validate_repository_input(&input)?;
+        let transaction = self.database.begin().await?;
         let Some(template) = stock_template::Entity::find_by_id(id)
             .filter(stock_template::Column::DeletedAt.is_null())
-            .one(self.database)
+            .one(&transaction)
             .await?
         else {
+            transaction.commit().await?;
             return Ok(None);
         };
-
-        let transaction = self.database.begin().await?;
+        let previous_fields = list_template_fields_on_connection(&transaction, id).await?;
+        let previous = StockTemplateDetail {
+            template: template.clone(),
+            fields: previous_fields,
+        };
+        let fields_replaced = input.fields.is_some();
         let now = sqlite_now(&transaction).await?;
         let mut active_model: stock_template::ActiveModel = template.into();
         if let Some(name) = input.name {
@@ -135,15 +155,34 @@ where
             replace_template_fields_on_connection(&transaction, id, &fields).await?;
         }
 
+        let updated = find_active_template_by_id_on_connection(&transaction, id)
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("updated stock template".to_owned()))?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "template",
+                Some(id),
+                "updated",
+                Some(template_updated_details(
+                    &previous,
+                    &updated,
+                    fields_replaced,
+                )),
+            )
+            .await?;
+        }
         transaction.commit().await?;
-        self.find_active_template_by_id(id).await
+        Ok(Some(updated))
     }
 
-    /// 复制模板及其字段定义，并使用新名称创建未删除模板。
+    /// 复制模板及其字段定义，并在同一事务内记录新模板创建审计事件。
     pub(crate) async fn copy_template(
         &self,
         id: i64,
         new_name: String,
+        audit_user_id: Option<i64>,
     ) -> Result<Option<StockTemplateDetail>, DbErr>
     where
         C: TransactionTrait,
@@ -173,6 +212,17 @@ where
         )
         .await?;
         replace_template_fields_on_connection(&transaction, template.id, &fields).await?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "template",
+                Some(template.id),
+                "created",
+                Some(template_copied_details(&template, id, fields.len())),
+            )
+            .await?;
+        }
         transaction.commit().await?;
 
         self.find_active_template_by_id(template.id).await
@@ -201,23 +251,144 @@ where
         Ok(count > 0)
     }
 
-    /// 软删除模板；调用方必须先确认未被有效物品引用。
-    pub(crate) async fn soft_delete_template(&self, id: i64) -> Result<bool, DbErr> {
+    /// 软删除模板并记录删除前快照；调用方必须先确认未被有效物品引用。
+    pub(crate) async fn soft_delete_template(
+        &self,
+        id: i64,
+        audit_user_id: Option<i64>,
+    ) -> Result<bool, DbErr>
+    where
+        C: TransactionTrait,
+    {
+        let transaction = self.database.begin().await?;
         let Some(template) = stock_template::Entity::find_by_id(id)
             .filter(stock_template::Column::DeletedAt.is_null())
-            .one(self.database)
+            .one(&transaction)
             .await?
         else {
+            transaction.commit().await?;
             return Ok(false);
         };
-        let now = sqlite_now(self.database).await?;
+        let fields = list_template_fields_on_connection(&transaction, id).await?;
+        let previous = StockTemplateDetail {
+            template: template.clone(),
+            fields,
+        };
+        let now = sqlite_now(&transaction).await?;
         let mut active_model: stock_template::ActiveModel = template.into();
         active_model.updated_at = Set(now.clone());
         active_model.deleted_at = Set(Some(now));
-        active_model.update(self.database).await?;
+        let deleted = active_model.update(&transaction).await?;
+        if let Some(user_id) = audit_user_id {
+            insert_audit_event_on_connection(
+                &transaction,
+                Some(user_id),
+                "template",
+                Some(deleted.id),
+                "deleted",
+                Some(template_deleted_details(&previous)),
+            )
+            .await?;
+        }
+        transaction.commit().await?;
 
         Ok(true)
     }
+}
+
+async fn find_active_template_by_id_on_connection<C>(
+    connection: &C,
+    id: i64,
+) -> Result<Option<StockTemplateDetail>, DbErr>
+where
+    C: ConnectionTrait,
+{
+    let Some(template) = stock_template::Entity::find_by_id(id)
+        .filter(stock_template::Column::DeletedAt.is_null())
+        .one(connection)
+        .await?
+    else {
+        return Ok(None);
+    };
+    let fields = list_template_fields_on_connection(connection, id).await?;
+
+    Ok(Some(StockTemplateDetail { template, fields }))
+}
+
+fn template_created_details(template: &stock_template::Model, field_count: usize) -> String {
+    json!({
+        "name": template.name,
+        "description": template.description,
+        "field_count": field_count
+    })
+    .to_string()
+}
+
+fn template_copied_details(
+    template: &stock_template::Model,
+    source_template_id: i64,
+    field_count: usize,
+) -> String {
+    json!({
+        "name": template.name,
+        "description": template.description,
+        "field_count": field_count,
+        "source_template_id": source_template_id
+    })
+    .to_string()
+}
+
+fn template_updated_details(
+    previous: &StockTemplateDetail,
+    updated: &StockTemplateDetail,
+    fields_replaced: bool,
+) -> String {
+    json!({
+        "changed_fields": template_changed_fields(previous, updated, fields_replaced),
+        "fields_replaced": fields_replaced,
+        "previous": template_audit_snapshot(previous),
+        "new": template_audit_snapshot(updated)
+    })
+    .to_string()
+}
+
+fn template_deleted_details(template: &StockTemplateDetail) -> String {
+    json!({
+        "previous": template_audit_snapshot(template)
+    })
+    .to_string()
+}
+
+fn template_audit_snapshot(template: &StockTemplateDetail) -> serde_json::Value {
+    json!({
+        "name": template.template.name,
+        "description": template.template.description,
+        "field_count": template.fields.len(),
+        "field_names": template
+            .fields
+            .iter()
+            .map(|field| field.field_name.as_str())
+            .collect::<Vec<_>>()
+    })
+}
+
+fn template_changed_fields(
+    previous: &StockTemplateDetail,
+    updated: &StockTemplateDetail,
+    fields_replaced: bool,
+) -> Vec<&'static str> {
+    let mut fields = Vec::new();
+    if previous.template.name != updated.template.name {
+        fields.push("name");
+    }
+    if previous.template.description != updated.template.description {
+        fields.push("description");
+    }
+    if fields_replaced {
+        fields.push("fields");
+    }
+
+    fields
 }
 
 async fn insert_template_on_connection<C>(

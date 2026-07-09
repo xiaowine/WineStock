@@ -4,14 +4,14 @@
 //! 它只调用 `service` 完成业务处理，不直接访问数据库。
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
 use winestock_shared::validation::{validate_not_blank, validate_optional_not_blank};
 
-use crate::{http::ValidatedJson, state::CoreState};
+use crate::{http::ValidatedJson, security::CurrentUser, state::CoreState};
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 /// 创建库存物品请求。
@@ -277,11 +277,12 @@ pub(crate) struct ItemBatchStockResponse {
 /// 创建库存物品。
 pub(crate) async fn create_item(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     ValidatedJson(request): ValidatedJson<ItemCreateRequest>,
 ) -> Result<(StatusCode, Json<ItemResponse>), StockApiError> {
     Ok((
         StatusCode::CREATED,
-        Json(service::create_item(&state, request).await?),
+        Json(service::create_item(&state, &current_user, request).await?),
     ))
 }
 
@@ -363,10 +364,13 @@ pub(crate) async fn get_item(
 /// 更新库存物品。
 pub(crate) async fn update_item(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     Path(id): Path<i64>,
     ValidatedJson(request): ValidatedJson<ItemUpdateRequest>,
 ) -> Result<Json<ItemResponse>, StockApiError> {
-    Ok(Json(service::update_item(&state, id, request).await?))
+    Ok(Json(
+        service::update_item(&state, &current_user, id, request).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -385,8 +389,9 @@ pub(crate) async fn update_item(
 /// 软删除库存物品。
 pub(crate) async fn delete_item(
     State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, StockApiError> {
-    service::delete_item(&state, id).await?;
+    service::delete_item(&state, &current_user, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -1,10 +1,11 @@
 //! 库存物品服务。
 //!
-//! 本模块属于 `stock` 业务服务层，负责物品创建、分页、筛选值、详情、更新、软删除和 SKU 冲突检查。
+//! 本模块属于 `stock` 业务服务层，负责物品创建、分页、筛选值、详情、更新、软删除、SKU 冲突检查和审计操作者传递。
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use crate::{
     persistence::repository::{CreateStockItem, ListStockItems, StockRepository, UpdateStockItem},
+    security::CurrentUser,
     state::CoreState,
     stock::controller,
 };
@@ -16,9 +17,10 @@ use super::{
     StockApiError,
 };
 
-/// 创建库存物品；会写入未软删除物品记录并检查 SKU 唯一性。
+/// 创建库存物品；会写入未软删除物品记录、检查 SKU 唯一性，并记录创建审计事件。
 pub(crate) async fn create_item(
     state: &CoreState,
+    current_user: &CurrentUser,
     request: controller::ItemCreateRequest,
 ) -> Result<controller::ItemResponse, StockApiError> {
     let input = CreateStockItem {
@@ -38,7 +40,11 @@ pub(crate) async fn create_item(
         return Err(StockApiError::SkuTaken);
     }
 
-    Ok(item_response(repository.create_item(input).await?))
+    Ok(item_response(
+        repository
+            .create_item(input, Some(current_user.user_id))
+            .await?,
+    ))
 }
 
 /// 分页查询库存物品；查询参数在这里统一归一化，避免 repository 暴露 HTTP 默认值。
@@ -93,8 +99,11 @@ pub(crate) async fn get_item(
 }
 
 /// 更新库存物品基础资料；字段为空表示不修改，当前接口不通过 null 清空可空字段。
+///
+/// 成功更新时会记录物品审计事件，包含关键字段的前后快照。
 pub(crate) async fn update_item(
     state: &CoreState,
+    current_user: &CurrentUser,
     id: i64,
     request: controller::ItemUpdateRequest,
 ) -> Result<controller::ItemResponse, StockApiError> {
@@ -143,6 +152,7 @@ pub(crate) async fn update_item(
                     .transpose()?
                     .map(Some),
             },
+            Some(current_user.user_id),
         )
         .await?
     else {
@@ -152,10 +162,17 @@ pub(crate) async fn update_item(
     Ok(item_response(item))
 }
 
-/// 软删除库存物品；删除后物品不会再出现在库存物品查询结果中。
-pub(crate) async fn delete_item(state: &CoreState, id: i64) -> Result<(), StockApiError> {
+/// 软删除库存物品；删除后物品不会再出现在库存物品查询结果中，并记录删除审计事件。
+pub(crate) async fn delete_item(
+    state: &CoreState,
+    current_user: &CurrentUser,
+    id: i64,
+) -> Result<(), StockApiError> {
     let repository = StockRepository::new(state.database());
-    if repository.soft_delete_item(id).await? {
+    if repository
+        .soft_delete_item(id, Some(current_user.user_id))
+        .await?
+    {
         Ok(())
     } else {
         Err(StockApiError::ItemNotFound)
