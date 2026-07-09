@@ -16,6 +16,7 @@
 | 业务域 | 文档 |
 | --- | --- |
 | 库存物品 | [`business-api/items.md`](business-api/items.md) |
+| 库位管理 | [`business-api/locations.md`](business-api/locations.md) |
 | 库存模板 | [`business-api/templates.md`](business-api/templates.md) |
 | 入库 | [`business-api/inbound.md`](business-api/inbound.md) |
 | 出库 | [`business-api/outbound.md`](business-api/outbound.md) |

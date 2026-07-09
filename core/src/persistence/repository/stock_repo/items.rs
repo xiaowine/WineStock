@@ -326,15 +326,18 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
-                    location,
-                    COALESCE(SUM(remaining_quantity), 0.0) AS quantity,
-                    COALESCE(SUM(remaining_quantity * unit_cost), 0.0) AS value,
+                    locations.id AS location_id,
+                    locations.code AS location_code,
+                    locations.name AS location_name,
+                    COALESCE(SUM(batches.remaining_quantity), 0.0) AS quantity,
+                    COALESCE(SUM(batches.remaining_quantity * batches.unit_cost), 0.0) AS value,
                     COUNT(*) AS batch_count
-                FROM stock_batches
-                WHERE item_id = ?
-                  AND remaining_quantity > 0
-                GROUP BY location
-                ORDER BY location IS NULL ASC, location ASC
+                FROM stock_batches batches
+                JOIN stock_locations locations ON locations.id = batches.location_id
+                WHERE batches.item_id = ?
+                  AND batches.remaining_quantity > 0
+                GROUP BY locations.id, locations.code, locations.name
+                ORDER BY locations.code ASC, locations.id ASC
                 "#,
                 [item_id.into()],
             ))
@@ -343,7 +346,9 @@ where
         rows.into_iter()
             .map(|row| {
                 Ok(StockItemLocationRecord {
-                    location: row.try_get("", "location")?,
+                    location_id: row.try_get("", "location_id")?,
+                    location_code: row.try_get("", "location_code")?,
+                    location_name: row.try_get("", "location_name")?,
                     quantity: row.try_get("", "quantity")?,
                     value: row.try_get("", "value")?,
                     batch_count: row.try_get("", "batch_count")?,
@@ -362,19 +367,22 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
-                    id,
-                    batch_no,
-                    location,
-                    initial_quantity,
-                    remaining_quantity,
-                    unit_cost,
-                    remaining_quantity * unit_cost AS value,
-                    received_at,
-                    expires_at
-                FROM stock_batches
-                WHERE item_id = ?
-                  AND remaining_quantity > 0
-                ORDER BY expires_at IS NULL ASC, expires_at ASC, received_at ASC, id ASC
+                    batches.id,
+                    batches.batch_no,
+                    batches.location_id,
+                    locations.code AS location_code,
+                    locations.name AS location_name,
+                    batches.initial_quantity,
+                    batches.remaining_quantity,
+                    batches.unit_cost,
+                    batches.remaining_quantity * batches.unit_cost AS value,
+                    batches.received_at,
+                    batches.expires_at
+                FROM stock_batches batches
+                JOIN stock_locations locations ON locations.id = batches.location_id
+                WHERE batches.item_id = ?
+                  AND batches.remaining_quantity > 0
+                ORDER BY batches.expires_at IS NULL ASC, batches.expires_at ASC, batches.received_at ASC, batches.id ASC
                 "#,
                 [item_id.into()],
             ))
@@ -385,7 +393,9 @@ where
                 Ok(StockItemBatchRecord {
                     id: row.try_get("", "id")?,
                     batch_no: row.try_get("", "batch_no")?,
-                    location: row.try_get("", "location")?,
+                    location_id: row.try_get("", "location_id")?,
+                    location_code: row.try_get("", "location_code")?,
+                    location_name: row.try_get("", "location_name")?,
                     initial_quantity: row.try_get("", "initial_quantity")?,
                     remaining_quantity: row.try_get("", "remaining_quantity")?,
                     unit_cost: row.try_get("", "unit_cost")?,

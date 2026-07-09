@@ -60,7 +60,7 @@ where
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_inbound_order_items
-                        (order_id, item_id, quantity, unit_price, location, batch_no, expires_at, ext_attributes_json, created_at)
+                        (order_id, item_id, quantity, unit_price, location_id, batch_no, expires_at, ext_attributes_json, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     "#,
                     vec![
@@ -68,7 +68,7 @@ where
                         item.item_id.into(),
                         item.quantity.into(),
                         item.unit_price.into(),
-                        item.location.clone().into(),
+                        item.location_id.into(),
                         item.batch_no.clone().into(),
                         item.expires_at.clone().into(),
                         item.ext_attributes_json.clone().into(),
@@ -131,7 +131,7 @@ where
         Ok(Page { items, total })
     }
 
-    /// 审批 pending 入库单；状态、批次、库存流水和审计事件必须在同一事务内完成。
+    /// 审批 pending 入库单；状态、库位有效性、批次、库存流水和审计事件必须在同一事务内处理。
     pub(crate) async fn approve_inbound_order(
         &self,
         id: i64,
@@ -170,6 +170,7 @@ where
             .await?;
 
         for item in &order_items {
+            ensure_active_location_on_connection(&transaction, item.location_id).await?;
             let batch_no = item
                 .batch_no
                 .clone()
@@ -179,14 +180,14 @@ where
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_batches
-                        (item_id, inbound_order_item_id, batch_no, location, initial_quantity, remaining_quantity, unit_cost, received_at, expires_at, created_at, updated_at)
+                        (item_id, inbound_order_item_id, batch_no, location_id, initial_quantity, remaining_quantity, unit_cost, received_at, expires_at, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     "#,
                     vec![
                         item.item_id.into(),
                         item.id.into(),
                         batch_no.into(),
-                        item.location.clone().into(),
+                        item.location_id.into(),
                         item.quantity.into(),
                         item.quantity.into(),
                         item.unit_price.into(),
@@ -204,8 +205,8 @@ where
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_movements
-                        (item_id, batch_id, movement_type, quantity_delta, unit_cost, balance_after, inbound_order_item_id, created_by_user_id, created_at)
-                    VALUES (?, ?, 'inbound', ?, ?, ?, ?, ?, ?)
+                        (item_id, batch_id, movement_type, quantity_delta, unit_cost, balance_after, location_id, inbound_order_item_id, created_by_user_id, created_at)
+                    VALUES (?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?)
                     "#,
                     vec![
                         item.item_id.into(),
@@ -215,6 +216,7 @@ where
                         item.quantity.into(),
                         item.unit_price.into(),
                         balance_after.into(),
+                        item.location_id.into(),
                         item.id.into(),
                         user_id.into(),
                         now.clone().into(),
@@ -342,6 +344,34 @@ where
     }
 }
 
+/// 在审批事务内确认入库明细库位仍有效；库位被软删除时返回稳定业务错误。
+async fn ensure_active_location_on_connection<C>(
+    connection: &C,
+    location_id: i64,
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    let row = connection
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT COUNT(*) AS count
+            FROM stock_locations
+            WHERE id = ? AND deleted_at IS NULL
+            "#,
+            [location_id.into()],
+        ))
+        .await?
+        .ok_or_else(|| DbErr::RecordNotFound("stock location count".to_owned()))?;
+    let count: i64 = row.try_get("", "count")?;
+    if count == 0 {
+        Err(DbErr::Custom("stock location not found".to_owned()))
+    } else {
+        Ok(())
+    }
+}
+
 fn inbound_order_filters(input: &ListInboundOrders) -> (String, Vec<Value>) {
     let mut clauses = Vec::new();
     let mut values = Vec::new();
@@ -410,11 +440,22 @@ where
         .query_all(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
-            SELECT id, order_id, item_id, quantity, unit_price, location, batch_no,
-                   expires_at, ext_attributes_json, created_at
-            FROM stock_inbound_order_items
-            WHERE order_id = ?
-            ORDER BY id ASC
+            SELECT inbound_items.id,
+                   inbound_items.order_id,
+                   inbound_items.item_id,
+                   inbound_items.quantity,
+                   inbound_items.unit_price,
+                   inbound_items.location_id,
+                   locations.code AS location_code,
+                   locations.name AS location_name,
+                   inbound_items.batch_no,
+                   inbound_items.expires_at,
+                   inbound_items.ext_attributes_json,
+                   inbound_items.created_at
+            FROM stock_inbound_order_items inbound_items
+            JOIN stock_locations locations ON locations.id = inbound_items.location_id
+            WHERE inbound_items.order_id = ?
+            ORDER BY inbound_items.id ASC
             "#,
             [order_id.into()],
         ))
@@ -428,7 +469,9 @@ where
                 item_id: row.try_get("", "item_id")?,
                 quantity: row.try_get("", "quantity")?,
                 unit_price: row.try_get("", "unit_price")?,
-                location: row.try_get("", "location")?,
+                location_id: row.try_get("", "location_id")?,
+                location_code: row.try_get("", "location_code")?,
+                location_name: row.try_get("", "location_name")?,
                 batch_no: row.try_get("", "batch_no")?,
                 expires_at: row.try_get("", "expires_at")?,
                 ext_attributes_json: row.try_get("", "ext_attributes_json")?,

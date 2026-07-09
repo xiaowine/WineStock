@@ -62,14 +62,14 @@
 ### `GET /api/items/{id}`
 
 
-查看单个物品详情，包含物品基础资料、当前库存总量、库存价值、库位分布和当前有效批次摘要。
+查看单个物品详情，包含物品基础资料、当前库存总量、库存价值、库位分布和当前有效批次摘要。物品主数据不保存库位，库位分布来自当前有效批次的 `location_id`。
 
 - 权限：`stock.item.read`
 - 响应：`200` + `ItemDetailResponse`
   - `current_quantity`：当前剩余库存总量，只统计 `stock_batches.remaining_quantity > 0` 的批次
   - `inventory_value`：当前库存价值，按批次剩余数量乘以批次单价汇总
-  - `locations`：当前库存按库位聚合的数量、价值和批次数
-  - `batches`：当前仍有余额的批次摘要，包含批次号、库位、初始数量、剩余数量、单价、价值、入库时间和有效期
+  - `locations`：当前库存按库位聚合的数量、价值和批次数，包含 `location_id`、`location_code` 和 `location_name`
+  - `batches`：当前仍有余额的批次摘要，包含批次号、库位 ID/编码/名称、初始数量、剩余数量、单价、价值、入库时间和有效期
 - 错误：`404` 物品不存在
 
 ### `PUT /api/items/{id}`

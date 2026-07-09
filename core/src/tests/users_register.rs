@@ -32,6 +32,8 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
             "stock.inbound.read",
             "stock.item.manage",
             "stock.item.read",
+            "stock.location.manage",
+            "stock.location.read",
             "stock.outbound.approve",
             "stock.outbound.create",
             "stock.outbound.read",

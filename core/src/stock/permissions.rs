@@ -48,5 +48,11 @@ pub(crate) const STOCK_SUBSTITUTE_READ_PERMISSION: &str = "stock.substitute.read
 /// 整体替换或删除替代料关系的权限代码。
 pub(crate) const STOCK_SUBSTITUTE_MANAGE_PERMISSION: &str = "stock.substitute.manage";
 
+/// 查看库位分组树和库位列表的权限代码。
+pub(crate) const STOCK_LOCATION_READ_PERMISSION: &str = "stock.location.read";
+
+/// 管理库位分组、库位和整批次移库的权限代码。
+pub(crate) const STOCK_LOCATION_MANAGE_PERMISSION: &str = "stock.location.manage";
+
 /// 查询审计事件日志的权限代码。
 pub(crate) const AUDIT_READ_PERMISSION: &str = "audit.read";

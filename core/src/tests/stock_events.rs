@@ -14,7 +14,7 @@ use crate::{
         },
         service::PaginatedResponse,
     },
-    test_support::{json_body, login_request, seeded_app},
+    test_support::{bootstrap_location_id, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
@@ -113,6 +113,7 @@ async fn seed_pending_inbound(
     access_token: &str,
     item_id: i64,
 ) -> InboundResponse {
+    let location_id = bootstrap_location_id(app).await;
     let created = authorized_json_request(
         app,
         "POST",
@@ -125,7 +126,7 @@ async fn seed_pending_inbound(
                 item_id,
                 quantity: 4.0,
                 unit_price: 2.5,
-                location: Some("E-01".to_owned()),
+                location_id,
                 batch_no: Some(format!("EVT-{item_id}")),
                 expires_at: Some("2027-01-01".to_owned()),
                 ext_attributes: None,

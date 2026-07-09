@@ -203,9 +203,17 @@ pub(crate) struct ItemDetailResponse {
 /// 物品详情中的库位库存分布。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
 pub(crate) struct ItemLocationStockResponse {
-    /// 库位；为空表示入库时未填写库位。
+    /// 库位 ID。
     #[garde(skip)]
-    pub location: Option<String>,
+    pub location_id: i64,
+
+    /// 库位编码。
+    #[garde(skip)]
+    pub location_code: String,
+
+    /// 库位名称。
+    #[garde(skip)]
+    pub location_name: String,
 
     /// 该库位当前剩余库存量。
     #[garde(skip)]
@@ -231,9 +239,17 @@ pub(crate) struct ItemBatchStockResponse {
     #[garde(skip)]
     pub batch_no: String,
 
-    /// 批次库位。
+    /// 批次库位 ID。
     #[garde(skip)]
-    pub location: Option<String>,
+    pub location_id: i64,
+
+    /// 批次库位编码。
+    #[garde(skip)]
+    pub location_code: String,
+
+    /// 批次库位名称。
+    #[garde(skip)]
+    pub location_name: String,
 
     /// 入库时的初始数量。
     #[garde(skip)]

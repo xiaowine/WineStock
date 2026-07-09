@@ -1,6 +1,6 @@
-//! 库存默认模板启动补齐。
+//! 库存默认数据启动补齐。
 //!
-//! 本模块属于 `stock` 业务层，负责在本地服务启动时补齐内置库存模板。
+//! 本模块属于 `stock` 业务层，负责在本地服务启动时补齐内置库存模板和首个默认库位。
 //! 它不处理 HTTP 请求，也不覆盖或恢复用户已经创建或删除的同名模板。
 
 use std::{error::Error, fmt};
@@ -15,7 +15,7 @@ use crate::{
 /// 库存默认模板启动补齐失败。
 #[derive(Debug)]
 pub enum StockBootstrapError {
-    /// 读取或写入库存模板失败。
+    /// 读取或写入库存默认数据失败。
     Database(DbErr),
 }
 
@@ -41,11 +41,12 @@ impl From<DbErr> for StockBootstrapError {
     }
 }
 
-/// 启动时补齐内置库存模板；同名记录存在时跳过，避免覆盖用户调整。
+/// 启动时补齐内置库存模板和默认库位；已有业务数据存在时不覆盖用户调整。
 pub(crate) async fn bootstrap_default_templates(
     database: &DatabaseConnection,
 ) -> Result<(), StockBootstrapError> {
     let repository = StockRepository::new(database);
+    repository.ensure_default_location().await?;
     for template in DEFAULT_TEMPLATES {
         if repository.template_name_exists(template.name).await? {
             continue;

@@ -45,6 +45,30 @@ pub(crate) enum StockApiError {
     /// 指定替代料关系不存在。
     SubstituteNotFound,
 
+    /// 指定库位分组不存在或已删除。
+    LocationGroupNotFound,
+
+    /// 指定库位不存在或已删除。
+    LocationNotFound,
+
+    /// 库位分组同级名称已存在。
+    LocationGroupNameTaken,
+
+    /// 库位编码已被其它未删除库位占用。
+    LocationCodeTaken,
+
+    /// 库位分组仍有子分组或库位，不能删除。
+    LocationGroupInUse,
+
+    /// 库位仍有当前库存，不能删除。
+    LocationInUse,
+
+    /// 库位分组移动会形成循环层级。
+    LocationGroupCycle,
+
+    /// 指定批次不存在、无剩余库存或不满足移库条件。
+    StockBatchNotFound,
+
     /// 数据库读写失败。
     Database(DbErr),
 }
@@ -64,6 +88,14 @@ impl IntoResponse for StockApiError {
             Self::OrderNotPending => (StatusCode::CONFLICT, "order_not_pending"),
             Self::InsufficientStock => (StatusCode::CONFLICT, "insufficient_stock"),
             Self::SubstituteNotFound => (StatusCode::NOT_FOUND, "substitute_not_found"),
+            Self::LocationGroupNotFound => (StatusCode::NOT_FOUND, "location_group_not_found"),
+            Self::LocationNotFound => (StatusCode::NOT_FOUND, "location_not_found"),
+            Self::LocationGroupNameTaken => (StatusCode::CONFLICT, "location_group_name_taken"),
+            Self::LocationCodeTaken => (StatusCode::CONFLICT, "location_code_taken"),
+            Self::LocationGroupInUse => (StatusCode::CONFLICT, "location_group_in_use"),
+            Self::LocationInUse => (StatusCode::CONFLICT, "location_in_use"),
+            Self::LocationGroupCycle => (StatusCode::BAD_REQUEST, "location_group_cycle"),
+            Self::StockBatchNotFound => (StatusCode::NOT_FOUND, "stock_batch_not_found"),
             Self::Database(source) => {
                 let _ = source;
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_stock_error")
@@ -94,6 +126,18 @@ pub(super) fn map_stock_db_error(source: DbErr) -> StockApiError {
         }
         DbErr::Custom(message) if message == "substitute item not found" => {
             StockApiError::ItemNotFound
+        }
+        DbErr::Custom(message) if message == "stock location not found" => {
+            StockApiError::LocationNotFound
+        }
+        DbErr::Custom(message) if message == "stock batch not found" => {
+            StockApiError::StockBatchNotFound
+        }
+        DbErr::Custom(message)
+            if message == "location transfer target unchanged"
+                || message == "location transfer source mismatch" =>
+        {
+            StockApiError::InvalidRequest
         }
         DbErr::Custom(message)
             if message == "substitute self reference"

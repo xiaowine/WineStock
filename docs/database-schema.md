@@ -49,6 +49,8 @@
 - `stock.write`：创建或修改库存数据。
 - `stock.item.manage`：创建、修改和软删除库存物品。
 - `stock.item.read`：查看库存物品列表、详情和物品筛选值。
+- `stock.location.manage`：管理库位分组、库位和整批次移库。
+- `stock.location.read`：查看库位分组树和库位列表。
 - `stock.template.manage`：管理库存模板和模板字段。
 - `stock.template.read`：查看库存模板列表和详情。
 - `stock.inbound.create`：创建入库单。
@@ -156,6 +158,28 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `reorder_point`：再订货点，不允许为负。
 - `deleted_at`：软删除时间；为空表示当前有效。
 
+### `stock_location_groups`
+
+库位分组表。分组支持父子层级，用于表达仓库、区域、货架等库位组织结构。
+
+重要字段：
+
+- `parent_id`：上级分组；为空表示根分组。
+- `name`：分组名称；同一上级分组内未软删除记录唯一。
+- `sort_order`：同级排序值，不允许为负。
+- `deleted_at`：软删除时间；为空表示当前有效。
+
+### `stock_locations`
+
+具体库位表。库位归属于某个分组，库存批次和出入库明细通过 `location_id` 引用它。
+
+重要字段：
+
+- `group_id`：所属库位分组。
+- `code`：库位编码；未软删除库位内全局唯一。
+- `name`：库位名称。
+- `deleted_at`：软删除时间；为空表示当前有效。
+
 ### `stock_inbound_orders`
 
 入库单主表。创建单据只写入 `pending` 状态，不增加库存；审批通过后才生成批次和库存流水。
@@ -168,12 +192,13 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_inbound_order_items`
 
-入库单明细表。记录入库物品、数量、单价、库位、外部批次号、有效期和模板扩展属性。
+入库单明细表。记录入库物品、数量、单价、库位 ID、外部批次号、有效期和模板扩展属性。
 
 重要字段：
 
 - `quantity`：入库数量，必须大于 0。
 - `unit_price`：入库单价，不允许为负。
+- `location_id`：入库库位，必须指向有效库位。
 - `ext_attributes_json`：按物品模板校验后的扩展属性 JSON。
 
 ### `stock_batches`
@@ -184,6 +209,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 - `initial_quantity`：批次初始数量，必须大于 0。
 - `remaining_quantity`：批次剩余数量，不允许为负且不能超过初始数量。
+- `location_id`：当前批次库存所在库位。
 - `unit_cost`：批次成本，不允许为负。
 - `expires_at`、`received_at` 和 `id`：未指定批次出库时的 FIFO 排序依据。
 
@@ -199,12 +225,13 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_outbound_order_items`
 
-出库单明细表。记录出库物品、数量、可选指定批次和可选库位。
+出库单明细表。记录出库物品、数量、可选指定批次和可选库位 ID。
 
 重要字段：
 
 - `quantity`：出库数量，必须大于 0。
 - `batch_id`：指定扣减批次；为空时后续审批逻辑按 FIFO 扣减。
+- `location_id`：指定扣减库位；为空时后续审批逻辑按全部当前库存 FIFO 扣减。
 
 ### `stock_movements`
 
@@ -215,6 +242,19 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `movement_type`：只允许 `inbound`、`outbound` 或 `adjustment`。
 - `quantity_delta`：库存变化量，不能为 0。
 - `balance_after`：变动后库存余额，不允许为负。
+- `location_id`：本次库存流水发生时的库位。
+
+### `stock_location_transfers`
+
+整批次移库记录表。移库不改变库存数量，只把仍有余额的批次整体移动到另一个库位。
+
+重要字段：
+
+- `batch_id`：被移动的库存批次。
+- `item_id`：被移动的物品。
+- `from_location_id` / `to_location_id`：原库位和目标库位。
+- `quantity`：移库时该批次的当前余额。
+- `created_by_user_id`：操作人。
 
 ### `stock_substitutes`
 
@@ -228,14 +268,14 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `audit_events`
 
-审计事件表。记录创建、更新、删除、审批、拒绝、替代料关系变更和删除关系等业务操作。
+审计事件表。记录创建、更新、移动、删除、审批、拒绝、替代料关系变更和删除关系等业务操作。
 用户管理接口会把账号启停、权限变更、当前用户修改自己密码和管理员设置临时密码写入该表；密码明文、token 和密码哈希不得进入 `details_json`。
 
 重要字段：
 
-- `entity_type`：被操作实体类型，例如 `item`、`inbound`、`outbound`、`template`、`user` 或 `substitute`。
+- `entity_type`：被操作实体类型，例如 `item`、`inbound`、`outbound`、`template`、`user`、`location_group`、`location`、`location_transfer` 或 `substitute`。
 - `entity_id`：被操作实体 ID。
-- `action`：只允许 `created`、`updated`、`deleted`、`approved`、`rejected`、`linked` 或 `unlinked`。
+- `action`：只允许 `created`、`updated`、`deleted`、`approved`、`rejected`、`linked`、`unlinked` 或 `moved`。
 - `details_json`：变更摘要 JSON，不得写入 JWT、密码、refresh token、签名密钥等敏感值。
 
 ## 系统表

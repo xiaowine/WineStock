@@ -10,7 +10,8 @@ use crate::{
         entity::stock_item,
         repository::{
             AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, OutboundOrderDetail,
-            StockFilterFieldRecord, StockItemDetail, StockSubstituteRecord, StockTemplateDetail,
+            StockFilterFieldRecord, StockItemDetail, StockLocationGroupRecord, StockLocationRecord,
+            StockLocationTransferRecord, StockSubstituteRecord, StockTemplateDetail,
         },
     },
     stock::controller,
@@ -58,7 +59,9 @@ pub(super) fn item_detail_response(detail: StockItemDetail) -> controller::ItemD
             .locations
             .into_iter()
             .map(|location| controller::ItemLocationStockResponse {
-                location: location.location,
+                location_id: location.location_id,
+                location_code: location.location_code,
+                location_name: location.location_name,
                 quantity: location.quantity,
                 value: location.value,
                 batch_count: location.batch_count,
@@ -70,7 +73,9 @@ pub(super) fn item_detail_response(detail: StockItemDetail) -> controller::ItemD
             .map(|batch| controller::ItemBatchStockResponse {
                 id: batch.id,
                 batch_no: batch.batch_no,
-                location: batch.location,
+                location_id: batch.location_id,
+                location_code: batch.location_code,
+                location_name: batch.location_name,
                 initial_quantity: batch.initial_quantity,
                 remaining_quantity: batch.remaining_quantity,
                 unit_cost: batch.unit_cost,
@@ -107,6 +112,51 @@ pub(super) fn filter_values_response(
             })
             .collect::<Result<Vec<_>, StockApiError>>()?,
     })
+}
+
+/// 把库位分组记录转换为 HTTP 响应。
+pub(super) fn location_group_response(
+    record: StockLocationGroupRecord,
+) -> controller::LocationGroupResponse {
+    controller::LocationGroupResponse {
+        id: record.id,
+        parent_id: record.parent_id,
+        name: record.name,
+        sort_order: record.sort_order,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
+    }
+}
+
+/// 把库位记录转换为 HTTP 响应。
+pub(super) fn location_response(record: StockLocationRecord) -> controller::LocationResponse {
+    controller::LocationResponse {
+        id: record.id,
+        group_id: record.group_id,
+        group_name: record.group_name,
+        code: record.code,
+        name: record.name,
+        sort_order: record.sort_order,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
+    }
+}
+
+/// 把移库记录转换为 HTTP 响应。
+pub(super) fn location_transfer_response(
+    record: StockLocationTransferRecord,
+) -> controller::LocationTransferResponse {
+    controller::LocationTransferResponse {
+        id: record.id,
+        batch_id: record.batch_id,
+        item_id: record.item_id,
+        from_location_id: record.from_location_id,
+        to_location_id: record.to_location_id,
+        quantity: record.quantity,
+        notes: record.notes,
+        created_by_user_id: record.created_by_user_id,
+        created_at: record.created_at,
+    }
 }
 
 /// 把模板详情记录转换为 HTTP 响应；会把字段类型代码和 options JSON 恢复为 API 结构。
@@ -166,7 +216,9 @@ pub(super) fn inbound_response(
                     item_id: item.item_id,
                     quantity: item.quantity,
                     unit_price: item.unit_price,
-                    location: item.location,
+                    location_id: item.location_id,
+                    location_code: item.location_code,
+                    location_name: item.location_name,
                     batch_no: item.batch_no,
                     expires_at: item.expires_at,
                     ext_attributes: item
@@ -206,7 +258,9 @@ pub(super) fn outbound_response(
                 item_id: item.item_id,
                 quantity: item.quantity,
                 batch_id: item.batch_id,
-                location: item.location,
+                location_id: item.location_id,
+                location_code: item.location_code,
+                location_name: item.location_name,
                 created_at: item.created_at,
             })
             .collect(),

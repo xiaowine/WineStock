@@ -13,7 +13,7 @@ use crate::{
         ItemSubstituteResponse, SubstituteRelationResponse, SubstituteReplaceRequest,
         SubstituteReplacementItem,
     },
-    test_support::{json_body, login_request, seeded_app, text_body},
+    test_support::{bootstrap_location_id, json_body, login_request, seeded_app, text_body},
 };
 
 #[tokio::test]
@@ -273,6 +273,7 @@ async fn seed_approved_inbound(
     quantity: f64,
     batch_no: &str,
 ) {
+    let location_id = bootstrap_location_id(app).await;
     let created = authorized_json_request(
         app,
         "POST",
@@ -285,7 +286,7 @@ async fn seed_approved_inbound(
                 item_id,
                 quantity,
                 unit_price: 2.5,
-                location: Some("S-01".to_owned()),
+                location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2027-01-01".to_owned()),
                 ext_attributes: None,

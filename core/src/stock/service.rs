@@ -8,6 +8,7 @@ mod error;
 mod events;
 mod inbound;
 mod items;
+mod locations;
 mod outbound;
 mod pagination;
 mod response;
@@ -24,6 +25,11 @@ pub(crate) use inbound::{
 };
 pub(crate) use items::{
     create_item, delete_item, get_item, item_filter_values, list_items, update_item,
+};
+pub(crate) use locations::{
+    create_location, create_location_group, create_location_transfer, delete_location,
+    delete_location_group, list_location_group_tree, list_locations, update_location,
+    update_location_group,
 };
 pub(crate) use outbound::{
     approve_outbound, create_outbound, get_outbound, list_outbound, outbound_filter_values,

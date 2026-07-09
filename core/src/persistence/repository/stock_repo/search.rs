@@ -153,10 +153,12 @@ pub(super) fn append_inbound_search_filter(
             OR EXISTS (
                 SELECT 1
                 FROM stock_inbound_order_items inbound_items
+                JOIN stock_locations locations ON locations.id = inbound_items.location_id
                 LEFT JOIN stock_items matched_items ON matched_items.id = inbound_items.item_id
                 WHERE inbound_items.order_id = stock_inbound_orders.id
                   AND (
-                      lower(COALESCE(inbound_items.location, '')) LIKE ?
+                      lower(locations.code) LIKE ?
+                      OR lower(locations.name) LIKE ?
                       OR lower(COALESCE(inbound_items.batch_no, '')) LIKE ?
                       OR lower(COALESCE(inbound_items.expires_at, '')) LIKE ?
                       OR lower(COALESCE(matched_items.name, '')) LIKE ?
@@ -174,7 +176,7 @@ pub(super) fn append_inbound_search_filter(
         )
         "#
     ));
-    for _ in 0..11 {
+    for _ in 0..12 {
         values.push(search_like.into());
     }
 }
@@ -197,10 +199,13 @@ pub(super) fn append_outbound_search_filter(
             OR EXISTS (
                 SELECT 1
                 FROM stock_outbound_order_items outbound_items
+                LEFT JOIN stock_locations outbound_locations
+                  ON outbound_locations.id = outbound_items.location_id
                 LEFT JOIN stock_items matched_items ON matched_items.id = outbound_items.item_id
                 WHERE outbound_items.order_id = stock_outbound_orders.id
                   AND (
-                      lower(COALESCE(outbound_items.location, '')) LIKE ?
+                      lower(COALESCE(outbound_locations.code, '')) LIKE ?
+                      OR lower(COALESCE(outbound_locations.name, '')) LIKE ?
                       OR lower(COALESCE(matched_items.name, '')) LIKE ?
                       OR lower(COALESCE(matched_items.sku, '')) LIKE ?
                       OR lower(COALESCE(matched_items.unit, '')) LIKE ?
@@ -236,7 +241,7 @@ pub(super) fn append_outbound_search_filter(
         )
         "#
     ));
-    for _ in 0..11 {
+    for _ in 0..12 {
         values.push(search_like.into());
     }
 }
@@ -328,16 +333,15 @@ fn item_base_filter_values_sql() -> String {
            '库位' AS field_label,
            'base' AS field_source,
            'text' AS field_value_type,
-           COALESCE(inbound_items.location, batches.location) AS field_value,
+           locations.code AS field_value,
            COUNT(DISTINCT items.id) AS value_count,
            30 AS field_order
     FROM stock_batches batches
     JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-    LEFT JOIN stock_inbound_order_items inbound_items ON inbound_items.id = batches.inbound_order_item_id
+    JOIN stock_locations locations ON locations.id = batches.location_id
     WHERE batches.remaining_quantity > 0
-      AND COALESCE(inbound_items.location, batches.location) IS NOT NULL
-      AND trim(COALESCE(inbound_items.location, batches.location)) <> ''
-    GROUP BY COALESCE(inbound_items.location, batches.location)
+      AND trim(locations.code) <> ''
+    GROUP BY locations.code
 
     ORDER BY field_order ASC, field_label ASC, value_count DESC, field_value ASC
     "#
@@ -422,14 +426,14 @@ fn inbound_base_filter_values_sql() -> String {
            '库位' AS field_label,
            'base' AS field_source,
            'text' AS field_value_type,
-           inbound_items.location AS field_value,
+           locations.code AS field_value,
            COUNT(DISTINCT orders.id) AS value_count,
            50 AS field_order
     FROM stock_inbound_orders orders
     JOIN stock_inbound_order_items inbound_items ON inbound_items.order_id = orders.id
-    WHERE inbound_items.location IS NOT NULL
-      AND trim(inbound_items.location) <> ''
-    GROUP BY inbound_items.location
+    JOIN stock_locations locations ON locations.id = inbound_items.location_id
+    WHERE trim(locations.code) <> ''
+    GROUP BY locations.code
 
     UNION ALL
 
@@ -531,14 +535,14 @@ fn outbound_base_filter_values_sql() -> String {
            '库位' AS field_label,
            'base' AS field_source,
            'text' AS field_value_type,
-           outbound_items.location AS field_value,
+           locations.code AS field_value,
            COUNT(DISTINCT orders.id) AS value_count,
            50 AS field_order
     FROM stock_outbound_orders orders
     JOIN stock_outbound_order_items outbound_items ON outbound_items.order_id = orders.id
-    WHERE outbound_items.location IS NOT NULL
-      AND trim(outbound_items.location) <> ''
-    GROUP BY outbound_items.location
+    JOIN stock_locations locations ON locations.id = outbound_items.location_id
+    WHERE trim(locations.code) <> ''
+    GROUP BY locations.code
 
     UNION ALL
 

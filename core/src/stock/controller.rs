@@ -8,6 +8,7 @@ pub(crate) mod dashboard;
 pub(crate) mod events;
 pub(crate) mod inbound;
 pub(crate) mod items;
+pub(crate) mod locations;
 pub(crate) mod outbound;
 pub(crate) mod substitutes;
 pub(crate) mod templates;
@@ -30,6 +31,14 @@ pub(crate) use items::{
     create_item, delete_item, get_item, item_filter_values, list_items, update_item,
     ItemBatchStockResponse, ItemCreateRequest, ItemDetailResponse, ItemListQuery,
     ItemLocationStockResponse, ItemResponse, ItemUpdateRequest,
+};
+pub(crate) use locations::{
+    create_location, create_location_group, create_location_transfer, delete_location,
+    delete_location_group, list_location_group_tree, list_locations, update_location,
+    update_location_group, LocationCreateRequest, LocationGroupCreateRequest,
+    LocationGroupResponse, LocationGroupTreeNode, LocationGroupUpdateRequest, LocationListQuery,
+    LocationResponse, LocationTransferCreateRequest, LocationTransferResponse,
+    LocationUpdateRequest,
 };
 pub(crate) use outbound::{
     approve_outbound, create_outbound, get_outbound, list_outbound, outbound_filter_values,

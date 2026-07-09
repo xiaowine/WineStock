@@ -4,11 +4,11 @@
 
 ### `POST /api/stock-approvals/inbound/{id}/approve`
 
-审批入库单。服务端只允许审批 `pending` 单据；审批前按物品关联模板校验 `ext_attributes`，审批事务内生成批次、写入库存流水和审计事件。
+审批入库单。服务端只允许审批 `pending` 单据；审批前按物品关联模板校验 `ext_attributes`，审批事务内再次确认明细库位仍未删除，然后生成批次、写入库存流水和审计事件。
 
 - 权限：`stock.inbound.approve`
 - 响应：`200` + `InboundResponse`，状态为 `approved`
-- 错误：`400` 扩展属性不满足模板约束 / `404` 入库单不存在 / `409` 单据不是 `pending`
+- 错误：`400` 扩展属性不满足模板约束 / `404` 入库单或库位不存在 / `409` 单据不是 `pending`
 
 ### `POST /api/stock-approvals/inbound/{id}/reject`
 

@@ -13,6 +13,9 @@
 - `user`：注册新用户、更新状态、替换权限、管理员设置临时密码和自助改密；注册使用 `created`，其它用户变更使用 `updated`。
 - `inbound`：创建、审批通过和驳回入库单，动作分别为 `created`、`approved`、`rejected`。
 - `outbound`：创建、审批通过和驳回出库单，动作分别为 `created`、`approved`、`rejected`。
+- `location_group`：创建、更新、移动和软删除库位分组，动作分别为 `created`、`updated`、`moved`、`deleted`。
+- `location`：创建、更新和软删除库位，动作分别为 `created`、`updated`、`deleted`。
+- `location_transfer`：整批次移库，动作为 `created`，详情包含批次、物品、原库位、目标库位和数量。
 - `substitute`：整体替换或新增替代料使用 `linked`，清空替代料或删除单条关系使用 `unlinked`；整体替换详情包含旧列表、新列表、实际新增和实际移除的物品 ID。
 
 登录、刷新 token、登出、启动补齐默认模板、RBAC 补齐和鉴权启动设置不写入业务审计事件。
@@ -35,9 +38,9 @@
 |------|------|------|
 | `page` | integer | 页码，默认 1 |
 | `page_size` | integer | 每页条数，默认 50 |
-| `entity_type` | string | 筛选实体类型（item / template / user / inbound / outbound / substitute） |
+| `entity_type` | string | 筛选实体类型（item / template / user / inbound / outbound / location_group / location / location_transfer / substitute） |
 | `entity_id` | integer | 筛选实体 ID |
-| `action` | string | 操作类型（created / updated / deleted / approved / rejected / linked / unlinked） |
+| `action` | string | 操作类型（created / updated / deleted / approved / rejected / linked / unlinked / moved） |
 | `user_id` | integer | 操作人 |
 | `date_from` | string (datetime) | 起始时间 |
 | `date_to` | string (datetime) | 结束时间 |

@@ -21,10 +21,11 @@ pub use bootstrap::StockBootstrapError;
 pub(crate) use permissions::{
     AUDIT_READ_PERMISSION, STOCK_DASHBOARD_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION,
     STOCK_INBOUND_CREATE_PERMISSION, STOCK_INBOUND_READ_PERMISSION, STOCK_ITEM_MANAGE_PERMISSION,
-    STOCK_ITEM_READ_PERMISSION, STOCK_OUTBOUND_APPROVE_PERMISSION,
-    STOCK_OUTBOUND_CREATE_PERMISSION, STOCK_OUTBOUND_READ_PERMISSION, STOCK_READ_PERMISSION,
-    STOCK_SUBSTITUTE_MANAGE_PERMISSION, STOCK_SUBSTITUTE_READ_PERMISSION,
-    STOCK_TEMPLATE_MANAGE_PERMISSION, STOCK_TEMPLATE_READ_PERMISSION, STOCK_WRITE_PERMISSION,
+    STOCK_ITEM_READ_PERMISSION, STOCK_LOCATION_MANAGE_PERMISSION, STOCK_LOCATION_READ_PERMISSION,
+    STOCK_OUTBOUND_APPROVE_PERMISSION, STOCK_OUTBOUND_CREATE_PERMISSION,
+    STOCK_OUTBOUND_READ_PERMISSION, STOCK_READ_PERMISSION, STOCK_SUBSTITUTE_MANAGE_PERMISSION,
+    STOCK_SUBSTITUTE_READ_PERMISSION, STOCK_TEMPLATE_MANAGE_PERMISSION,
+    STOCK_TEMPLATE_READ_PERMISSION, STOCK_WRITE_PERMISSION,
 };
 
 const STOCK_BASE_PATH: &str = "/api";
@@ -66,6 +67,33 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 auth.item_read(get(controller::get_item))
                     .merge(auth.item_manage(put(controller::update_item)))
                     .merge(auth.item_manage(delete(controller::delete_item))),
+            )
+            .route(
+                "/location-groups/tree",
+                auth.location_read(get(controller::list_location_group_tree)),
+            )
+            .route(
+                "/location-groups",
+                auth.location_manage(post(controller::create_location_group)),
+            )
+            .route(
+                "/location-groups/{id}",
+                auth.location_manage(put(controller::update_location_group))
+                    .merge(auth.location_manage(delete(controller::delete_location_group))),
+            )
+            .route(
+                "/locations",
+                auth.location_manage(post(controller::create_location))
+                    .merge(auth.location_read(get(controller::list_locations))),
+            )
+            .route(
+                "/locations/{id}",
+                auth.location_manage(put(controller::update_location))
+                    .merge(auth.location_manage(delete(controller::delete_location))),
+            )
+            .route(
+                "/location-transfers",
+                auth.location_manage(post(controller::create_location_transfer)),
             )
             .route(
                 "/substitutes",
@@ -169,6 +197,10 @@ impl StockRouteAuth {
         self.allow(route, STOCK_SUBSTITUTE_READ_PERMISSION)
     }
 
+    fn location_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_LOCATION_READ_PERMISSION)
+    }
+
     fn item_manage(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
         self.allow(route, STOCK_ITEM_MANAGE_PERMISSION)
     }
@@ -195,6 +227,10 @@ impl StockRouteAuth {
 
     fn substitute_manage(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
         self.allow(route, STOCK_SUBSTITUTE_MANAGE_PERMISSION)
+    }
+
+    fn location_manage(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_LOCATION_MANAGE_PERMISSION)
     }
 
     fn audit_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
@@ -233,6 +269,10 @@ mod stock_dashboard_tests;
 #[cfg(test)]
 #[path = "../tests/stock_substitutes.rs"]
 mod stock_substitutes_tests;
+
+#[cfg(test)]
+#[path = "../tests/stock_locations.rs"]
+mod stock_locations_tests;
 
 #[cfg(test)]
 #[path = "../tests/stock_events.rs"]

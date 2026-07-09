@@ -10,6 +10,7 @@ mod dashboard;
 mod events;
 mod inbound;
 mod items;
+mod locations;
 mod outbound;
 mod search;
 mod substitutes;
@@ -18,13 +19,15 @@ mod types;
 
 pub(crate) use search::{StockFilterFieldRecord, StockFilterValueRecord};
 pub(crate) use types::{
-    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateOutboundOrder,
-    CreateOutboundOrderItem, CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord,
-    DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord,
-    ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
+    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateLocation,
+    CreateLocationGroup, CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem,
+    CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord, DashboardOverviewRecord,
+    InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord, ListAuditEvents,
+    ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
     OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
-    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockSubstituteInput,
-    StockSubstituteRecord, StockTemplateDetail, TemplateFieldInput, UpdateStockItem,
+    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockLocationGroupRecord,
+    StockLocationRecord, StockLocationTransferRecord, StockSubstituteInput, StockSubstituteRecord,
+    StockTemplateDetail, TemplateFieldInput, UpdateLocation, UpdateLocationGroup, UpdateStockItem,
     UpdateStockTemplate,
 };
 

@@ -58,6 +58,8 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
             "stock.inbound.read",
             "stock.item.manage",
             "stock.item.read",
+            "stock.location.manage",
+            "stock.location.read",
             "stock.outbound.approve",
             "stock.outbound.create",
             "stock.outbound.read",

@@ -23,14 +23,17 @@ pub(crate) use rbac_repo::{PermissionRecord, RbacRepository};
 pub(crate) use refresh_token_repo::{CreateRefreshToken, RefreshTokenRepository};
 #[allow(unused_imports)]
 pub(crate) use stock_repo::{
-    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateOutboundOrder,
-    CreateOutboundOrderItem, CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord,
-    DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord,
-    ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
+    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateLocation,
+    CreateLocationGroup, CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem,
+    CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord, DashboardOverviewRecord,
+    InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord, ListAuditEvents,
+    ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
     OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
     StockFilterFieldRecord, StockFilterValueRecord, StockItemBatchRecord, StockItemDetail,
-    StockItemLocationRecord, StockRepository, StockSubstituteInput, StockSubstituteRecord,
-    StockTemplateDetail, TemplateFieldInput, UpdateStockItem, UpdateStockTemplate,
+    StockItemLocationRecord, StockLocationGroupRecord, StockLocationRecord,
+    StockLocationTransferRecord, StockRepository, StockSubstituteInput, StockSubstituteRecord,
+    StockTemplateDetail, TemplateFieldInput, UpdateLocation, UpdateLocationGroup, UpdateStockItem,
+    UpdateStockTemplate,
 };
 pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
 #[allow(unused_imports)]

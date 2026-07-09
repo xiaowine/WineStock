@@ -15,6 +15,7 @@ use crate::persistence::repository::{time::sqlite_now, validation::validate_repo
 #[derive(Debug, Clone, PartialEq)]
 struct StockBatchForDeduction {
     id: i64,
+    location_id: i64,
     remaining_quantity: f64,
     unit_cost: f64,
 }
@@ -67,7 +68,7 @@ where
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_outbound_order_items
-                        (order_id, item_id, quantity, batch_id, location, created_at)
+                        (order_id, item_id, quantity, batch_id, location_id, created_at)
                     VALUES (?, ?, ?, ?, ?, ?)
                     "#,
                     vec![
@@ -75,7 +76,7 @@ where
                         item.item_id.into(),
                         item.quantity.into(),
                         item.batch_id.into(),
-                        item.location.clone().into(),
+                        item.location_id.into(),
                         now.clone().into(),
                     ],
                 ))
@@ -362,10 +363,19 @@ where
         .query_all(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
-            SELECT id, order_id, item_id, quantity, batch_id, location, created_at
-            FROM stock_outbound_order_items
-            WHERE order_id = ?
-            ORDER BY id ASC
+            SELECT outbound_items.id,
+                   outbound_items.order_id,
+                   outbound_items.item_id,
+                   outbound_items.quantity,
+                   outbound_items.batch_id,
+                   outbound_items.location_id,
+                   locations.code AS location_code,
+                   locations.name AS location_name,
+                   outbound_items.created_at
+            FROM stock_outbound_order_items outbound_items
+            LEFT JOIN stock_locations locations ON locations.id = outbound_items.location_id
+            WHERE outbound_items.order_id = ?
+            ORDER BY outbound_items.id ASC
             "#,
             [order_id.into()],
         ))
@@ -379,7 +389,9 @@ where
                 item_id: row.try_get("", "item_id")?,
                 quantity: row.try_get("", "quantity")?,
                 batch_id: row.try_get("", "batch_id")?,
-                location: row.try_get("", "location")?,
+                location_id: row.try_get("", "location_id")?,
+                location_code: row.try_get("", "location_code")?,
+                location_name: row.try_get("", "location_name")?,
                 created_at: row.try_get("", "created_at")?,
             })
         })
@@ -396,13 +408,17 @@ where
     C: ConnectionTrait,
 {
     let batches = if let Some(batch_id) = item.batch_id {
-        vec![
-            find_batch_for_deduction_on_connection(connection, item.item_id, batch_id)
-                .await?
-                .ok_or_else(|| DbErr::Custom("insufficient stock".to_owned()))?,
-        ]
+        vec![find_batch_for_deduction_on_connection(
+            connection,
+            item.item_id,
+            batch_id,
+            item.location_id,
+        )
+        .await?
+        .ok_or_else(|| DbErr::Custom("insufficient stock".to_owned()))?]
     } else {
-        list_fifo_batches_for_deduction_on_connection(connection, item.item_id).await?
+        list_fifo_batches_for_deduction_on_connection(connection, item.item_id, item.location_id)
+            .await?
     };
 
     let mut remaining_to_deduct = item.quantity;
@@ -435,8 +451,8 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_movements
-                    (item_id, batch_id, movement_type, quantity_delta, unit_cost, balance_after, outbound_order_item_id, created_by_user_id, created_at)
-                VALUES (?, ?, 'outbound', ?, ?, ?, ?, ?, ?)
+                    (item_id, batch_id, movement_type, quantity_delta, unit_cost, balance_after, location_id, outbound_order_item_id, created_by_user_id, created_at)
+                VALUES (?, ?, 'outbound', ?, ?, ?, ?, ?, ?, ?)
                 "#,
                 vec![
                     item.item_id.into(),
@@ -444,6 +460,7 @@ where
                     (-deducted).into(),
                     batch.unit_cost.into(),
                     balance_after.into(),
+                    batch.location_id.into(),
                     item.id.into(),
                     user_id.into(),
                     now.to_owned().into(),
@@ -463,19 +480,27 @@ async fn find_batch_for_deduction_on_connection<C>(
     connection: &C,
     item_id: i64,
     batch_id: i64,
+    location_id: Option<i64>,
 ) -> Result<Option<StockBatchForDeduction>, DbErr>
 where
     C: ConnectionTrait,
 {
+    let mut sql = r#"
+            SELECT id, location_id, remaining_quantity, unit_cost
+            FROM stock_batches
+            WHERE id = ? AND item_id = ? AND remaining_quantity > 0
+            "#
+    .to_owned();
+    let mut values = vec![batch_id.into(), item_id.into()];
+    if let Some(location_id) = location_id {
+        sql.push_str(" AND location_id = ?");
+        values.push(location_id.into());
+    }
     connection
         .query_one(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            r#"
-            SELECT id, remaining_quantity, unit_cost
-            FROM stock_batches
-            WHERE id = ? AND item_id = ? AND remaining_quantity > 0
-            "#,
-            [batch_id.into(), item_id.into()],
+            sql,
+            values,
         ))
         .await?
         .map(batch_for_deduction_from_row)
@@ -485,20 +510,28 @@ where
 async fn list_fifo_batches_for_deduction_on_connection<C>(
     connection: &C,
     item_id: i64,
+    location_id: Option<i64>,
 ) -> Result<Vec<StockBatchForDeduction>, DbErr>
 where
     C: ConnectionTrait,
 {
+    let mut sql = r#"
+            SELECT id, location_id, remaining_quantity, unit_cost
+            FROM stock_batches
+            WHERE item_id = ? AND remaining_quantity > 0
+            "#
+    .to_owned();
+    let mut values = vec![item_id.into()];
+    if let Some(location_id) = location_id {
+        sql.push_str(" AND location_id = ?");
+        values.push(location_id.into());
+    }
+    sql.push_str(" ORDER BY expires_at IS NULL ASC, expires_at ASC, received_at ASC, id ASC");
     let rows = connection
         .query_all(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            r#"
-            SELECT id, remaining_quantity, unit_cost
-            FROM stock_batches
-            WHERE item_id = ? AND remaining_quantity > 0
-            ORDER BY expires_at IS NULL ASC, expires_at ASC, received_at ASC, id ASC
-            "#,
-            [item_id.into()],
+            sql,
+            values,
         ))
         .await?;
 
@@ -510,6 +543,7 @@ fn batch_for_deduction_from_row(
 ) -> Result<StockBatchForDeduction, DbErr> {
     Ok(StockBatchForDeduction {
         id: row.try_get("", "id")?,
+        location_id: row.try_get("", "location_id")?,
         remaining_quantity: row.try_get("", "remaining_quantity")?,
         unit_cost: row.try_get("", "unit_cost")?,
     })

@@ -32,9 +32,9 @@ pub(crate) struct OutboundItemRequest {
     #[garde(skip)]
     pub batch_id: Option<i64>,
 
-    /// 出库库位。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
-    pub location: Option<String>,
+    /// 出库库位 ID；为空时审批阶段按全部当前库存 FIFO 扣减。
+    #[garde(skip)]
+    pub location_id: Option<i64>,
 }
 
 /// 创建出库单请求。
@@ -99,9 +99,17 @@ pub(crate) struct OutboundItemResponse {
     #[garde(skip)]
     pub batch_id: Option<i64>,
 
-    /// 出库库位。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
-    pub location: Option<String>,
+    /// 出库库位 ID。
+    #[garde(skip)]
+    pub location_id: Option<i64>,
+
+    /// 出库库位编码。
+    #[garde(skip)]
+    pub location_code: Option<String>,
+
+    /// 出库库位名称。
+    #[garde(skip)]
+    pub location_name: Option<String>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。
     #[garde(skip)]

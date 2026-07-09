@@ -12,7 +12,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use sea_orm::DatabaseConnection;
+use sea_orm::{ConnectionTrait, DatabaseBackend, DatabaseConnection, Statement};
 use tempfile::{tempdir, TempDir};
 use tower::ServiceExt;
 use winestock_shared::{
@@ -102,6 +102,65 @@ pub(crate) async fn seed_plain_user(database: &DatabaseConnection, username: &st
         })
         .await
         .expect("plain user should be created");
+}
+
+pub(crate) async fn bootstrap_location_id(app: &TestApp) -> i64 {
+    query_location_id_by_code(app, "DEFAULT").await
+}
+
+pub(crate) async fn seed_stock_location(app: &TestApp, code: &str) -> i64 {
+    let group_id = query_default_location_group_id(app).await;
+    app.state
+        .database()
+        .execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            INSERT INTO stock_locations (group_id, code, name, sort_order)
+            VALUES (?, ?, ?, 0)
+            "#,
+            vec![
+                group_id.into(),
+                code.to_owned().into(),
+                format!("{code} 测试库位").into(),
+            ],
+        ))
+        .await
+        .expect("test location should insert");
+
+    query_location_id_by_code(app, code).await
+}
+
+async fn query_default_location_group_id(app: &TestApp) -> i64 {
+    let row = app
+        .state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "SELECT id FROM stock_location_groups WHERE name = '默认库区' AND deleted_at IS NULL",
+            [],
+        ))
+        .await
+        .expect("default location group query should succeed")
+        .expect("default location group should exist");
+
+    row.try_get("", "id")
+        .expect("default location group id should decode")
+}
+
+async fn query_location_id_by_code(app: &TestApp, code: &str) -> i64 {
+    let row = app
+        .state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "SELECT id FROM stock_locations WHERE code = ? AND deleted_at IS NULL",
+            [code.into()],
+        ))
+        .await
+        .expect("location query should succeed")
+        .expect("location should exist");
+
+    row.try_get("", "id").expect("location id should decode")
 }
 
 pub(crate) async fn login_request(app: &TestApp, username: &str, password: &str) -> TokenResult {

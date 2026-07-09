@@ -13,7 +13,9 @@ use crate::{
         ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateCreateRequest,
         TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
-    test_support::{json_body, json_request, login_request, seeded_app, text_body},
+    test_support::{
+        json_body, json_request, login_request, seed_stock_location, seeded_app, text_body,
+    },
 };
 
 #[tokio::test]
@@ -213,11 +215,11 @@ async fn item_detail_returns_current_inventory_summary() {
     assert_eq!(detail.current_quantity, 20.0);
     assert_eq!(detail.inventory_value, 50.0);
     assert_eq!(detail.locations.len(), 2);
-    assert_eq!(detail.locations[0].location.as_deref(), Some("A-01"));
+    assert_eq!(detail.locations[0].location_code, "A-01");
     assert_eq!(detail.locations[0].quantity, 10.0);
     assert_eq!(detail.locations[0].value, 25.0);
     assert_eq!(detail.locations[0].batch_count, 1);
-    assert_eq!(detail.locations[1].location.as_deref(), Some("B-02"));
+    assert_eq!(detail.locations[1].location_code, "B-02");
     assert_eq!(detail.batches.len(), 2);
     assert_eq!(detail.batches[0].batch_no, "DETAIL-BATCH-001");
     assert_eq!(detail.batches[0].remaining_quantity, 10.0);
@@ -491,6 +493,7 @@ async fn create_and_approve_inbound(
     location: &str,
     batch_no: &str,
 ) -> InboundResponse {
+    let location_id = seed_stock_location(app, location).await;
     let created = authorized_json_request(
         app,
         "POST",
@@ -503,7 +506,7 @@ async fn create_and_approve_inbound(
                 item_id,
                 quantity: 10.0,
                 unit_price: 2.5,
-                location: Some(location.to_owned()),
+                location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2028-01-01".to_owned()),
                 ext_attributes: Some(serde_json::json!({

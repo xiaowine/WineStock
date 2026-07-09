@@ -12,7 +12,7 @@ use crate::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest, ItemResponse,
         TemplateCreateRequest, TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
-    test_support::{json_body, login_request, seeded_app, text_body},
+    test_support::{json_body, login_request, seed_stock_location, seeded_app, text_body},
 };
 
 #[tokio::test]
@@ -20,6 +20,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let item_id = seed_template_bound_item(&app, &login.body.access_token).await;
+    let location_id = seed_stock_location(&app, "A-01").await;
 
     let created = authorized_json_request(
         &app,
@@ -28,6 +29,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
         &login.body.access_token,
         &inbound_request(
             item_id,
+            location_id,
             Some(serde_json::json!({
                 "brand": "Acme",
                 "abv": 13.5,
@@ -79,6 +81,7 @@ async fn inbound_reject_prevents_later_approval() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let item_id = seed_template_bound_item(&app, &login.body.access_token).await;
+    let location_id = seed_stock_location(&app, "A-01").await;
 
     let created = authorized_json_request(
         &app,
@@ -87,6 +90,7 @@ async fn inbound_reject_prevents_later_approval() {
         &login.body.access_token,
         &inbound_request(
             item_id,
+            location_id,
             Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
         ),
     )
@@ -119,17 +123,61 @@ async fn inbound_reject_prevents_later_approval() {
 }
 
 #[tokio::test]
+async fn inbound_approval_rejects_location_removed_after_order_creation() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let item_id = seed_template_bound_item(&app, &login.body.access_token).await;
+    let location_id = seed_stock_location(&app, "REMOVED-LOC").await;
+
+    let created = authorized_json_request(
+        &app,
+        "POST",
+        "/api/inbound",
+        &login.body.access_token,
+        &inbound_request(
+            item_id,
+            location_id,
+            Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
+        ),
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let order: InboundResponse = json_body(created).await;
+
+    let removed = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/locations/{location_id}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(removed.status(), StatusCode::NO_CONTENT);
+
+    let approval = authorized_empty_request(
+        &app,
+        "POST",
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(approval.status(), StatusCode::NOT_FOUND);
+    assert_eq!(text_body(approval).await, "location_not_found");
+    assert_eq!(table_count(&app, "stock_batches").await, 0);
+}
+
+#[tokio::test]
 async fn inbound_validates_template_attributes_and_permissions() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let item_id = seed_template_bound_item(&app, &login.body.access_token).await;
+    let location_id = seed_stock_location(&app, "A-01").await;
 
     let missing_required = authorized_json_request(
         &app,
         "POST",
         "/api/inbound",
         &login.body.access_token,
-        &inbound_request(item_id, Some(serde_json::json!({"abv": 13.5}))),
+        &inbound_request(item_id, location_id, Some(serde_json::json!({"abv": 13.5}))),
     )
     .await;
     let order: InboundResponse = json_body(missing_required).await;
@@ -150,6 +198,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
         &login.body.access_token,
         &inbound_request(
             item_id,
+            location_id,
             Some(serde_json::json!({"brand": "Acme", "datasheet": "example.com/spec"})),
         ),
     )
@@ -177,6 +226,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
         &viewer_token,
         &inbound_request(
             item_id,
+            location_id,
             Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
         ),
     )
@@ -193,6 +243,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
         &staff_token,
         &inbound_request(
             item_id,
+            location_id,
             Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
         ),
     )
@@ -218,6 +269,8 @@ async fn inbound_search_and_filter_values_use_history_scope() {
     let login = login_request(&app, "admin", "password").await;
     let (primary_item_id, secondary_item_id) =
         seed_inbound_search_items(&app, &login.body.access_token).await;
+    let location_l01 = seed_stock_location(&app, "L-01").await;
+    let location_l02 = seed_stock_location(&app, "L-02").await;
 
     let created = authorized_json_request(
         &app,
@@ -232,7 +285,7 @@ async fn inbound_search_and_filter_values_use_history_scope() {
                     item_id: primary_item_id,
                     quantity: 10.0,
                     unit_price: 2.5,
-                    location: Some("L-01".to_owned()),
+                    location_id: location_l01,
                     batch_no: Some("HIST-001".to_owned()),
                     expires_at: Some("2029-01-01".to_owned()),
                     ext_attributes: Some(serde_json::json!({
@@ -244,7 +297,7 @@ async fn inbound_search_and_filter_values_use_history_scope() {
                     item_id: secondary_item_id,
                     quantity: 5.0,
                     unit_price: 3.5,
-                    location: Some("L-02".to_owned()),
+                    location_id: location_l02,
                     batch_no: Some("HIST-002".to_owned()),
                     expires_at: Some("2029-02-01".to_owned()),
                     ext_attributes: Some(serde_json::json!({
@@ -542,6 +595,7 @@ async fn seed_template_bound_item(app: &crate::test_support::TestApp, access_tok
 
 fn inbound_request(
     item_id: i64,
+    location_id: i64,
     ext_attributes: Option<serde_json::Value>,
 ) -> InboundCreateRequest {
     InboundCreateRequest {
@@ -551,7 +605,7 @@ fn inbound_request(
             item_id,
             quantity: 10.0,
             unit_price: 2.5,
-            location: Some("A-01".to_owned()),
+            location_id,
             batch_no: Some("BATCH-001".to_owned()),
             expires_at: Some("2027-01-01".to_owned()),
             ext_attributes,

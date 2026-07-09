@@ -208,6 +208,58 @@ const INITIAL_SCHEMA: &[&str] = &[
         ON stock_items(category_id, id)
         WHERE deleted_at IS NULL
     "#,
+    // 库位分组支持树形结构；库位本身不挂在物品上，而是挂在批次和库存流转记录上。
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_location_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT,
+        FOREIGN KEY (parent_id) REFERENCES stock_location_groups(id) ON DELETE RESTRICT,
+        CHECK (parent_id IS NULL OR parent_id != id)
+    )
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_location_groups_root_name_active
+        ON stock_location_groups(name)
+        WHERE parent_id IS NULL AND deleted_at IS NULL
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_location_groups_child_name_active
+        ON stock_location_groups(parent_id, name)
+        WHERE parent_id IS NOT NULL AND deleted_at IS NULL
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_location_groups_parent_order
+        ON stock_location_groups(parent_id, sort_order, id)
+        WHERE deleted_at IS NULL
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT,
+        FOREIGN KEY (group_id) REFERENCES stock_location_groups(id) ON DELETE RESTRICT
+    )
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_locations_code_active
+        ON stock_locations(code)
+        WHERE deleted_at IS NULL
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_locations_group_order
+        ON stock_locations(group_id, sort_order, id)
+        WHERE deleted_at IS NULL
+    "#,
     // 出入库单据创建时保持 pending；只有审批事务会写批次、库存流水和审计事件。
     r#"
     CREATE TABLE IF NOT EXISTS stock_inbound_orders (
@@ -240,13 +292,14 @@ const INITIAL_SCHEMA: &[&str] = &[
         item_id INTEGER NOT NULL,
         quantity REAL NOT NULL CHECK (quantity > 0),
         unit_price REAL NOT NULL CHECK (unit_price >= 0),
-        location TEXT,
+        location_id INTEGER NOT NULL,
         batch_no TEXT,
         expires_at TEXT,
         ext_attributes_json TEXT,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         FOREIGN KEY (order_id) REFERENCES stock_inbound_orders(id) ON DELETE CASCADE,
-        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT
     )
     "#,
     r#"
@@ -263,7 +316,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         item_id INTEGER NOT NULL,
         inbound_order_item_id INTEGER,
         batch_no TEXT NOT NULL,
-        location TEXT,
+        location_id INTEGER NOT NULL,
         initial_quantity REAL NOT NULL CHECK (initial_quantity > 0),
         remaining_quantity REAL NOT NULL CHECK (remaining_quantity >= 0),
         unit_cost REAL NOT NULL CHECK (unit_cost >= 0),
@@ -273,12 +326,13 @@ const INITIAL_SCHEMA: &[&str] = &[
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
         FOREIGN KEY (inbound_order_item_id) REFERENCES stock_inbound_order_items(id) ON DELETE SET NULL,
+        FOREIGN KEY (location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT,
         CHECK (remaining_quantity <= initial_quantity)
     )
     "#,
     r#"
     CREATE INDEX IF NOT EXISTS idx_stock_batches_item_fifo
-        ON stock_batches(item_id, expires_at, received_at, id)
+        ON stock_batches(item_id, location_id, expires_at, received_at, id)
         WHERE remaining_quantity > 0
     "#,
     r#"
@@ -316,11 +370,12 @@ const INITIAL_SCHEMA: &[&str] = &[
         item_id INTEGER NOT NULL,
         quantity REAL NOT NULL CHECK (quantity > 0),
         batch_id INTEGER,
-        location TEXT,
+        location_id INTEGER,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         FOREIGN KEY (order_id) REFERENCES stock_outbound_orders(id) ON DELETE CASCADE,
         FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
-        FOREIGN KEY (batch_id) REFERENCES stock_batches(id) ON DELETE RESTRICT
+        FOREIGN KEY (batch_id) REFERENCES stock_batches(id) ON DELETE RESTRICT,
+        FOREIGN KEY (location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT
     )
     "#,
     r#"
@@ -340,12 +395,14 @@ const INITIAL_SCHEMA: &[&str] = &[
         quantity_delta REAL NOT NULL,
         unit_cost REAL CHECK (unit_cost IS NULL OR unit_cost >= 0),
         balance_after REAL NOT NULL CHECK (balance_after >= 0),
+        location_id INTEGER,
         inbound_order_item_id INTEGER,
         outbound_order_item_id INTEGER,
         created_by_user_id INTEGER,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
         FOREIGN KEY (batch_id) REFERENCES stock_batches(id) ON DELETE SET NULL,
+        FOREIGN KEY (location_id) REFERENCES stock_locations(id) ON DELETE SET NULL,
         FOREIGN KEY (inbound_order_item_id) REFERENCES stock_inbound_order_items(id) ON DELETE SET NULL,
         FOREIGN KEY (outbound_order_item_id) REFERENCES stock_outbound_order_items(id) ON DELETE SET NULL,
         FOREIGN KEY (created_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
@@ -359,6 +416,29 @@ const INITIAL_SCHEMA: &[&str] = &[
     r#"
     CREATE INDEX IF NOT EXISTS idx_stock_movements_type_created
         ON stock_movements(movement_type, created_at DESC)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_location_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        batch_id INTEGER NOT NULL,
+        item_id INTEGER NOT NULL,
+        from_location_id INTEGER NOT NULL,
+        to_location_id INTEGER NOT NULL,
+        quantity REAL NOT NULL CHECK (quantity > 0),
+        notes TEXT,
+        created_by_user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (batch_id) REFERENCES stock_batches(id) ON DELETE RESTRICT,
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (from_location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT,
+        FOREIGN KEY (to_location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT,
+        FOREIGN KEY (created_by_user_id) REFERENCES auth_users(id) ON DELETE SET NULL,
+        CHECK (from_location_id != to_location_id)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_location_transfers_batch_created
+        ON stock_location_transfers(batch_id, created_at DESC)
     "#,
     r#"
     CREATE TABLE IF NOT EXISTS stock_substitutes (
@@ -386,7 +466,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         user_id INTEGER,
         entity_type TEXT NOT NULL,
         entity_id INTEGER,
-        action TEXT NOT NULL CHECK (action IN ('created', 'updated', 'deleted', 'approved', 'rejected', 'linked', 'unlinked')),
+        action TEXT NOT NULL CHECK (action IN ('created', 'updated', 'deleted', 'approved', 'rejected', 'linked', 'unlinked', 'moved')),
         details_json TEXT,
         FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE SET NULL
     )
@@ -413,6 +493,8 @@ const DROP_SCHEMA: &[&str] = &[
     "DROP TABLE IF EXISTS audit_events",
     "DROP INDEX IF EXISTS idx_stock_substitutes_substitute",
     "DROP TABLE IF EXISTS stock_substitutes",
+    "DROP INDEX IF EXISTS idx_stock_location_transfers_batch_created",
+    "DROP TABLE IF EXISTS stock_location_transfers",
     "DROP INDEX IF EXISTS idx_stock_movements_type_created",
     "DROP INDEX IF EXISTS idx_stock_movements_item_created",
     "DROP TABLE IF EXISTS stock_movements",
@@ -432,6 +514,13 @@ const DROP_SCHEMA: &[&str] = &[
     "DROP INDEX IF EXISTS idx_stock_items_category_active",
     "DROP INDEX IF EXISTS idx_stock_items_sku_active",
     "DROP TABLE IF EXISTS stock_items",
+    "DROP INDEX IF EXISTS idx_stock_locations_group_order",
+    "DROP INDEX IF EXISTS idx_stock_locations_code_active",
+    "DROP TABLE IF EXISTS stock_locations",
+    "DROP INDEX IF EXISTS idx_stock_location_groups_parent_order",
+    "DROP INDEX IF EXISTS idx_stock_location_groups_child_name_active",
+    "DROP INDEX IF EXISTS idx_stock_location_groups_root_name_active",
+    "DROP TABLE IF EXISTS stock_location_groups",
     "DROP INDEX IF EXISTS idx_stock_template_fields_template_order",
     "DROP TABLE IF EXISTS stock_template_fields",
     "DROP INDEX IF EXISTS idx_stock_templates_name_active",

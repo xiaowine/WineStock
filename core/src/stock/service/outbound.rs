@@ -41,11 +41,26 @@ pub(crate) async fn create_outbound(
         {
             return Err(StockApiError::ItemNotFound);
         }
+        if item.batch_id.is_some_and(|id| id < 1) {
+            return Err(StockApiError::InvalidRequest);
+        }
+        if item.location_id.is_some_and(|id| id < 1) {
+            return Err(StockApiError::InvalidRequest);
+        }
+        if let Some(location_id) = item.location_id {
+            if repository
+                .find_active_location_by_id(location_id)
+                .await?
+                .is_none()
+            {
+                return Err(StockApiError::LocationNotFound);
+            }
+        }
         items.push(CreateOutboundOrderItem {
             item_id: item.item_id,
             quantity: validate_positive(item.quantity)?,
             batch_id: item.batch_id,
-            location: normalize_optional_text(item.location)?,
+            location_id: item.location_id,
         });
     }
 

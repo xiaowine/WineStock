@@ -27,7 +27,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实体限制文档、实现笔记和本代码地图。
 - `docs/business-api.md`：业务 API 文档入口，按业务域链接到拆分后的详细文档。
-- `docs/business-api/`：按库存物品、模板、入库、出库、审批、看板、替代料、事件日志、通用结构和权限汇总拆分的业务 API 详细文档。
+- `docs/business-api/`：按库存物品、库位、模板、入库、出库、审批、看板、替代料、事件日志、通用结构和权限汇总拆分的业务 API 详细文档。
 - `docs/user-management-api.md`：当前用户管理和权限只读接口文档。
 - `docs/rbac-permission-model.md`：当前用户直接权限模型、初始化行为和业务授权规则。
 - `docs/validation/`：按实体所在源码文件归档的字段限制、校验入口和数据库约束说明。
@@ -68,7 +68,7 @@ core   -> desktop/android/frontend platform assets
 单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件只保留 `#[cfg(test)]`、`#[path = "..."]` 和对应测试模块声明。
 测试仍作为被测模块的子模块挂载，因此可以访问本模块私有项；物理文件集中存放，避免生产代码文件夹中散落 `tests.rs`。
 `core` 当前已按“全局 HTTP 外壳”“security 前置层”“auth 会话认证业务”“users 用户业务”“stock 库存业务”和持久化层拆分测试文件，并通过 `core/src/tests/support.rs` 复用测试搭建逻辑。
-当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/users_management.rs`、`core/src/tests/stock_items.rs`、`core/src/tests/stock_templates.rs`、`core/src/tests/stock_inbound.rs`、`core/src/tests/stock_outbound.rs`、`core/src/tests/stock_dashboard.rs`、`core/src/tests/stock_substitutes.rs`、`core/src/tests/stock_events.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
+当前测试文件：`core/src/tests/support.rs`、`core/src/tests/bootstrap.rs`、`core/src/tests/http_openapi.rs`、`core/src/tests/security_authorization.rs`、`core/src/tests/auth_login.rs`、`core/src/tests/auth_refresh.rs`、`core/src/tests/auth_logout.rs`、`core/src/tests/users_register.rs`、`core/src/tests/users_me.rs`、`core/src/tests/users_management.rs`、`core/src/tests/stock_items.rs`、`core/src/tests/stock_templates.rs`、`core/src/tests/stock_locations.rs`、`core/src/tests/stock_inbound.rs`、`core/src/tests/stock_outbound.rs`、`core/src/tests/stock_dashboard.rs`、`core/src/tests/stock_substitutes.rs`、`core/src/tests/stock_events.rs`、`core/src/tests/persistence_connection.rs`、`core/src/tests/persistence_repository.rs`、`core/src/tests/server.rs`、`server/src/tests/lib.rs`、`server/src/tests/config.rs` 和 `shared/src/tests/lib.rs`。
 
 ## `shared`
 
@@ -167,30 +167,32 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/stock/`
   - 库存业务模块，承载物品 CRUD 和后续模板、出入库、看板、替代料、审计事件能力。
-  - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`stock-approvals`、`substitutes`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载物品、模板、入库、出库、看板和替代料细分只读权限，以及 `stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
+  - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`location-groups`、`locations`、`location-transfers`、`templates`、`inbound`、`outbound`、`stock-approvals`、`substitutes`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载物品、库位、模板、入库、出库、看板和替代料细分只读权限，以及 `stock.item.manage`、`stock.location.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
   - `controller.rs` 是库存 HTTP 控制器入口，声明并重新导出 `controller/` 下的业务子模块，保持 `stock::controller::*` 的内部访问面稳定。
   - `controller/templates.rs` 定义包含 `url` 链接字段的模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
   - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应、带当前库存快照的物品详情响应、物品筛选值响应入口和物品 Axum handler。
+  - `controller/locations.rs` 定义库位分组、库位、整批次移库 DTO 和对应 Axum handler；分组树响应运行时返回递归树结构，OpenAPI 使用通用 JSON body 避免递归 schema 展开。
   - `controller/inbound.rs` 定义入库单 DTO、分页查询参数、入库请求/响应、入库历史筛选值响应入口和入库 Axum handler。
   - `controller/outbound.rs` 定义出库单 DTO、分页搜索查询参数、出库筛选值响应入口、出库请求/响应和出库 Axum handler。
   - `controller/dashboard.rs` 定义库存看板总览、趋势查询参数、趋势响应和看板 Axum handler。
   - `controller/substitutes.rs` 定义替代料整体替换请求、指定物品替代料响应、全量替代料关系响应和替代料 Axum handler。
   - `controller/events.rs` 定义事件日志查询参数、事件日志响应和审计事件 Axum handler。
   - `controller/common.rs` 定义多个库存 HTTP 子模块共享的单据状态枚举、筛选值响应 DTO 和正数校验函数。
-  - `bootstrap.rs` 定义 `元器件`、`3D打印耗材` 和 `通用` 三个内置库存模板的启动补齐逻辑；补齐只按同名记录缺失时创建，不覆盖用户修改，也不恢复用户软删除的模板。
+  - `bootstrap.rs` 定义 `元器件`、`3D打印耗材` 和 `通用` 三个内置库存模板，以及 `默认库区`/`DEFAULT` 默认库位的启动补齐逻辑；模板补齐只按同名记录缺失时创建，不覆盖用户修改，也不恢复用户软删除的模板，默认库位只在没有任何有效库位时创建。
   - `service.rs` 是库存业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `stock::service::*` 的内部访问面稳定。
   - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验、模板写库输入组装和模板审计操作者传递。
   - `service/items.rs` 处理物品创建、分页、当前库存筛选值、带当前库存快照的详情、更新、软删除、SKU 冲突检查和物品审计操作者传递。
-  - `service/inbound.rs` 处理入库创建、列表、入库历史筛选值、详情、审批、拒绝和审批前模板扩展属性校验。
+  - `service/locations.rs` 处理库位分组树、分组 CRUD、库位 CRUD、整批次移库、父子层级循环校验、删除占用校验、默认库位以外的业务操作审计操作者传递。
+  - `service/inbound.rs` 处理入库创建、列表、入库历史筛选值、详情、审批、拒绝、审批前模板扩展属性校验和审批事务内库位有效性兜底校验。
   - `service/outbound.rs` 处理出库创建、列表搜索、出库历史筛选值、详情、审批、拒绝和库存不足错误映射。
   - `service/dashboard.rs` 处理库存看板总览和趋势只读查询，并持有趋势天数与呆滞料阈值等看板服务常量。
   - `service/substitutes.rs` 处理替代料整体替换、指定物品查询、全量关系查询、删除关系、替代料自引用/重复/循环绑定错误映射和替代料审计操作者传递。
   - `service/events.rs` 处理事件日志分页、筛选条件归一化和响应分页组装。
   - `service/error.rs` 定义 `StockApiError`，集中库存 HTTP 错误响应映射和 repository 自定义错误收敛。
   - `service/pagination.rs` 定义库存分页默认值、`PaginatedResponse<T>` 和总页数计算。
-  - `service/response.rs` 负责把 repository 记录投影为库存 HTTP DTO，包括物品详情库存快照、替代料关系和筛选值聚合响应，不执行数据库查询。
+  - `service/response.rs` 负责把 repository 记录投影为库存 HTTP DTO，包括物品详情库存快照、库位分组、库位、移库记录、替代料关系和筛选值聚合响应，不执行数据库查询。
   - `service/validation.rs` 负责库存服务层复用的文本、数值、ID、options JSON 和扩展属性 JSON 归一化。
-  - `permissions.rs` 定义历史兼容的 `stock.read`、`stock.write`、物品/模板/入库/出库/看板/替代料细分权限和 `audit.read` 等稳定权限代码。
+  - `permissions.rs` 定义历史兼容的 `stock.read`、`stock.write`、物品/库位/模板/入库/出库/看板/替代料细分权限和 `audit.read` 等稳定权限代码。
 
 - `core/src/rbac/`
   - 授权模型模块，承载内置权限定义和启动补齐逻辑。
@@ -213,7 +215,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/persistence/migration/`
   - 定义 SeaORM `Migrator`。
-  - 首版 migration 创建 `auth_users`、`auth_permissions`、`auth_user_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_substitutes` 和 `audit_events`；`auth_users.password_change_required` 使用 SQLite 0/1 布尔值保存临时密码强制改密状态。
+  - 首版 migration 创建 `auth_users`、`auth_permissions`、`auth_user_permission_assignments`、`auth_settings`、`auth_signing_keys`、`auth_refresh_tokens`、`storage_file_objects`、`stock_templates`、`stock_template_fields`、`stock_items`、`stock_location_groups`、`stock_locations`、`stock_inbound_orders`、`stock_inbound_order_items`、`stock_outbound_orders`、`stock_outbound_order_items`、`stock_batches`、`stock_movements`、`stock_location_transfers`、`stock_substitutes` 和 `audit_events`；`auth_users.password_change_required` 使用 SQLite 0/1 布尔值保存临时密码强制改密状态。
   - 为 refresh token hash、文件 hash、文件 owner/created_at、active signing key、未删除物品 SKU、未删除模板名称、FIFO 批次查询和审计查询建立索引或约束。
   - `auth_refresh_tokens` 强制保存登录设备名称、客户端类型、App 版本号和 refresh token 格式版本；客户端类型只允许桌面端或 Android 端稳定代码。
 
@@ -235,10 +237,10 @@ core   -> desktop/android/frontend platform assets
   - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销、按用户吊销 active token 和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
-  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表搜索/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/指定物品查询/全量关系查询/删除关系、循环绑定检测、事件日志分页筛选以及库存物品/入库历史/出库历史搜索和筛选值聚合；物品、模板和替代料写操作在事务内同步写入脱敏审计详情；handler 不直接拼接 `stock_*` 表结构。
+  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、库位分组/库位 CRUD、默认库位补齐、整批次移库、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表搜索/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/指定物品查询/全量关系查询/删除关系、循环绑定检测、事件日志分页筛选以及库存物品/入库历史/出库历史搜索和筛选值聚合；物品、库位、模板和替代料写操作在事务内同步写入脱敏审计详情；handler 不直接拼接 `stock_*` 表结构。
   - `stock_repo.rs` 是库存仓储模块入口，声明 `StockRepository`，并重新导出库存仓储输入、读取模型和筛选值记录，保持上层 `repository::StockRepository` 等导入路径稳定。
-  - `stock_repo/types.rs` 定义库存仓储输入和读取模型，包括物品详情的当前库存、库位分布和批次摘要读取模型；不执行数据库查询，不拥有 HTTP DTO。
-  - `stock_repo/items.rs`、`templates.rs`、`inbound.rs`、`outbound.rs`、`dashboard.rs`、`substitutes.rs` 和 `events.rs` 分别封装库存物品、模板、入库、出库、看板、替代料和审计事件查询/写入能力。
+  - `stock_repo/types.rs` 定义库存仓储输入和读取模型，包括物品详情的当前库存、库位分布、批次摘要、库位分组、库位和移库读取模型；不执行数据库查询，不拥有 HTTP DTO。
+  - `stock_repo/items.rs`、`locations.rs`、`templates.rs`、`inbound.rs`、`outbound.rs`、`dashboard.rs`、`substitutes.rs` 和 `events.rs` 分别封装库存物品、库位、模板、入库、出库、看板、替代料和审计事件查询/写入能力；入库审批会在事务内再次确认库位仍有效。
   - `stock_repo/common.rs` 放置多个库存仓储子模块共享的库存余额、审计写入和 JSON 字符串编码辅助逻辑。
   - `stock_repo/search.rs` 是 `StockRepository` 的搜索和筛选值查询子模块，封装当前库存 JSON 标量搜索、入库历史和出库历史 JSON 标量搜索、`filter-values` 聚合 SQL 和返回记录结构，不暴露 HTTP DTO。
 
@@ -333,6 +335,15 @@ server/src/main.rs
 - `GET /api/items/{id}`
 - `PUT /api/items/{id}`
 - `DELETE /api/items/{id}`
+- `GET /api/location-groups/tree`
+- `POST /api/location-groups`
+- `PUT /api/location-groups/{id}`
+- `DELETE /api/location-groups/{id}`
+- `GET /api/locations`
+- `POST /api/locations`
+- `PUT /api/locations/{id}`
+- `DELETE /api/locations/{id}`
+- `POST /api/location-transfers`
 - `GET /api/substitutes`
 - `GET /api/substitutes/{item_id}`
 - `PUT /api/substitutes/{item_id}`

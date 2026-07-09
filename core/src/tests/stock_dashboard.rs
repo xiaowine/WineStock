@@ -13,7 +13,7 @@ use crate::{
         ItemCreateRequest, OutboundCreateRequest, OutboundItemRequest, OutboundResponse,
         TrendsResponse,
     },
-    test_support::{json_body, login_request, seeded_app},
+    test_support::{bootstrap_location_id, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
@@ -154,6 +154,7 @@ async fn seed_approved_inbound(
     quantity: f64,
     batch_no: &str,
 ) {
+    let location_id = bootstrap_location_id(app).await;
     let created = authorized_json_request(
         app,
         "POST",
@@ -166,7 +167,7 @@ async fn seed_approved_inbound(
                 item_id,
                 quantity,
                 unit_price: 2.5,
-                location: Some("D-01".to_owned()),
+                location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2027-01-01".to_owned()),
                 ext_attributes: None,
@@ -192,6 +193,7 @@ async fn seed_pending_inbound(
     item_id: i64,
     quantity: f64,
 ) {
+    let location_id = bootstrap_location_id(app).await;
     let created = authorized_json_request(
         app,
         "POST",
@@ -204,7 +206,7 @@ async fn seed_pending_inbound(
                 item_id,
                 quantity,
                 unit_price: 9.9,
-                location: Some("D-02".to_owned()),
+                location_id,
                 batch_no: Some("DASH-PENDING".to_owned()),
                 expires_at: Some("2027-01-01".to_owned()),
                 ext_attributes: None,
@@ -223,7 +225,7 @@ fn outbound_request(item_id: i64, quantity: f64) -> OutboundCreateRequest {
             item_id,
             quantity,
             batch_id: None,
-            location: Some("D-01".to_owned()),
+            location_id: None,
         }],
     }
 }

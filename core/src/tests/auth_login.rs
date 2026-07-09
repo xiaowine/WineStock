@@ -32,6 +32,8 @@ async fn login_returns_tokens_and_current_permissions() {
                 "stock.inbound.read".to_owned(),
                 "stock.item.manage".to_owned(),
                 "stock.item.read".to_owned(),
+                "stock.location.manage".to_owned(),
+                "stock.location.read".to_owned(),
                 "stock.outbound.approve".to_owned(),
                 "stock.outbound.create".to_owned(),
                 "stock.outbound.read".to_owned(),

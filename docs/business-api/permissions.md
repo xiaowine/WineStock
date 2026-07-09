@@ -8,6 +8,8 @@
 | `stock.write` | （已有） | 创建或修改库存数据 |
 | `stock.item.read` | 物品管理 | 查看物品列表、详情和物品筛选值 |
 | `stock.item.manage` | 物品管理 | 创建、修改、删除物品 |
+| `stock.location.read` | 库位管理 | 查看库位分组树和库位列表 |
+| `stock.location.manage` | 库位管理 | 管理库位分组、库位和整批次移库 |
 | `stock.inbound.create` | 入库 | 创建入库单 |
 | `stock.inbound.read` | 入库 | 查看入库单列表、详情和入库历史筛选值 |
 | `stock.inbound.approve` | 入库 | 审批或拒绝入库单 |

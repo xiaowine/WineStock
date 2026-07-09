@@ -33,9 +33,9 @@ pub(crate) struct InboundItemRequest {
     #[garde(skip)]
     pub unit_price: f64,
 
-    /// 入库库位。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
-    pub location: Option<String>,
+    /// 入库库位 ID，必须指向未软删除库位。
+    #[garde(range(min = 1))]
+    pub location_id: i64,
 
     /// 外部批次号；为空时审批阶段生成内部批次号。
     #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
@@ -112,9 +112,17 @@ pub(crate) struct InboundItemResponse {
     #[garde(skip)]
     pub unit_price: f64,
 
-    /// 入库库位。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
-    pub location: Option<String>,
+    /// 入库库位 ID。
+    #[garde(skip)]
+    pub location_id: i64,
+
+    /// 入库库位编码。
+    #[garde(skip)]
+    pub location_code: String,
+
+    /// 入库库位名称。
+    #[garde(skip)]
+    pub location_name: String,
 
     /// 批次号。
     #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]

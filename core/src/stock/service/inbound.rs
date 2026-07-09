@@ -48,11 +48,18 @@ pub(crate) async fn create_inbound(
         {
             return Err(StockApiError::ItemNotFound);
         }
+        if repository
+            .find_active_location_by_id(item.location_id)
+            .await?
+            .is_none()
+        {
+            return Err(StockApiError::LocationNotFound);
+        }
         items.push(CreateInboundOrderItem {
             item_id: item.item_id,
             quantity: validate_positive(item.quantity)?,
             unit_price: validate_non_negative(Some(item.unit_price))?.expect("输入值已存在"),
-            location: normalize_optional_text(item.location)?,
+            location_id: item.location_id,
             batch_no: normalize_optional_text(item.batch_no)?,
             expires_at: normalize_optional_text(item.expires_at)?,
             ext_attributes_json: item

@@ -13,7 +13,9 @@ use crate::{
         OutboundCreateRequest, OutboundItemRequest, OutboundResponse, TemplateCreateRequest,
         TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
-    test_support::{json_body, login_request, seeded_app, text_body},
+    test_support::{
+        bootstrap_location_id, json_body, login_request, seed_stock_location, seeded_app, text_body,
+    },
 };
 
 #[tokio::test]
@@ -49,7 +51,7 @@ async fn outbound_approval_uses_fifo_and_writes_movements() {
         "POST",
         "/api/outbound",
         &login.body.access_token,
-        &outbound_request(item_id, 7.0, None),
+        &outbound_request(item_id, 7.0, None, None),
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
@@ -124,7 +126,7 @@ async fn outbound_can_deduct_a_specified_batch() {
         "POST",
         "/api/outbound",
         &login.body.access_token,
-        &outbound_request(item_id, 3.0, Some(target_batch_id)),
+        &outbound_request(item_id, 3.0, Some(target_batch_id), None),
     )
     .await;
     let order: OutboundResponse = json_body(created).await;
@@ -160,7 +162,7 @@ async fn outbound_shortage_rolls_back_inventory_changes() {
         "POST",
         "/api/outbound",
         &login.body.access_token,
-        &outbound_request(item_id, 6.0, None),
+        &outbound_request(item_id, 6.0, None, None),
     )
     .await;
     let order: OutboundResponse = json_body(created).await;
@@ -216,7 +218,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
         "POST",
         "/api/outbound",
         &viewer_token,
-        &outbound_request(item_id, 1.0, None),
+        &outbound_request(item_id, 1.0, None, None),
     )
     .await;
     assert_eq!(forbidden_create.status(), StatusCode::FORBIDDEN);
@@ -229,7 +231,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
         "POST",
         "/api/outbound",
         &staff_token,
-        &outbound_request(item_id, 1.0, None),
+        &outbound_request(item_id, 1.0, None, None),
     )
     .await;
     assert_eq!(staff_created.status(), StatusCode::CREATED);
@@ -248,7 +250,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
         "POST",
         "/api/outbound",
         &login.body.access_token,
-        &outbound_request(item_id, 1.0, None),
+        &outbound_request(item_id, 1.0, None, None),
     )
     .await;
     let admin_order: OutboundResponse = json_body(admin_created).await;
@@ -280,6 +282,7 @@ async fn outbound_search_uses_history_scope() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let item_id = seed_search_item(&app, &login.body.access_token).await;
+    let outbound_location_id = seed_stock_location(&app, "OUT-L-01").await;
     seed_approved_inbound_with_attributes(
         &app,
         &login.body.access_token,
@@ -287,6 +290,7 @@ async fn outbound_search_uses_history_scope() {
         10.0,
         "OUT-HIST-001",
         "2029-01-01",
+        Some(outbound_location_id),
         Some(serde_json::json!({
             "brand": "OutboundHistoryNeedle"
         })),
@@ -305,7 +309,7 @@ async fn outbound_search_uses_history_scope() {
                 item_id,
                 quantity: 3.0,
                 batch_id: None,
-                location: Some("OUT-L-01".to_owned()),
+                location_id: Some(outbound_location_id),
             }],
         },
     )
@@ -457,6 +461,7 @@ async fn seed_approved_inbound(
         batch_no,
         expires_at,
         None,
+        None,
     )
     .await;
 }
@@ -468,8 +473,13 @@ async fn seed_approved_inbound_with_attributes(
     quantity: f64,
     batch_no: &str,
     expires_at: &str,
+    location_id: Option<i64>,
     ext_attributes: Option<serde_json::Value>,
 ) {
+    let location_id = match location_id {
+        Some(location_id) => location_id,
+        None => bootstrap_location_id(app).await,
+    };
     let created = authorized_json_request(
         app,
         "POST",
@@ -482,7 +492,7 @@ async fn seed_approved_inbound_with_attributes(
                 item_id,
                 quantity,
                 unit_price: 2.5,
-                location: Some("A-01".to_owned()),
+                location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some(expires_at.to_owned()),
                 ext_attributes,
@@ -538,7 +548,12 @@ fn filter_value_count(payload: &serde_json::Value, key: &str, value: &str) -> Op
         .as_u64()
 }
 
-fn outbound_request(item_id: i64, quantity: f64, batch_id: Option<i64>) -> OutboundCreateRequest {
+fn outbound_request(
+    item_id: i64,
+    quantity: f64,
+    batch_id: Option<i64>,
+    location_id: Option<i64>,
+) -> OutboundCreateRequest {
     OutboundCreateRequest {
         destination: "Cellar".to_owned(),
         notes: Some("test outbound".to_owned()),
@@ -546,7 +561,7 @@ fn outbound_request(item_id: i64, quantity: f64, batch_id: Option<i64>) -> Outbo
             item_id,
             quantity,
             batch_id,
-            location: Some("A-01".to_owned()),
+            location_id,
         }],
     }
 }

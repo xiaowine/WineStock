@@ -87,6 +87,8 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
             "stock.inbound.read",
             "stock.item.manage",
             "stock.item.read",
+            "stock.location.manage",
+            "stock.location.read",
             "stock.outbound.approve",
             "stock.outbound.create",
             "stock.outbound.read",
@@ -304,7 +306,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_
             "count",
         )
         .await,
-        22
+        24
     );
     assert_eq!(
         query_string_vec(
@@ -384,6 +386,63 @@ async fn default_stock_templates_are_idempotent_and_preserve_user_changes() {
         )
         .await,
         0
+    );
+}
+
+#[tokio::test]
+async fn default_stock_location_reuses_existing_group_when_location_was_removed() {
+    let temp = tempdir().expect("temp dir should exist");
+    let config = test_config(
+        RuntimeMode::SelfHosted,
+        temp.path().join("winestock.sqlite").to_string_lossy(),
+        temp.path().join("files").to_string_lossy(),
+    );
+
+    let first = bootstrap_from_config(&config)
+        .await
+        .expect("first bootstrap should initialize stock defaults")
+        .local_service
+        .expect("local service should be initialized");
+    let default_group_id = query_i64(
+        &first.storage.database,
+        "SELECT id FROM stock_location_groups WHERE parent_id IS NULL AND name = '默认库区' AND deleted_at IS NULL",
+        "id",
+    )
+    .await;
+    first
+        .storage
+        .database
+        .execute(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "UPDATE stock_locations SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE code = 'DEFAULT'"
+                .to_owned(),
+        ))
+        .await
+        .expect("default location should soft delete");
+
+    let second = bootstrap_from_config(&config)
+        .await
+        .expect("second bootstrap should recreate default location")
+        .local_service
+        .expect("local service should be initialized");
+
+    assert_eq!(
+        query_i64(
+            &second.storage.database,
+            "SELECT COUNT(*) AS count FROM stock_location_groups WHERE parent_id IS NULL AND name = '默认库区' AND deleted_at IS NULL",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &second.storage.database,
+            "SELECT group_id FROM stock_locations WHERE code = 'DEFAULT' AND deleted_at IS NULL",
+            "group_id",
+        )
+        .await,
+        default_group_id
     );
 }
 
