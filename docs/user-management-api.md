@@ -101,7 +101,7 @@
 
 ```json
 {
-  "permissions": ["stock.read", "user.read"]
+  "permissions": ["stock.item.read", "user.read"]
 }
 ```
 

@@ -294,7 +294,7 @@ pub(crate) async fn create_item(
     responses(
         (status = 200, description = "Item list", body = PaginatedResponse<ItemResponse>),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Item read permission required", body = String)
     )
 )]
 /// 分页查询库存物品。
@@ -313,7 +313,7 @@ pub(crate) async fn list_items(
     responses(
         (status = 200, description = "Current inventory item filter values", body = super::FilterValuesResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Item read permission required", body = String)
     )
 )]
 /// 查询当前库存视角下的物品筛选值。
@@ -332,7 +332,7 @@ pub(crate) async fn item_filter_values(
     responses(
         (status = 200, description = "Item detail", body = ItemDetailResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String),
+        (status = 403, description = "Item read permission required", body = String),
         (status = 404, description = "Item not found", body = String)
     )
 )]

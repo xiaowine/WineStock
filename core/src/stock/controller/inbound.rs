@@ -220,7 +220,7 @@ pub(crate) async fn create_inbound(
     responses(
         (status = 200, description = "Inbound order list", body = PaginatedResponse<InboundResponse>),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Inbound read permission required", body = String)
     )
 )]
 /// 分页查询入库单。
@@ -239,7 +239,7 @@ pub(crate) async fn list_inbound(
     responses(
         (status = 200, description = "Inbound history filter values", body = super::FilterValuesResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Inbound read permission required", body = String)
     )
 )]
 /// 查询入库历史视角下的筛选值。
@@ -258,7 +258,7 @@ pub(crate) async fn inbound_filter_values(
     responses(
         (status = 200, description = "Inbound order detail", body = InboundResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String),
+        (status = 403, description = "Inbound read permission required", body = String),
         (status = 404, description = "Inbound order not found", body = String)
     )
 )]

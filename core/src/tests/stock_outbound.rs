@@ -209,7 +209,8 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
     .await;
 
     let viewer_token =
-        seed_user_with_permissions_and_login(&app, "outbound-viewer", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "outbound-viewer", &["stock.outbound.read"])
+            .await;
     let forbidden_create = authorized_json_request(
         &app,
         "POST",

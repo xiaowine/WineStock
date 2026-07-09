@@ -253,6 +253,25 @@ pub(super) fn substitute_response(
     }
 }
 
+/// 把替代料关系记录转换为全量列表响应，包含主物品和替代物品展示字段。
+pub(super) fn substitute_relation_response(
+    record: StockSubstituteRecord,
+) -> controller::SubstituteRelationResponse {
+    controller::SubstituteRelationResponse {
+        item_id: record.item_id,
+        item_name: record.item_name,
+        item_sku: record.item_sku,
+        substitute_item_id: record.substitute_item_id,
+        substitute_item_name: record.substitute_item_name,
+        substitute_item_sku: record.substitute_item_sku,
+        quantity: record.quantity,
+        priority: record.priority,
+        notes: record.notes,
+        created_by_user_id: record.created_by_user_id,
+        created_at: record.created_at,
+    }
+}
+
 /// 把审计事件记录转换为 HTTP 响应；详情 JSON 解析失败时返回 JSON null。
 pub(super) fn event_response(record: AuditEventRecord) -> controller::EventLogResponse {
     controller::EventLogResponse {

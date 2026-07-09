@@ -30,7 +30,9 @@ pub(crate) use outbound::{
     reject_outbound,
 };
 pub(crate) use pagination::PaginatedResponse;
-pub(crate) use substitutes::{bind_substitutes, delete_substitute, list_substitutes};
+pub(crate) use substitutes::{
+    bind_substitutes, delete_substitute, list_all_substitutes, list_substitutes,
+};
 pub(crate) use templates::{
     copy_template, create_template, delete_template, get_template, list_templates, update_template,
 };

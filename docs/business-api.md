@@ -20,8 +20,8 @@
  
  ### 所需新增权限
  
+ - `stock.item.read` — 查看物品列表、详情和物品筛选值
  - `stock.item.manage` — 创建、修改、删除物品
- - `stock.read` — 查看物品列表和详情
  
  ### 数据结构
  
@@ -52,7 +52,7 @@
  
  分页查询物品列表。
  
-- 权限：`stock.read`
+- 权限：`stock.item.read`
 - 查询参数：`page`、`page_size`、`category_id`（按分类筛选）、`search`（可选；不传时返回列表，传入非空值时按物品基础字段、模板元数据和当前库存模板值模糊搜索）
 - 响应：`200` + `PaginatedResponse<ItemResponse>`
 - 说明：模板实际值只从 `stock_batches.remaining_quantity > 0` 的当前库存批次追溯；同一物品多批次命中时结果仍按物品去重。空 `search` 返回 `400 invalid_request`。
@@ -61,7 +61,7 @@
 
 查询物品列表筛选值。
 
-- 权限：`stock.read`
+- 权限：`stock.item.read`
 - 查询参数：无
 - 响应：`200` + `FilterValuesResponse`
 - 统计范围：当前库存视角，只统计 `remaining_quantity > 0` 的批次。
@@ -73,7 +73,7 @@
  
  查看单个物品详情，包含物品基础资料、当前库存总量、库存价值、库位分布和当前有效批次摘要。
  
- - 权限：`stock.read`
+ - 权限：`stock.item.read`
 - 响应：`200` + `ItemDetailResponse`
   - `current_quantity`：当前剩余库存总量，只统计 `stock_batches.remaining_quantity > 0` 的批次
   - `inventory_value`：当前库存价值，按批次剩余数量乘以批次单价汇总
@@ -107,8 +107,11 @@
 ### 所需新增权限
 
 - `stock.inbound.create` — 创建入库单
+- `stock.inbound.read` — 查看入库单列表、详情和入库历史筛选值
 - `stock.outbound.create` — 创建出库单
+- `stock.outbound.read` — 查看出库单列表、详情和出库历史筛选值
 - `stock.inbound.approve` / `stock.outbound.approve` — 审批入库/出库单（可选，与 RBAC 状态机扩展相关）
+- `stock.template.read` — 查看入库模板定义
 - `stock.template.manage` — 管理入库模板定义
 
  ### 2.1 入库模板管理（入库配置前置）
@@ -150,14 +153,14 @@
  
  模板列表。
  
- - 权限：`stock.read`
+ - 权限：`stock.template.read`
  - 响应：`200` + `Vec<TemplateResponse>`
  
  #### `GET /api/templates/{id}`
  
  模板详情，含字段定义。
  
- - 权限：`stock.read`
+ - 权限：`stock.template.read`
  
  #### `PUT /api/templates/{id}`
  
@@ -218,7 +221,7 @@
  
  分页查询入库单列表。
  
-- 权限：`stock.read`
+- 权限：`stock.inbound.read`
 - 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
 - 响应：`200` + `PaginatedResponse<InboundResponse>`
 - 说明：入库单搜索会匹配入库来源、备注、状态、明细库位、批次号、有效期、关联物品基础字段和入库模板实际值；结果按入库单去重。空 `search` 返回 `400 invalid_request`。
@@ -227,7 +230,7 @@
 
 查询入库历史筛选值。
 
-- 权限：`stock.read`
+- 权限：`stock.inbound.read`
 - 查询参数：无
 - 响应：`200` + `FilterValuesResponse`
 - 统计范围：入库历史视角，不受当前库存余额影响。
@@ -239,7 +242,7 @@
  
  查看入库单详情（含入库明细和扩展属性）。
  
-- 权限：`stock.read`
+- 权限：`stock.inbound.read`
 - 响应：`200` + `InboundResponse`
 
  ### 2.3 出库
@@ -274,7 +277,7 @@
  
  分页查询出库单列表。
  
- - 权限：`stock.read`
+ - 权限：`stock.outbound.read`
  - 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
  - 响应：`200` + `PaginatedResponse<OutboundResponse>`
  - 说明：出库单搜索会匹配出库去向、备注、状态、明细库位、关联物品基础字段；对已指定批次或已审批写入流水的明细，还会匹配批次号、有效期和入库模板实际值。结果按出库单去重。空 `search` 返回 `400 invalid_request`。
@@ -283,7 +286,7 @@
 
 查询出库历史筛选值。
 
-- 权限：`stock.read`
+- 权限：`stock.outbound.read`
 - 查询参数：无
 - 响应：`200` + `FilterValuesResponse`
 - 统计范围：出库历史视角；批次和模板值从指定批次或已审批扣减流水反查。
@@ -295,7 +298,7 @@
  
 查看出库单详情。
 
-- 权限：`stock.read`
+- 权限：`stock.outbound.read`
 - 响应：`200` + `OutboundResponse`
 
 ### 2.4 库存审批
@@ -344,13 +347,13 @@
  
  ### 所需新增权限
  
- - `stock.read`
+ - `stock.dashboard.read` — 查看看板总览和趋势
  
  #### `GET /api/dashboard/overview`
  
  库存总览卡片数据。
  
- - 权限：`stock.read`
+ - 权限：`stock.dashboard.read`
  
  **响应：`DashboardOverviewResponse`**
  
@@ -377,7 +380,7 @@
  
  出入库趋势数据，用于近 30 天或自定义范围的可视化。
  
- - 权限：`stock.read`
+ - 权限：`stock.dashboard.read`
  - 查询参数：`days`（默认 30，最大 365；小于 1 时按 1 处理）
  
  **响应：`TrendsResponse`**
@@ -400,12 +403,12 @@
  
  管理物品之间的替代关系，当主料缺货或停产时快速查找可用替代品。
 
-当前实现状态：已实现 `POST /api/items/{id}/substitutes`、`GET /api/items/{id}/substitutes` 和 `DELETE /api/items/{id}/substitutes/{substitute_id}`，并纳入 OpenAPI。绑定接口采用整体替换语义：请求体中的列表会成为该物品替代料关系的最新完整列表。
+当前实现状态：已实现 `POST /api/items/{id}/substitutes`、`GET /api/items/substitutes`、`GET /api/items/{id}/substitutes` 和 `DELETE /api/items/{id}/substitutes/{substitute_id}`，并纳入 OpenAPI。绑定接口采用整体替换语义：请求体中的列表会成为该物品替代料关系的最新完整列表。
  
  ### 所需新增权限
  
+ - `stock.substitute.read` — 查看替代关系
  - `stock.substitute.manage` — 绑定/解绑替代关系
- - `stock.read` — 查看替代关系
  
  #### `POST /api/items/{id}/substitutes`
  
@@ -428,12 +431,19 @@
  | `notes` | string | 否 | 兼容性备注 |
  
  - 错误：`400` 自引用、重复替代品、重复优先级或循环绑定（A→B→A）检测到 / `404` 物品不存在
+
+ #### `GET /api/items/substitutes`
+
+ 查看全部物品替代关系，用于全局替代料关系列表。
+
+ - 权限：`stock.substitute.read`
+ - 响应：`200` + `Vec<SubstituteRelationResponse>`（含主物品 ID、名称、SKU，替代品 ID、名称、SKU，替代品当前库存量、优先级、备注和创建时间）
  
  #### `GET /api/items/{id}/substitutes`
  
  查看物品的替代品列表。
  
- - 权限：`stock.read`
+ - 权限：`stock.substitute.read`
  - 响应：`200` + `Vec<SubstituteDetailResponse>`（含替代品的名称、库存量、优先级、备注和创建时间）
  
  #### `DELETE /api/items/{id}/substitutes/{substitute_id}`
@@ -537,14 +547,20 @@
  
  | 权限代码 | 所属模块 | 说明 |
  |----------|----------|------|
- | `stock.read` | （已有） | 查看库存数据和列表 |
+ | `stock.read` | 历史兼容 | 历史兼容的库存只读权限；具体查询接口使用细分权限 |
  | `stock.write` | （已有） | 创建或修改库存数据 |
+ | `stock.item.read` | 物品管理 | 查看物品列表、详情和物品筛选值 |
  | `stock.item.manage` | 物品管理 | 创建、修改、删除物品 |
 | `stock.inbound.create` | 入库 | 创建入库单 |
+| `stock.inbound.read` | 入库 | 查看入库单列表、详情和入库历史筛选值 |
 | `stock.inbound.approve` | 入库 | 审批或拒绝入库单 |
 | `stock.outbound.create` | 出库 | 创建出库单 |
+| `stock.outbound.read` | 出库 | 查看出库单列表、详情和出库历史筛选值 |
 | `stock.outbound.approve` | 出库 | 审批或拒绝出库单 |
+ | `stock.template.read` | 模板管理 | 查看分类模板列表和详情 |
  | `stock.template.manage` | 模板管理 | 管理分类模板 |
+ | `stock.dashboard.read` | 总览看板 | 查看看板总览和趋势 |
+ | `stock.substitute.read` | 替代料管理 | 查看替代关系 |
  | `stock.substitute.manage` | 替代料管理 | 绑定/解绑替代关系 |
  | `audit.read` | 事件日志 | 查看审计日志 |
  

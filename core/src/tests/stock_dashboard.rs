@@ -96,7 +96,7 @@ async fn dashboard_counts_only_approved_movements_and_current_batches() {
 }
 
 #[tokio::test]
-async fn dashboard_reports_slow_moving_items_and_requires_stock_read() {
+async fn dashboard_reports_slow_moving_items_and_requires_dashboard_read() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let item_id = seed_item(&app, &login.body.access_token, "SLOW").await;
@@ -104,7 +104,8 @@ async fn dashboard_reports_slow_moving_items_and_requires_stock_read() {
     age_item_movements(&app, item_id, 40).await;
 
     let viewer_token =
-        seed_user_with_permissions_and_login(&app, "dashboard-viewer", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "dashboard-viewer", &["stock.dashboard.read"])
+            .await;
     let overview =
         authorized_empty_request(&app, "GET", "/api/dashboard/overview", &viewer_token).await;
     assert_eq!(overview.status(), StatusCode::OK);

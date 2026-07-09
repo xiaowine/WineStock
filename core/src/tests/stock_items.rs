@@ -30,6 +30,11 @@ async fn item_crud_uses_permissions_and_soft_delete() {
         .expect("request should complete");
     assert_eq!(missing_token.status(), StatusCode::UNAUTHORIZED);
 
+    let legacy_read_token =
+        seed_user_with_permissions_and_login(&app, "legacy-viewer", &["stock.read"]).await;
+    let legacy_read = authorized_empty_request(&app, "GET", "/api/items", &legacy_read_token).await;
+    assert_eq!(legacy_read.status(), StatusCode::FORBIDDEN);
+
     let created = authorized_json_request(
         &app,
         "POST",
@@ -223,7 +228,7 @@ async fn item_validation_and_authorization_fail_before_write() {
     assert_eq!(text_body(invalid).await, "invalid_request");
 
     let forbidden_token =
-        seed_user_with_permissions_and_login(&app, "viewer", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "viewer", &["stock.item.read"]).await;
     let forbidden = authorized_json_request(
         &app,
         "POST",

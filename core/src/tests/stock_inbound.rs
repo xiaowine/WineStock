@@ -169,7 +169,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
     assert_eq!(invalid_url_approval.status(), StatusCode::BAD_REQUEST);
 
     let viewer_token =
-        seed_user_with_permissions_and_login(&app, "inbound-viewer", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "inbound-viewer", &["stock.inbound.read"]).await;
     let forbidden_create = authorized_json_request(
         &app,
         "POST",

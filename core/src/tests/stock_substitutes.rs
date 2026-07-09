@@ -10,6 +10,7 @@ use crate::{
     stock::controller::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
         SubstituteBindRequest, SubstituteDetailResponse, SubstituteItem,
+        SubstituteRelationResponse,
     },
     test_support::{json_body, login_request, seeded_app, text_body},
 };
@@ -31,7 +32,7 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     .await;
 
     let viewer_token =
-        seed_user_with_permissions_and_login(&app, "sub-viewer", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "sub-viewer", &["stock.substitute.read"]).await;
     let forbidden_bind = authorized_json_request(
         &app,
         "POST",
@@ -72,6 +73,22 @@ async fn substitutes_can_be_bound_listed_and_deleted_with_permissions() {
     assert_eq!(listed.status(), StatusCode::OK);
     let listed: Vec<SubstituteDetailResponse> = json_body(listed).await;
     assert_eq!(listed.len(), 2);
+
+    let all_relations =
+        authorized_empty_request(&app, "GET", "/api/items/substitutes", &viewer_token).await;
+    assert_eq!(all_relations.status(), StatusCode::OK);
+    let all_relations: Vec<SubstituteRelationResponse> = json_body(all_relations).await;
+    assert_eq!(all_relations.len(), 2);
+    assert_eq!(all_relations[0].item_id, main_id);
+    assert_eq!(all_relations[0].item_name, "Substitute Bottle MAIN");
+    assert_eq!(all_relations[0].item_sku, "SUB-MAIN");
+    assert_eq!(all_relations[0].substitute_item_id, substitute_a);
+    assert_eq!(
+        all_relations[0].substitute_item_name,
+        "Substitute Bottle SUB-A"
+    );
+    assert_eq!(all_relations[0].substitute_item_sku, "SUB-SUB-A");
+    assert_close(all_relations[0].quantity, 6.0);
 
     let deleted = authorized_empty_request(
         &app,

@@ -10,11 +10,13 @@ use sea_orm::{DatabaseConnection, DbErr};
 use crate::{
     persistence::repository::RbacRepository,
     stock::{
-        AUDIT_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION, STOCK_INBOUND_CREATE_PERMISSION,
-        STOCK_ITEM_MANAGE_PERMISSION, STOCK_OUTBOUND_APPROVE_PERMISSION,
-        STOCK_OUTBOUND_CREATE_PERMISSION, STOCK_READ_PERMISSION,
-        STOCK_SUBSTITUTE_MANAGE_PERMISSION, STOCK_TEMPLATE_MANAGE_PERMISSION,
-        STOCK_WRITE_PERMISSION,
+        AUDIT_READ_PERMISSION, STOCK_DASHBOARD_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION,
+        STOCK_INBOUND_CREATE_PERMISSION, STOCK_INBOUND_READ_PERMISSION,
+        STOCK_ITEM_MANAGE_PERMISSION, STOCK_ITEM_READ_PERMISSION,
+        STOCK_OUTBOUND_APPROVE_PERMISSION, STOCK_OUTBOUND_CREATE_PERMISSION,
+        STOCK_OUTBOUND_READ_PERMISSION, STOCK_READ_PERMISSION, STOCK_SUBSTITUTE_MANAGE_PERMISSION,
+        STOCK_SUBSTITUTE_READ_PERMISSION, STOCK_TEMPLATE_MANAGE_PERMISSION,
+        STOCK_TEMPLATE_READ_PERMISSION, STOCK_WRITE_PERMISSION,
     },
     users::{
         READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION, REGISTER_USER_PERMISSION,
@@ -67,8 +69,16 @@ const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
         description: "创建入库单。",
     },
     BuiltinPermission {
+        code: STOCK_INBOUND_READ_PERMISSION,
+        description: "查看入库单列表、详情和入库历史筛选值。",
+    },
+    BuiltinPermission {
         code: STOCK_ITEM_MANAGE_PERMISSION,
         description: "创建、修改和软删除库存物品。",
+    },
+    BuiltinPermission {
+        code: STOCK_ITEM_READ_PERMISSION,
+        description: "查看库存物品列表、详情和物品筛选值。",
     },
     BuiltinPermission {
         code: STOCK_OUTBOUND_APPROVE_PERMISSION,
@@ -79,16 +89,32 @@ const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
         description: "创建出库单。",
     },
     BuiltinPermission {
+        code: STOCK_OUTBOUND_READ_PERMISSION,
+        description: "查看出库单列表、详情和出库历史筛选值。",
+    },
+    BuiltinPermission {
         code: STOCK_READ_PERMISSION,
-        description: "查看库存数据。",
+        description: "历史兼容的库存只读权限；具体查询接口使用细分权限。",
+    },
+    BuiltinPermission {
+        code: STOCK_DASHBOARD_READ_PERMISSION,
+        description: "查看库存看板总览和趋势。",
     },
     BuiltinPermission {
         code: STOCK_SUBSTITUTE_MANAGE_PERMISSION,
         description: "绑定或解绑替代料关系。",
     },
     BuiltinPermission {
+        code: STOCK_SUBSTITUTE_READ_PERMISSION,
+        description: "查看替代料关系。",
+    },
+    BuiltinPermission {
         code: STOCK_TEMPLATE_MANAGE_PERMISSION,
         description: "管理库存模板和模板字段。",
+    },
+    BuiltinPermission {
+        code: STOCK_TEMPLATE_READ_PERMISSION,
+        description: "查看库存模板列表和详情。",
     },
     BuiltinPermission {
         code: STOCK_WRITE_PERMISSION,

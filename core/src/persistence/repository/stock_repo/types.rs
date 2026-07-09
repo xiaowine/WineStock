@@ -592,11 +592,20 @@ pub(crate) struct StockSubstituteRecord {
     /// 主物品 ID。
     pub item_id: i64,
 
+    /// 主物品名称。
+    pub item_name: String,
+
+    /// 主物品 SKU。
+    pub item_sku: String,
+
     /// 替代料物品 ID。
     pub substitute_item_id: i64,
 
     /// 替代料物品名称。
     pub substitute_item_name: String,
+
+    /// 替代料物品 SKU。
+    pub substitute_item_sku: String,
 
     /// 替代料当前库存量。
     pub quantity: f64,

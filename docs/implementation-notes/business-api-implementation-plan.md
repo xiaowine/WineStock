@@ -49,7 +49,7 @@
 - Outbound：`POST /api/outbound`、`GET /api/outbound`、`GET /api/outbound/{id}`。
 - Stock approvals：`POST /api/stock-approvals/inbound/{id}/approve`、`POST /api/stock-approvals/inbound/{id}/reject`、`POST /api/stock-approvals/outbound/{id}/approve`、`POST /api/stock-approvals/outbound/{id}/reject`。
 - Dashboard：`GET /api/dashboard/overview`、`GET /api/dashboard/trends`。
-- Substitutes：`POST /api/items/{id}/substitutes`、`GET /api/items/{id}/substitutes`、`DELETE /api/items/{id}/substitutes/{substitute_id}`。
+- Substitutes：`POST /api/items/{id}/substitutes`、`GET /api/items/substitutes`、`GET /api/items/{id}/substitutes`、`DELETE /api/items/{id}/substitutes/{substitute_id}`。
 - Events：`GET /api/events`。
 
 新增通用响应：

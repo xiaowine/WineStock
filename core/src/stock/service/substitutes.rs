@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     error::map_stock_db_error,
-    response::substitute_response,
+    response::{substitute_relation_response, substitute_response},
     validation::{normalize_optional_text, positive_i32, positive_id},
     StockApiError,
 };
@@ -62,6 +62,20 @@ pub(crate) async fn list_substitutes(
         .await?
         .into_iter()
         .map(substitute_response)
+        .collect())
+}
+
+/// 查询全部替代料关系；只返回未软删除的主物品和替代物品。
+pub(crate) async fn list_all_substitutes(
+    state: &CoreState,
+) -> Result<Vec<controller::SubstituteRelationResponse>, StockApiError> {
+    let repository = StockRepository::new(state.database());
+
+    Ok(repository
+        .list_all_substitutes()
+        .await?
+        .into_iter()
+        .map(substitute_relation_response)
         .collect())
 }
 

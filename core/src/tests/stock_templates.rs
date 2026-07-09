@@ -231,7 +231,8 @@ async fn template_validation_and_authorization_fail_before_write() {
     assert_eq!(invalid_url_default.status(), StatusCode::BAD_REQUEST);
 
     let forbidden_token =
-        seed_user_with_permissions_and_login(&app, "template-viewer", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "template-viewer", &["stock.template.read"])
+            .await;
     let forbidden = authorized_json_request(
         &app,
         "POST",

@@ -100,8 +100,11 @@ where
                 r#"
                 SELECT
                     substitutes.item_id,
+                    items.name AS item_name,
+                    items.sku AS item_sku,
                     substitutes.substitute_item_id,
                     substitute_items.name AS substitute_item_name,
+                    substitute_items.sku AS substitute_item_sku,
                     COALESCE(SUM(batches.remaining_quantity), 0.0) AS quantity,
                     substitutes.priority,
                     substitutes.notes,
@@ -119,8 +122,11 @@ where
                 WHERE substitutes.item_id = ?
                 GROUP BY
                     substitutes.item_id,
+                    items.name,
+                    items.sku,
                     substitutes.substitute_item_id,
                     substitute_items.name,
+                    substitute_items.sku,
                     substitutes.priority,
                     substitutes.notes,
                     substitutes.created_by_user_id,
@@ -128,6 +134,54 @@ where
                 ORDER BY substitutes.priority ASC, substitutes.substitute_item_id ASC
                 "#,
                 [item_id.into()],
+            ))
+            .await?;
+
+        rows.into_iter().map(substitute_from_row).collect()
+    }
+
+    /// 查询全部替代料关系；只返回未软删除的主物品和替代物品。
+    pub(crate) async fn list_all_substitutes(&self) -> Result<Vec<StockSubstituteRecord>, DbErr> {
+        let rows = self
+            .database
+            .query_all(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT
+                    substitutes.item_id,
+                    items.name AS item_name,
+                    items.sku AS item_sku,
+                    substitutes.substitute_item_id,
+                    substitute_items.name AS substitute_item_name,
+                    substitute_items.sku AS substitute_item_sku,
+                    COALESCE(SUM(batches.remaining_quantity), 0.0) AS quantity,
+                    substitutes.priority,
+                    substitutes.notes,
+                    substitutes.created_by_user_id,
+                    substitutes.created_at
+                FROM stock_substitutes substitutes
+                JOIN stock_items items
+                    ON items.id = substitutes.item_id
+                   AND items.deleted_at IS NULL
+                JOIN stock_items substitute_items
+                    ON substitute_items.id = substitutes.substitute_item_id
+                   AND substitute_items.deleted_at IS NULL
+                LEFT JOIN stock_batches batches
+                    ON batches.item_id = substitute_items.id
+                GROUP BY
+                    substitutes.item_id,
+                    items.name,
+                    items.sku,
+                    substitutes.substitute_item_id,
+                    substitute_items.name,
+                    substitute_items.sku,
+                    substitutes.priority,
+                    substitutes.notes,
+                    substitutes.created_by_user_id,
+                    substitutes.created_at
+                ORDER BY items.name ASC, items.id ASC, substitutes.priority ASC, substitutes.substitute_item_id ASC
+                "#
+                .to_owned(),
             ))
             .await?;
 
@@ -235,8 +289,11 @@ fn validate_substitute_inputs(
 fn substitute_from_row(row: sea_orm::QueryResult) -> Result<StockSubstituteRecord, DbErr> {
     Ok(StockSubstituteRecord {
         item_id: row.try_get("", "item_id")?,
+        item_name: row.try_get("", "item_name")?,
+        item_sku: row.try_get("", "item_sku")?,
         substitute_item_id: row.try_get("", "substitute_item_id")?,
         substitute_item_name: row.try_get("", "substitute_item_name")?,
+        substitute_item_sku: row.try_get("", "substitute_item_sku")?,
         quantity: row.try_get("", "quantity")?,
         priority: row.try_get("", "priority")?,
         notes: row.try_get("", "notes")?,

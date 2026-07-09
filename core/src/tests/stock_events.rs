@@ -80,7 +80,7 @@ async fn events_require_audit_read_permission() {
     seed_pending_inbound(&app, &login.body.access_token, item_id).await;
 
     let staff_token =
-        seed_user_with_permissions_and_login(&app, "event-staff", &["stock.read"]).await;
+        seed_user_with_permissions_and_login(&app, "event-staff", &["stock.item.read"]).await;
     let forbidden = authorized_empty_request(&app, "GET", "/api/events", &staff_token).await;
     assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
 }

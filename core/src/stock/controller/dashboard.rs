@@ -104,7 +104,7 @@ pub(crate) struct TrendsResponse {
     responses(
         (status = 200, description = "Dashboard overview", body = DashboardOverviewResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Dashboard read permission required", body = String)
     )
 )]
 /// 查询库存看板总览。
@@ -123,7 +123,7 @@ pub(crate) async fn dashboard_overview(
     responses(
         (status = 200, description = "Dashboard trends", body = TrendsResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Dashboard read permission required", body = String)
     )
 )]
 /// 查询库存看板出入库趋势。

@@ -85,12 +85,18 @@ auth_role_permission_assignments
 stock.read
 stock.write
 stock.item.manage
+stock.item.read
 stock.template.manage
+stock.template.read
 stock.inbound.create
+stock.inbound.read
 stock.inbound.approve
 stock.outbound.create
+stock.outbound.read
 stock.outbound.approve
 stock.substitute.manage
+stock.substitute.read
+stock.dashboard.read
 audit.read
 ```
 
@@ -161,7 +167,7 @@ PUT /api/users/{id}/roles
 {
   "id": "1",
   "username": "admin",
-  "permissions": ["stock.read", "user.read"]
+  "permissions": ["stock.item.read", "user.read"]
 }
 ```
 
@@ -173,7 +179,7 @@ PUT /api/users/{id}/roles
   "username": "admin",
   "display_name": "Admin",
   "status": "active",
-  "permissions": ["stock.read", "user.read"],
+  "permissions": ["stock.item.read", "user.read"],
   "created_at": "...",
   "updated_at": "..."
 }

@@ -53,29 +53,35 @@ auth_users
 
 库存和审计权限：
 
-| 权限代码 | 含义 |
-| --- | --- |
-| `stock.read` | 查看库存数据 |
-| `stock.write` | 创建或修改库存数据 |
-| `stock.item.manage` | 创建、修改和软删除库存物品 |
-| `stock.template.manage` | 管理库存模板和模板字段 |
-| `stock.inbound.create` | 创建入库单 |
-| `stock.inbound.approve` | 审批或拒绝入库单 |
-| `stock.outbound.create` | 创建出库单 |
-| `stock.outbound.approve` | 审批或拒绝出库单 |
-| `stock.substitute.manage` | 绑定或解绑替代料关系 |
-| `audit.read` | 查询审计事件日志 |
+| 权限代码                      | 含义                       |
+|---------------------------|--------------------------|
+| `stock.read`              | 历史兼容的库存只读权限；具体查询接口使用细分权限 |
+| `stock.write`             | 创建或修改库存数据                |
+| `stock.item.manage`       | 创建、修改和软删除库存物品            |
+| `stock.item.read`         | 查看库存物品列表、详情和物品筛选值        |
+| `stock.template.manage`   | 管理库存模板和模板字段              |
+| `stock.template.read`     | 查看库存模板列表和详情              |
+| `stock.inbound.create`    | 创建入库单                    |
+| `stock.inbound.read`      | 查看入库单列表、详情和入库历史筛选值       |
+| `stock.inbound.approve`   | 审批或拒绝入库单                 |
+| `stock.outbound.create`   | 创建出库单                    |
+| `stock.outbound.read`     | 查看出库单列表、详情和出库历史筛选值       |
+| `stock.outbound.approve`  | 审批或拒绝出库单                 |
+| `stock.substitute.manage` | 绑定或解绑替代料关系               |
+| `stock.substitute.read`   | 查看替代料关系                  |
+| `stock.dashboard.read`    | 查看库存看板总览和趋势              |
+| `audit.read`              | 查询审计事件日志                 |
 
 用户管理权限：
 
-| 权限代码 | 含义 |
-| --- | --- |
-| `user.register` | 注册新用户 |
-| `user.read` | 查看用户列表和用户详情 |
-| `user.status.update` | 启用或停用用户账号 |
-| `user.permissions.update` | 整体替换用户权限 |
-| `user.permission.read` | 查看权限定义 |
-| `user.password.reset` | 设置其他用户临时密码 |
+| 权限代码                      | 含义          |
+|---------------------------|-------------|
+| `user.register`           | 注册新用户       |
+| `user.read`               | 查看用户列表和用户详情 |
+| `user.status.update`      | 启用或停用用户账号   |
+| `user.permissions.update` | 整体替换用户权限    |
+| `user.permission.read`    | 查看权限定义      |
+| `user.password.reset`     | 设置其他用户临时密码  |
 
 ## 首个用户
 
@@ -99,18 +105,19 @@ JWT 不包含角色列表。
 
 ## 用户管理接口
 
-| 接口 | 权限 |
-| --- | --- |
-| `GET /api/users` | `user.read` |
-| `GET /api/users/{id}` | `user.read` |
-| `PATCH /api/users/{id}/status` | `user.status.update` |
+| 接口                                | 权限                        |
+|-----------------------------------|---------------------------|
+| `GET /api/users`                  | `user.read`               |
+| `GET /api/users/{id}`             | `user.read`               |
+| `PATCH /api/users/{id}/status`    | `user.status.update`      |
 | `PUT /api/users/{id}/permissions` | `user.permissions.update` |
-| `POST /api/users/{id}/password` | `user.password.reset` |
-| `GET /api/permissions` | `user.permission.read` |
+| `POST /api/users/{id}/password`   | `user.password.reset`     |
+| `GET /api/permissions`            | `user.permission.read`    |
 
 当前用户修改自己密码只要求已登录并校验当前密码。
 
-为避免系统锁死，用户管理接口禁止禁用最后一个拥有 `user.permissions.update` 的 active 用户，也禁止从最后一个拥有该权限的 active 用户身上移除 `user.permissions.update`。
+为避免系统锁死，用户管理接口禁止禁用最后一个拥有 `user.permissions.update` 的 active 用户，也禁止从最后一个拥有该权限的
+active 用户身上移除 `user.permissions.update`。
 
 ## 新增受保护能力
 

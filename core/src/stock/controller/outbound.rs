@@ -195,7 +195,7 @@ pub(crate) async fn create_outbound(
     responses(
         (status = 200, description = "Outbound order list", body = PaginatedResponse<OutboundResponse>),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Outbound read permission required", body = String)
     )
 )]
 /// 分页查询出库单。
@@ -214,7 +214,7 @@ pub(crate) async fn list_outbound(
     responses(
         (status = 200, description = "Outbound history filter values", body = super::FilterValuesResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Outbound read permission required", body = String)
     )
 )]
 /// 查询出库历史视角下的筛选值。
@@ -233,7 +233,7 @@ pub(crate) async fn outbound_filter_values(
     responses(
         (status = 200, description = "Outbound order detail", body = OutboundResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String),
+        (status = 403, description = "Outbound read permission required", body = String),
         (status = 404, description = "Outbound order not found", body = String)
     )
 )]

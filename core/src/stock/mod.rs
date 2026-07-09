@@ -19,10 +19,12 @@ pub(crate) mod service;
 pub(crate) use bootstrap::bootstrap_default_templates;
 pub use bootstrap::StockBootstrapError;
 pub(crate) use permissions::{
-    AUDIT_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION, STOCK_INBOUND_CREATE_PERMISSION,
-    STOCK_ITEM_MANAGE_PERMISSION, STOCK_OUTBOUND_APPROVE_PERMISSION,
-    STOCK_OUTBOUND_CREATE_PERMISSION, STOCK_READ_PERMISSION, STOCK_SUBSTITUTE_MANAGE_PERMISSION,
-    STOCK_TEMPLATE_MANAGE_PERMISSION, STOCK_WRITE_PERMISSION,
+    AUDIT_READ_PERMISSION, STOCK_DASHBOARD_READ_PERMISSION, STOCK_INBOUND_APPROVE_PERMISSION,
+    STOCK_INBOUND_CREATE_PERMISSION, STOCK_INBOUND_READ_PERMISSION, STOCK_ITEM_MANAGE_PERMISSION,
+    STOCK_ITEM_READ_PERMISSION, STOCK_OUTBOUND_APPROVE_PERMISSION,
+    STOCK_OUTBOUND_CREATE_PERMISSION, STOCK_OUTBOUND_READ_PERMISSION, STOCK_READ_PERMISSION,
+    STOCK_SUBSTITUTE_MANAGE_PERMISSION, STOCK_SUBSTITUTE_READ_PERMISSION,
+    STOCK_TEMPLATE_MANAGE_PERMISSION, STOCK_TEMPLATE_READ_PERMISSION, STOCK_WRITE_PERMISSION,
 };
 
 const STOCK_BASE_PATH: &str = "/api";
@@ -38,11 +40,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             .route(
                 "/templates",
                 auth.template_manage(post(controller::create_template))
-                    .merge(auth.read(get(controller::list_templates))),
+                    .merge(auth.template_read(get(controller::list_templates))),
             )
             .route(
                 "/templates/{id}",
-                auth.read(get(controller::get_template))
+                auth.template_read(get(controller::get_template))
                     .merge(auth.template_manage(put(controller::update_template)))
                     .merge(auth.template_manage(delete(controller::delete_template))),
             )
@@ -53,22 +55,26 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             .route(
                 "/items",
                 auth.item_manage(post(controller::create_item))
-                    .merge(auth.read(get(controller::list_items))),
+                    .merge(auth.item_read(get(controller::list_items))),
             )
             .route(
                 "/items/filter-values",
-                auth.read(get(controller::item_filter_values)),
+                auth.item_read(get(controller::item_filter_values)),
             )
             .route(
                 "/items/{id}",
-                auth.read(get(controller::get_item))
+                auth.item_read(get(controller::get_item))
                     .merge(auth.item_manage(put(controller::update_item)))
                     .merge(auth.item_manage(delete(controller::delete_item))),
             )
             .route(
                 "/items/{id}/substitutes",
                 auth.substitute_manage(post(controller::bind_substitutes))
-                    .merge(auth.read(get(controller::list_substitutes))),
+                    .merge(auth.substitute_read(get(controller::list_substitutes))),
+            )
+            .route(
+                "/items/substitutes",
+                auth.substitute_read(get(controller::list_all_substitutes)),
             )
             .route(
                 "/items/{id}/substitutes/{substitute_id}",
@@ -77,13 +83,16 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             .route(
                 "/inbound",
                 auth.inbound_create(post(controller::create_inbound))
-                    .merge(auth.read(get(controller::list_inbound))),
+                    .merge(auth.inbound_read(get(controller::list_inbound))),
             )
             .route(
                 "/inbound/filter-values",
-                auth.read(get(controller::inbound_filter_values)),
+                auth.inbound_read(get(controller::inbound_filter_values)),
             )
-            .route("/inbound/{id}", auth.read(get(controller::get_inbound)))
+            .route(
+                "/inbound/{id}",
+                auth.inbound_read(get(controller::get_inbound)),
+            )
             .route(
                 "/stock-approvals/inbound/{id}/approve",
                 auth.inbound_approve(post(controller::approve_inbound)),
@@ -95,13 +104,16 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             .route(
                 "/outbound",
                 auth.outbound_create(post(controller::create_outbound))
-                    .merge(auth.read(get(controller::list_outbound))),
+                    .merge(auth.outbound_read(get(controller::list_outbound))),
             )
             .route(
                 "/outbound/filter-values",
-                auth.read(get(controller::outbound_filter_values)),
+                auth.outbound_read(get(controller::outbound_filter_values)),
             )
-            .route("/outbound/{id}", auth.read(get(controller::get_outbound)))
+            .route(
+                "/outbound/{id}",
+                auth.outbound_read(get(controller::get_outbound)),
+            )
             .route(
                 "/stock-approvals/outbound/{id}/approve",
                 auth.outbound_approve(post(controller::approve_outbound)),
@@ -112,11 +124,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             )
             .route(
                 "/dashboard/overview",
-                auth.read(get(controller::dashboard_overview)),
+                auth.dashboard_read(get(controller::dashboard_overview)),
             )
             .route(
                 "/dashboard/trends",
-                auth.read(get(controller::dashboard_trends)),
+                auth.dashboard_read(get(controller::dashboard_trends)),
             )
             .route("/events", auth.audit_read(get(controller::list_events))),
     )
@@ -133,8 +145,28 @@ impl StockRouteAuth {
         Self { state }
     }
 
-    fn read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
-        self.allow(route, STOCK_READ_PERMISSION)
+    fn item_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_ITEM_READ_PERMISSION)
+    }
+
+    fn template_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_TEMPLATE_READ_PERMISSION)
+    }
+
+    fn inbound_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_INBOUND_READ_PERMISSION)
+    }
+
+    fn outbound_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_OUTBOUND_READ_PERMISSION)
+    }
+
+    fn dashboard_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_DASHBOARD_READ_PERMISSION)
+    }
+
+    fn substitute_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        self.allow(route, STOCK_SUBSTITUTE_READ_PERMISSION)
     }
 
     fn item_manage(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {

@@ -45,15 +45,21 @@
 - `user.permissions.update`：整体替换用户权限。
 - `user.permission.read`：查看权限定义。
 - `user.password.reset`：直接重置用户密码。
-- `stock.read`：查看库存数据。
+- `stock.read`：历史兼容的库存只读权限；具体查询接口使用细分权限。
 - `stock.write`：创建或修改库存数据。
 - `stock.item.manage`：创建、修改和软删除库存物品。
+- `stock.item.read`：查看库存物品列表、详情和物品筛选值。
 - `stock.template.manage`：管理库存模板和模板字段。
+- `stock.template.read`：查看库存模板列表和详情。
 - `stock.inbound.create`：创建入库单。
+- `stock.inbound.read`：查看入库单列表、详情和入库历史筛选值。
 - `stock.inbound.approve`：审批或拒绝入库单。
 - `stock.outbound.create`：创建出库单。
+- `stock.outbound.read`：查看出库单列表、详情和出库历史筛选值。
 - `stock.outbound.approve`：审批或拒绝出库单。
 - `stock.substitute.manage`：绑定或解绑替代料关系。
+- `stock.substitute.read`：查看替代料关系。
+- `stock.dashboard.read`：查看库存看板总览和趋势。
 - `audit.read`：查询审计事件日志。
 
 ### `auth_user_permission_assignments`

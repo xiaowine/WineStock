@@ -22,7 +22,7 @@
   "user": {
     "id": "1",
     "username": "admin",
-    "permissions": ["stock.read", "user.read"]
+    "permissions": ["stock.item.read", "user.read"]
   }
 }
 ```
@@ -33,7 +33,7 @@
 {
   "id": "1",
   "username": "admin",
-  "permissions": ["stock.read", "user.read"]
+  "permissions": ["stock.item.read", "user.read"]
 }
 ```
 

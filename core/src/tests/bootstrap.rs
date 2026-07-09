@@ -81,14 +81,20 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
         .await,
         vec![
             "audit.read",
+            "stock.dashboard.read",
             "stock.inbound.approve",
             "stock.inbound.create",
+            "stock.inbound.read",
             "stock.item.manage",
+            "stock.item.read",
             "stock.outbound.approve",
             "stock.outbound.create",
+            "stock.outbound.read",
             "stock.read",
             "stock.substitute.manage",
+            "stock.substitute.read",
             "stock.template.manage",
+            "stock.template.read",
             "stock.write",
             "user.password.reset",
             "user.permission.read",
@@ -298,7 +304,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_
             "count",
         )
         .await,
-        16
+        22
     );
     assert_eq!(
         query_string_vec(

@@ -252,7 +252,7 @@ pub(crate) async fn create_template(
     responses(
         (status = 200, description = "Template list", body = Vec<TemplateResponse>),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String)
+        (status = 403, description = "Template read permission required", body = String)
     )
 )]
 /// 查询库存模板列表。
@@ -271,7 +271,7 @@ pub(crate) async fn list_templates(
     responses(
         (status = 200, description = "Template detail", body = TemplateResponse),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String),
+        (status = 403, description = "Template read permission required", body = String),
         (status = 404, description = "Template not found", body = String)
     )
 )]

@@ -79,6 +79,54 @@ pub(crate) struct SubstituteDetailResponse {
     pub created_at: String,
 }
 
+/// 全量替代料关系响应。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
+pub(crate) struct SubstituteRelationResponse {
+    /// 主物品 ID。
+    #[garde(skip)]
+    pub item_id: i64,
+
+    /// 主物品名称。
+    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    pub item_name: String,
+
+    /// 主物品 SKU。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub item_sku: String,
+
+    /// 替代料物品 ID。
+    #[garde(skip)]
+    pub substitute_item_id: i64,
+
+    /// 替代料物品名称。
+    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    pub substitute_item_name: String,
+
+    /// 替代料物品 SKU。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub substitute_item_sku: String,
+
+    /// 替代料当前库存量。
+    #[garde(skip)]
+    pub quantity: f64,
+
+    /// 替代优先级。
+    #[garde(range(min = 1))]
+    pub priority: i32,
+
+    /// 兼容性备注。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub notes: Option<String>,
+
+    /// 创建人用户 ID。
+    #[garde(skip)]
+    pub created_by_user_id: Option<i64>,
+
+    /// 创建时间，使用 SQLite UTC 字符串格式。
+    #[garde(skip)]
+    pub created_at: String,
+}
+
 #[utoipa::path(
     post,
     path = "/api/items/{id}/substitutes",
@@ -108,6 +156,24 @@ pub(crate) async fn bind_substitutes(
 
 #[utoipa::path(
     get,
+    path = "/api/items/substitutes",
+    tag = "stock",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "All substitute relations", body = Vec<SubstituteRelationResponse>),
+        (status = 401, description = "Invalid access token", body = String),
+        (status = 403, description = "Substitute read permission required", body = String)
+    )
+)]
+/// 查询全部物品替代料关系。
+pub(crate) async fn list_all_substitutes(
+    State(state): State<CoreState>,
+) -> Result<Json<Vec<SubstituteRelationResponse>>, StockApiError> {
+    Ok(Json(service::list_all_substitutes(&state).await?))
+}
+
+#[utoipa::path(
+    get,
     path = "/api/items/{id}/substitutes",
     tag = "stock",
     params(("id" = i64, Path, description = "Item ID")),
@@ -115,7 +181,7 @@ pub(crate) async fn bind_substitutes(
     responses(
         (status = 200, description = "Substitute list", body = Vec<SubstituteDetailResponse>),
         (status = 401, description = "Invalid access token", body = String),
-        (status = 403, description = "Stock read permission required", body = String),
+        (status = 403, description = "Substitute read permission required", body = String),
         (status = 404, description = "Item not found", body = String)
     )
 )]

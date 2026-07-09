@@ -15,7 +15,7 @@
 | `GET /api/outbound?search=` | 增强现有接口 | 搜索出库历史，结果仍按出库单返回。 |
 | `GET /api/outbound/filter-values` | 新增接口 | 返回出库历史视角下可用于出库列表筛选的字段和值。 |
 
-这些接口都属于 `core` 的库存业务 API，使用现有 `stock.read` 权限，不涉及平台 shell、前端打包或网络绑定行为。
+这些接口都属于 `core` 的库存业务 API，按资源使用细分只读权限，不涉及平台 shell、前端打包或网络绑定行为。
 
 ## 数据语义
 
@@ -319,7 +319,7 @@ GET /api/inbound/filter-values
 GET /api/outbound/filter-values
 ```
 
-这些接口都挂 `stock.read` 权限。
+这些接口按资源挂载权限：物品接口使用 `stock.item.read`，入库接口使用 `stock.inbound.read`，出库接口使用 `stock.outbound.read`。
 
 ### Controller
 
@@ -437,7 +437,7 @@ json_scalar_values_clause(...)
 - `/api/inbound?search=` 一张入库单多条明细命中时只返回一次。
 - `/api/inbound/filter-values` 不受当前库存余额影响，已出完批次对应的历史值仍可出现。
 - `/api/outbound/filter-values` 统计出库历史筛选值，批次和模板值从指定批次或已审批扣减流水反查。
-- 六个接口都需要 `stock.read` 权限。
+- 六个接口按资源分别需要 `stock.item.read`、`stock.inbound.read` 或 `stock.outbound.read` 权限。
 - 空搜索词仍返回 `400 invalid_request`，保持现有参数校验风格。
 
 实现后运行：
