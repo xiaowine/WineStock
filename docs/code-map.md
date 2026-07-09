@@ -26,6 +26,8 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实体限制文档、实现笔记和本代码地图。
+- `docs/business-api.md`：业务 API 文档入口，按业务域链接到拆分后的详细文档。
+- `docs/business-api/`：按库存物品、模板、入库、出库、审批、看板、替代料、事件日志、通用结构和权限汇总拆分的业务 API 详细文档。
 - `docs/user-management-api.md`：当前用户管理和权限只读接口文档。
 - `docs/rbac-permission-model.md`：当前用户直接权限模型、初始化行为和业务授权规则。
 - `docs/validation/`：按实体所在源码文件归档的字段限制、校验入口和数据库约束说明。
