@@ -11,8 +11,9 @@ use axum::{
 };
 use garde::Validate;
 use serde::de::DeserializeOwned;
+use serde_json::json;
 
-use super::api_error_response;
+use super::api_error_response_with_details;
 
 /// 先解析 JSON 再执行 `garde` 校验的请求体提取器。
 pub(crate) struct ValidatedJson<T>(pub(crate) T);
@@ -36,7 +37,7 @@ where
             .map_err(|_| RequestValidationError::Json)?;
         value
             .validate()
-            .map_err(|_| RequestValidationError::Validation)?;
+            .map_err(RequestValidationError::Validation)?;
 
         Ok(Self(value))
     }
@@ -81,7 +82,7 @@ pub(crate) enum RequestValidationError {
     Json,
 
     /// JSON 已能反序列化，但字段值不满足 DTO 约束。
-    Validation,
+    Validation(garde::Report),
 
     /// 路径参数缺失、格式错误或类型不匹配。
     Path,
@@ -92,7 +93,49 @@ pub(crate) enum RequestValidationError {
 
 impl IntoResponse for RequestValidationError {
     fn into_response(self) -> Response {
-        // 对客户端统一暴露稳定 JSON 错误码，避免把字段规则实现细节写入公开 API。
-        api_error_response(StatusCode::BAD_REQUEST, "invalid_request", "请求参数无效")
+        match self {
+            Self::Validation(report) => api_error_response_with_details(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "请求参数无效",
+                validation_details(report),
+            ),
+            // 解析失败没有稳定字段路径，仍只暴露错误类型，避免泄露解析器内部文本。
+            Self::Json => api_error_response_with_details(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "请求参数无效",
+                json!({ "kind": "json" }),
+            ),
+            Self::Path => api_error_response_with_details(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "请求参数无效",
+                json!({ "kind": "path" }),
+            ),
+            Self::Query => api_error_response_with_details(
+                StatusCode::BAD_REQUEST,
+                "invalid_request",
+                "请求参数无效",
+                json!({ "kind": "query" }),
+            ),
+        }
     }
+}
+
+fn validation_details(report: garde::Report) -> serde_json::Value {
+    let fields = report
+        .iter()
+        .map(|(path, error)| {
+            json!({
+                "path": path.to_string(),
+                "message": error.message(),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    json!({
+        "kind": "validation",
+        "fields": fields,
+    })
 }

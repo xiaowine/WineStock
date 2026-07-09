@@ -33,11 +33,20 @@ pub(crate) struct ApiErrorBody {
 impl ApiErrorResponse {
     /// 构造不携带细节的稳定错误响应。
     pub(crate) fn new(code: &'static str, message: &'static str) -> Self {
+        Self::with_details(code, message, None)
+    }
+
+    /// 构造可携带结构化细节的稳定错误响应。
+    pub(crate) fn with_details(
+        code: &'static str,
+        message: &'static str,
+        details: Option<serde_json::Value>,
+    ) -> Self {
         Self {
             error: ApiErrorBody {
                 code: code.to_string(),
                 message: message.to_string(),
-                details: None,
+                details,
             },
         }
     }
@@ -50,6 +59,20 @@ pub(crate) fn api_error_response(
     message: &'static str,
 ) -> Response {
     (status, Json(ApiErrorResponse::new(code, message))).into_response()
+}
+
+/// 把带结构化细节的领域错误映射为统一 JSON 响应体。
+pub(crate) fn api_error_response_with_details(
+    status: StatusCode,
+    code: &'static str,
+    message: &'static str,
+    details: serde_json::Value,
+) -> Response {
+    (
+        status,
+        Json(ApiErrorResponse::with_details(code, message, Some(details))),
+    )
+        .into_response()
 }
 
 /// 未匹配到任何 API 路由时返回统一 JSON 404。

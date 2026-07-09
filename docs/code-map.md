@@ -121,11 +121,12 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/http/`
   - 作为唯一的全局 HTTP 外壳层。
+  - `cors.rs` 定义全局 CORS middleware，统一补充跨 origin 响应头，并在进入业务路由前处理浏览器 OPTIONS 预检请求；它不拥有前端资源或平台打包行为。
   - `docs.rs` 定义 `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`、OpenAPI 元信息、按业务域拆分的 Swagger tag 和 Swagger UI 挂载。
-  - `error_response.rs` 定义统一的非 2xx JSON 错误响应结构、领域错误响应辅助函数，以及全局 404/405 兜底响应；业务模块只映射状态码和稳定错误码，不自行拼装错误响应体。
+  - `error_response.rs` 定义统一的非 2xx JSON 错误响应结构、领域错误响应辅助函数，以及全局 404/405 兜底响应；业务模块只映射状态码和稳定错误码，不自行拼装错误响应体；字段校验等场景可通过 `details` 返回结构化细节。
   - `health.rs` 定义无状态 `/api/health` 健康检查 DTO 和 handler；该接口不访问数据库，也不要求鉴权。
   - `router.rs` 负责组装 Swagger/OpenAPI、健康检查和业务模块 router；本地服务模式下把 `CoreState` 注入 Router，并 merge `auth`、`stock` 与 `users` 模块路由。
-  - `validation.rs` 定义 `ValidatedJson<T>`、`ValidatedPath<T>` 和 `ValidatedQuery<T>`，在业务 handler 之前完成 JSON 解析、`garde` 静态字段校验、路径参数解析和查询参数解析；解析或校验失败统一返回 `400 invalid_request` 的 JSON 错误响应。
+  - `validation.rs` 定义 `ValidatedJson<T>`、`ValidatedPath<T>` 和 `ValidatedQuery<T>`，在业务 handler 之前完成 JSON 解析、`garde` 静态字段校验、路径参数解析和查询参数解析；解析或校验失败统一返回 `400 invalid_request` 的 JSON 错误响应，其中 `garde` 字段校验失败会返回 `details.kind = "validation"` 和字段级 `details.fields`。
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap` 和 `LocalServiceBootstrap`。

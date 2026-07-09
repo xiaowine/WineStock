@@ -3,8 +3,9 @@
 //! 本模块属于 `core axum library` 层，只负责拼装全局 HTTP 外壳和业务模块路由。
 //! 它不直接实现 `auth`、`users` 或 `rbac` 的业务流程。
 
-use super::{docs, error_response, health};
+use super::{cors, docs, error_response, health};
 use crate::{auth, state::CoreState, stock, users, LocalServiceBootstrap};
+use axum::middleware;
 use axum::routing::get;
 use axum::Router;
 
@@ -34,4 +35,5 @@ where
         .merge(docs::router())
         .fallback(error_response::not_found)
         .method_not_allowed_fallback(error_response::method_not_allowed)
+        .layer(middleware::from_fn(cors::apply))
 }

@@ -10,7 +10,9 @@ use crate::{
         AuthClientKind, AuthLoginRequest, AuthRefreshRequest, AuthRegisterRequest, AuthUserResponse,
     },
     security::{hash_refresh_token, CURRENT_REFRESH_TOKEN_VERSION},
-    test_support::{error_code, json_request, login_request, raw_login_request, seeded_app},
+    test_support::{
+        error_code, json_body, json_request, login_request, raw_login_request, seeded_app,
+    },
 };
 
 #[test]
@@ -198,5 +200,12 @@ async fn invalid_login_payload_is_rejected_before_auth_service() {
     let response = raw_login_request(&app, "   ", "password").await;
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(error_code(response).await, "invalid_request");
+    let value: serde_json::Value = json_body(response).await;
+    assert_eq!(value["error"]["code"], "invalid_request");
+    assert_eq!(value["error"]["details"]["kind"], "validation");
+    assert!(value["error"]["details"]["fields"]
+        .as_array()
+        .expect("fields should be an array")
+        .iter()
+        .any(|field| field["path"] == "username" && field["message"] == "must_not_be_blank"));
 }

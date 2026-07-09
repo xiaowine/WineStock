@@ -1,6 +1,15 @@
 //! 全局 HTTP OpenAPI/Swagger 装配测试。
 
-use axum::{body::Body, http::Request};
+use axum::{
+    body::Body,
+    http::{
+        header::{
+            ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
+            ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_MAX_AGE, ORIGIN,
+        },
+        Request,
+    },
+};
 use tower::ServiceExt;
 
 use crate::{
@@ -22,6 +31,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         .expect("request should complete");
 
     assert_eq!(response.status(), axum::http::StatusCode::OK);
+    assert_eq!(response.headers()[ACCESS_CONTROL_ALLOW_ORIGIN], "*");
     let value: serde_json::Value = json_body(response).await;
     assert!(value["components"]["schemas"]["ApiErrorResponse"].is_object());
     assert!(value["components"]["securitySchemes"]["bearerAuth"].is_object());
@@ -137,6 +147,38 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_operation_tag(&value, "/api/dashboard/overview", "get", "dashboard");
     assert_operation_tag(&value, "/api/events", "get", "events");
     assert_no_operation_tag(&value, "stock");
+}
+
+#[tokio::test]
+async fn cors_preflight_is_handled_before_route_matching() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/api/auth/login")
+                .header(ORIGIN, "http://localhost:5173")
+                .header("access-control-request-method", "POST")
+                .header(
+                    "access-control-request-headers",
+                    "authorization,content-type",
+                )
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::NO_CONTENT);
+    assert_eq!(response.headers()[ACCESS_CONTROL_ALLOW_ORIGIN], "*");
+    assert_eq!(
+        response.headers()[ACCESS_CONTROL_ALLOW_METHODS],
+        "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    );
+    assert_eq!(
+        response.headers()[ACCESS_CONTROL_ALLOW_HEADERS],
+        "authorization,content-type,accept"
+    );
+    assert_eq!(response.headers()[ACCESS_CONTROL_MAX_AGE], "86400");
 }
 
 #[tokio::test]
