@@ -9,9 +9,9 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest, ItemResponse,
-        ItemUpdateRequest, TemplateCreateRequest, TemplateFieldDef, TemplateFieldType,
-        TemplateResponse,
+        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
+        ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateCreateRequest,
+        TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
     test_support::{json_body, json_request, login_request, seeded_app, text_body},
 };
@@ -121,6 +121,81 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     )
     .await;
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn item_detail_returns_current_inventory_summary() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let template_id = seed_item_search_template(&app, &login.body.access_token).await;
+    let item_id = seed_item(
+        &app,
+        &login.body.access_token,
+        template_id,
+        "Detail Sensor",
+        "DETAIL-001",
+    )
+    .await;
+
+    let empty_detail = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items/{item_id}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(empty_detail.status(), StatusCode::OK);
+    let empty_detail: ItemDetailResponse = json_body(empty_detail).await;
+    assert_eq!(empty_detail.current_quantity, 0.0);
+    assert_eq!(empty_detail.inventory_value, 0.0);
+    assert!(empty_detail.locations.is_empty());
+    assert!(empty_detail.batches.is_empty());
+
+    create_and_approve_inbound(
+        &app,
+        &login.body.access_token,
+        item_id,
+        "DetailNeedle",
+        "PrivateNeedle",
+        "A-01",
+        "DETAIL-BATCH-001",
+    )
+    .await;
+    create_and_approve_inbound(
+        &app,
+        &login.body.access_token,
+        item_id,
+        "DetailNeedle",
+        "PrivateNeedle",
+        "B-02",
+        "DETAIL-BATCH-002",
+    )
+    .await;
+
+    let detail = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items/{item_id}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(detail.status(), StatusCode::OK);
+    let detail: ItemDetailResponse = json_body(detail).await;
+    assert_eq!(detail.id, item_id);
+    assert_eq!(detail.current_quantity, 20.0);
+    assert_eq!(detail.inventory_value, 50.0);
+    assert_eq!(detail.locations.len(), 2);
+    assert_eq!(detail.locations[0].location.as_deref(), Some("A-01"));
+    assert_eq!(detail.locations[0].quantity, 10.0);
+    assert_eq!(detail.locations[0].value, 25.0);
+    assert_eq!(detail.locations[0].batch_count, 1);
+    assert_eq!(detail.locations[1].location.as_deref(), Some("B-02"));
+    assert_eq!(detail.batches.len(), 2);
+    assert_eq!(detail.batches[0].batch_no, "DETAIL-BATCH-001");
+    assert_eq!(detail.batches[0].remaining_quantity, 10.0);
+    assert_eq!(detail.batches[0].unit_cost, 2.5);
+    assert_eq!(detail.batches[0].value, 25.0);
+    assert_eq!(detail.batches[1].batch_no, "DETAIL-BATCH-002");
 }
 
 #[tokio::test]

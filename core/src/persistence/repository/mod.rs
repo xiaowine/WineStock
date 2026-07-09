@@ -28,7 +28,8 @@ pub(crate) use stock_repo::{
     DailyMovementTrendRecord, DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord,
     InboundOrderRecord, ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems,
     OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
-    SlowMovingStockItemRecord, StockFilterFieldRecord, StockFilterValueRecord, StockRepository,
+    SlowMovingStockItemRecord, StockFilterFieldRecord, StockFilterValueRecord,
+    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockRepository,
     StockSubstituteRecord, StockTemplateDetail, TemplateFieldInput, UpdateStockItem,
     UpdateStockTemplate,
 };

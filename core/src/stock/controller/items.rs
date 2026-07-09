@@ -140,6 +140,126 @@ pub(crate) struct ItemResponse {
     pub updated_at: String,
 }
 
+/// 库存物品详情响应，包含基础资料和当前库存快照。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
+pub(crate) struct ItemDetailResponse {
+    /// 物品 ID。
+    #[garde(skip)]
+    pub id: i64,
+
+    /// 物品名称。
+    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    pub name: String,
+
+    /// 物品 SKU。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub sku: String,
+
+    /// 关联模板 ID。
+    #[garde(skip)]
+    pub category_id: Option<i64>,
+
+    /// 计量单位。
+    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    pub unit: String,
+
+    /// 物品描述。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub description: Option<String>,
+
+    /// 参考单价。
+    #[garde(skip)]
+    pub default_price: Option<f64>,
+
+    /// 再订货点。
+    #[garde(skip)]
+    pub reorder_point: Option<f64>,
+
+    /// 创建时间，使用 SQLite UTC 字符串格式。
+    #[garde(skip)]
+    pub created_at: String,
+
+    /// 最近更新时间，使用 SQLite UTC 字符串格式。
+    #[garde(skip)]
+    pub updated_at: String,
+
+    /// 当前剩余库存总量，只统计仍有余额的批次。
+    #[garde(skip)]
+    pub current_quantity: f64,
+
+    /// 当前库存价值，按批次剩余数量乘以批次单价汇总。
+    #[garde(skip)]
+    pub inventory_value: f64,
+
+    /// 当前库存按库位聚合后的分布。
+    #[garde(skip)]
+    pub locations: Vec<ItemLocationStockResponse>,
+
+    /// 当前仍有余额的批次摘要。
+    #[garde(skip)]
+    pub batches: Vec<ItemBatchStockResponse>,
+}
+
+/// 物品详情中的库位库存分布。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
+pub(crate) struct ItemLocationStockResponse {
+    /// 库位；为空表示入库时未填写库位。
+    #[garde(skip)]
+    pub location: Option<String>,
+
+    /// 该库位当前剩余库存量。
+    #[garde(skip)]
+    pub quantity: f64,
+
+    /// 该库位当前库存价值。
+    #[garde(skip)]
+    pub value: f64,
+
+    /// 该库位当前仍有余额的批次数。
+    #[garde(skip)]
+    pub batch_count: i64,
+}
+
+/// 物品详情中的当前批次摘要。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
+pub(crate) struct ItemBatchStockResponse {
+    /// 批次 ID。
+    #[garde(skip)]
+    pub id: i64,
+
+    /// 批次号。
+    #[garde(skip)]
+    pub batch_no: String,
+
+    /// 批次库位。
+    #[garde(skip)]
+    pub location: Option<String>,
+
+    /// 入库时的初始数量。
+    #[garde(skip)]
+    pub initial_quantity: f64,
+
+    /// 当前剩余数量。
+    #[garde(skip)]
+    pub remaining_quantity: f64,
+
+    /// 批次单价。
+    #[garde(skip)]
+    pub unit_cost: f64,
+
+    /// 当前批次库存价值。
+    #[garde(skip)]
+    pub value: f64,
+
+    /// 入库审批时间。
+    #[garde(skip)]
+    pub received_at: String,
+
+    /// 有效期。
+    #[garde(skip)]
+    pub expires_at: Option<String>,
+}
+
 #[utoipa::path(
     post,
     path = "/api/items",
@@ -210,7 +330,7 @@ pub(crate) async fn item_filter_values(
     params(("id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Item detail", body = ItemResponse),
+        (status = 200, description = "Item detail", body = ItemDetailResponse),
         (status = 401, description = "Invalid access token", body = String),
         (status = 403, description = "Stock read permission required", body = String),
         (status = 404, description = "Item not found", body = String)
@@ -220,7 +340,7 @@ pub(crate) async fn item_filter_values(
 pub(crate) async fn get_item(
     State(state): State<CoreState>,
     Path(id): Path<i64>,
-) -> Result<Json<ItemResponse>, StockApiError> {
+) -> Result<Json<ItemDetailResponse>, StockApiError> {
     Ok(Json(service::get_item(&state, id).await?))
 }
 

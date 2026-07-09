@@ -10,7 +10,7 @@ use crate::{
         entity::stock_item,
         repository::{
             AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, OutboundOrderDetail,
-            StockFilterFieldRecord, StockSubstituteRecord, StockTemplateDetail,
+            StockFilterFieldRecord, StockItemDetail, StockSubstituteRecord, StockTemplateDetail,
         },
     },
     stock::controller,
@@ -34,6 +34,51 @@ pub(super) fn item_response(item: stock_item::Model) -> controller::ItemResponse
         reorder_point: item.reorder_point,
         created_at: item.created_at,
         updated_at: item.updated_at,
+    }
+}
+
+/// 把库存物品详情读取模型转换为 HTTP 响应，库存聚合只反映当前有效批次。
+pub(super) fn item_detail_response(detail: StockItemDetail) -> controller::ItemDetailResponse {
+    let item = item_response(detail.item);
+
+    controller::ItemDetailResponse {
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        category_id: item.category_id,
+        unit: item.unit,
+        description: item.description,
+        default_price: item.default_price,
+        reorder_point: item.reorder_point,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        current_quantity: detail.current_quantity,
+        inventory_value: detail.inventory_value,
+        locations: detail
+            .locations
+            .into_iter()
+            .map(|location| controller::ItemLocationStockResponse {
+                location: location.location,
+                quantity: location.quantity,
+                value: location.value,
+                batch_count: location.batch_count,
+            })
+            .collect(),
+        batches: detail
+            .batches
+            .into_iter()
+            .map(|batch| controller::ItemBatchStockResponse {
+                id: batch.id,
+                batch_no: batch.batch_no,
+                location: batch.location,
+                initial_quantity: batch.initial_quantity,
+                remaining_quantity: batch.remaining_quantity,
+                unit_cost: batch.unit_cost,
+                value: batch.value,
+                received_at: batch.received_at,
+                expires_at: batch.expires_at,
+            })
+            .collect(),
     }
 }
 

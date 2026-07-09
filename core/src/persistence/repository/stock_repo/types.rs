@@ -161,6 +161,72 @@ pub(crate) struct StockTemplateDetail {
     pub fields: Vec<stock_template_field::Model>,
 }
 
+/// 库存物品详情读取模型，包含基础资料和当前有效批次聚合。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct StockItemDetail {
+    /// 物品基础资料。
+    pub item: crate::persistence::entity::stock_item::Model,
+
+    /// 当前剩余库存总量，只统计 `remaining_quantity > 0` 的批次。
+    pub current_quantity: f64,
+
+    /// 当前库存价值，按批次剩余数量乘以批次单价汇总。
+    pub inventory_value: f64,
+
+    /// 当前库存按库位聚合后的分布。
+    pub locations: Vec<StockItemLocationRecord>,
+
+    /// 当前仍有余额的批次摘要。
+    pub batches: Vec<StockItemBatchRecord>,
+}
+
+/// 物品当前库存库位聚合读取模型。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct StockItemLocationRecord {
+    /// 库位；为空表示入库明细未填写库位。
+    pub location: Option<String>,
+
+    /// 该库位当前剩余库存量。
+    pub quantity: f64,
+
+    /// 该库位当前库存价值。
+    pub value: f64,
+
+    /// 该库位当前仍有余额的批次数。
+    pub batch_count: i64,
+}
+
+/// 物品当前库存批次摘要读取模型。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct StockItemBatchRecord {
+    /// 批次 ID。
+    pub id: i64,
+
+    /// 批次号。
+    pub batch_no: String,
+
+    /// 批次库位。
+    pub location: Option<String>,
+
+    /// 入库时的初始数量。
+    pub initial_quantity: f64,
+
+    /// 当前剩余数量。
+    pub remaining_quantity: f64,
+
+    /// 批次单价。
+    pub unit_cost: f64,
+
+    /// 当前批次库存价值。
+    pub value: f64,
+
+    /// 入库审批时间。
+    pub received_at: String,
+
+    /// 有效期。
+    pub expires_at: Option<String>,
+}
+
 /// 创建入库单明细的仓储输入。
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
 pub(crate) struct CreateInboundOrderItem {

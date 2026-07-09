@@ -1,6 +1,6 @@
 //! 库存物品仓储操作。
 //!
-//! 本模块属于 `core` 持久化层，封装 `stock_items` 的创建、查询、更新和软删除。
+//! 本模块属于 `core` 持久化层，封装 `stock_items` 的创建、查询、更新、软删除和物品详情库存快照。
 //! service 不应直接拼接库存物品表查询。
 
 use sea_orm::{
@@ -8,7 +8,10 @@ use sea_orm::{
     QueryFilter, Set, Statement,
 };
 
-use super::{search, CreateStockItem, ListStockItems, Page, StockRepository, UpdateStockItem};
+use super::{
+    search, CreateStockItem, ListStockItems, Page, StockItemBatchRecord, StockItemDetail,
+    StockItemLocationRecord, StockRepository, UpdateStockItem,
+};
 use crate::persistence::{
     entity::stock_item,
     repository::{time::sqlite_now, validation::validate_repository_input},
@@ -56,6 +59,27 @@ where
             .filter(stock_item::Column::DeletedAt.is_null())
             .one(self.database)
             .await
+    }
+
+    /// 查询未软删除物品详情，并附带当前库存、库位分布和有效批次摘要。
+    pub(crate) async fn find_active_item_detail_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<StockItemDetail>, DbErr> {
+        let Some(item) = self.find_active_item_by_id(id).await? else {
+            return Ok(None);
+        };
+        let (current_quantity, inventory_value) = self.query_item_stock_summary(id).await?;
+        let locations = self.query_item_stock_locations(id).await?;
+        let batches = self.query_item_stock_batches(id).await?;
+
+        Ok(Some(StockItemDetail {
+            item,
+            current_quantity,
+            inventory_value,
+            locations,
+            batches,
+        }))
     }
 
     /// 查询指定 SKU 是否已有其他未软删除物品占用。
@@ -203,6 +227,111 @@ where
                     created_at: row.try_get("", "created_at")?,
                     updated_at: row.try_get("", "updated_at")?,
                     deleted_at: row.try_get("", "deleted_at")?,
+                })
+            })
+            .collect()
+    }
+
+    async fn query_item_stock_summary(&self, item_id: i64) -> Result<(f64, f64), DbErr> {
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT
+                    COALESCE(SUM(remaining_quantity), 0.0) AS current_quantity,
+                    COALESCE(SUM(remaining_quantity * unit_cost), 0.0) AS inventory_value
+                FROM stock_batches
+                WHERE item_id = ?
+                  AND remaining_quantity > 0
+                "#,
+                [item_id.into()],
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("stock item summary".to_owned()))?;
+
+        Ok((
+            row.try_get("", "current_quantity")?,
+            row.try_get("", "inventory_value")?,
+        ))
+    }
+
+    async fn query_item_stock_locations(
+        &self,
+        item_id: i64,
+    ) -> Result<Vec<StockItemLocationRecord>, DbErr> {
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT
+                    location,
+                    COALESCE(SUM(remaining_quantity), 0.0) AS quantity,
+                    COALESCE(SUM(remaining_quantity * unit_cost), 0.0) AS value,
+                    COUNT(*) AS batch_count
+                FROM stock_batches
+                WHERE item_id = ?
+                  AND remaining_quantity > 0
+                GROUP BY location
+                ORDER BY location IS NULL ASC, location ASC
+                "#,
+                [item_id.into()],
+            ))
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(StockItemLocationRecord {
+                    location: row.try_get("", "location")?,
+                    quantity: row.try_get("", "quantity")?,
+                    value: row.try_get("", "value")?,
+                    batch_count: row.try_get("", "batch_count")?,
+                })
+            })
+            .collect()
+    }
+
+    async fn query_item_stock_batches(
+        &self,
+        item_id: i64,
+    ) -> Result<Vec<StockItemBatchRecord>, DbErr> {
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT
+                    id,
+                    batch_no,
+                    location,
+                    initial_quantity,
+                    remaining_quantity,
+                    unit_cost,
+                    remaining_quantity * unit_cost AS value,
+                    received_at,
+                    expires_at
+                FROM stock_batches
+                WHERE item_id = ?
+                  AND remaining_quantity > 0
+                ORDER BY expires_at IS NULL ASC, expires_at ASC, received_at ASC, id ASC
+                "#,
+                [item_id.into()],
+            ))
+            .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(StockItemBatchRecord {
+                    id: row.try_get("", "id")?,
+                    batch_no: row.try_get("", "batch_no")?,
+                    location: row.try_get("", "location")?,
+                    initial_quantity: row.try_get("", "initial_quantity")?,
+                    remaining_quantity: row.try_get("", "remaining_quantity")?,
+                    unit_cost: row.try_get("", "unit_cost")?,
+                    value: row.try_get("", "value")?,
+                    received_at: row.try_get("", "received_at")?,
+                    expires_at: row.try_get("", "expires_at")?,
                 })
             })
             .collect()

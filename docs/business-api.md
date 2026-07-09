@@ -71,10 +71,14 @@
  
 #### `GET /api/items/{id}`
  
- 查看单个物品详情。
+ 查看单个物品详情，包含物品基础资料、当前库存总量、库存价值、库位分布和当前有效批次摘要。
  
  - 权限：`stock.read`
-- 响应：`200` + `ItemResponse`（首版尚未包含当前库存、库位分布和批次摘要）
+- 响应：`200` + `ItemDetailResponse`
+  - `current_quantity`：当前剩余库存总量，只统计 `stock_batches.remaining_quantity > 0` 的批次
+  - `inventory_value`：当前库存价值，按批次剩余数量乘以批次单价汇总
+  - `locations`：当前库存按库位聚合的数量、价值和批次数
+  - `batches`：当前仍有余额的批次摘要，包含批次号、库位、初始数量、剩余数量、单价、价值、入库时间和有效期
  - 错误：`404` 物品不存在
  
  #### `PUT /api/items/{id}`
@@ -105,7 +109,7 @@
 - `stock.inbound.create` — 创建入库单
 - `stock.outbound.create` — 创建出库单
 - `stock.inbound.approve` / `stock.outbound.approve` — 审批入库/出库单（可选，与 RBAC 状态机扩展相关）
- - `stock.template.manage` — 管理入库模板定义
+- `stock.template.manage` — 管理入库模板定义
 
  ### 2.1 入库模板管理（入库配置前置）
  

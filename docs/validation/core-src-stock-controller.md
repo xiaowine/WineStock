@@ -100,6 +100,15 @@
 
 响应体包含物品基础资料和创建/更新时间，不包含 `deleted_at`。软删除物品不会从详情和列表接口返回。
 
+## `ItemDetailResponse`
+
+`GET /api/items/{id}` 的详情响应体。基础资料字段与 `ItemResponse` 一致，并额外包含当前库存快照：
+
+- `current_quantity`：当前剩余库存总量，只统计 `remaining_quantity > 0` 的批次。
+- `inventory_value`：当前库存价值，按批次剩余数量乘以批次单价汇总。
+- `locations`：按库位聚合当前库存数量、价值和有效批次数。
+- `batches`：当前仍有余额的批次摘要，包含批次号、库位、初始数量、剩余数量、单价、价值、入库时间和有效期。
+
 ## `OrderStatus`
 
 出入库单状态响应枚举，使用 Serde snake_case。当前允许：

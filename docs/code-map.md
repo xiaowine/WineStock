@@ -153,7 +153,13 @@ core   -> desktop/android/frontend platform assets
   - 用户业务模块，承载注册、当前用户、当前用户修改自己密码和后续用户管理能力。
   - `mod.rs` 负责 `/api/auth/register`、`/api/auth/me`、`/api/auth/me/password`、`/api/users`、`/api/users/{id}`、`/api/users/{id}/status`、`/api/users/{id}/permissions`、`/api/users/{id}/password` 与 `/api/permissions` 的路由注册，并通过链式授权声明挂载首个用户免鉴权、已有用户注册权限、已登录校验、用户读/状态/权限更新/权限定义只读和 `user.password.reset` 重置密码权限。
   - `controller.rs` 提供注册、当前用户、当前用户修改自己密码、用户管理和权限只读接口的 HTTP 入口、DTO 和 utoipa 标注。
-  - `service.rs` 处理用户注册、事务内首个用户直接分配全部内置权限、当前用户快照读取、当前用户修改自己密码、用户管理分页、账号启停、用户权限整体替换、管理员设置临时密码、最后 active 权限管理员保护、审计事件写入和响应组装；自助改密会清除强制改密标记。
+  - `service.rs` 是用户业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `users::service::*` 的内部访问面稳定。
+  - `service/register.rs` 处理用户注册、事务内首个用户判断和首个用户直接分配全部内置权限。
+  - `service/me.rs` 处理当前用户快照读取与自助改密；自助改密会清除强制改密标记。
+  - `service/management.rs` 处理用户管理分页、详情、账号启停、用户权限整体替换、管理员设置临时密码、最后 active 权限管理员保护和权限定义只读查询。
+  - `service/response.rs` 组装 API/JWT 共享用户快照、用户管理响应和权限定义响应。
+  - `service/pagination.rs` 定义用户管理分页默认值、分页响应和页数计算。
+  - `service/validation.rs` 归一化用户名、搜索文本、状态码和权限代码列表。
   - `permissions.rs` 定义 `user.register`、`user.read`、`user.status.update`、`user.permissions.update`、`user.permission.read` 和 `user.password.reset` 等用户域稳定权限代码。
 
 - `core/src/stock/`
@@ -161,7 +167,7 @@ core   -> desktop/android/frontend platform assets
   - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载 `stock.read`、`stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
   - `controller.rs` 是库存 HTTP 控制器入口，声明并重新导出 `controller/` 下的业务子模块，保持 `stock::controller::*` 的内部访问面稳定。
   - `controller/templates.rs` 定义包含 `url` 链接字段的模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
-  - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应、物品筛选值响应入口和物品 Axum handler。
+  - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应、带当前库存快照的物品详情响应、物品筛选值响应入口和物品 Axum handler。
   - `controller/inbound.rs` 定义入库单 DTO、分页查询参数、入库请求/响应、入库历史筛选值响应入口和入库 Axum handler。
   - `controller/outbound.rs` 定义出库单 DTO、分页查询参数、出库请求/响应和出库 Axum handler。
   - `controller/dashboard.rs` 定义库存看板总览、趋势查询参数、趋势响应和看板 Axum handler。
@@ -171,7 +177,7 @@ core   -> desktop/android/frontend platform assets
   - `bootstrap.rs` 定义 `元器件`、`3D打印耗材` 和 `通用` 三个内置库存模板的启动补齐逻辑；补齐只按同名记录缺失时创建，不覆盖用户修改，也不恢复用户软删除的模板。
   - `service.rs` 是库存业务服务入口，声明并重新导出 `service/` 下的业务子模块，保持 `stock::service::*` 的内部访问面稳定。
   - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验和模板写库输入组装。
-  - `service/items.rs` 处理物品创建、分页、当前库存筛选值、详情、更新、软删除和 SKU 冲突检查。
+  - `service/items.rs` 处理物品创建、分页、当前库存筛选值、带当前库存快照的详情、更新、软删除和 SKU 冲突检查。
   - `service/inbound.rs` 处理入库创建、列表、入库历史筛选值、详情、审批、拒绝和审批前模板扩展属性校验。
   - `service/outbound.rs` 处理出库创建、列表、详情、审批、拒绝和库存不足错误映射。
   - `service/dashboard.rs` 处理库存看板总览和趋势只读查询，并持有趋势天数与呆滞料阈值等看板服务常量。
@@ -179,7 +185,7 @@ core   -> desktop/android/frontend platform assets
   - `service/events.rs` 处理事件日志分页、筛选条件归一化和响应分页组装。
   - `service/error.rs` 定义 `StockApiError`，集中库存 HTTP 错误响应映射和 repository 自定义错误收敛。
   - `service/pagination.rs` 定义库存分页默认值、`PaginatedResponse<T>` 和总页数计算。
-  - `service/response.rs` 负责把 repository 记录投影为库存 HTTP DTO，包括筛选值聚合响应，不执行数据库查询。
+  - `service/response.rs` 负责把 repository 记录投影为库存 HTTP DTO，包括物品详情库存快照和筛选值聚合响应，不执行数据库查询。
   - `service/validation.rs` 负责库存服务层复用的文本、数值、ID、options JSON 和扩展属性 JSON 归一化。
   - `permissions.rs` 定义 `stock.read`、`stock.write`、`stock.item.manage`、模板、出入库、替代料和 `audit.read` 等稳定权限代码。
 
@@ -187,7 +193,7 @@ core   -> desktop/android/frontend platform assets
   - 授权模型模块，承载内置权限定义和启动补齐逻辑。
   - `bootstrap.rs` 定义内置用户、库存和审计权限；启动时只补齐权限定义，不创建用户，不补齐角色或角色权限关系，也不覆盖已有权限文本。
   - 管理类授权由 `security/middleware.rs` 在校验 bearer token 后读取数据库当前权限，避免只信任过期前的 JWT 权限快照。
-  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段表达：数据库没有用户时允许免鉴权进入；`users/service.rs` 会在同一事务内重新判断首个用户条件并直接分配全部内置权限，已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
+  - 注册接口的特殊鉴权由 `users/mod.rs` 在路由装配阶段表达：数据库没有用户时允许免鉴权进入；`users/service/register.rs` 会在同一事务内重新判断首个用户条件并直接分配全部内置权限，已有用户后必须由当前拥有 `user.register` 权限的 bearer token 调用。
 
 - `core/src/persistence/`
   - 定义 `StorageRuntime` 和存储启动错误。
@@ -226,9 +232,9 @@ core   -> desktop/android/frontend platform assets
   - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销、按用户吊销 active token 和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
-  - `StockRepository` 支撑库存物品创建、分页查询、详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测、事件日志分页筛选以及库存物品/入库历史搜索和筛选值聚合；handler 不直接拼接 `stock_*` 表结构。
+  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测、事件日志分页筛选以及库存物品/入库历史搜索和筛选值聚合；handler 不直接拼接 `stock_*` 表结构。
   - `stock_repo.rs` 是库存仓储模块入口，声明 `StockRepository`，并重新导出库存仓储输入、读取模型和筛选值记录，保持上层 `repository::StockRepository` 等导入路径稳定。
-  - `stock_repo/types.rs` 定义库存仓储输入和读取模型，不执行数据库查询，不拥有 HTTP DTO。
+  - `stock_repo/types.rs` 定义库存仓储输入和读取模型，包括物品详情的当前库存、库位分布和批次摘要读取模型；不执行数据库查询，不拥有 HTTP DTO。
   - `stock_repo/items.rs`、`templates.rs`、`inbound.rs`、`outbound.rs`、`dashboard.rs`、`substitutes.rs` 和 `events.rs` 分别封装库存物品、模板、入库、出库、看板、替代料和审计事件查询/写入能力。
   - `stock_repo/common.rs` 放置多个库存仓储子模块共享的库存余额、审计写入和 JSON 字符串编码辅助逻辑。
   - `stock_repo/search.rs` 是 `StockRepository` 的搜索和筛选值查询子模块，封装当前库存 JSON 标量搜索、入库历史 JSON 标量搜索、`filter-values` 聚合 SQL 和返回记录结构，不暴露 HTTP DTO。

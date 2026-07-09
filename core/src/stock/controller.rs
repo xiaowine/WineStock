@@ -28,7 +28,8 @@ pub(crate) use inbound::{
 };
 pub(crate) use items::{
     create_item, delete_item, get_item, item_filter_values, list_items, update_item,
-    ItemCreateRequest, ItemListQuery, ItemResponse, ItemUpdateRequest,
+    ItemBatchStockResponse, ItemCreateRequest, ItemDetailResponse, ItemListQuery,
+    ItemLocationStockResponse, ItemResponse, ItemUpdateRequest,
 };
 pub(crate) use outbound::{
     approve_outbound, create_outbound, get_outbound, list_outbound, reject_outbound,

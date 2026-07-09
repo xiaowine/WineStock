@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-    response::{filter_values_response, item_response},
+    response::{filter_values_response, item_detail_response, item_response},
     validation::{normalize_optional_text, normalize_required_text, validate_non_negative},
     StockApiError,
 };
@@ -79,17 +79,17 @@ pub(crate) async fn item_filter_values(
     filter_values_response(repository.list_item_filter_values().await?)
 }
 
-/// 查询单个库存物品；只读取未软删除物品。
+/// 查询单个库存物品详情；返回未软删除物品的基础资料和当前库存快照。
 pub(crate) async fn get_item(
     state: &CoreState,
     id: i64,
-) -> Result<controller::ItemResponse, StockApiError> {
+) -> Result<controller::ItemDetailResponse, StockApiError> {
     let repository = StockRepository::new(state.database());
-    let Some(item) = repository.find_active_item_by_id(id).await? else {
+    let Some(detail) = repository.find_active_item_detail_by_id(id).await? else {
         return Err(StockApiError::ItemNotFound);
     };
 
-    Ok(item_response(item))
+    Ok(item_detail_response(detail))
 }
 
 /// 更新库存物品基础资料；字段为空表示不修改，当前接口不通过 null 清空可空字段。

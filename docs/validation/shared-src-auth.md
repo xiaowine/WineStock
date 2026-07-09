@@ -32,7 +32,7 @@ JSON 允许值：
 | `username` | `garde length(min = 1, max = 64)`；trim 后非空  |
 | `password` | `garde length(min = 1, max = 256)`；trim 后非空 |
 
-数据库状态限制：用户名唯一性、首个用户和权限规则在 `users/service.rs` 的事务内校验。
+数据库状态限制：用户名唯一性、首个用户和权限规则在 `users/service/register.rs` 的事务内校验。
 
 ## `AuthRefreshRequest`
 

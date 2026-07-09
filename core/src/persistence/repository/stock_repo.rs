@@ -23,8 +23,9 @@ pub(crate) use types::{
     DailyMovementTrendRecord, DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord,
     InboundOrderRecord, ListAuditEvents, ListInboundOrders, ListOutboundOrders, ListStockItems,
     OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
-    SlowMovingStockItemRecord, StockSubstituteRecord, StockTemplateDetail, TemplateFieldInput,
-    UpdateStockItem, UpdateStockTemplate,
+    SlowMovingStockItemRecord, StockItemBatchRecord, StockItemDetail, StockItemLocationRecord,
+    StockSubstituteRecord, StockTemplateDetail, TemplateFieldInput, UpdateStockItem,
+    UpdateStockTemplate,
 };
 
 /// stock 仓储层封装库存领域持久化语义。
