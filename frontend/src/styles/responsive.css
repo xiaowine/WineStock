@@ -1,0 +1,61 @@
+/* 本文件定义 frontend 双断点体验切换，不维护两套独立样式系统。 */
+@media (max-width: 767px) {
+  .desktop-shell {
+    display: none;
+  }
+
+  .mobile-shell {
+    display: block;
+  }
+
+  .metric-card {
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  .metric-card span {
+    font-size: 12px;
+  }
+
+  .metric-card strong {
+    font-size: 20px;
+  }
+
+  .metric-card small {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .desktop-shell {
+    display: flex;
+  }
+
+  .mobile-shell {
+    display: none;
+  }
+}
+
+@media (max-width: 1040px) and (min-width: 768px) {
+  .desktop-nav {
+    grid-template-columns: auto 1fr auto;
+    padding: 0 14px;
+  }
+
+  .brand-lockup,
+  .desktop-nav__actions {
+    min-width: 132px;
+  }
+
+  .brand-name {
+    display: none;
+  }
+
+  .desktop-nav__status {
+    justify-content: flex-start;
+  }
+
+  .desktop-nav__status .status-chip:last-child {
+    display: none;
+  }
+}

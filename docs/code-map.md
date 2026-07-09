@@ -28,6 +28,9 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `docs/`：架构、网络、平台、项目结构、检查清单、数据库结构、实体限制文档、实现笔记和本代码地图。
 - `docs/business-api.md`：业务 API 文档入口，按业务域链接到拆分后的详细文档。
 - `docs/business-api/`：按库存物品、库位、模板、入库、出库、审批、看板、替代料、事件日志、通用结构和权限汇总拆分的业务 API 详细文档。
+- `docs/frontend/`：前端页面框架、样式规则、页面清单、组件约定和后续实施说明。
+- `docs/frontend/page-framework.md`：当前认可的前端桌面/移动页面框架、导航职责、样式层级和源码对应关系；不确认具体业务页面内容。
+- `docs/frontend/visual-style.md`：当前中性业务工具视觉方向、颜色、层级、圆角、密度和避免事项。
 - `docs/user-management-api.md`：当前用户管理和权限只读接口文档。
 - `docs/rbac-permission-model.md`：当前用户直接权限模型、初始化行为和业务授权规则。
 - `docs/validation/`：按实体所在源码文件归档的字段限制、校验入口和数据库约束说明。
@@ -35,6 +38,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `docs/implementation-notes/core-axum-structure-refactor-plan.md`：面向后续 API 扩展的 `core\src` 领域切片重整方案。
 - `docs/implementation-notes/core-spring-boot-style-refactor-plan.md`：后续把 `core\src` 从 `identity` 结构继续收敛为 `http / security / auth / users / rbac` 的实施方案。
 - `docs/implementation-notes/direct-user-permissions-plan.md`：将角色间接授权收敛为用户直接权限分配的实施方案。
+- `docs/implementation-notes/frontend-responsive-shell-plan.md`：前端响应式应用壳讨论的历史演进记录；当前实施准则以 `docs/frontend/page-framework.md` 为准。
 - `docs/implementation-notes/json-config-and-db-auth-settings.md`：JSON 启动配置与数据库托管鉴权设置的边界说明。
 - `docs/implementation-notes/jwt-access-refresh-token.md`：JWT access token 与 refresh token 机制实现笔记。
 - `docs/implementation-notes/seaorm-sqlite-wal.md`：SeaORM、SQLite 和 WAL 存储行为实现笔记。
@@ -379,7 +383,12 @@ server/src/main.rs
 ## 前端和桌面说明
 
 - `frontend/package.json` 当前描述的是 Vue/Vite 脚手架。
-- `frontend/src/` 包含 demo 前端源码和资源。
+- `frontend/src/` 包含当前前端源码和资源。
+- `frontend/src/App.vue` 是前端应用入口壳层，只选择桌面/移动布局，不拥有平台 WebView 生命周期或 Axum 资源服务。
+- `frontend/src/composables/useResponsiveShell.ts` 根据视口断点选择当前挂载的桌面或移动 Shell，避免两套 Shell 同时渲染；它不判断 Desktop、Android 或 Web 平台能力。
+- `frontend/src/layouts/` 放置响应式应用壳，当前包含桌面端 `DesktopShell.vue` 和移动端 `MobileShell.vue`。
+- `frontend/src/styles/` 放置浅色主题变量、基础样式、应用壳布局、通用组件样式和双断点响应式规则。
+- `frontend/src/mock/shellData.ts` 仅保存应用壳原型演示数据；其中导航项、指标、库存条目和操作文案都不是产品内容结论，后续接入 API 或路由后应移除业务假数据。
 - Axum 不能服务 `frontend` 构建产物。
 - `desktop/Cargo.toml` 和 `desktop/src/main.rs` 不是当前 Cargo 工作区的一部分。
 - 不要从这些脚手架推断正式 desktop、Android 或包命名决策。
