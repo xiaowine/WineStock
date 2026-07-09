@@ -34,6 +34,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_eq!(response.headers()[ACCESS_CONTROL_ALLOW_ORIGIN], "*");
     let value: serde_json::Value = json_body(response).await;
     assert!(value["components"]["schemas"]["ApiErrorResponse"].is_object());
+    assert!(value["components"]["schemas"]["LocationGroupTreeNode"].is_object());
     assert!(value["components"]["securitySchemes"]["bearerAuth"].is_object());
     assert!(value["paths"]["/api/health"].is_object());
     assert!(value["paths"]["/api/health"]["get"]["security"].is_null());
@@ -147,6 +148,13 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_operation_tag(&value, "/api/dashboard/overview", "get", "dashboard");
     assert_operation_tag(&value, "/api/events", "get", "events");
     assert_no_operation_tag(&value, "stock");
+    assert_operation_response(&value, "/api/auth/login", "post", "400");
+    assert_operation_response(&value, "/api/auth/refresh", "post", "400");
+    assert_operation_response(&value, "/api/auth/logout", "post", "400");
+    assert_operation_response(&value, "/api/items/{id}", "get", "400");
+    assert_operation_response(&value, "/api/events", "get", "400");
+    assert_no_operation_response(&value, "/api/health", "get", "400");
+    assert_location_tree_schema(&value);
 }
 
 #[tokio::test]
@@ -269,4 +277,29 @@ fn assert_no_operation_tag(value: &serde_json::Value, unexpected: &str) {
             );
         }
     }
+}
+
+fn assert_operation_response(value: &serde_json::Value, path: &str, method: &str, status: &str) {
+    assert!(
+        value["paths"][path][method]["responses"][status].is_object(),
+        "{method} {path} should document {status}"
+    );
+}
+
+fn assert_no_operation_response(value: &serde_json::Value, path: &str, method: &str, status: &str) {
+    assert!(
+        value["paths"][path][method]["responses"][status].is_null(),
+        "{method} {path} should not document {status}"
+    );
+}
+
+fn assert_location_tree_schema(value: &serde_json::Value) {
+    let schema = &value["paths"]["/api/location-groups/tree"]["get"]["responses"]["200"]["content"]
+        ["application/json"]["schema"];
+
+    assert_eq!(schema["type"], "array");
+    assert_eq!(
+        schema["items"]["$ref"],
+        "#/components/schemas/LocationGroupTreeNode"
+    );
 }

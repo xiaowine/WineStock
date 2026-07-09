@@ -178,7 +178,7 @@ core   -> desktop/android/frontend platform assets
   - `controller.rs` 是库存 HTTP 控制器入口，声明并重新导出 `controller/` 下的业务子模块，保持 `stock::controller::*` 的内部访问面稳定。
   - `controller/templates.rs` 定义包含 `url` 链接字段的模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
   - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应、带当前库存快照的物品详情响应、物品筛选值响应入口和物品 Axum handler。
-  - `controller/locations.rs` 定义库位分组、库位、整批次移库 DTO 和对应 Axum handler；分组树响应运行时返回递归树结构，OpenAPI 使用通用 JSON body 避免递归 schema 展开。
+  - `controller/locations.rs` 定义库位分组、库位、整批次移库 DTO 和对应 Axum handler；分组树响应返回递归树结构，并在 OpenAPI 中暴露明确的 `LocationGroupTreeNode` schema。
   - `controller/inbound.rs` 定义入库单 DTO、分页查询参数、入库请求/响应、入库历史筛选值响应入口和入库 Axum handler。
   - `controller/outbound.rs` 定义出库单 DTO、分页搜索查询参数、出库筛选值响应入口、出库请求/响应和出库 Axum handler。
   - `controller/dashboard.rs` 定义库存看板总览、趋势查询参数、趋势响应和看板 Axum handler。
@@ -386,18 +386,31 @@ server/src/main.rs
 
 ## 验证入口
 
-当前 Rust 检查：
+默认使用覆盖被改代码路径的最窄 Cargo 命令，避免每次小改都触发全工作区、全 target 和 dev/test 依赖路径的 Cargo fingerprint 更新。
+例如服务端 shell 小改优先使用：
 
 ```text
-cargo check --workspace --all-targets
-cargo test --workspace
-cargo build -p winestock-server
+cargo +stable check -p winestock-server
+```
+
+只有跨 crate、公共 API、依赖/features、测试专用路径、发布前完整验证，或用户明确要求全量检查时，才运行：
+
+```text
+cargo +stable check --workspace --all-targets
+cargo +stable test --workspace
+cargo +stable build -p winestock-server
+```
+
+格式检查独立执行：
+
+```text
+cargo +stable fmt --all -- --check
 ```
 
 本地 server smoke test：
 
 ```text
-cargo run -p winestock-server
+cargo +stable run -p winestock-server
 ```
 
 server shell 会读取或创建可执行文件同目录下的 `data/config.json`，基于共享配置启动 Axum，打印真实访问 URL，并暴露 OpenAPI JSON 和 Swagger UI 端点。

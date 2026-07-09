@@ -88,7 +88,9 @@ pub(crate) struct LocationGroupResponse {
 }
 
 /// 库位分组树节点响应，包含直接子分组和直接库位。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, garde::Validate)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
+)]
 pub(crate) struct LocationGroupTreeNode {
     /// 分组 ID。
     #[garde(skip)]
@@ -119,6 +121,7 @@ pub(crate) struct LocationGroupTreeNode {
     pub locations: Vec<LocationResponse>,
 
     /// 当前分组的直接子分组。
+    #[schema(no_recursion)]
     #[garde(dive)]
     pub children: Vec<LocationGroupTreeNode>,
 }
@@ -284,7 +287,7 @@ pub(crate) struct LocationTransferResponse {
     tag = "locations",
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Location group tree", body = serde_json::Value),
+        (status = 200, description = "Location group tree", body = Vec<LocationGroupTreeNode>),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Location read permission required", body = crate::http::ApiErrorResponse)
     )

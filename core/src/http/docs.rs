@@ -10,7 +10,14 @@ use crate::auth::{
 };
 use axum::Router;
 use utoipa::{
-    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+    openapi::{
+        content::Content,
+        path::{Operation, PathItem},
+        response::Response,
+        schema::Ref,
+        security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+        RefOr,
+    },
     Modify, OpenApi,
 };
 use utoipa_swagger_ui::SwaggerUi;
@@ -113,6 +120,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::stock::controller::LocationGroupCreateRequest,
         crate::stock::controller::LocationGroupUpdateRequest,
         crate::stock::controller::LocationGroupResponse,
+        crate::stock::controller::LocationGroupTreeNode,
         crate::stock::controller::LocationCreateRequest,
         crate::stock::controller::LocationUpdateRequest,
         crate::stock::controller::LocationResponse,
@@ -179,7 +187,56 @@ impl Modify for SecurityAddon {
                     .build(),
             ),
         );
+        apply_default_bad_request_responses(openapi);
     }
+}
+
+/// 为所有接口补齐统一 400 错误响应文档，避免新增 extractor 后 OpenAPI 漏掉解析错误。
+fn apply_default_bad_request_responses(openapi: &mut utoipa::openapi::OpenApi) {
+    for path_item in openapi.paths.paths.values_mut() {
+        for operation in path_item_operations(path_item) {
+            if !operation_has_parseable_input(operation) {
+                continue;
+            }
+            operation
+                .responses
+                .responses
+                .entry("400".to_owned())
+                .or_insert_with(|| RefOr::T(api_error_response("Invalid request")));
+        }
+    }
+}
+
+fn path_item_operations(path_item: &mut PathItem) -> impl Iterator<Item = &mut Operation> {
+    [
+        path_item.get.as_mut(),
+        path_item.put.as_mut(),
+        path_item.post.as_mut(),
+        path_item.delete.as_mut(),
+        path_item.options.as_mut(),
+        path_item.head.as_mut(),
+        path_item.patch.as_mut(),
+        path_item.trace.as_mut(),
+    ]
+    .into_iter()
+    .flatten()
+}
+
+fn operation_has_parseable_input(operation: &Operation) -> bool {
+    operation.request_body.is_some()
+        || operation
+            .parameters
+            .as_ref()
+            .is_some_and(|parameters| !parameters.is_empty())
+}
+
+fn api_error_response(description: &'static str) -> Response {
+    let mut response = Response::new(description);
+    response.content.insert(
+        "application/json".to_owned(),
+        Content::new(Some(Ref::from_schema_name("ApiErrorResponse"))),
+    );
+    response
 }
 
 /// 挂载 Swagger UI 和 OpenAPI JSON 输出。
