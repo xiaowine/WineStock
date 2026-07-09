@@ -362,7 +362,8 @@ fn inbound_order_filters(input: &ListInboundOrders) -> (String, Vec<Value>) {
         values.push(date_to.clone().into());
     }
     if let Some(search) = input.search.as_ref() {
-        search::append_inbound_search_filter(&mut clauses, &mut values, search);
+        let search_like = format!("%{}%", search.to_lowercase());
+        search::append_inbound_search_filter(&mut clauses, &mut values, &search_like);
     }
 
     if clauses.is_empty() {

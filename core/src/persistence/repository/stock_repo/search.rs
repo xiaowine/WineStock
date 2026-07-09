@@ -1,6 +1,6 @@
 //! 库存搜索和筛选值查询。
 //!
-//! 本模块属于 `stock` repository 的查询子模块，负责库存物品和入库历史的自由搜索 SQL、
+//! 本模块属于 `stock` repository 的查询子模块，负责库存物品、入库历史和出库历史的自由搜索 SQL、
 //! 筛选值聚合 SQL。它不拥有 HTTP DTO，也不直接处理权限或分页默认值。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, Value};
@@ -32,7 +32,7 @@ pub(crate) struct StockFilterValueRecord {
     /// 已归一化为字符串的筛选值。
     pub value: String,
 
-    /// 命中数量；物品筛选值按去重物品计数，入库筛选值按去重入库单计数。
+    /// 命中数量；物品筛选值按去重物品计数，入库/出库筛选值按去重单据计数。
     pub count: u64,
 }
 
@@ -71,6 +71,19 @@ where
             query_filter_value_rows(self.database, inbound_base_filter_values_sql()).await?;
         rows.extend(
             query_filter_value_rows(self.database, inbound_template_filter_values_sql()).await?,
+        );
+
+        Ok(group_filter_rows(rows))
+    }
+
+    /// 查询出库历史视角下的筛选值；批次属性从指定批次或审批流水反查。
+    pub(crate) async fn list_outbound_filter_values(
+        &self,
+    ) -> Result<Vec<StockFilterFieldRecord>, DbErr> {
+        let mut rows =
+            query_filter_value_rows(self.database, outbound_base_filter_values_sql()).await?;
+        rows.extend(
+            query_filter_value_rows(self.database, outbound_template_filter_values_sql()).await?,
         );
 
         Ok(group_filter_rows(rows))
@@ -155,6 +168,68 @@ pub(super) fn append_inbound_search_filter(
                           FROM {json_each} AS json_values
                           WHERE {json_predicate}
                             AND lower({json_value}) LIKE ?
+                      )
+                  )
+            )
+        )
+        "#
+    ));
+    for _ in 0..11 {
+        values.push(search_like.into());
+    }
+}
+
+/// 给出库历史追加自由搜索条件；批次和模板值从指定批次或审批流水反查。
+pub(super) fn append_outbound_search_filter(
+    clauses: &mut Vec<String>,
+    values: &mut Vec<Value>,
+    search_like: &str,
+) {
+    let json_each = json_each_object("inbound_items.ext_attributes_json");
+    let json_predicate = json_scalar_predicate("json_values");
+    let json_value = json_scalar_value("json_values");
+    clauses.push(format!(
+        r#"
+        (
+            lower(stock_outbound_orders.destination) LIKE ?
+            OR lower(stock_outbound_orders.status) LIKE ?
+            OR lower(COALESCE(stock_outbound_orders.notes, '')) LIKE ?
+            OR EXISTS (
+                SELECT 1
+                FROM stock_outbound_order_items outbound_items
+                LEFT JOIN stock_items matched_items ON matched_items.id = outbound_items.item_id
+                WHERE outbound_items.order_id = stock_outbound_orders.id
+                  AND (
+                      lower(COALESCE(outbound_items.location, '')) LIKE ?
+                      OR lower(COALESCE(matched_items.name, '')) LIKE ?
+                      OR lower(COALESCE(matched_items.sku, '')) LIKE ?
+                      OR lower(COALESCE(matched_items.unit, '')) LIKE ?
+                      OR lower(COALESCE(matched_items.description, '')) LIKE ?
+                      OR EXISTS (
+                          SELECT 1
+                          FROM stock_batches batches
+                          LEFT JOIN stock_inbound_order_items inbound_items
+                            ON inbound_items.id = batches.inbound_order_item_id
+                          WHERE (
+                              batches.id = outbound_items.batch_id
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM stock_movements movements
+                                  WHERE movements.outbound_order_item_id = outbound_items.id
+                                    AND movements.batch_id = batches.id
+                                    AND movements.movement_type = 'outbound'
+                              )
+                          )
+                            AND (
+                                lower(COALESCE(batches.batch_no, '')) LIKE ?
+                                OR lower(COALESCE(batches.expires_at, '')) LIKE ?
+                                OR EXISTS (
+                                    SELECT 1
+                                    FROM {json_each} AS json_values
+                                    WHERE {json_predicate}
+                                      AND lower({json_value}) LIKE ?
+                                )
+                            )
                       )
                   )
             )
@@ -390,6 +465,137 @@ fn inbound_template_filter_values_sql() -> String {
         "#,
         "1 = 1",
     )
+}
+
+fn outbound_base_filter_values_sql() -> String {
+    let outbound_batch_join = outbound_batch_join_sql();
+    format!(
+        r#"
+    SELECT 'base:destination' AS field_key,
+           '出库去向' AS field_label,
+           'base' AS field_source,
+           'text' AS field_value_type,
+           orders.destination AS field_value,
+           COUNT(DISTINCT orders.id) AS value_count,
+           10 AS field_order
+    FROM stock_outbound_orders orders
+    WHERE trim(orders.destination) <> ''
+    GROUP BY orders.destination
+
+    UNION ALL
+
+    SELECT 'base:status' AS field_key,
+           '出库状态' AS field_label,
+           'base' AS field_source,
+           'select' AS field_value_type,
+           orders.status AS field_value,
+           COUNT(DISTINCT orders.id) AS value_count,
+           20 AS field_order
+    FROM stock_outbound_orders orders
+    WHERE trim(orders.status) <> ''
+    GROUP BY orders.status
+
+    UNION ALL
+
+    SELECT 'base:item' AS field_key,
+           '物品名称' AS field_label,
+           'base' AS field_source,
+           'text' AS field_value_type,
+           items.name AS field_value,
+           COUNT(DISTINCT orders.id) AS value_count,
+           30 AS field_order
+    FROM stock_outbound_orders orders
+    JOIN stock_outbound_order_items outbound_items ON outbound_items.order_id = orders.id
+    JOIN stock_items items ON items.id = outbound_items.item_id
+    WHERE trim(items.name) <> ''
+    GROUP BY items.name
+
+    UNION ALL
+
+    SELECT 'base:sku' AS field_key,
+           '物品 SKU' AS field_label,
+           'base' AS field_source,
+           'text' AS field_value_type,
+           items.sku AS field_value,
+           COUNT(DISTINCT orders.id) AS value_count,
+           40 AS field_order
+    FROM stock_outbound_orders orders
+    JOIN stock_outbound_order_items outbound_items ON outbound_items.order_id = orders.id
+    JOIN stock_items items ON items.id = outbound_items.item_id
+    WHERE trim(items.sku) <> ''
+    GROUP BY items.sku
+
+    UNION ALL
+
+    SELECT 'base:location' AS field_key,
+           '库位' AS field_label,
+           'base' AS field_source,
+           'text' AS field_value_type,
+           outbound_items.location AS field_value,
+           COUNT(DISTINCT orders.id) AS value_count,
+           50 AS field_order
+    FROM stock_outbound_orders orders
+    JOIN stock_outbound_order_items outbound_items ON outbound_items.order_id = orders.id
+    WHERE outbound_items.location IS NOT NULL
+      AND trim(outbound_items.location) <> ''
+    GROUP BY outbound_items.location
+
+    UNION ALL
+
+    SELECT 'base:batch_no' AS field_key,
+           '批次号' AS field_label,
+           'base' AS field_source,
+           'text' AS field_value_type,
+           batches.batch_no AS field_value,
+           COUNT(DISTINCT orders.id) AS value_count,
+           60 AS field_order
+    FROM stock_outbound_orders orders
+    JOIN stock_outbound_order_items outbound_items ON outbound_items.order_id = orders.id
+    {outbound_batch_join}
+    WHERE trim(batches.batch_no) <> ''
+    GROUP BY batches.batch_no
+
+    ORDER BY field_order ASC, field_label ASC, value_count DESC, field_value ASC
+    "#
+    )
+}
+
+fn outbound_template_filter_values_sql() -> String {
+    template_filter_values_sql(
+        "orders.id",
+        &format!(
+            r#"
+        FROM stock_outbound_orders orders
+        JOIN stock_outbound_order_items outbound_items
+          ON outbound_items.order_id = orders.id
+        JOIN stock_items items ON items.id = outbound_items.item_id
+        JOIN stock_template_fields fields
+          ON fields.template_id = items.category_id
+         AND fields.searchable = 1
+        {}
+        JOIN stock_inbound_order_items inbound_items
+          ON inbound_items.id = batches.inbound_order_item_id
+        "#,
+            outbound_batch_join_sql()
+        ),
+        "1 = 1",
+    )
+}
+
+fn outbound_batch_join_sql() -> &'static str {
+    r#"
+    JOIN stock_batches batches
+      ON (
+          batches.id = outbound_items.batch_id
+          OR EXISTS (
+              SELECT 1
+              FROM stock_movements movements
+              WHERE movements.outbound_order_item_id = outbound_items.id
+                AND movements.batch_id = batches.id
+                AND movements.movement_type = 'outbound'
+          )
+      )
+    "#
 }
 
 fn template_filter_values_sql(

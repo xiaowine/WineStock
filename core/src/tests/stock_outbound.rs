@@ -9,8 +9,9 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
-        OutboundCreateRequest, OutboundItemRequest, OutboundResponse,
+        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest, ItemResponse,
+        OutboundCreateRequest, OutboundItemRequest, OutboundResponse, TemplateCreateRequest,
+        TemplateFieldDef, TemplateFieldType, TemplateResponse,
     },
     test_support::{json_body, login_request, seeded_app, text_body},
 };
@@ -273,6 +274,105 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
     assert_eq!(listed.status(), StatusCode::OK);
 }
 
+#[tokio::test]
+async fn outbound_search_uses_history_scope() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let item_id = seed_search_item(&app, &login.body.access_token).await;
+    seed_approved_inbound_with_attributes(
+        &app,
+        &login.body.access_token,
+        item_id,
+        10.0,
+        "OUT-HIST-001",
+        "2029-01-01",
+        Some(serde_json::json!({
+            "brand": "OutboundHistoryNeedle"
+        })),
+    )
+    .await;
+
+    let created = authorized_json_request(
+        &app,
+        "POST",
+        "/api/outbound",
+        &login.body.access_token,
+        &OutboundCreateRequest {
+            destination: "SpecialCustomer".to_owned(),
+            notes: Some("RareOutboundNote".to_owned()),
+            items: vec![OutboundItemRequest {
+                item_id,
+                quantity: 3.0,
+                batch_id: None,
+                location: Some("OUT-L-01".to_owned()),
+            }],
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let order: OutboundResponse = json_body(created).await;
+    let approved = authorized_empty_request(
+        &app,
+        "POST",
+        &format!("/api/outbound/{}/approve", order.id),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(approved.status(), StatusCode::OK);
+
+    assert_outbound_search_total(&app, &login.body.access_token, "SpecialCustomer", 1).await;
+    assert_outbound_search_total(&app, &login.body.access_token, "Special", 1).await;
+    assert_outbound_search_total(&app, &login.body.access_token, "RareOutboundNote", 1).await;
+    assert_outbound_search_total(&app, &login.body.access_token, "OutboundSearchBottle", 1).await;
+    assert_outbound_search_total(&app, &login.body.access_token, "OUT-L-01", 1).await;
+    assert_outbound_search_total(&app, &login.body.access_token, "OUT-HIST-001", 1).await;
+    assert_outbound_search_total(&app, &login.body.access_token, "OutboundHistoryNeedle", 1).await;
+
+    let filter_values = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/outbound/filter-values",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(filter_values.status(), StatusCode::OK);
+    let filter_values: serde_json::Value = json_body(filter_values).await;
+    assert_eq!(
+        filter_value_count(&filter_values, "base:destination", "SpecialCustomer"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "base:status", "approved"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "base:item", "OutboundSearchBottle"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "base:location", "OUT-L-01"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "base:batch_no", "OUT-HIST-001"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&filter_values, "template:brand", "OutboundHistoryNeedle"),
+        Some(1)
+    );
+
+    let empty_search = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/outbound?search=",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(empty_search.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(text_body(empty_search).await, "invalid_request");
+}
+
 async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffix: &str) -> i64 {
     let item = authorized_json_request(
         app,
@@ -295,6 +395,51 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffi
     item["id"].as_i64().expect("item id should exist")
 }
 
+async fn seed_search_item(app: &crate::test_support::TestApp, access_token: &str) -> i64 {
+    let template = authorized_json_request(
+        app,
+        "POST",
+        "/api/templates",
+        access_token,
+        &TemplateCreateRequest {
+            name: "Outbound Search Template".to_owned(),
+            description: None,
+            fields: vec![TemplateFieldDef {
+                field_name: "brand".to_owned(),
+                field_type: TemplateFieldType::Text,
+                required: Some(false),
+                searchable: Some(true),
+                options: None,
+                default_value: None,
+            }],
+        },
+    )
+    .await;
+    assert_eq!(template.status(), StatusCode::CREATED);
+    let template: TemplateResponse = json_body(template).await;
+
+    let item = authorized_json_request(
+        app,
+        "POST",
+        "/api/items",
+        access_token,
+        &ItemCreateRequest {
+            name: "OutboundSearchBottle".to_owned(),
+            sku: "OUT-SEARCH-001".to_owned(),
+            category_id: Some(template.id),
+            unit: "pcs".to_owned(),
+            description: Some("outbound search fixture".to_owned()),
+            default_price: None,
+            reorder_point: None,
+        },
+    )
+    .await;
+    assert_eq!(item.status(), StatusCode::CREATED);
+    let item: ItemResponse = json_body(item).await;
+
+    item.id
+}
+
 async fn seed_approved_inbound(
     app: &crate::test_support::TestApp,
     access_token: &str,
@@ -302,6 +447,27 @@ async fn seed_approved_inbound(
     quantity: f64,
     batch_no: &str,
     expires_at: &str,
+) {
+    seed_approved_inbound_with_attributes(
+        app,
+        access_token,
+        item_id,
+        quantity,
+        batch_no,
+        expires_at,
+        None,
+    )
+    .await;
+}
+
+async fn seed_approved_inbound_with_attributes(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    item_id: i64,
+    quantity: f64,
+    batch_no: &str,
+    expires_at: &str,
+    ext_attributes: Option<serde_json::Value>,
 ) {
     let created = authorized_json_request(
         app,
@@ -318,7 +484,7 @@ async fn seed_approved_inbound(
                 location: Some("A-01".to_owned()),
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some(expires_at.to_owned()),
-                ext_attributes: None,
+                ext_attributes,
             }],
         },
     )
@@ -333,6 +499,42 @@ async fn seed_approved_inbound(
     )
     .await;
     assert_eq!(approved.status(), StatusCode::OK);
+}
+
+async fn assert_outbound_search_total(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    search: &str,
+    expected_total: u64,
+) {
+    let response = authorized_empty_request(
+        app,
+        "GET",
+        &format!("/api/outbound?page=1&page_size=20&search={search}"),
+        access_token,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: serde_json::Value = json_body(response).await;
+    assert_eq!(body["total"].as_u64(), Some(expected_total));
+    assert_eq!(
+        body["items"]
+            .as_array()
+            .expect("items should be array")
+            .len(),
+        expected_total as usize
+    );
+}
+
+fn filter_value_count(payload: &serde_json::Value, key: &str, value: &str) -> Option<u64> {
+    payload["fields"]
+        .as_array()?
+        .iter()
+        .find(|field| field["key"] == key)?["values"]
+        .as_array()?
+        .iter()
+        .find(|candidate| candidate["value"] == value)?["count"]
+        .as_u64()
 }
 
 fn outbound_request(item_id: i64, quantity: f64, batch_id: Option<i64>) -> OutboundCreateRequest {

@@ -59,6 +59,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::stock::controller::inbound::reject_inbound,
         crate::stock::controller::outbound::create_outbound,
         crate::stock::controller::outbound::list_outbound,
+        crate::stock::controller::outbound::outbound_filter_values,
         crate::stock::controller::outbound::get_outbound,
         crate::stock::controller::outbound::approve_outbound,
         crate::stock::controller::outbound::reject_outbound,

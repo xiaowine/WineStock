@@ -1,13 +1,13 @@
 //! 出库单仓储操作。
 //!
-//! 本模块属于 `core` 持久化层，封装出库单、出库明细、审批扣减、库存流水和审计写入。
+//! 本模块属于 `core` 持久化层，封装出库单、出库明细、搜索、审批扣减、库存流水和审计写入。
 //! 创建出库单不扣减库存，审批出库单才按指定批次或 FIFO 扣减。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait, Value};
 
 use super::{
     common::{current_item_quantity_on_connection, insert_audit_event_on_connection, json_string},
-    CreateOutboundOrder, ListOutboundOrders, OutboundOrderDetail, OutboundOrderItemRecord,
+    search, CreateOutboundOrder, ListOutboundOrders, OutboundOrderDetail, OutboundOrderItemRecord,
     OutboundOrderRecord, Page, StockRepository,
 };
 use crate::persistence::repository::{time::sqlite_now, validation::validate_repository_input};
@@ -114,7 +114,7 @@ where
         Ok(Some(OutboundOrderDetail { order, items }))
     }
 
-    /// 分页查询出库单，支持物品和创建时间筛选。
+    /// 分页查询出库单，支持物品、创建时间和出库历史自由搜索筛选。
     pub(crate) async fn list_outbound_orders(
         &self,
         input: ListOutboundOrders,
@@ -301,17 +301,21 @@ fn outbound_order_filters(input: &ListOutboundOrders) -> (String, Vec<Value>) {
 
     if let Some(item_id) = input.item_id {
         clauses.push(
-            "EXISTS (SELECT 1 FROM stock_outbound_order_items items WHERE items.order_id = stock_outbound_orders.id AND items.item_id = ?)",
+            "EXISTS (SELECT 1 FROM stock_outbound_order_items items WHERE items.order_id = stock_outbound_orders.id AND items.item_id = ?)".to_owned(),
         );
         values.push(item_id.into());
     }
     if let Some(date_from) = input.date_from.as_ref() {
-        clauses.push("created_at >= ?");
+        clauses.push("created_at >= ?".to_owned());
         values.push(date_from.clone().into());
     }
     if let Some(date_to) = input.date_to.as_ref() {
-        clauses.push("created_at <= ?");
+        clauses.push("created_at <= ?".to_owned());
         values.push(date_to.clone().into());
+    }
+    if let Some(search) = input.search.as_ref() {
+        let search_like = format!("%{}%", search.to_lowercase());
+        search::append_outbound_search_filter(&mut clauses, &mut values, &search_like);
     }
 
     if clauses.is_empty() {

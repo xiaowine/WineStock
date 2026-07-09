@@ -149,6 +149,7 @@
 - `page_size` 默认为 50，最大 200。
 - `item_id` 存在时必须大于 0。
 - `date_from` 和 `date_to` 存在时 trim 后不能为空；首版按 SQLite UTC 字符串格式做字典序筛选。
+- `search` 可空；存在时 trim 后不能为空，用于入库单历史搜索。
 
 ## `InboundResponse`
 
@@ -183,6 +184,7 @@
 - `page_size` 默认为 50，最大 200。
 - `item_id` 存在时必须大于 0。
 - `date_from` 和 `date_to` 存在时 trim 后不能为空；首版按 SQLite UTC 字符串格式做字典序筛选。
+- `search` 可空；存在时 trim 后不能为空，用于出库单历史搜索。
 
 ## `OutboundResponse`
 

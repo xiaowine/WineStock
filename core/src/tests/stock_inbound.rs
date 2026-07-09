@@ -267,6 +267,7 @@ async fn inbound_search_and_filter_values_use_history_scope() {
     zero_order_inventory(&app, order.id).await;
 
     assert_inbound_search_total(&app, &login.body.access_token, "SpecialSupplier", 1).await;
+    assert_inbound_search_total(&app, &login.body.access_token, "Special", 1).await;
     assert_inbound_search_total(&app, &login.body.access_token, "RareNoteNeedle", 1).await;
     assert_inbound_search_total(&app, &login.body.access_token, "InboundSearchBottle", 1).await;
     assert_inbound_search_total(&app, &login.body.access_token, "HIST-001", 1).await;

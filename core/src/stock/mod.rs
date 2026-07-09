@@ -97,6 +97,10 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 auth.outbound_create(post(controller::create_outbound))
                     .merge(auth.read(get(controller::list_outbound))),
             )
+            .route(
+                "/outbound/filter-values",
+                auth.read(get(controller::outbound_filter_values)),
+            )
             .route("/outbound/{id}", auth.read(get(controller::get_outbound)))
             .route(
                 "/outbound/{id}/approve",

@@ -1,10 +1,10 @@
 # 库存搜索和筛选值 API 实现方案
 
-本文档记录库存物品列表和入库历史列表的搜索、筛选值接口设计与实现约束。正式接口说明以 `docs/business-api.md`、OpenAPI 标注和 `docs/code-map.md` 为准。
+本文档记录库存物品列表、入库历史列表和出库历史列表的搜索、筛选值接口设计与实现约束。正式接口说明以 `docs/business-api.md`、OpenAPI 标注和 `docs/code-map.md` 为准。
 
 ## 目标
 
-新增和增强四个 API：
+新增和增强六个 API：
 
 | API | 类型 | 目标 |
 | --- | --- | --- |
@@ -12,8 +12,10 @@
 | `GET /api/items/filter-values` | 新增接口 | 返回当前库存视角下可用于物品列表筛选的字段和值。 |
 | `GET /api/inbound?search=` | 增强现有接口 | 搜索入库历史，结果仍按入库单返回。 |
 | `GET /api/inbound/filter-values` | 新增接口 | 返回入库历史视角下可用于入库列表筛选的字段和值。 |
+| `GET /api/outbound?search=` | 增强现有接口 | 搜索出库历史，结果仍按出库单返回。 |
+| `GET /api/outbound/filter-values` | 新增接口 | 返回出库历史视角下可用于出库列表筛选的字段和值。 |
 
-四个接口都属于 `core` 的库存业务 API，使用现有 `stock.read` 权限，不涉及平台 shell、前端打包或网络绑定行为。
+这些接口都属于 `core` 的库存业务 API，使用现有 `stock.read` 权限，不涉及平台 shell、前端打包或网络绑定行为。
 
 ## 数据语义
 
@@ -31,12 +33,15 @@ stock_batches
 
 入库历史视角以 `stock_inbound_orders` 和 `stock_inbound_order_items` 为准。它不受当前库存余额影响，已经出完的历史批次仍然属于入库历史。
 
+出库历史视角以 `stock_outbound_orders` 和 `stock_outbound_order_items` 为准。出库明细没有直接保存模板实际值；已指定批次或已审批产生库存流水的明细，可通过批次反查到入库明细的批次号、有效期和模板实际值。
+
 ## 通用响应结构
 
 筛选值接口统一返回字段列表。字段值中的 `count` 含义跟接口目标一致：
 
 - `GET /api/items/filter-values`：`count` 是命中该值的去重物品数量。
 - `GET /api/inbound/filter-values`：`count` 是命中该值的去重入库单数量。
+- `GET /api/outbound/filter-values`：`count` 是命中该值的去重出库单数量。
 
 建议 DTO：
 
@@ -226,6 +231,82 @@ stock_batches.remaining_quantity > 0
 
 同一入库单的多条明细都含有同一个值时，只计 1 次。同一入库单确实含有多个不同值时，可以分别计入多个值。
 
+## `GET /api/outbound?search=`
+
+### 业务语义
+
+搜索出库历史。这个接口的结果单位是出库单，所以一张出库单即使命中多条明细或多条扣减流水，也只能返回一次。
+
+现有分页参数、`item_id`、`date_from` 和 `date_to` 保持兼容。新增 `search` 后，时间和物品筛选仍应与搜索条件取交集。
+
+### 搜索范围
+
+出库单主表字段：
+
+- `stock_outbound_orders.destination`
+- `stock_outbound_orders.notes`
+- `stock_outbound_orders.status`
+
+出库明细字段：
+
+- `stock_outbound_order_items.location`
+
+关联物品字段：
+
+- `stock_items.name`
+- `stock_items.sku`
+- `stock_items.unit`
+- `stock_items.description`
+
+批次和模板实际值：
+
+- 指定批次明细通过 `stock_outbound_order_items.batch_id` 关联 `stock_batches`
+- 审批后按 FIFO 扣减的明细通过 `stock_movements.outbound_order_item_id` 和 `stock_movements.batch_id` 关联 `stock_batches`
+- 批次号和有效期来自 `stock_batches.batch_no`、`stock_batches.expires_at`
+- 模板实际值通过 `stock_batches.inbound_order_item_id` 反查 `stock_inbound_order_items.ext_attributes_json`
+- 搜索 JSON object 的值，不搜索 JSON 字段名
+
+未指定批次且尚未审批的 pending 出库明细没有可反查批次，因此只能命中出库单主表、明细库位和关联物品字段。
+
+不搜索数据库主键、外键、创建/更新时间、数量和成本金额。
+
+### 查询策略
+
+出库搜索应使用 `EXISTS` 子查询，避免一张出库单因多条明细或多条扣减流水在分页结果中重复。
+
+如果 `search` 存在，计数查询和数据查询必须使用同一套过滤条件，保证 `total` 与当前页一致。
+
+## `GET /api/outbound/filter-values`
+
+### 业务语义
+
+返回出库历史列表筛选项。接口不接收参数，不要求前端传模板 ID 或字段名。
+
+这个接口是出库历史视角，按出库单去重计数。批次号、有效期和模板字段值只来自可追溯批次：明细显式指定的 `batch_id`，或审批后 `stock_movements` 写入的扣减批次。
+
+### 字段范围
+
+内置字段首版建议返回：
+
+- `base:destination`：出库去向
+- `base:status`：出库单状态
+- `base:item`：物品名称
+- `base:sku`：物品 SKU
+- `base:location`：出库库位
+- `base:batch_no`：扣减批次号
+
+模板字段：
+
+- 只统计 `stock_template_fields.searchable = true` 的字段
+- 字段值通过扣减批次反查入库明细的 `ext_attributes_json`
+- 不要求模板 ID，跨模板同名字段全局合并
+
+### 计数规则
+
+`count` 表示拥有该字段值的去重出库单数量。
+
+同一出库单的多条明细或多条扣减流水都含有同一个值时，只计 1 次。同一出库单确实含有多个不同值时，可以分别计入多个值。
+
 ## 分层实现建议
 
 ### 路由层
@@ -235,9 +316,10 @@ stock_batches.remaining_quantity > 0
 ```text
 GET /api/items/filter-values
 GET /api/inbound/filter-values
+GET /api/outbound/filter-values
 ```
 
-两个接口都挂 `stock.read` 权限。
+这些接口都挂 `stock.read` 权限。
 
 ### Controller
 
@@ -249,8 +331,11 @@ GET /api/inbound/filter-values
 - `core/src/stock/controller/inbound.rs`
   - `InboundListQuery` 增加 `search: Option<String>`
   - 增加 `inbound_filter_values` handler
+- `core/src/stock/controller/outbound.rs`
+  - `OutboundListQuery` 增加 `search: Option<String>`
+  - 增加 `outbound_filter_values` handler
 
-若 DTO 在物品和入库间完全共用，可放入 `controller/common.rs`，避免重复定义。
+若 DTO 在物品、入库和出库间完全共用，可放入 `controller/common.rs`，避免重复定义。
 
 ### Service
 
@@ -262,6 +347,9 @@ GET /api/inbound/filter-values
 - `core/src/stock/service/inbound.rs`
   - 归一化入库 `search`
   - 调用入库筛选值查询
+- `core/src/stock/service/outbound.rs`
+  - 归一化出库 `search`
+  - 调用出库筛选值查询
 
 筛选值响应组装可以放到 `service/response.rs`，保持 controller 不处理数据库记录转换。
 
@@ -272,12 +360,14 @@ GET /api/inbound/filter-values
 ```text
 list_item_filter_values()
 list_inbound_filter_values()
+list_outbound_filter_values()
 ```
 
 并扩展现有列表查询输入：
 
 ```text
 ListInboundOrders.search: Option<String>
+ListOutboundOrders.search: Option<String>
 ```
 
 物品列表已有 `ListStockItems.search`，只需要扩展 SQL 搜索范围。
@@ -287,6 +377,7 @@ SQL 细节建议拆成私有 helper，避免 `stock_repo.rs` 继续膨胀：
 ```text
 item_search_clause(...)
 inbound_search_clause(...)
+outbound_search_clause(...)
 json_scalar_values_clause(...)
 ```
 
@@ -345,7 +436,8 @@ json_scalar_values_clause(...)
 - `/api/inbound?search=` 能通过来源、备注、物品名、批次号、库位和模板值命中入库单。
 - `/api/inbound?search=` 一张入库单多条明细命中时只返回一次。
 - `/api/inbound/filter-values` 不受当前库存余额影响，已出完批次对应的历史值仍可出现。
-- 四个接口都需要 `stock.read` 权限。
+- `/api/outbound/filter-values` 统计出库历史筛选值，批次和模板值从指定批次或已审批扣减流水反查。
+- 六个接口都需要 `stock.read` 权限。
 - 空搜索词仍返回 `400 invalid_request`，保持现有参数校验风格。
 
 实现后运行：

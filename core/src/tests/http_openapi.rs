@@ -39,14 +39,17 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert!(value["paths"]["/api/templates/{id}"].is_object());
     assert!(value["paths"]["/api/templates/{id}/copy"].is_object());
     assert!(value["paths"]["/api/items"].is_object());
+    assert!(value["paths"]["/api/items/filter-values"].is_object());
     assert!(value["paths"]["/api/items/{id}"].is_object());
     assert!(value["paths"]["/api/items/{id}/substitutes"].is_object());
     assert!(value["paths"]["/api/items/{id}/substitutes/{substitute_id}"].is_object());
     assert!(value["paths"]["/api/inbound"].is_object());
+    assert!(value["paths"]["/api/inbound/filter-values"].is_object());
     assert!(value["paths"]["/api/inbound/{id}"].is_object());
     assert!(value["paths"]["/api/inbound/{id}/approve"].is_object());
     assert!(value["paths"]["/api/inbound/{id}/reject"].is_object());
     assert!(value["paths"]["/api/outbound"].is_object());
+    assert!(value["paths"]["/api/outbound/filter-values"].is_object());
     assert!(value["paths"]["/api/outbound/{id}"].is_object());
     assert!(value["paths"]["/api/outbound/{id}/approve"].is_object());
     assert!(value["paths"]["/api/outbound/{id}/reject"].is_object());

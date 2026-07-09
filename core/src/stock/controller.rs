@@ -32,9 +32,9 @@ pub(crate) use items::{
     ItemLocationStockResponse, ItemResponse, ItemUpdateRequest,
 };
 pub(crate) use outbound::{
-    approve_outbound, create_outbound, get_outbound, list_outbound, reject_outbound,
-    OutboundCreateRequest, OutboundItemRequest, OutboundItemResponse, OutboundListQuery,
-    OutboundResponse,
+    approve_outbound, create_outbound, get_outbound, list_outbound, outbound_filter_values,
+    reject_outbound, OutboundCreateRequest, OutboundItemRequest, OutboundItemResponse,
+    OutboundListQuery, OutboundResponse,
 };
 pub(crate) use substitutes::{
     bind_substitutes, delete_substitute, list_substitutes, SubstituteBindRequest,

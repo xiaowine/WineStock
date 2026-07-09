@@ -26,7 +26,8 @@ pub(crate) use items::{
     create_item, delete_item, get_item, item_filter_values, list_items, update_item,
 };
 pub(crate) use outbound::{
-    approve_outbound, create_outbound, get_outbound, list_outbound, reject_outbound,
+    approve_outbound, create_outbound, get_outbound, list_outbound, outbound_filter_values,
+    reject_outbound,
 };
 pub(crate) use pagination::PaginatedResponse;
 pub(crate) use substitutes::{bind_substitutes, delete_substitute, list_substitutes};

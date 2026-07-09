@@ -439,6 +439,9 @@ pub(crate) struct ListOutboundOrders {
 
     /// 创建时间终点。
     pub date_to: Option<String>,
+
+    /// 出库历史自由搜索关键字。
+    pub search: Option<String>,
 }
 
 /// 出库单主表读取模型。

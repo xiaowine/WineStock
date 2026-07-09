@@ -103,7 +103,7 @@
 
 ## `ListInboundOrders`
 
-服务层负责把缺省分页归一化为 `page = 1`、`page_size = 50`，并把 `page_size` 限制到最大 200。`item_id` 存在时必须大于 0；`date_from` 和 `date_to` 存在时 trim 后不能为空。
+服务层负责把缺省分页归一化为 `page = 1`、`page_size = 50`，并把 `page_size` 限制到最大 200。`item_id` 存在时必须大于 0；`date_from`、`date_to` 和 `search` 存在时 trim 后不能为空。
 
 ## `CreateOutboundOrderItem`
 
@@ -186,7 +186,7 @@
 - `approve_inbound_order()` 要求单据仍为 `pending`，并在单个事务内更新状态、生成批次、写库存流水和审批审计事件；非 `pending` 返回稳定的 repository 自定义错误供服务层映射为 `409 order_not_pending`。
 - `reject_inbound_order()` 要求单据仍为 `pending`，并在单个事务内更新状态和写拒绝审计事件；拒绝不改变库存。
 - `create_outbound_order()` 在单个事务内创建 `pending` 出库单、明细和创建审计事件；创建阶段不扣减库存。
-- `list_outbound_orders()` 和 `find_outbound_order_by_id()` 返回出库单主表和明细，支持按物品 ID 与创建时间字符串筛选。
+- `list_outbound_orders()` 和 `find_outbound_order_by_id()` 返回出库单主表和明细，支持按物品 ID、创建时间字符串和出库历史搜索筛选；`list_outbound_filter_values()` 返回出库历史筛选值，批次和模板值从指定批次或已审批扣减流水反查。
 - `approve_outbound_order()` 要求单据仍为 `pending`，并在单个事务内更新状态、按指定批次或 FIFO 扣减批次库存、写库存流水和审批审计事件；库存不足或指定批次不可扣减返回稳定的 repository 自定义错误供服务层映射为 `409 insufficient_stock`，事务整体回滚。
 - `reject_outbound_order()` 要求单据仍为 `pending`，并在单个事务内更新状态和写拒绝审计事件；拒绝不扣减库存。
 - `dashboard_overview()` 仅读取未软删除物品、当前批次剩余库存和审批后库存流水，返回总览、近三天流转和呆滞料聚合。

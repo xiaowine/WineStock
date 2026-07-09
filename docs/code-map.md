@@ -36,7 +36,7 @@ WineStock 的正式产品目标是多平台，但当前实现范围是 server/AP
 - `docs/implementation-notes/json-config-and-db-auth-settings.md`：JSON 启动配置与数据库托管鉴权设置的边界说明。
 - `docs/implementation-notes/jwt-access-refresh-token.md`：JWT access token 与 refresh token 机制实现笔记。
 - `docs/implementation-notes/seaorm-sqlite-wal.md`：SeaORM、SQLite 和 WAL 存储行为实现笔记。
-- `docs/implementation-notes/stock-search-filter-values-plan.md`：库存物品和入库历史搜索、筛选值 API 的设计与实现约束。
+- `docs/implementation-notes/stock-search-filter-values-plan.md`：库存物品、入库历史和出库历史搜索、筛选值 API 的设计与实现约束。
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关配置、契约和通用类型。
 - `server/`：运行共享服务的无头服务端 shell。
@@ -169,7 +169,7 @@ core   -> desktop/android/frontend platform assets
   - `controller/templates.rs` 定义包含 `url` 链接字段的模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
   - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应、带当前库存快照的物品详情响应、物品筛选值响应入口和物品 Axum handler。
   - `controller/inbound.rs` 定义入库单 DTO、分页查询参数、入库请求/响应、入库历史筛选值响应入口和入库 Axum handler。
-  - `controller/outbound.rs` 定义出库单 DTO、分页查询参数、出库请求/响应和出库 Axum handler。
+  - `controller/outbound.rs` 定义出库单 DTO、分页搜索查询参数、出库筛选值响应入口、出库请求/响应和出库 Axum handler。
   - `controller/dashboard.rs` 定义库存看板总览、趋势查询参数、趋势响应和看板 Axum handler。
   - `controller/substitutes.rs` 定义替代料绑定请求、替代料响应和替代料 Axum handler。
   - `controller/events.rs` 定义事件日志查询参数、事件日志响应和审计事件 Axum handler。
@@ -179,7 +179,7 @@ core   -> desktop/android/frontend platform assets
   - `service/templates.rs` 处理模板 CRUD/copy、模板名称冲突检查、模板字段数量/唯一性/options/default 组合校验和模板写库输入组装。
   - `service/items.rs` 处理物品创建、分页、当前库存筛选值、带当前库存快照的详情、更新、软删除和 SKU 冲突检查。
   - `service/inbound.rs` 处理入库创建、列表、入库历史筛选值、详情、审批、拒绝和审批前模板扩展属性校验。
-  - `service/outbound.rs` 处理出库创建、列表、详情、审批、拒绝和库存不足错误映射。
+  - `service/outbound.rs` 处理出库创建、列表搜索、出库历史筛选值、详情、审批、拒绝和库存不足错误映射。
   - `service/dashboard.rs` 处理库存看板总览和趋势只读查询，并持有趋势天数与呆滞料阈值等看板服务常量。
   - `service/substitutes.rs` 处理替代料整体替换、查询、解绑和替代料自引用/重复/循环绑定错误映射。
   - `service/events.rs` 处理事件日志分页、筛选条件归一化和响应分页组装。
@@ -232,12 +232,12 @@ core   -> desktop/android/frontend platform assets
   - `RbacRepository` 支撑权限定义补齐、权限列表、用户权限查询、用户权限分配、用户权限整体替换、权限代码解析和 active 权限管理员保护查询。
   - `RefreshTokenRepository` 支撑 refresh token 创建、查询、吊销、按用户吊销 active token 和事务内轮换。
   - `file_object.rs` 中的 `FileObjectRepository` 只写入和查询文件元数据，文件内容仍归 `files/` 目录。
-  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测、事件日志分页筛选以及库存物品/入库历史搜索和筛选值聚合；handler 不直接拼接 `stock_*` 表结构。
+  - `StockRepository` 支撑库存物品创建、分页查询、带当前库存快照的详情查询、SKU 冲突检查、更新、软删除、模板 CRUD/copy、模板字段整体替换、模板名称存在性查询、模板引用检查、入库单创建/列表/详情/审批/拒绝、入库审批批次生成、出库单创建/列表搜索/详情/审批/拒绝、指定批次或 FIFO 扣减、库存流水和审计事件写入、看板总览与趋势聚合查询、替代料整体替换/查询/解绑、循环绑定检测、事件日志分页筛选以及库存物品/入库历史/出库历史搜索和筛选值聚合；handler 不直接拼接 `stock_*` 表结构。
   - `stock_repo.rs` 是库存仓储模块入口，声明 `StockRepository`，并重新导出库存仓储输入、读取模型和筛选值记录，保持上层 `repository::StockRepository` 等导入路径稳定。
   - `stock_repo/types.rs` 定义库存仓储输入和读取模型，包括物品详情的当前库存、库位分布和批次摘要读取模型；不执行数据库查询，不拥有 HTTP DTO。
   - `stock_repo/items.rs`、`templates.rs`、`inbound.rs`、`outbound.rs`、`dashboard.rs`、`substitutes.rs` 和 `events.rs` 分别封装库存物品、模板、入库、出库、看板、替代料和审计事件查询/写入能力。
   - `stock_repo/common.rs` 放置多个库存仓储子模块共享的库存余额、审计写入和 JSON 字符串编码辅助逻辑。
-  - `stock_repo/search.rs` 是 `StockRepository` 的搜索和筛选值查询子模块，封装当前库存 JSON 标量搜索、入库历史 JSON 标量搜索、`filter-values` 聚合 SQL 和返回记录结构，不暴露 HTTP DTO。
+  - `stock_repo/search.rs` 是 `StockRepository` 的搜索和筛选值查询子模块，封装当前库存 JSON 标量搜索、入库历史和出库历史 JSON 标量搜索、`filter-values` 聚合 SQL 和返回记录结构，不暴露 HTTP DTO。
 
 - `docs/database-schema.md`
   - 记录当前 SQLite 业务表命名、职责、RBAC 链路和系统表边界。
@@ -341,6 +341,7 @@ server/src/main.rs
 - `POST /api/inbound/{id}/reject`
 - `POST /api/outbound`
 - `GET /api/outbound`
+- `GET /api/outbound/filter-values`
 - `GET /api/outbound/{id}`
 - `POST /api/outbound/{id}/approve`
 - `POST /api/outbound/{id}/reject`

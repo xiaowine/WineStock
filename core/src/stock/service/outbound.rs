@@ -1,6 +1,6 @@
 //! 出库单服务。
 //!
-//! 本模块属于 `stock` 业务服务层，负责出库单创建、分页、详情、审批和拒绝。
+//! 本模块属于 `stock` 业务服务层，负责出库单创建、分页搜索、筛选值、详情、审批和拒绝。
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 use super::{
     error::map_stock_db_error,
     pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-    response::outbound_response,
+    response::{filter_values_response, outbound_response},
     validation::{normalize_optional_text, normalize_required_text, validate_positive},
     StockApiError,
 };
@@ -82,6 +82,7 @@ pub(crate) async fn list_outbound(
             item_id: query.item_id,
             date_from: normalize_optional_text(query.date_from)?,
             date_to: normalize_optional_text(query.date_to)?,
+            search: normalize_optional_text(query.search)?,
         })
         .await?;
 
@@ -96,6 +97,14 @@ pub(crate) async fn list_outbound(
         page_size,
         total_pages: total_pages(result.total, page_size),
     })
+}
+
+/// 查询出库历史视角下的筛选值；批次属性只来自指定批次或已审批扣减流水。
+pub(crate) async fn outbound_filter_values(
+    state: &CoreState,
+) -> Result<controller::FilterValuesResponse, StockApiError> {
+    let repository = StockRepository::new(state.database());
+    filter_values_response(repository.list_outbound_filter_values().await?)
 }
 
 /// 查询出库单详情；单据不存在时返回 `OutboundOrderNotFound`。

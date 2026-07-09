@@ -53,7 +53,7 @@
  分页查询物品列表。
  
 - 权限：`stock.read`
-- 查询参数：`page`、`page_size`、`search`（按物品基础字段、模板元数据和当前库存模板值模糊搜索）、`category_id`（按分类筛选）
+- 查询参数：`page`、`page_size`、`category_id`（按分类筛选）、`search`（可选；不传时返回列表，传入非空值时按物品基础字段、模板元数据和当前库存模板值模糊搜索）
 - 响应：`200` + `PaginatedResponse<ItemResponse>`
 - 说明：模板实际值只从 `stock_batches.remaining_quantity > 0` 的当前库存批次追溯；同一物品多批次命中时结果仍按物品去重。空 `search` 返回 `400 invalid_request`。
 
@@ -177,8 +177,9 @@
  复制模板。
  
  - 权限：`stock.template.manage`
- - 请求：`{ "name": string }`（可指定新名称）
+ - 请求：`{ "name": string }`（必填；trim 后非空，未软删除模板内唯一）
  - 响应：`201` + `TemplateResponse`
+ - 错误：`404` 源模板不存在 / `409` 新模板名称已被未删除模板占用
  
  ### 2.2 入库
  
@@ -218,9 +219,9 @@
  分页查询入库单列表。
  
 - 权限：`stock.read`
-- 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`
+- 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
 - 响应：`200` + `PaginatedResponse<InboundResponse>`
-- 说明：`search` 会匹配入库来源、备注、状态、明细库位、批次号、有效期、关联物品基础字段和入库模板实际值；结果按入库单去重。空 `search` 返回 `400 invalid_request`。
+- 说明：入库单搜索会匹配入库来源、备注、状态、明细库位、批次号、有效期、关联物品基础字段和入库模板实际值；结果按入库单去重。空 `search` 返回 `400 invalid_request`。
 
 #### `GET /api/inbound/filter-values`
 
@@ -290,9 +291,22 @@
  分页查询出库单列表。
  
  - 权限：`stock.read`
- - 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`
+ - 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
  - 响应：`200` + `PaginatedResponse<OutboundResponse>`
+ - 说明：出库单搜索会匹配出库去向、备注、状态、明细库位、关联物品基础字段；对已指定批次或已审批写入流水的明细，还会匹配批次号、有效期和入库模板实际值。结果按出库单去重。空 `search` 返回 `400 invalid_request`。
  
+#### `GET /api/outbound/filter-values`
+
+查询出库历史筛选值。
+
+- 权限：`stock.read`
+- 查询参数：无
+- 响应：`200` + `FilterValuesResponse`
+- 统计范围：出库历史视角；批次和模板值从指定批次或已审批扣减流水反查。
+- 首版内置字段：`base:destination`、`base:status`、`base:item`、`base:sku`、`base:location`、`base:batch_no`
+- 模板字段：只返回 `stock_template_fields.searchable = true` 的一层 JSON 标量值；同名字段跨模板合并。
+- 计数：`count` 表示拥有该字段值的去重出库单数量。
+
  #### `GET /api/outbound/{id}`
  
 查看出库单详情。
@@ -509,7 +523,7 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `value` | string | 后端统一转成字符串的筛选值 |
-| `count` | integer | 命中数量；物品筛选值按去重物品计数，入库筛选值按去重入库单计数 |
+| `count` | integer | 命中数量；物品筛选值按去重物品计数，入库/出库筛选值按去重单据计数 |
  
  ---
  
