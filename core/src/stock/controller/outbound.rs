@@ -247,7 +247,7 @@ pub(crate) async fn get_outbound(
 
 #[utoipa::path(
     post,
-    path = "/api/outbound/{id}/approve",
+    path = "/api/stock-approvals/outbound/{id}/approve",
     tag = "stock",
     params(("id" = i64, Path, description = "Outbound order ID")),
     security(("bearerAuth" = [])),
@@ -272,7 +272,7 @@ pub(crate) async fn approve_outbound(
 
 #[utoipa::path(
     post,
-    path = "/api/outbound/{id}/reject",
+    path = "/api/stock-approvals/outbound/{id}/reject",
     tag = "stock",
     params(("id" = i64, Path, description = "Outbound order ID")),
     security(("bearerAuth" = [])),

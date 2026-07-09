@@ -38,7 +38,10 @@ async fn dashboard_counts_only_approved_movements_and_current_batches() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", approved_order.id),
+        &format!(
+            "/api/stock-approvals/outbound/{}/approve",
+            approved_order.id
+        ),
         &login.body.access_token,
     )
     .await;
@@ -56,7 +59,7 @@ async fn dashboard_counts_only_approved_movements_and_current_batches() {
     let rejected = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/reject", rejected_order.id),
+        &format!("/api/stock-approvals/outbound/{}/reject", rejected_order.id),
         &login.body.access_token,
     )
     .await;
@@ -175,7 +178,7 @@ async fn seed_approved_inbound(
     let approved = authorized_empty_request(
         app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         access_token,
     )
     .await;

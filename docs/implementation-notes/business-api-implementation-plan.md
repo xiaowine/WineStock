@@ -45,8 +45,9 @@
 
 - Items：`POST /api/items`、`GET /api/items`、`GET /api/items/{id}`、`PUT /api/items/{id}`、`DELETE /api/items/{id}`。
 - Templates：`POST /api/templates`、`GET /api/templates`、`GET /api/templates/{id}`、`PUT /api/templates/{id}`、`DELETE /api/templates/{id}`、`POST /api/templates/{id}/copy`。
-- Inbound：`POST /api/inbound`、`GET /api/inbound`、`GET /api/inbound/{id}`、`POST /api/inbound/{id}/approve`、`POST /api/inbound/{id}/reject`。
-- Outbound：`POST /api/outbound`、`GET /api/outbound`、`GET /api/outbound/{id}`、`POST /api/outbound/{id}/approve`、`POST /api/outbound/{id}/reject`。
+- Inbound：`POST /api/inbound`、`GET /api/inbound`、`GET /api/inbound/{id}`。
+- Outbound：`POST /api/outbound`、`GET /api/outbound`、`GET /api/outbound/{id}`。
+- Stock approvals：`POST /api/stock-approvals/inbound/{id}/approve`、`POST /api/stock-approvals/inbound/{id}/reject`、`POST /api/stock-approvals/outbound/{id}/approve`、`POST /api/stock-approvals/outbound/{id}/reject`。
 - Dashboard：`GET /api/dashboard/overview`、`GET /api/dashboard/trends`。
 - Substitutes：`POST /api/items/{id}/substitutes`、`GET /api/items/{id}/substitutes`、`DELETE /api/items/{id}/substitutes/{substitute_id}`。
 - Events：`GET /api/events`。

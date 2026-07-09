@@ -85,11 +85,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             )
             .route("/inbound/{id}", auth.read(get(controller::get_inbound)))
             .route(
-                "/inbound/{id}/approve",
+                "/stock-approvals/inbound/{id}/approve",
                 auth.inbound_approve(post(controller::approve_inbound)),
             )
             .route(
-                "/inbound/{id}/reject",
+                "/stock-approvals/inbound/{id}/reject",
                 auth.inbound_approve(post(controller::reject_inbound)),
             )
             .route(
@@ -103,11 +103,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             )
             .route("/outbound/{id}", auth.read(get(controller::get_outbound)))
             .route(
-                "/outbound/{id}/approve",
+                "/stock-approvals/outbound/{id}/approve",
                 auth.outbound_approve(post(controller::approve_outbound)),
             )
             .route(
-                "/outbound/{id}/reject",
+                "/stock-approvals/outbound/{id}/reject",
                 auth.outbound_approve(post(controller::reject_outbound)),
             )
             .route(

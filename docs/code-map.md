@@ -164,7 +164,7 @@ core   -> desktop/android/frontend platform assets
 
 - `core/src/stock/`
   - 库存业务模块，承载物品 CRUD 和后续模板、出入库、看板、替代料、审计事件能力。
-  - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载 `stock.read`、`stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
+  - `mod.rs` 以 `/api` 作为库存业务 base path，负责 `items`、`templates`、`inbound`、`outbound`、`stock-approvals`、`dashboard`、`events` 及其子路径的路由注册，并通过链式授权声明挂载 `stock.read`、`stock.item.manage`、`stock.template.manage`、`stock.inbound.create`、`stock.inbound.approve`、`stock.outbound.create`、`stock.outbound.approve`、`stock.substitute.manage` 与 `audit.read` 权限。
   - `controller.rs` 是库存 HTTP 控制器入口，声明并重新导出 `controller/` 下的业务子模块，保持 `stock::controller::*` 的内部访问面稳定。
   - `controller/templates.rs` 定义包含 `url` 链接字段的模板字段类型、模板 DTO、模板请求/响应和模板 Axum handler。
   - `controller/items.rs` 定义库存物品 DTO、分页查询参数、物品请求/响应、带当前库存快照的物品详情响应、物品筛选值响应入口和物品 Axum handler。
@@ -337,14 +337,14 @@ server/src/main.rs
 - `GET /api/inbound`
 - `GET /api/inbound/filter-values`
 - `GET /api/inbound/{id}`
-- `POST /api/inbound/{id}/approve`
-- `POST /api/inbound/{id}/reject`
 - `POST /api/outbound`
 - `GET /api/outbound`
 - `GET /api/outbound/filter-values`
 - `GET /api/outbound/{id}`
-- `POST /api/outbound/{id}/approve`
-- `POST /api/outbound/{id}/reject`
+- `POST /api/stock-approvals/inbound/{id}/approve`
+- `POST /api/stock-approvals/inbound/{id}/reject`
+- `POST /api/stock-approvals/outbound/{id}/approve`
+- `POST /api/stock-approvals/outbound/{id}/reject`
 - `GET /api/dashboard/overview`
 - `GET /api/dashboard/trends`
 - `GET /api/events`

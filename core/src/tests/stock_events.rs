@@ -27,7 +27,7 @@ async fn events_can_be_filtered_and_paginated_by_audit_readers() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;

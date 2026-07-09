@@ -220,7 +220,7 @@ async fn seed_approved_inbound(
     let approved = authorized_empty_request(
         app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         access_token,
     )
     .await;

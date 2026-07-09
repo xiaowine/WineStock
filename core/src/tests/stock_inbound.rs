@@ -49,7 +49,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -66,7 +66,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     let approve_again = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -96,7 +96,7 @@ async fn inbound_reject_prevents_later_approval() {
     let rejected = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/reject", order.id),
+        &format!("/api/stock-approvals/inbound/{}/reject", order.id),
         &login.body.access_token,
     )
     .await;
@@ -111,7 +111,7 @@ async fn inbound_reject_prevents_later_approval() {
     let approve_rejected = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -136,7 +136,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
     let invalid_approval = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -159,7 +159,10 @@ async fn inbound_validates_template_attributes_and_permissions() {
     let invalid_url_approval = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", invalid_url_order.id),
+        &format!(
+            "/api/stock-approvals/inbound/{}/approve",
+            invalid_url_order.id
+        ),
         &login.body.access_token,
     )
     .await;
@@ -199,7 +202,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
     let forbidden_approve = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", staff_order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", staff_order.id),
         &staff_token,
     )
     .await;
@@ -259,7 +262,7 @@ async fn inbound_search_and_filter_values_use_history_scope() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;

@@ -62,7 +62,7 @@ async fn outbound_approval_uses_fifo_and_writes_movements() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -86,7 +86,7 @@ async fn outbound_approval_uses_fifo_and_writes_movements() {
     let approve_again = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -131,7 +131,7 @@ async fn outbound_can_deduct_a_specified_batch() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -167,7 +167,7 @@ async fn outbound_shortage_rolls_back_inventory_changes() {
     let failed = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -236,7 +236,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
     let forbidden_approve = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", staff_order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", staff_order.id),
         &staff_token,
     )
     .await;
@@ -254,7 +254,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
     let rejected = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/reject", admin_order.id),
+        &format!("/api/stock-approvals/outbound/{}/reject", admin_order.id),
         &login.body.access_token,
     )
     .await;
@@ -264,7 +264,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
     let approve_rejected = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", admin_order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", admin_order.id),
         &login.body.access_token,
     )
     .await;
@@ -314,7 +314,7 @@ async fn outbound_search_uses_history_scope() {
     let approved = authorized_empty_request(
         &app,
         "POST",
-        &format!("/api/outbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/outbound/{}/approve", order.id),
         &login.body.access_token,
     )
     .await;
@@ -494,7 +494,7 @@ async fn seed_approved_inbound_with_attributes(
     let approved = authorized_empty_request(
         app,
         "POST",
-        &format!("/api/inbound/{}/approve", order.id),
+        &format!("/api/stock-approvals/inbound/{}/approve", order.id),
         access_token,
     )
     .await;
