@@ -26,7 +26,8 @@
 - `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航、线性图标和选中态渲染。
 - `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
-- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为和基础焦点处理。
+- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点处理，以及复用统一 motion token 的打开和关闭动画。
+- `frontend/src/components/RouteContentView.vue`：桌面和移动 Shell 共用的嵌套路由出口，以及复用统一 motion token 的页面切换动画。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码和启停确认表单。
 - `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。

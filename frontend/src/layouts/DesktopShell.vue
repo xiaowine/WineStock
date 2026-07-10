@@ -49,7 +49,7 @@
         </aside>
 
         <section class="desktop-content-pane">
-          <RouterView />
+          <RouteContentView />
         </section>
       </main>
     </div>
@@ -62,6 +62,7 @@ import { authSession } from '../auth/session'
 import AccountPopover from '../components/AccountPopover.vue'
 import AccountUserSummary from '../components/AccountUserSummary.vue'
 import AppNavigationList from '../components/AppNavigationList.vue'
+import RouteContentView from '../components/RouteContentView.vue'
 import { useAccountPopover } from '../composables/useAccountPopover'
 import { useShellLogout } from '../composables/useShellLogout'
 import { getVisibleAppNavigation } from '../router/navigation'

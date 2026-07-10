@@ -1,53 +1,55 @@
 <!--
-  本文件拥有 frontend 通用模态对话框结构、关闭行为和基础焦点处理。
+  本文件拥有 frontend 通用模态对话框结构、统一打开关闭动效、关闭行为和基础焦点处理。
   它属于通用组件层，不拥有具体业务表单或 API 调用。
 -->
 <template>
   <Teleport to="body">
-    <div
-      v-if="open"
-      class="modal-layer"
-      role="dialog"
-      aria-modal="true"
-      :aria-labelledby="titleId"
-      :aria-describedby="description ? descriptionId : undefined"
-      @mousedown.self="requestClose"
-    >
-      <section ref="panel" class="modal-panel" :class="{ 'modal-panel--wide': wide }">
-        <header class="modal-header" :class="{ 'modal-header--compact': !description }">
-          <div>
-            <h2 :id="titleId">{{ title }}</h2>
-            <p v-if="description" :id="descriptionId">{{ description }}</p>
+    <Transition name="modal" appear>
+      <div
+        v-if="open"
+        class="modal-layer"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="titleId"
+        :aria-describedby="description ? descriptionId : undefined"
+        @mousedown.self="requestClose"
+      >
+        <section ref="panel" class="modal-panel" :class="{ 'modal-panel--wide': wide }">
+          <header class="modal-header" :class="{ 'modal-header--compact': !description }">
+            <div>
+              <h2 :id="titleId">{{ title }}</h2>
+              <p v-if="description" :id="descriptionId">{{ description }}</p>
+            </div>
+            <button
+              class="icon-button"
+              type="button"
+              title="关闭"
+              aria-label="关闭"
+              :disabled="busy"
+              @click="requestClose"
+            >
+              ×
+            </button>
+          </header>
+
+          <div v-if="$slots.context" class="modal-context">
+            <slot name="context" />
           </div>
-          <button
-            class="icon-button"
-            type="button"
-            title="关闭"
-            aria-label="关闭"
-            :disabled="busy"
-            @click="requestClose"
-          >
-            ×
-          </button>
-        </header>
 
-        <div v-if="$slots.context" class="modal-context">
-          <slot name="context" />
-        </div>
+          <div class="modal-body">
+            <slot />
+          </div>
 
-        <div class="modal-body">
-          <slot />
-        </div>
+          <div v-if="$slots.notice" class="modal-notice">
+            <slot name="notice" />
+          </div>
 
-        <div v-if="$slots.notice" class="modal-notice">
-          <slot name="notice" />
-        </div>
-
-        <footer v-if="$slots.actions" class="modal-actions">
-          <slot name="actions" />
-        </footer>
-      </section>
-    </div>
+          <footer v-if="$slots.actions" class="modal-actions">
+            <slot name="actions" />
+          </footer>
+        </section>
+      </div>
+    </Transition>
   </Teleport>
 </template>
 

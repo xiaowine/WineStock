@@ -43,7 +43,7 @@
     </header>
 
     <main class="main-viewport main-viewport--mobile" aria-label="主内容">
-      <RouterView />
+      <RouteContentView />
     </main>
 
     <div v-if="navOpen" class="mobile-nav-layer" role="dialog" aria-modal="true" aria-label="导航面板">
@@ -68,6 +68,7 @@ import { useRoute } from 'vue-router'
 import { authSession } from '../auth/session'
 import AccountPopover from '../components/AccountPopover.vue'
 import AppNavigationList from '../components/AppNavigationList.vue'
+import RouteContentView from '../components/RouteContentView.vue'
 import { useAccountPopover } from '../composables/useAccountPopover'
 import { useShellLogout } from '../composables/useShellLogout'
 import { getVisibleAppNavigation } from '../router/navigation'
