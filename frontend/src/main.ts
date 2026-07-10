@@ -3,6 +3,7 @@ import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
 import { apiClient } from './api/client'
+import { startAuthSessionAutoRefresh } from './auth/auto-refresh'
 import {
   ensureAuthSessionInitialized,
   getValidAccessToken,
@@ -13,6 +14,7 @@ import { installAuthGuards } from './router/guards'
 
 apiClient.setAccessTokenProvider(getValidAccessToken)
 startAuthSessionSynchronization()
+startAuthSessionAutoRefresh()
 installAuthGuards(router)
 
 // 提前启动统一恢复 Promise；路由守卫仍会等待同一个任务后再决定是否放行。

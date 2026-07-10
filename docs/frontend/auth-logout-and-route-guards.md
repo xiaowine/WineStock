@@ -11,6 +11,7 @@
 - 同标签页 refresh/logout 各自共用 Promise；同源标签页通过同一个 Web Locks 锁串行轮换和吊销。
 - 一个标签页移除持久 token 时，其它标签页会同步清除内存会话并离开受保护页面。
 - 会话层公开五态初始化模型，网络不可用和凭据失效不会混为一谈。
+- access token 会在预计到期前自动 refresh，并在页面唤醒或网络恢复时补检。
 - `meta.requiresAuth` 已由全局异步前置守卫执行。
 - 桌面应用壳已经提供登出入口、进行状态和本机退出警告。
 
@@ -26,6 +27,7 @@
 6. 登录成功后返回用户原本要访问的内部页面。
 7. refresh token 真正失效时，停留在受保护页面的用户自动进入登录页。
 8. 网络暂时不可用时不把“会话状态未知”错误判断为“明确未登录”。
+9. 前端空闲期间 access token 临近过期时主动 refresh，并在失败后自动恢复。
 
 ## 不在本次范围
 
@@ -107,6 +109,19 @@ export function ensureAuthSessionInitialized(): Promise<AuthStatus>
 - 网络、配置或响应格式错误时进入 `unavailable`，不得删除持久 token。
 
 `main.ts` 可以继续提前调用初始化以减少等待，但路由守卫必须等待同一个 Promise，不能依赖“已经发起但没有 await”的时序。
+
+## Access token 自动刷新
+
+`frontend/src/auth/auto-refresh.ts` 负责前端运行期间的主动刷新调度：
+
+- 根据 `accessTokenExpiresAt` 安排一次性定时器，不使用持续短间隔轮询。
+- 默认在到期前约 50 至 60 秒调用 `refreshAuthSession()`。
+- 多标签页仍复用同一个 Web Locks 锁；每个标签页增加最多 10 秒抖动，降低同时触发的概率。
+- 网络、配置或响应失败时保留持久 refresh token，约 30 秒后重试。
+- `focus`、`visibilitychange` 恢复可见和 `online` 事件会立即检查是否需要 refresh。
+- 登出、匿名和无内存会话状态取消定时器，不会在退出后重新恢复会话。
+
+浏览器可能节流后台标签页定时器，因此不能承诺隐藏页面在精确毫秒执行；唤醒补检和业务请求的现有被动 refresh 共同保证恢复后不会继续使用过期 access token。
 
 ## 前端 logout API
 
@@ -313,6 +328,7 @@ watch(authStatus, (status) => {
 | --- | --- |
 | `frontend/src/api/auth.ts` | 增加 logout DTO 和 204 请求函数 |
 | `frontend/src/auth/session.ts` | 增加 AuthStatus、单一初始化 Promise、logout 用例和 logging-out 状态 |
+| `frontend/src/auth/auto-refresh.ts` | 根据 access token 到期时间主动 refresh，并处理失败重试和页面唤醒补检 |
 | `frontend/src/auth/coordination.ts` | 复用现有锁名串行执行 refresh/logout，并将公开函数命名扩展为会话锁 |
 | `frontend/src/router/guards.ts` | 实现全局守卫、回跳校验和会话失效监听 |
 | `frontend/src/router/index.ts` | 导出供 main 安装守卫的共享 Router |
@@ -352,6 +368,9 @@ watch(authStatus, (status) => {
 | A 标签页退出，B 停留 dashboard | B 清除内存并自动进入登录页 |
 | A refresh、B logout 同时发生 | 共用锁，最终没有持久 token，所有标签页退出 |
 | 同标签页重复点击退出 | 只执行一个 logout Promise，按钮保持禁用 |
+| access token 距离到期不足一分钟 | 后台调度调用 refresh，并用新 token 包更新会话和下一次定时器 |
+| 自动 refresh 时服务离线 | 保留持久 token，状态进入 unavailable，并在重连或重试时间到达后恢复 |
+| 自动 refresh 后立即退出 | 登出等待同标签页 refresh，并在共用锁内吊销最新 refresh token |
 | 退出后浏览器后退 | 不重新进入已登录页面；守卫继续拦截 |
 | 未登录直接请求受保护 API | 服务端仍返回 401，证明安全不依赖前端守卫 |
 
@@ -371,6 +390,7 @@ pnpm build
 - logout 后 localStorage 不再包含 `winestock.auth.session.v1`。
 - access token 从未写入 localStorage 或 sessionStorage。
 - 双标签页退出同步和 refresh/logout 并发。
+- 临近过期自动 refresh、失败重试和页面唤醒补检。
 - 服务离线时本地退出与提示行为。
 - 控制台无未处理 Promise、重复导航或无限重定向错误。
 
@@ -386,6 +406,8 @@ pnpm build
 - 同标签页重复登出返回同一个 Promise；服务端已吊销 token 时结果为 `already_invalid`，本地仍完成退出。
 - logout 后浏览器后退不会重新进入受保护页面；未携带 access token 请求 `/api/auth/me` 仍返回 401。
 - localStorage/sessionStorage 均未写入 access token；除验收中主动触发的预期 401 外，控制台没有未处理 Promise、重复导航或无限重定向错误。
+- 将客户端时间推进到到期窗口后，未发起业务请求也会自动调用 refresh 并更新持久记录；模拟 refresh 网络失败时保留 token 和受保护页面，触发 `online` 后自动恢复为已验证会话。
+- 登出后继续触发焦点、联网和到期补检不会再发送 refresh，请求记录中只有预期的 logout 204。
 
 ## 完成标准
 
@@ -397,5 +419,6 @@ pnpm build
 - 明确匿名用户不能进入受保护页面。
 - 网络不可用与凭据失效使用不同状态和提示。
 - 登录回跳只接受内部路径。
+- access token 临近过期时自动 refresh，失败重试不会破坏持久会话或登出状态。
 - 前端守卫没有替代或削弱服务端鉴权。
 - 构建、注释、代码地图和真实浏览器验收全部通过。

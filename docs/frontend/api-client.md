@@ -119,6 +119,15 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 - 一个标签页移除持久 token 时，其它同源标签页通过 `storage` 事件清除内存会话。
 - 网络或服务暂时不可用时进入 `unavailable`，不删除持久化 token，也不把受保护页面误重定向为凭据失效。
 
+## Access token 自动刷新
+
+- `frontend/src/auth/auto-refresh.ts` 根据内存中的 `accessTokenExpiresAt` 使用一次性定时器调度，不进行固定频率轮询。
+- 默认在 access token 到期前约 50 至 60 秒 refresh；每个标签页使用最多 10 秒抖动，降低同时抢锁的概率。
+- 自动刷新仍调用 `refreshAuthSession()`，因此复用同标签页 Promise、最新持久 token 读取和跨标签页 Web Locks 锁。
+- 网络、配置或响应失败后保持 `unavailable` 和持久 token，并在约 30 秒后自动重试。
+- 窗口重新获得焦点、页面恢复可见或浏览器触发 `online` 时立即补检，弥补后台标签页定时器被节流的情况。
+- 登出开始、明确匿名或尚未建立会话时取消定时器；自动刷新不会让已退出会话重新登录。
+
 ## 登出
 
 - `POST /api/auth/logout` 只提交获得跨标签页锁后重新读取的最新 refresh token，不依赖 Bearer access token。

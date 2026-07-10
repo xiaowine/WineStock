@@ -7,7 +7,7 @@
 ## 工程入口
 
 - `frontend/package.json`：Vue、Vite 和 Vue Router 依赖；安装和脚本统一使用 pnpm。
-- `frontend/src/main.ts`：注册有效 token provider 和跨标签页同步、安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
+- `frontend/src/main.ts`：注册有效 token provider、跨标签页同步和自动刷新调度，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
 - `frontend/src/App.vue`：前端根 `RouterView`，不拥有具体页面布局。
 - `frontend/src/env.d.ts`：Vite 环境变量和平台运行时注入对象类型。
 
@@ -48,6 +48,11 @@
   - 公开五态会话初始化模型、单一初始化/refresh/logout Promise，并区分明确匿名和服务暂不可用。
   - 在跨标签页锁内读取最新 refresh token，执行轮换或服务端吊销；任何登出结果都会清除本地会话。
   - 监听其它同源标签页移除持久 token，并同步清除当前内存会话和进入匿名状态。
+
+- `frontend/src/auth/auto-refresh.ts`
+  - 按 access token 预计到期时间安排一次性定时器，在到期前约 50 至 60 秒主动 refresh。
+  - 网络或服务暂不可用时延迟重试，并在窗口焦点、页面重新可见和网络恢复时立即补检。
+  - 登出、匿名或尚未建立会话时取消定时任务；不保存 token，也不绕过会话层的 Promise 和跨标签页锁。
 
 - `frontend/src/auth/coordination.ts`
   - 使用同一个 Web Locks API 锁在同源标签页和 Worker 间串行执行 refresh 与 logout。
