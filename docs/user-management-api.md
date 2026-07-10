@@ -17,6 +17,7 @@
 | `user.register` | 注册新用户 |
 | `user.read` | 查看用户列表和用户详情 |
 | `user.status.update` | 启用或停用用户账号 |
+| `user.delete` | 软删除其他用户账号 |
 | `user.permissions.update` | 整体替换用户权限 |
 | `user.permission.read` | 查看权限定义 |
 | `user.password.reset` | 设置其他用户临时密码 |
@@ -88,7 +89,26 @@
   - `400 invalid_request`
   - `401 invalid_access_token`
   - `403 permission_denied`
+  - `403 self_status_update_forbidden`：禁止停用当前操作者自己的账号。
   - `404 user_not_found`
+  - `409 last_permission_manager_required`
+
+### `DELETE /api/users/{id}`
+
+软删除其他用户账号。
+
+- 权限：`user.delete`
+- 响应：`204`
+- 行为：
+  - 将目标账号状态置为 `disabled` 并写入 `deleted_at`。
+  - 吊销目标用户全部 active refresh token；其现有 access token 也会因用户查询不可见而立即失效。
+  - 用户列表、详情、登录、refresh 和授权查询不再返回该用户。
+  - 保留用户行、权限分配和历史业务关联；用户名继续占用，不能重新注册复用。
+- 失败：
+  - `401 invalid_access_token`
+  - `403 permission_denied`
+  - `403 self_user_delete_forbidden`：禁止删除当前操作者自己的账号。
+  - `404 user_not_found`：用户不存在或已经软删除。
   - `409 last_permission_manager_required`
 
 ### `PUT /api/users/{id}/permissions`
@@ -105,6 +125,7 @@
 ```
 
 - 空数组表示清空该用户权限。
+- 所有权限代码必须已存在于 `auth_permissions`；任一代码不存在时整体返回 `404 permission_not_found`，不会写入部分有效权限。
 - 响应：`200` + `UserAdminResponse`
 - 失败：
   - `400 invalid_request`
@@ -136,6 +157,7 @@
   - `400 invalid_request`
   - `401 invalid_access_token`
   - `403 permission_denied`
+  - `403 self_password_reset_forbidden`：禁止为当前操作者自己设置临时密码。
   - `404 user_not_found`
 
 ### `POST /api/auth/me/password`
@@ -174,9 +196,17 @@
 - 只要还有一个 active 用户能分配权限，就可以修复其他授权问题。
 - 当前操作者更新自己的权限时，不能增加或移除自己的 `user.permissions.update` 和 `user.permission.read`；其他自身权限仍可调整。
 
+## 当前操作者保护
+
+- 后端拒绝当前操作者停用自己的账号，前端隐藏入口不是安全边界。
+- 后端拒绝当前操作者软删除自己的账号，并保护最后一个 active 权限管理员。
+- 后端拒绝当前操作者为自己设置临时密码；当前用户修改自己的密码必须使用 `/api/auth/me/password`。
+- 这些规则在用户管理 service 层执行，发生在状态写入、软删除、密码哈希、token 吊销和审计写入之前。
+
 ## 审计
 
 - 账号启停：`entity_type = "user"`，`action = "updated"`，详情记录旧状态和新状态。
+- 用户软删除：`entity_type = "user"`，`action = "deleted"`，详情记录软删除模式和删除前状态。
 - 用户权限替换：`entity_type = "user"`，`action = "updated"`，详情记录旧权限和新权限。
 - 当前用户修改自己密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名和 `self_change` 模式。
 - 管理员设置临时密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名、`admin_temporary_password` 模式和强制改密标记。

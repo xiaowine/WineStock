@@ -251,7 +251,7 @@ pub(crate) async fn list_users(
     responses(
         (status = 200, description = "User detail", body = UserAdminResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
-        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "User read permission required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "User not found", body = crate::http::ApiErrorResponse)
     )
 )]
@@ -261,6 +261,30 @@ pub(crate) async fn get_user(
     ValidatedPath(id): ValidatedPath<i64>,
 ) -> Result<Json<UserAdminResponse>, AuthApiError> {
     Ok(Json(service::get_user(&state, id).await?))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/users/{id}",
+    tag = "users",
+    params(("id" = i64, Path, description = "User ID")),
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 204, description = "User soft deleted"),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Delete permission required or self-delete rejected", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "User not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Last active permission manager cannot be deleted", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 软删除其他用户，同时使目标账号的现有会话失效。
+pub(crate) async fn delete_user(
+    State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
+    ValidatedPath(id): ValidatedPath<i64>,
+) -> Result<StatusCode, AuthApiError> {
+    service::delete_user(&state, &current_user, id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(
@@ -274,12 +298,12 @@ pub(crate) async fn get_user(
         (status = 200, description = "User status updated", body = UserAdminResponse),
         (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
-        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Status permission required or self-disable rejected", body = crate::http::ApiErrorResponse),
         (status = 404, description = "User not found", body = crate::http::ApiErrorResponse),
         (status = 409, description = "Last active permission manager cannot be disabled", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 更新用户状态。
+/// 更新用户状态；不允许当前操作者停用自己。
 pub(crate) async fn update_user_status(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
@@ -330,11 +354,11 @@ pub(crate) async fn update_user_permissions(
         (status = 204, description = "Temporary password set"),
         (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
-        (status = 403, description = "Password reset permission required", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Password reset permission required or self-reset rejected", body = crate::http::ApiErrorResponse),
         (status = 404, description = "User not found", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 拥有重置密码权限的用户设置目标用户临时密码，目标用户下次登录后必须改密。
+/// 为其他用户设置临时密码，目标用户下次登录后必须改密；不允许作用于当前操作者。
 pub(crate) async fn reset_user_password(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,

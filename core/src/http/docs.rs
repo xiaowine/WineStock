@@ -41,6 +41,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::users::controller::change_own_password,
         crate::users::controller::list_users,
         crate::users::controller::get_user,
+        crate::users::controller::delete_user,
         crate::users::controller::update_user_status,
         crate::users::controller::update_user_permissions,
         crate::users::controller::reset_user_password,

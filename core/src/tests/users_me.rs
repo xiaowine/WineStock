@@ -71,6 +71,7 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
             "stock.template.manage",
             "stock.template.read",
             "stock.write",
+            "user.delete",
             "user.password.reset",
             "user.permission.read",
             "user.permissions.update",

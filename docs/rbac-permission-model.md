@@ -25,7 +25,7 @@ auth_users
   -> auth_permissions
 ```
 
-- `auth_users`：账号基础资料。
+- `auth_users`：账号基础资料；`deleted_at` 为空的记录才参与登录、授权和用户管理查询。
 - `auth_permissions`：系统权限定义，保存稳定权限代码和说明。
 - `auth_user_permission_assignments`：用户直接拥有的权限。
 
@@ -81,6 +81,7 @@ auth_users
 | `user.register`           | 注册新用户       |
 | `user.read`               | 查看用户列表和用户详情 |
 | `user.status.update`      | 启用或停用用户账号   |
+| `user.delete`             | 软删除其他用户账号   |
 | `user.permissions.update` | 整体替换用户权限    |
 | `user.permission.read`    | 查看权限定义      |
 | `user.password.reset`     | 设置其他用户临时密码  |
@@ -111,12 +112,15 @@ JWT 不包含角色列表。
 |-----------------------------------|---------------------------|
 | `GET /api/users`                  | `user.read`               |
 | `GET /api/users/{id}`             | `user.read`               |
+| `DELETE /api/users/{id}`          | `user.delete`             |
 | `PATCH /api/users/{id}/status`    | `user.status.update`      |
 | `PUT /api/users/{id}/permissions` | `user.permissions.update` |
 | `POST /api/users/{id}/password`   | `user.password.reset`     |
 | `GET /api/permissions`            | `user.permission.read`    |
 
 当前用户修改自己密码只要求已登录并校验当前密码。
+
+软删除用户会在同一事务内停用账号、写入 `deleted_at`、吊销 active refresh token 并记录审计。当前操作者不能删除自己，也不能删除最后一个 active 权限管理员。
 
 为避免系统锁死，用户管理接口禁止禁用最后一个拥有 `user.permissions.update` 的 active 用户，也禁止从最后一个拥有该权限的
 active 用户身上移除 `user.permissions.update`。

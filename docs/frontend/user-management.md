@@ -41,6 +41,7 @@ GET   /api/permissions
 | 查看页面和列表 | `user.read` |
 | 创建用户 | `user.register` |
 | 启用或停用用户 | `user.status.update` |
+| 软删除用户 | `user.delete`；权限选择器会从后端权限定义动态展示，当前页面尚未提供删除入口 |
 | 查看权限定义 | `user.permission.read` |
 | 修改用户权限 | `user.permissions.update` + `user.permission.read` |
 | 设置临时密码 | `user.password.reset` |
@@ -63,6 +64,7 @@ GET   /api/permissions
 
 - `frontend/src/api/users.ts`：DTO 和 HTTP 请求。
 - `frontend/src/auth/permissions.ts`：稳定权限代码和前端只读判断。
+- 权限编辑器不硬编码可选权限；后端 `GET /api/permissions` 返回 `user.delete` 后会自动显示并允许分配。
 - `frontend/src/pages/UsersPage.vue`：列表、筛选、分页和操作编排。
 - `frontend/src/components/users/`：创建、权限、临时密码和启停对话框。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构和关闭行为。

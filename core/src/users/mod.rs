@@ -4,7 +4,7 @@
 //! 它依赖 `security` 提供当前用户上下文和权限校验，但不直接承担 token 解析。
 
 use axum::{
-    routing::{get, patch, post, put},
+    routing::{delete, get, patch, post, put},
     Router,
 };
 
@@ -18,8 +18,8 @@ mod permissions;
 pub(crate) mod service;
 
 pub(crate) use permissions::{
-    READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION, REGISTER_USER_PERMISSION,
-    RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
+    DELETE_USER_PERMISSION, READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
+    REGISTER_USER_PERMISSION, RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
     UPDATE_USER_STATUS_PERMISSION,
 };
 
@@ -48,7 +48,12 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
         )
         .route(
             "/api/users/{id}",
-            get(controller::get_user).require_permission(state.clone(), READ_USER_PERMISSION),
+            get(controller::get_user)
+                .require_permission(state.clone(), READ_USER_PERMISSION)
+                .merge(
+                    delete(controller::delete_user)
+                        .require_permission(state.clone(), DELETE_USER_PERMISSION),
+                ),
         )
         .route(
             "/api/users/{id}/status",

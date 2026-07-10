@@ -21,10 +21,13 @@
 ## 管理接口约束
 
 - `/api/users` 和 `/api/users/{id}` 由路由层要求 `user.read`。
+- `DELETE /api/users/{id}` 由路由层要求 `user.delete`，执行软删除并返回 204。
 - `/api/users/{id}/status` 由路由层要求 `user.status.update`。
 - `/api/users/{id}/permissions` 由路由层要求 `user.permissions.update`。
+- 权限整体替换会先验证全部代码均存在；混入未知权限时返回 `permission_not_found`，原权限集合保持不变。
 - `/api/permissions` 由路由层要求 `user.permission.read`。
 - `/api/users/{id}/password` 由路由层要求 `user.password.reset`，用于拥有重置权限的用户设置目标用户临时密码，并要求目标用户下次登录后改密。
+- 用户管理 service 拒绝当前操作者停用或软删除自己，并拒绝为自己设置管理员临时密码；前端隐藏入口不能替代该校验。
 - `/api/auth/me/password` 只要求已登录，服务层校验当前密码，并且不接受其他用户 ID。
-- 账号启停、权限替换、当前用户修改自己密码和管理员设置临时密码会写入 `audit_events`；审计详情不得包含明文密码、token 或密码哈希。
+- 账号启停、用户软删除、权限替换、当前用户修改自己密码和管理员设置临时密码会写入 `audit_events`；审计详情不得包含明文密码、token 或密码哈希。
 - 禁止禁用最后一个拥有 `user.permissions.update` 的 active 用户，也禁止移除最后一个 active 权限管理员的 `user.permissions.update` 权限。

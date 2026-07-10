@@ -29,6 +29,9 @@ pub struct Model {
 
     /// 用户最近更新时间，使用 SQLite UTC 字符串格式。
     pub updated_at: String,
+
+    /// 软删除时间；为空表示账号仍可被鉴权和用户管理接口访问。
+    pub deleted_at: Option<String>,
 }
 
 /// 用户与权限的多对多关系通过 `auth_user_permission_assignments` 表和仓储层查询表达。

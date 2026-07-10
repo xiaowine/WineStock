@@ -1,6 +1,6 @@
 //! 用户管理服务。
 //!
-//! 本模块属于 `users` 业务服务层，负责用户列表、详情、状态、权限替换、临时密码重置和权限定义查询。
+//! 本模块属于 `users` 业务服务层，负责用户列表、详情、状态、软删除、权限替换、临时密码重置和权限定义查询。
 //! 它不处理注册首个用户或当前用户自助改密。
 
 use sea_orm::{ConnectionTrait, TransactionTrait};
@@ -115,6 +115,46 @@ pub(crate) async fn update_user_status(
     transaction.commit().await?;
 
     Ok(response)
+}
+
+/// 软删除其他用户；同时停用账号、吊销 refresh token，并保护最后一个 active 权限管理员。
+pub(crate) async fn delete_user(
+    state: &CoreState,
+    current_user: &CurrentUser,
+    id: i64,
+) -> Result<(), AuthApiError> {
+    if id == current_user.user_id {
+        return Err(AuthApiError::SelfDeleteForbidden);
+    }
+
+    let transaction = state.database().begin().await?;
+    let users = UserRepository::new(&transaction);
+    let rbac = RbacRepository::new(&transaction);
+    let refresh_tokens = RefreshTokenRepository::new(&transaction);
+    let audit = AuditRepository::new(&transaction);
+    let user = users
+        .find_by_id(id)
+        .await?
+        .ok_or(AuthApiError::UserNotFound)?;
+    ensure_user_can_lose_permission_management(&rbac, &user, Some("disabled"), None).await?;
+    let previous_status = user.status.clone();
+    let deleted = users.soft_delete(user).await?;
+    refresh_tokens.revoke_active_for_user(deleted.id).await?;
+    audit
+        .record(RecordAuditEvent {
+            user_id: Some(current_user.user_id),
+            entity_type: "user".to_owned(),
+            entity_id: Some(deleted.id),
+            action: "deleted".to_owned(),
+            details: Some(json!({
+                "mode": "soft_delete",
+                "previous_status": previous_status
+            })),
+        })
+        .await?;
+    transaction.commit().await?;
+
+    Ok(())
 }
 
 /// 整体替换用户权限；保护当前操作者的关键权限，并禁止移除最后一个 active 权限管理员的管理权限。

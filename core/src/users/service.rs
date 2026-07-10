@@ -11,8 +11,8 @@ mod response;
 mod validation;
 
 pub(crate) use management::{
-    get_user, list_permissions, list_users, reset_user_password, update_user_permissions,
-    update_user_status,
+    delete_user, get_user, list_permissions, list_users, reset_user_password,
+    update_user_permissions, update_user_status,
 };
 pub(crate) use me::{change_own_password, current_user};
 pub(crate) use pagination::PaginatedResponse;

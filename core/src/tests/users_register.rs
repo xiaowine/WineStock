@@ -43,6 +43,7 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
             "stock.template.manage",
             "stock.template.read",
             "stock.write",
+            "user.delete",
             "user.password.reset",
             "user.permission.read",
             "user.permissions.update",

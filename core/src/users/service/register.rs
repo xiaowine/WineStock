@@ -75,7 +75,7 @@ async fn register_user_transactionally(
         }
     }
 
-    if users.find_by_username(&input.username).await?.is_some() {
+    if users.username_exists(&input.username).await? {
         return Err(AuthApiError::UsernameTaken);
     }
 

@@ -152,6 +152,7 @@ Current `core` HTTP surface:
 - `POST /api/auth/me/password`
 - `GET /api/users`
 - `GET /api/users/{id}`
+- `DELETE /api/users/{id}`
 - `PATCH /api/users/{id}/status`
 - `PUT /api/users/{id}/permissions`
 - `POST /api/users/{id}/password`

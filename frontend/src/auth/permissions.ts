@@ -5,6 +5,7 @@ export const userPermissions = {
   register: 'user.register',
   read: 'user.read',
   updateStatus: 'user.status.update',
+  delete: 'user.delete',
   updatePermissions: 'user.permissions.update',
   readPermissionDefinitions: 'user.permission.read',
   resetPassword: 'user.password.reset',

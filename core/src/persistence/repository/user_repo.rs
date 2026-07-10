@@ -6,7 +6,7 @@
 use crate::validation::validate_not_blank;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr,
-    EntityTrait, QueryFilter, Set, Statement, Value,
+    EntityTrait, PaginatorTrait, QueryFilter, Set, Statement, Value,
 };
 
 use crate::persistence::entity::user;
@@ -79,6 +79,7 @@ where
             password_change_required: Set(false),
             created_at: Set(now.clone()),
             updated_at: Set(now),
+            deleted_at: Set(None),
             ..Default::default()
         };
         let result = user::Entity::insert(active_user)
@@ -92,7 +93,10 @@ where
 
     /// 按数据库主键查询用户。
     pub(crate) async fn find_by_id(&self, id: i64) -> Result<Option<user::Model>, DbErr> {
-        user::Entity::find_by_id(id).one(self.database).await
+        user::Entity::find_by_id(id)
+            .filter(user::Column::DeletedAt.is_null())
+            .one(self.database)
+            .await
     }
 
     /// 按唯一用户名查询用户。
@@ -102,7 +106,16 @@ where
     ) -> Result<Option<user::Model>, DbErr> {
         user::Entity::find()
             .filter(user::Column::Username.eq(username))
+            .filter(user::Column::DeletedAt.is_null())
             .one(self.database)
+            .await
+    }
+
+    /// 判断用户名是否已被任何账号占用；软删除账号仍保留登录标识，避免审计身份混淆。
+    pub(crate) async fn username_exists(&self, username: &str) -> Result<bool, DbErr> {
+        user::Entity::find()
+            .filter(user::Column::Username.eq(username))
+            .exists(self.database)
             .await
     }
 
@@ -130,7 +143,8 @@ where
                         auth_users.status,
                         auth_users.password_change_required,
                         auth_users.created_at,
-                        auth_users.updated_at
+                        auth_users.updated_at,
+                        auth_users.deleted_at
                     FROM auth_users
                     {join_clause}
                     {where_clause}
@@ -153,6 +167,7 @@ where
                     password_change_required: row.try_get("", "password_change_required")?,
                     created_at: row.try_get("", "created_at")?,
                     updated_at: row.try_get("", "updated_at")?,
+                    deleted_at: row.try_get("", "deleted_at")?,
                 })
             })
             .collect::<Result<Vec<_>, DbErr>>()?;
@@ -188,6 +203,16 @@ where
         active.update(self.database).await
     }
 
+    /// 将用户标记为已删除并停用账号；调用方负责在同一事务内吊销会话和写审计。
+    pub(crate) async fn soft_delete(&self, user: user::Model) -> Result<user::Model, DbErr> {
+        let now = sqlite_now(self.database).await?;
+        let mut active: user::ActiveModel = user.into();
+        active.status = Set("disabled".to_owned());
+        active.updated_at = Set(now.clone());
+        active.deleted_at = Set(Some(now));
+        active.update(self.database).await
+    }
+
     async fn count_users(
         &self,
         join_clause: &str,
@@ -217,7 +242,7 @@ where
 
 fn list_users_query_parts(input: &ListUsers) -> (String, String, Vec<Value>) {
     let joins = String::new();
-    let mut clauses = Vec::new();
+    let mut clauses = vec!["auth_users.deleted_at IS NULL"];
     let mut values = Vec::new();
 
     if let Some(search) = input.search.as_ref() {

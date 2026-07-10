@@ -12,6 +12,9 @@ pub(crate) const READ_USER_PERMISSION: &str = "user.read";
 /// 启用或停用用户账号的权限代码。
 pub(crate) const UPDATE_USER_STATUS_PERMISSION: &str = "user.status.update";
 
+/// 软删除其他用户账号的权限代码。
+pub(crate) const DELETE_USER_PERMISSION: &str = "user.delete";
+
 /// 整体替换用户权限的权限代码。
 pub(crate) const UPDATE_USER_PERMISSIONS_PERMISSION: &str = "user.permissions.update";
 

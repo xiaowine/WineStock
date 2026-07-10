@@ -35,6 +35,9 @@ pub enum AuthApiError {
     /// 当前操作者试图停用自己的账号。
     SelfStatusUpdateForbidden,
 
+    /// 当前操作者试图软删除自己的账号。
+    SelfDeleteForbidden,
+
     /// 当前操作者试图为自己的账号设置管理员临时密码。
     SelfPasswordResetForbidden,
 
@@ -93,6 +96,11 @@ impl IntoResponse for AuthApiError {
                 StatusCode::FORBIDDEN,
                 "self_status_update_forbidden",
                 "不能停用当前账号",
+            ),
+            Self::SelfDeleteForbidden => (
+                StatusCode::FORBIDDEN,
+                "self_user_delete_forbidden",
+                "不能删除当前账号",
             ),
             Self::SelfPasswordResetForbidden => (
                 StatusCode::FORBIDDEN,

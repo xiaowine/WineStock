@@ -88,6 +88,7 @@ async fn login_returns_tokens_and_current_permissions() {
                 "stock.template.manage".to_owned(),
                 "stock.template.read".to_owned(),
                 "stock.write".to_owned(),
+                "user.delete".to_owned(),
                 "user.password.reset".to_owned(),
                 "user.permission.read".to_owned(),
                 "user.permissions.update".to_owned(),

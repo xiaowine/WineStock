@@ -98,6 +98,7 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
             "stock.template.manage",
             "stock.template.read",
             "stock.write",
+            "user.delete",
             "user.password.reset",
             "user.permission.read",
             "user.permissions.update",
@@ -306,7 +307,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_
             "count",
         )
         .await,
-        24
+        25
     );
     assert_eq!(
         query_string_vec(

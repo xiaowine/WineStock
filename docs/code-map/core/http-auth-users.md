@@ -37,8 +37,9 @@
 - `core/src/users/service.rs`：用户业务服务入口和子模块重新导出。
 - `core/src/users/service/register.rs`：用户注册、首个用户事务判断、全部权限分配和审计。
 - `core/src/users/service/me.rs`：当前用户快照与自助改密。
-- `core/src/users/service/management.rs`：用户列表、详情、启停、权限替换、临时密码、防锁死规则，以及当前操作者关键权限保护。
-- 用户管理 service 同时拒绝当前操作者停用自己或为自己设置管理员临时密码，避免绕过前端入口限制。
+- `core/src/users/service/management.rs`：用户列表、详情、启停、软删除、权限替换、临时密码、防锁死规则，以及当前操作者关键权限保护。
+- 用户管理 service 同时拒绝当前操作者停用或软删除自己，也拒绝为自己设置管理员临时密码，避免绕过前端入口限制。
+- `auth_users.deleted_at` 由初始 schema 直接创建；用户仓储默认排除软删除记录，删除事务同时停用账号、吊销 refresh token 并写审计。
 - 当前操作者可以调整自己的其他权限，但不能增加或移除自己的 `user.permissions.update` 和 `user.permission.read`。
 - `core/src/users/service/response.rs`：用户与权限响应投影。
 - `core/src/users/service/pagination.rs`：用户分页。

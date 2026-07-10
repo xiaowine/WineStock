@@ -47,8 +47,14 @@ const INITIAL_SCHEMA: &[&str] = &[
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
         password_change_required INTEGER NOT NULL DEFAULT 0 CHECK (password_change_required IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT
     )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_auth_users_visible_id
+        ON auth_users(id)
+        WHERE deleted_at IS NULL
     "#,
     r#"
     CREATE TABLE IF NOT EXISTS auth_permissions (

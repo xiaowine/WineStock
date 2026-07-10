@@ -186,6 +186,7 @@ where
                 INNER JOIN auth_permissions
                     ON auth_permissions.id = auth_user_permission_assignments.permission_id
                 WHERE auth_users.status = 'active'
+                    AND auth_users.deleted_at IS NULL
                     AND auth_users.id <> ?
                     AND auth_permissions.code = ?
                 "#,

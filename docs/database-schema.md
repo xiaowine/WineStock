@@ -19,7 +19,7 @@
 
 ### `auth_users`
 
-账号基础表。保存登录用户名、密码哈希、账号状态、强制改密标记和创建/更新时间。
+账号基础表。保存登录用户名、密码哈希、账号状态、强制改密标记、创建/更新时间和软删除时间。
 
 重要字段：
 
@@ -27,6 +27,7 @@
 - `password_hash`：密码哈希，不保存明文密码。
 - `status`：账号状态，当前允许 `active` 或 `disabled`。
 - `password_change_required`：是否必须先修改临时密码，SQLite 中使用 0/1 布尔值。
+- `deleted_at`：软删除时间；为空表示账号仍可登录并被用户管理接口查询。软删除后用户名继续保留，不允许重新注册复用。
 
 ### `auth_permissions`
 
@@ -42,6 +43,7 @@
 - `user.register`：注册新用户。
 - `user.read`：查看用户列表和用户详情。
 - `user.status.update`：启用或停用用户账号。
+- `user.delete`：软删除其他用户账号。
 - `user.permissions.update`：整体替换用户权限。
 - `user.permission.read`：查看权限定义。
 - `user.password.reset`：直接重置用户密码。

@@ -19,7 +19,7 @@ use crate::{
     },
     users::service::PaginatedResponse,
     users::{
-        READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
+        DELETE_USER_PERMISSION, READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
         RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
         UPDATE_USER_STATUS_PERMISSION,
     },
@@ -157,6 +157,102 @@ async fn user_management_updates_status_permissions_password_and_writes_audit() 
 }
 
 #[tokio::test]
+async fn user_soft_delete_requires_permission_and_invalidates_account() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "managed", "password").await;
+    seed_plain_user(app.state.database(), "user-reader", "password").await;
+    seed_plain_user(app.state.database(), "user-deleter", "password").await;
+    let managed_id = user_id(&app, "managed").await;
+    assign_single_permission(
+        app.state.database(),
+        "user-reader",
+        "reader-only",
+        READ_USER_PERMISSION,
+    )
+    .await;
+    assign_single_permission(
+        app.state.database(),
+        "user-deleter",
+        "deleter-only",
+        DELETE_USER_PERMISSION,
+    )
+    .await;
+    let managed_login = login_request(&app, "managed", "password").await;
+
+    let reader_login = login_request(&app, "user-reader", "password").await;
+    let forbidden = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/users/{managed_id}"),
+        &reader_login.body.access_token,
+    )
+    .await;
+    assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+
+    let deleter_login = login_request(&app, "user-deleter", "password").await;
+    let deleted = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/users/{managed_id}"),
+        &deleter_login.body.access_token,
+    )
+    .await;
+    assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
+
+    let row = app
+        .state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "SELECT status, deleted_at FROM auth_users WHERE id = ?",
+            [managed_id.into()],
+        ))
+        .await
+        .expect("deleted user should query")
+        .expect("soft-deleted row should remain");
+    let status: String = row.try_get("", "status").expect("status should decode");
+    let deleted_at: Option<String> = row
+        .try_get("", "deleted_at")
+        .expect("deleted_at should decode");
+    assert_eq!(status, "disabled");
+    assert!(deleted_at.is_some());
+
+    let admin_login = login_request(&app, "admin", "password").await;
+    let detail = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/users/{managed_id}"),
+        &admin_login.body.access_token,
+    )
+    .await;
+    assert_eq!(detail.status(), StatusCode::NOT_FOUND);
+    let list = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/users?search=managed",
+        &admin_login.body.access_token,
+    )
+    .await;
+    let list: PaginatedResponse<UserAdminResponse> = json_body(list).await;
+    assert_eq!(list.total, 0);
+
+    let login_after_delete = raw_login_request(&app, "managed", "password").await;
+    assert_eq!(login_after_delete.status(), StatusCode::UNAUTHORIZED);
+    let refresh_after_delete = raw_refresh_request(&app, &managed_login.body.refresh_token).await;
+    assert_eq!(refresh_after_delete.status(), StatusCode::UNAUTHORIZED);
+
+    let repeated = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/users/{managed_id}"),
+        &deleter_login.body.access_token,
+    )
+    .await;
+    assert_eq!(repeated.status(), StatusCode::NOT_FOUND);
+    assert_eq!(audit_action(&app, managed_id).await, "deleted");
+}
+
+#[tokio::test]
 async fn user_management_writes_use_specific_permissions() {
     let app = seeded_app().await;
     seed_plain_user(app.state.database(), "managed", "password").await;
@@ -225,6 +321,43 @@ async fn user_management_writes_use_specific_permissions() {
     )
     .await;
     assert_eq!(permissions.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn user_permissions_update_rejects_unknown_codes_without_partial_write() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "managed", "password").await;
+    let managed_id = user_id(&app, "managed").await;
+    assign_single_permission(
+        app.state.database(),
+        "managed",
+        "managed-reader",
+        READ_USER_PERMISSION,
+    )
+    .await;
+    let admin_login = login_request(&app, "admin", "password").await;
+
+    let rejected = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/users/{managed_id}/permissions"),
+        &admin_login.body.access_token,
+        &UserPermissionsUpdateRequest {
+            permissions: vec![
+                READ_USER_PERMISSION.to_owned(),
+                "user.permission.does-not-exist".to_owned(),
+            ],
+        },
+    )
+    .await;
+    assert_eq!(rejected.status(), StatusCode::NOT_FOUND);
+    assert_eq!(error_code(rejected).await, "permission_not_found");
+
+    let permissions = RbacRepository::new(app.state.database())
+        .list_user_permissions(managed_id)
+        .await
+        .expect("user permissions should query");
+    assert_eq!(permissions, vec![READ_USER_PERMISSION.to_owned()]);
 }
 
 #[tokio::test]
@@ -402,6 +535,13 @@ async fn user_management_protects_last_active_permission_manager() {
         Err(crate::security::AuthApiError::LastPermissionManagerRequired)
     ));
 
+    let delete_last_manager =
+        crate::users::service::delete_user(&app.state, &management_operator, admin_id).await;
+    assert!(matches!(
+        delete_last_manager,
+        Err(crate::security::AuthApiError::LastPermissionManagerRequired)
+    ));
+
     seed_plain_user(app.state.database(), "second-manager", "password").await;
     let second_id = user_id(&app, "second-manager").await;
     let rbac = RbacRepository::new(app.state.database());
@@ -547,6 +687,16 @@ async fn user_management_rejects_self_disable_and_self_temporary_password_reset(
         "self_status_update_forbidden"
     );
 
+    let delete_self = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/users/{admin_id}"),
+        &admin_login.body.access_token,
+    )
+    .await;
+    assert_eq!(delete_self.status(), StatusCode::FORBIDDEN);
+    assert_eq!(error_code(delete_self).await, "self_user_delete_forbidden");
+
     let reset_self = authorized_json_request(
         &app,
         "POST",
@@ -623,6 +773,21 @@ async fn audit_count(app: &crate::test_support::TestApp, user_id: i64) -> i64 {
         .expect("audit count row should exist")
         .try_get("", "count")
         .expect("audit count should decode")
+}
+
+async fn audit_action(app: &crate::test_support::TestApp, user_id: i64) -> String {
+    app.state
+        .database()
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "SELECT action FROM audit_events WHERE entity_type = 'user' AND entity_id = ? ORDER BY id DESC LIMIT 1",
+            [user_id.into()],
+        ))
+        .await
+        .expect("audit action should query")
+        .expect("audit action row should exist")
+        .try_get("", "action")
+        .expect("audit action should decode")
 }
 
 async fn authorized_empty_request(
