@@ -59,24 +59,7 @@
     <div class="desktop-workspace">
       <main class="main-viewport main-viewport--desktop" aria-label="主内容">
         <aside class="desktop-navigation-pane" aria-label="导航面板">
-          <div class="navigation-pane__header">
-            <p class="eyebrow">WineStock</p>
-            <h2>主导航</h2>
-          </div>
-
-          <div class="menu-section">
-            <h3>模块导航</h3>
-            <RouterLink
-              v-for="item in appNavigation"
-              :key="item.routeName"
-              :to="{ name: item.routeName }"
-              class="menu-item"
-              active-class="menu-item--active"
-            >
-              {{ item.label }}
-            </RouterLink>
-          </div>
-
+          <AppNavigationList :items="appNavigation" />
         </aside>
 
         <section class="desktop-content-pane">
@@ -92,6 +75,7 @@ import { computed } from 'vue'
 import { authSession, authStatus } from '../auth/session'
 import AccountPopover from '../components/AccountPopover.vue'
 import AccountUserSummary from '../components/AccountUserSummary.vue'
+import AppNavigationList from '../components/AppNavigationList.vue'
 import { useAccountPopover } from '../composables/useAccountPopover'
 import { useShellLogout } from '../composables/useShellLogout'
 import { appNavigation } from '../router/navigation'

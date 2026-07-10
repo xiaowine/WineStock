@@ -16,13 +16,14 @@
 - `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、登录/注册路由和 catch-all 404。
 - `frontend/src/router/meta.d.ts`：页面标题和 `requiresAuth` 元数据。
 - `frontend/src/router/guards.ts`：等待会话初始化、拦截明确匿名访问、安全解析登录回跳，并在停留期间监听会话失效导航。
-- `frontend/src/router/navigation.ts`：当前应用壳一级导航入口，不执行权限判断。
+- `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置；权限过滤仍由上层按当前业务需要处理。
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
 - `frontend/src/layouts/DesktopShell.vue`：桌面顶部会话状态、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口。
 - `frontend/src/layouts/MobileShell.vue`：移动顶部栏、真实用户头像、紧凑账户弹层、Drawer 和嵌套路由出口。
 - `frontend/src/components/AccountUserSummary.vue`：桌面顶部与移动账户弹层复用的只读用户头像和名称摘要。
 - `frontend/src/components/AccountPopover.vue`：桌面和移动共用的账户操作弹层；移动端可补充用户摘要，组件不直接读取或清理会话。
+- `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航、线性图标和选中态渲染。
 - `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
 

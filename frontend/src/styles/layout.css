@@ -74,7 +74,7 @@
 
 .main-viewport--desktop {
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-columns: 224px minmax(0, 1fr);
   min-height: calc(100vh - var(--nav-height-desktop));
   background: var(--color-surface);
 }
@@ -87,23 +87,12 @@
 .desktop-navigation-pane {
   display: flex;
   flex-direction: column;
-  gap: 18px;
   min-height: 0;
-  padding: 14px 10px;
+  padding: 12px 10px;
   border-right: 1px solid var(--color-nav-border);
   background: var(--color-nav);
 }
 
-.navigation-pane__header {
-  padding: 2px 8px 4px;
-}
-
-.desktop-navigation-pane .eyebrow,
-.mobile-nav-drawer .eyebrow {
-  color: var(--color-nav-muted);
-}
-
-.desktop-navigation-pane h2,
 .mobile-nav-drawer h2 {
   color: var(--color-nav-text);
 }

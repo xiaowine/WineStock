@@ -89,6 +89,7 @@ DesktopShell
 - 后续可能加入的树形导航、分类导航等工作区导航。
 
 样式上使用浅底色和右边线表达区域边界，避免卡片套卡片。
+当前桌面导航宽度为 `224px`；高频入口直接排列，存在管理入口时使用轻分隔和分组标题，桌面与移动 Drawer 共用同一导航列表和线性图标。
 左侧导航面板里的具体内容尚未确认。
 
 ### 右侧内容区
@@ -210,6 +211,7 @@ frontend/src/styles/
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择入口。
 - `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、顶部账户摘要、路由导航面板和嵌套路由内容区。
 - `frontend/src/layouts/MobileShell.vue`：移动顶部栏、头像账户弹层、嵌套路由内容区和左侧路由导航 Drawer。
+- `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航列表和线性图标。
 - `frontend/src/components/AccountUserSummary.vue`：桌面顶部和移动账户弹层复用的当前用户头像与名称展示。
 - `frontend/src/components/AccountPopover.vue`：桌面和移动共用的紧凑账户信息与退出入口弹层。
 - `frontend/src/composables/useAccountPopover.ts`：账户弹层开关、路由变化关闭和 Escape 关闭逻辑。

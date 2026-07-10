@@ -62,19 +62,7 @@
           <span class="status-chip">API 待接入</span>
         </div>
 
-        <div class="menu-section">
-          <h3>模块导航</h3>
-          <RouterLink
-            v-for="item in appNavigation"
-            :key="item.routeName"
-            :to="{ name: item.routeName }"
-            class="menu-item"
-            active-class="menu-item--active"
-            @click="navOpen = false"
-          >
-            {{ item.label }}
-          </RouterLink>
-        </div>
+        <AppNavigationList :items="appNavigation" @navigate="navOpen = false" />
       </aside>
     </div>
   </div>
@@ -85,6 +73,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { authSession } from '../auth/session'
 import AccountPopover from '../components/AccountPopover.vue'
+import AppNavigationList from '../components/AppNavigationList.vue'
 import { useAccountPopover } from '../composables/useAccountPopover'
 import { useShellLogout } from '../composables/useShellLogout'
 import { appNavigation } from '../router/navigation'
