@@ -24,7 +24,7 @@
 - 库存、用户、库位等业务页面的最终交互流程。
 - 当前原型里的库存列表、指标、SKU、服务地址、按钮文案和操作项。
 
-除桌面登录和首个用户注册表单外，当前源码中的业务页面内容仍是预览占位，用来验证页面框架和视觉层级，不代表产品内容设计已经定稿。
+总览和物品当前只保留正式页面入口，未实现的业务内容不会以假数据、假状态或开发说明出现在发布界面中。
 
 ## 所属边界
 
@@ -63,18 +63,15 @@ DesktopShell
 
 ### 顶部栏
 
-顶部栏只负责全局状态和少量快捷动作，不承担页面跳转。
+顶部栏只负责产品标识以及后续确认的全局状态和少量快捷动作，不承担页面跳转。
 
-包含：
+当前包含：
 
 - 产品标识。
-- 服务状态。
-- 当前服务地址或连接状态。
 - 顶部右侧的当前用户头像和名称；点击后显示账户操作弹层。
-- 搜索、通知等少量快捷入口位置。
 
 页面和模块跳转不放在顶部栏。
-顶部栏内的具体按钮和状态内容尚未确认。
+服务状态、服务地址和快捷入口只有在存在真实数据来源且交互确认后才能加入。
 
 ### 左侧导航面板
 
@@ -89,7 +86,7 @@ DesktopShell
 - 后续可能加入的树形导航、分类导航等工作区导航。
 
 样式上使用浅底色和右边线表达区域边界，避免卡片套卡片。
-当前桌面导航宽度为 `224px`；高频入口直接排列，存在管理入口时使用轻分隔和分组标题，桌面与移动 Drawer 共用同一导航列表和线性图标。
+当前桌面导航宽度为 `224px`；高频入口直接排列，管理入口使用轻分隔和分组标题，桌面与移动 Drawer 共用同一导航列表和线性图标。
 左侧导航面板里的具体内容尚未确认。
 
 ### 右侧内容区
@@ -214,23 +211,21 @@ frontend/src/styles/
 - `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航列表和线性图标。
 - `frontend/src/components/AccountUserSummary.vue`：桌面顶部和移动账户弹层复用的当前用户头像与名称展示。
 - `frontend/src/components/AccountPopover.vue`：桌面和移动共用的紧凑账户信息与退出入口弹层。
-- `frontend/src/composables/useAccountPopover.ts`：账户弹层开关、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面与移动应用壳共用的退出操作和反馈编排。
 - `frontend/src/api/`：运行时服务地址、通用 HTTP 请求、统一错误和注册/登录接口契约。
 - `frontend/src/auth/session.ts`：当前登录 token、用户摘要、启动恢复和串行 refresh 轮换。
 - `frontend/src/auth/storage.ts`：纯 Web、Tauri WebView2 和 Android WebView 共用的版本化 localStorage refresh token 存储。
-- `frontend/src/pages/LoginPage.vue`：登录路由的响应式入口，桌面端使用真实表单，移动端仍为占位内容。
-- `frontend/src/pages/login/DesktopLoginPage.vue`：桌面登录表单、字段错误映射和登录成功导航。
-- `frontend/src/pages/RegisterPage.vue`：注册路由的响应式入口，桌面端使用首个用户表单，移动端只保留说明。
-- `frontend/src/pages/register/DesktopRegisterPage.vue`：桌面首个用户注册、密码确认、注册后自动登录和错误映射。
-- `frontend/src/pages/`：除鉴权页外还包含总览、物品和 404 页面骨架；当前不包含最终业务内容。
+- `frontend/src/pages/LoginPage.vue`：桌面和移动共用的响应式登录表单、字段错误映射和登录成功导航。
+- `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册、密码确认、注册后自动登录和错误映射。
+- `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的独立修改密码页面，强制改密时阻断其它前端页面。
+- `frontend/src/pages/UsersPage.vue`：桌面表格和移动列表共用数据、筛选分页和管理操作状态。
+- `frontend/src/pages/`：除鉴权页外还包含总览和物品正式页面入口；未实现的业务内容不展示假数据或开发说明。
 - `frontend/src/styles/`：页面框架样式层。
 
 路由与 history 策略见 `docs/frontend/routes.md`，HTTP 边界见 `docs/frontend/api-client.md`。
 
 ## 后续实施顺序
 
-1. 实现登出和当前 `requiresAuth` 元数据对应的鉴权守卫；强制改密的前端呈现方式另行确认。
-2. 为首批页面分别补充页面文档，确认内容结构、字段、操作和移动端呈现方式。
-3. 实现桌面物品列表代表页面，再单独确认移动端呈现。
-4. 抽取稳定通用组件，再补充业务页面文档。
+1. 为用户管理补自动化测试和更完整的移动账户操作。
+2. 实现物品列表真实纵向功能，并沿用用户管理建立的请求和响应式页面边界。
+3. 在实际复用出现时继续抽取表格、分页和表单原语。

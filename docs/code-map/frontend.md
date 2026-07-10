@@ -8,24 +8,35 @@
 
 - `frontend/package.json`：Vue、Vite 和 Vue Router 依赖；安装和脚本统一使用 pnpm。
 - `frontend/src/main.ts`：注册有效 token provider、跨标签页同步和自动刷新调度，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
-- `frontend/src/App.vue`：前端根 `RouterView`，不拥有具体页面布局。
+- `frontend/src/App.vue`：前端根 `RouterView` 和全局 Notice 挂载点，不拥有具体页面布局。
 - `frontend/src/env.d.ts`：Vite 环境变量和平台运行时注入对象类型。
 
 ## 路由与布局
 
-- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、登录/注册路由和 catch-all 404。
-- `frontend/src/router/meta.d.ts`：页面标题和 `requiresAuth` 元数据。
-- `frontend/src/router/guards.ts`：等待会话初始化、拦截明确匿名访问、安全解析登录回跳，并在停留期间监听会话失效导航。
-- `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置；权限过滤仍由上层按当前业务需要处理。
+- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、鉴权页面、用户管理路由，以及未匹配路径返回总览的 catch-all 重定向。
+- `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、`requiredPermission` 和强制改密页面放行元数据。
+- `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
+- `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置，并按当前会话权限快照过滤可见入口。
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
-- `frontend/src/layouts/DesktopShell.vue`：桌面顶部会话状态、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、真实用户头像、紧凑账户弹层、Drawer 和嵌套路由出口。
+- `frontend/src/layouts/DesktopShell.vue`：桌面品牌栏、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口；不展示未经真实数据支持的服务状态。
+- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、顶部右侧用户头像、紧凑账户弹层、Drawer 和嵌套路由出口。
 - `frontend/src/components/AccountUserSummary.vue`：桌面顶部与移动账户弹层复用的只读用户头像和名称摘要。
 - `frontend/src/components/AccountPopover.vue`：桌面和移动共用的账户操作弹层；移动端可补充用户摘要，组件不直接读取或清理会话。
 - `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航、线性图标和选中态渲染。
 - `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
+- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为和基础焦点处理。
+- `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
+- `frontend/src/components/users/`：创建用户、权限编辑、临时密码和启停确认表单。
+- `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。
+- `frontend/src/components/users/UserListToolbar.vue`：用户列表搜索、状态分段筛选、结果数量、刷新和创建入口；不请求 API。
+
+## 全局操作反馈
+
+- `frontend/src/notices/notice.ts`：全局响应式 Notice 状态和调用 API，提供成功、提示、警告、错误四种类型以及可选详情和点击回调，负责限量、自动消失、暂停和恢复倒计时。
+- 登录、注册、修改密码、退出和用户管理操作统一调用 Notice；字段级校验仍保留在对应表单附近。
+- 页面级加载失败可以保留持续错误状态，同时调用 Notice 告知本次请求失败。
 
 ## API client 与鉴权状态
 
@@ -44,12 +55,22 @@
   - 解析后端 `{ error: { code, message, details } }` 契约和字段校验详情。
 
 - `frontend/src/api/auth.ts`
-  - 定义注册、登录、refresh、logout、用户摘要和 token 响应 DTO。
-  - 当前实现 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/refresh` 和 `POST /api/auth/logout`。
+  - 定义注册、登录、refresh、logout、当前用户改密、用户摘要和 token 响应 DTO。
+  - 当前实现 `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/refresh`、`POST /api/auth/logout` 和 `POST /api/auth/me/password`。
+
+- `frontend/src/api/users.ts`
+  - 定义用户分页、用户详情、权限定义和管理请求 DTO。
+  - 实现用户查询、后续用户注册、启停、权限替换、临时密码和权限定义接口。
+
+- `frontend/src/auth/permissions.ts`
+  - 定义用户管理稳定权限代码和前端权限快照判断。
+  - 只收敛导航和操作入口，不替代 Axum 实时授权。
 
 - `frontend/src/auth/session.ts`
   - 在内存保存 access token、预计过期时间和用户摘要；refresh token 只从统一 localStorage 读取。
   - 公开五态会话初始化模型、单一初始化/refresh/logout Promise，并区分明确匿名和服务暂不可用。
+  - 改密成功后以不可变方式清除当前用户摘要中的强制改密标记，保留现有 token 和权限。
+  - 当前用户权限被管理接口修改后，同步内存权限快照，使导航和操作立即更新。
   - 在跨标签页锁内读取最新 refresh token，执行轮换或服务端吊销；任何登出结果都会清除本地会话。
   - 监听其它同源标签页移除持久 token，并同步清除当前内存会话和进入匿名状态。
 
@@ -69,13 +90,12 @@
 
 ## 页面
 
-- `frontend/src/pages/LoginPage.vue`：登录路由的响应式入口；桌面端加载真实表单，移动端仍保留占位内容。
-- `frontend/src/pages/login/DesktopLoginPage.vue`：桌面用户名密码表单，调用登录 API、映射字段错误、安全恢复内部目标并显示本机退出警告。
-- `frontend/src/pages/RegisterPage.vue`：注册路由的响应式入口；桌面端加载首个用户表单，移动端只保留说明。
-- `frontend/src/pages/register/DesktopRegisterPage.vue`：桌面首个用户注册、密码确认、错误映射和注册后自动登录流程。
-- `frontend/src/pages/DashboardPage.vue`：总览页面骨架。
-- `frontend/src/pages/ItemsPage.vue`：物品列表页面骨架。
-- `frontend/src/pages/NotFoundPage.vue`：客户端路由 404。
+- `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标并显示本机退出警告。
+- `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
+- `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
+- `frontend/src/pages/DashboardPage.vue`：总览正式页面入口；业务指标尚未实现，发布界面不展示假指标或开发说明。
+- `frontend/src/pages/ItemsPage.vue`：物品正式页面入口；列表业务尚未实现，发布界面不展示假数据或开发说明。
+- `frontend/src/pages/UsersPage.vue`：用户列表、搜索、状态筛选、分页、创建、启停、权限和临时密码操作编排。
 
 ## 样式和文档
 
@@ -84,6 +104,7 @@
 - `docs/frontend/routes.md`：路由、history 策略和鉴权守卫状态。
 - `docs/frontend/api-client.md`：API 地址、请求行为、错误契约和会话边界。
 - `docs/frontend/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。
+- `docs/frontend/user-management.md`：用户管理页面、权限边界、API、密码安全和验收重点。
 - `docs/frontend/visual-style.md`：当前视觉规则。
 
 ## 平台边界

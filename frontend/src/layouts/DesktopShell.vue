@@ -1,6 +1,6 @@
 <!--
   本文件拥有桌面端应用壳，属于 frontend 布局层。
-  它组织顶部状态、顶部账户摘要、路由导航和子路由出口，不拥有 token 规则或平台 shell 生命周期。
+  它组织品牌栏、顶部账户摘要、路由导航、退出入口和子路由出口，不拥有 token 规则或平台 shell 生命周期。
 -->
 <template>
   <div class="app-shell desktop-shell" data-shell="desktop">
@@ -9,21 +9,7 @@
         <span class="brand-mark">W</span>
         <span class="brand-name">WineStock</span>
       </div>
-
-      <div class="desktop-nav__status" aria-label="服务状态">
-        <span class="status-chip status-chip--ok">路由已就绪</span>
-        <span
-          class="status-chip"
-          :class="{
-            'status-chip--ok': authStatus === 'authenticated',
-            'status-chip--warning': authStatus === 'unavailable',
-          }"
-        >
-          {{ authStatusLabel }}
-        </span>
-      </div>
-
-      <div class="desktop-account">
+      <div v-if="userDisplayName" class="desktop-account">
         <button
           class="desktop-account-trigger"
           type="button"
@@ -59,7 +45,7 @@
     <div class="desktop-workspace">
       <main class="main-viewport main-viewport--desktop" aria-label="主内容">
         <aside class="desktop-navigation-pane" aria-label="导航面板">
-          <AppNavigationList :items="appNavigation" />
+          <AppNavigationList :items="visibleNavigation" />
         </aside>
 
         <section class="desktop-content-pane">
@@ -72,13 +58,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { authSession, authStatus } from '../auth/session'
+import { authSession } from '../auth/session'
 import AccountPopover from '../components/AccountPopover.vue'
 import AccountUserSummary from '../components/AccountUserSummary.vue'
 import AppNavigationList from '../components/AppNavigationList.vue'
 import { useAccountPopover } from '../composables/useAccountPopover'
 import { useShellLogout } from '../composables/useShellLogout'
-import { appNavigation } from '../router/navigation'
+import { getVisibleAppNavigation } from '../router/navigation'
 
 const {
   accountMenuOpen,
@@ -86,25 +72,13 @@ const {
   toggleAccountMenu: toggleAccountPopover,
 } = useAccountPopover()
 const { handleLogout, isLoggingOut, logoutError } = useShellLogout()
-const userDisplayName = computed(
-  () =>
-    authSession.value?.user.username ??
-    (authStatus.value === 'unavailable' ? '登录状态待恢复' : '未登录'),
+const userDisplayName = computed(() => authSession.value?.user.username ?? '')
+const visibleNavigation = computed(() =>
+  getVisibleAppNavigation(authSession.value?.user.permissions),
 )
 const userInitials = computed(() => {
   const characters = Array.from(userDisplayName.value.trim())
-  return characters.slice(0, 2).join('').toUpperCase() || '--'
-})
-const authStatusLabel = computed(() => {
-  if (authStatus.value === 'authenticated') {
-    return '会话已验证'
-  }
-  if (authStatus.value === 'unavailable') {
-    return '服务连接异常'
-  }
-  return authStatus.value === 'restoring' || authStatus.value === 'idle'
-    ? '正在恢复会话'
-    : '当前未登录'
+  return characters.slice(0, 2).join('').toUpperCase()
 })
 
 function toggleAccountMenu(): void {

@@ -3,6 +3,9 @@
 本目录保存 WineStock 的 Vue 共享前端源码。
 Desktop Tauri 与 Android 平台 shell 可以复用源码，但分别负责资源打包和 WebView 生命周期；Axum 不服务前端构建产物。
 
+第一次接手项目时，先阅读 [`../docs/frontend/getting-started.md`](../docs/frontend/getting-started.md)。
+需要评估当前问题和整改顺序时，阅读 [`../docs/frontend/remediation-report.md`](../docs/frontend/remediation-report.md)。
+
 ## 开发命令
 
 ```powershell

@@ -51,18 +51,12 @@
       <aside class="mobile-nav-drawer">
         <div class="mobile-nav-drawer__header">
           <div>
-            <p class="eyebrow">Navigation</p>
-            <h2>工作区</h2>
+            <h2>导航</h2>
           </div>
           <button class="icon-button" type="button" aria-label="关闭导航" @click="navOpen = false">×</button>
         </div>
 
-        <div class="mobile-drawer-status">
-          <span class="status-chip status-chip--ok">路由已就绪</span>
-          <span class="status-chip">API 待接入</span>
-        </div>
-
-        <AppNavigationList :items="appNavigation" @navigate="navOpen = false" />
+        <AppNavigationList :items="visibleNavigation" @navigate="navOpen = false" />
       </aside>
     </div>
   </div>
@@ -76,7 +70,7 @@ import AccountPopover from '../components/AccountPopover.vue'
 import AppNavigationList from '../components/AppNavigationList.vue'
 import { useAccountPopover } from '../composables/useAccountPopover'
 import { useShellLogout } from '../composables/useShellLogout'
-import { appNavigation } from '../router/navigation'
+import { getVisibleAppNavigation } from '../router/navigation'
 
 const navOpen = ref(false)
 const route = useRoute()
@@ -87,13 +81,16 @@ const {
 } = useAccountPopover()
 const { handleLogout, isLoggingOut, logoutError } = useShellLogout()
 const pageTitle = computed(() => route.meta.title)
+const visibleNavigation = computed(() =>
+  getVisibleAppNavigation(authSession.value?.user.permissions),
+)
 const userDisplayName = computed(() => authSession.value?.user.username ?? '')
 const userInitials = computed(() =>
   Array.from(userDisplayName.value.trim()).slice(0, 2).join('').toUpperCase(),
 )
 
 function openNavigation(): void {
-  closeAccountMenu()
+  accountMenuOpen.value = false
   navOpen.value = true
 }
 
@@ -113,6 +110,7 @@ function handleEscape(event: KeyboardEvent): void {
 watch(() => route.fullPath, () => {
   navOpen.value = false
 })
+
 onMounted(() => document.addEventListener('keydown', handleEscape))
 onBeforeUnmount(() => document.removeEventListener('keydown', handleEscape))
 </script>

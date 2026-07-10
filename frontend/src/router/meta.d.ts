@@ -7,6 +7,10 @@ declare module 'vue-router' {
     title: string
     /** 标记页面是否需要登录；全局守卫会等待会话初始化后执行判断。 */
     requiresAuth: boolean
+    /** 强制改密用户是否允许进入该页面；默认不允许。 */
+    allowsPasswordChangeRequired?: boolean
+    /** 进入页面所需的权限代码；只用于前端入口控制，后端仍执行实时授权。 */
+    requiredPermission?: string
   }
 }
 

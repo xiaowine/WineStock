@@ -36,6 +36,14 @@ export interface AuthLogoutRequest {
   refresh_token: string
 }
 
+/** 当前用户修改自己密码的请求。 */
+export interface AuthPasswordChangeRequest {
+  /** 当前明文密码，用于确认操作者仍掌握原凭据。 */
+  current_password: string
+  /** 新明文密码，服务端要求 8 至 128 个字符。 */
+  new_password: string
+}
+
 /** 登录响应中的当前用户摘要。 */
 export interface AuthUserResponse {
   /** 字符串形式的用户 ID。 */
@@ -93,5 +101,13 @@ export function logout(request: AuthLogoutRequest): Promise<void> {
     method: 'POST',
     json: request,
     authenticated: false,
+  })
+}
+
+/** 当前登录用户修改自己的密码；成功响应为 204。 */
+export function changeOwnPassword(request: AuthPasswordChangeRequest): Promise<void> {
+  return apiClient.request<void>('/api/auth/me/password', {
+    method: 'POST',
+    json: request,
   })
 }

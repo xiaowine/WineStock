@@ -1,6 +1,6 @@
 <!--
   本文件拥有桌面侧栏与移动 Drawer 共用的应用主导航列表，属于 frontend 通用导航组件。
-  它只渲染上层传入的入口，不决定路由权限，也不拥有 Drawer 开关状态。
+  它只渲染已完成权限过滤的入口，不决定路由权限，也不拥有 Drawer 开关状态。
 -->
 <template>
   <nav class="app-navigation" aria-label="模块导航">
@@ -33,7 +33,7 @@ import { computed } from 'vue'
 import type { AppNavigationIcon, AppNavigationItem } from '../router/navigation'
 
 const props = defineProps<{
-  /** 所属 Shell 当前需要展示的应用导航入口。 */
+  /** 已按当前会话权限过滤的应用导航入口。 */
   items: readonly AppNavigationItem[]
 }>()
 

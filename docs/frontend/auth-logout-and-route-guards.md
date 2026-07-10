@@ -1,4 +1,4 @@
-# 前端登出与鉴权路由守卫实现方案
+# 前端登出、鉴权路由守卫与强制改密实现方案
 
 本文记录 WineStock 前端“真正登出”、会话初始化和鉴权路由守卫的已实现方案与验收要求。
 实现建立在 API client、localStorage refresh token、Web Locks 多标签页轮换和 Vue Router 路由骨架之上，不改变 Axum 与平台 shell 的所有权边界。
@@ -13,6 +13,7 @@
 - 会话层公开五态初始化模型，网络不可用和凭据失效不会混为一谈。
 - access token 会在预计到期前自动 refresh，并在页面唤醒或网络恢复时补检。
 - `meta.requiresAuth` 已由全局异步前置守卫执行。
+- `password_change_required` 已由独立修改密码页面和全局守卫执行，受限会话不能进入其它前端页面。
 - 桌面应用壳已经提供登出入口、进行状态和本机退出警告。
 
 ## 实现目标
@@ -28,6 +29,7 @@
 7. refresh token 真正失效时，停留在受保护页面的用户自动进入登录页。
 8. 网络暂时不可用时不把“会话状态未知”错误判断为“明确未登录”。
 9. 前端空闲期间 access token 临近过期时主动 refresh，并在失败后自动恢复。
+10. 强制改密用户建立受管理会话后只能进入修改密码页，成功后恢复原内部目标。
 
 ## 不在本次范围
 
@@ -35,18 +37,18 @@
 - 不让 Axum 服务前端构建产物。
 - 不新增 Cookie、平台桥或平台专用 token 存储。
 - 不实现权限代码与所有页面的完整映射。
-- 不实现 `password_change_required` 对应的改密页面。
 - 不确定移动端最终账户菜单样式；会话和守卫逻辑必须保持共享。
 
 ## 所有权边界
 
 | 边界 | 负责内容 | 不负责内容 |
 | --- | --- | --- |
-| `frontend/src/api/auth.ts` | logout HTTP DTO 和请求函数 | 本地 token 清理、导航、页面提示 |
-| `frontend/src/auth/session.ts` | 会话状态、初始化、服务端登出用例、本地清理 | Vue Router 导航、按钮布局 |
+| `frontend/src/api/auth.ts` | logout 和当前用户改密 HTTP DTO/请求函数 | 本地 token 清理、导航、页面提示 |
+| `frontend/src/auth/session.ts` | 会话状态、初始化、服务端登出用例、本地清理和改密完成标记 | Vue Router 导航、按钮布局 |
 | `frontend/src/auth/coordination.ts` | refresh 与 logout 的跨标签页互斥 | token 持久化、HTTP 请求 |
 | `frontend/src/auth/storage.ts` | refresh token 读取、条件清理和 storage 事件 | 服务端吊销、路由跳转 |
-| `frontend/src/router/guards.ts` | 全局守卫、登录回跳和会话失效导航 | token 解析、HTTP 业务 |
+| `frontend/src/router/guards.ts` | 全局守卫、登录回跳、会话失效和强制改密导航 | token 解析、HTTP 业务 |
+| `frontend/src/pages/ChangePasswordPage.vue` | 当前用户改密表单、错误反馈、目标恢复和退出入口 | 管理员重置密码、token 签发规则 |
 | 桌面应用壳 | 退出按钮、加载状态和用户提示 | 服务端 token 规则 |
 | `core` auth 模块 | 吊销提交的 refresh token | 前端导航和 localStorage |
 
@@ -204,7 +206,7 @@ logout 必须与 refresh 使用同一个 Web Locks 锁名，避免下面的竞�
 当前桌面和移动应用壳共用同一退出编排：
 
 - 桌面端在顶部右侧显示用户名和头像，点击账户摘要后在紧凑弹层中显示“退出登录”按钮。
-- 移动端只在顶部右侧保留头像，点击后在紧凑弹层中显示用户名和“退出登录”按钮。
+- 移动端只在顶部右侧保留头像，点击后在紧凑账户弹层中显示用户名和“退出登录”按钮。
 - 点击后立即执行，不增加确认弹窗。
 - 请求期间禁用按钮并显示“正在退出…”。
 - 完成后使用 `router.replace({ name: 'login' })`，避免后退重新显示受保护页面。
@@ -233,6 +235,14 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (
+    status === 'authenticated' &&
+    authSession.value?.user.password_change_required &&
+    !to.meta.allowsPasswordChangeRequired
+  ) {
+    return { name: 'change-password' }
+  }
+
   if (to.name === 'login' && status === 'authenticated') {
     return { name: 'dashboard' }
   }
@@ -246,7 +256,8 @@ router.beforeEach(async (to) => {
 - `unavailable` 不重定向登录页，避免把服务暂时不可用误报为凭据失效。
 - 登录页自身不能再次重定向到登录页，避免死循环。
 - 注册页继续保持公开；服务端仍负责限制“首个用户”或后续注册权限。
-- 404 页面保持公开。
+- 强制改密用户只允许进入 `allowsPasswordChangeRequired = true` 的修改密码页。
+- 未匹配路径直接重定向到总览；未登录时再由总览的鉴权要求进入登录页。
 
 ### 登录后回跳
 
@@ -265,6 +276,23 @@ router.beforeEach(async (to) => {
 5. 使用 `router.replace()`，避免登录页留在历史栈中。
 
 不能把用户名、token、密码或 API 根地址写入 redirect query。
+
+### 强制改密
+
+登录和 refresh 响应中的用户摘要包含 `password_change_required`。
+
+前端处理顺序：
+
+1. 登录成功后始终先持久化 refresh token 并建立内存会话。
+2. 前置守卫发现强制改密标记时进入 `/change-password`。
+3. 原受保护页面写入安全的内部 `redirect` query。
+4. 修改密码页调用 `POST /api/auth/me/password`。
+5. 204 成功后清除当前会话用户摘要中的强制改密标记。
+6. 使用 replace 恢复合法内部目标；无目标时进入 dashboard。
+
+后端同时限制强制改密用户只能访问 `/api/auth/me` 和 `/api/auth/me/password`，前端守卫不替代该安全边界。
+
+用户停留期间从 `unavailable` 恢复为强制改密状态时，会话监听也会立即进入修改密码页。
 
 ## 停留页面期间的会话失效
 
@@ -326,15 +354,16 @@ watch(authStatus, (status) => {
 
 | 文件 | 已实现职责 |
 | --- | --- |
-| `frontend/src/api/auth.ts` | 增加 logout DTO 和 204 请求函数 |
-| `frontend/src/auth/session.ts` | 增加 AuthStatus、单一初始化 Promise、logout 用例和 logging-out 状态 |
+| `frontend/src/api/auth.ts` | 增加 logout、当前用户改密 DTO 和 204 请求函数 |
+| `frontend/src/auth/session.ts` | 增加 AuthStatus、单一初始化 Promise、logout 用例、logging-out 状态和改密完成标记 |
 | `frontend/src/auth/auto-refresh.ts` | 根据 access token 到期时间主动 refresh，并处理失败重试和页面唤醒补检 |
 | `frontend/src/auth/coordination.ts` | 复用现有锁名串行执行 refresh/logout，并将公开函数命名扩展为会话锁 |
-| `frontend/src/router/guards.ts` | 实现全局守卫、回跳校验和会话失效监听 |
-| `frontend/src/router/index.ts` | 导出供 main 安装守卫的共享 Router |
+| `frontend/src/router/guards.ts` | 实现全局守卫、回跳校验、会话失效和强制改密监听 |
+| `frontend/src/router/index.ts` | 导出共享 Router，并注册独立修改密码路由 |
 | `frontend/src/main.ts` | 启动同步、安装守卫并提前触发统一初始化 |
 | `frontend/src/layouts/DesktopShell.vue` | 增加退出按钮、加载状态、结果导航和 `unavailable` 连接状态提示 |
-| `frontend/src/pages/login/DesktopLoginPage.vue` | 登录成功后恢复合法 redirect；显示本机退出警告 |
+| `frontend/src/pages/LoginPage.vue` | 登录成功后恢复合法 redirect；显示本机退出警告 |
+| `frontend/src/pages/ChangePasswordPage.vue` | 实现响应式主动/强制改密、原目标恢复和退出入口 |
 | `docs/code-map/frontend.md` | 记录模块职责和新增守卫文件 |
 | `docs/frontend/api-client.md` | 记录登出、五态会话和多标签页语义 |
 | `docs/frontend/routes.md` | 记录实际守卫和安全回跳规则 |
@@ -350,6 +379,7 @@ watch(authStatus, (status) => {
 7. 增加会话失效监听和多标签页跳转。
 8. 更新代码地图与现状文档。
 9. 执行自动检查和真实浏览器多标签页验收。
+10. 增加强制改密路由、页面、会话标记更新和停留期间导航。
 
 ## 验收矩阵
 
@@ -360,6 +390,9 @@ watch(authStatus, (status) => {
 | 持久 token 已失效 | 清除记录并进入登录页 |
 | 恢复时服务离线 | 保留持久 token，不误显示“凭据失效”；页面显示连接异常状态 |
 | 登录成功且存在合法 redirect | 使用 replace 返回目标页面 |
+| 临时密码用户登录 | 建立受限会话并进入修改密码页，不进入业务 Shell |
+| 强制改密成功 | 清除本地强制标记并恢复原内部目标或 dashboard |
+| 强制改密状态在停留期间恢复 | 离开当前业务页面并进入修改密码页 |
 | redirect 为外部 URL | 拒绝并进入 dashboard |
 | 已登录访问登录页 | 重定向 dashboard |
 | 正常点击退出 | 服务端 logout 204，本地清理，进入登录页 |
@@ -408,6 +441,18 @@ pnpm build
 - localStorage/sessionStorage 均未写入 access token；除验收中主动触发的预期 401 外，控制台没有未处理 Promise、重复导航或无限重定向错误。
 - 将客户端时间推进到到期窗口后，未发起业务请求也会自动调用 refresh 并更新持久记录；模拟 refresh 网络失败时保留 token 和受保护页面，触发 `online` 后自动恢复为已验证会话。
 - 登出后继续触发焦点、联网和到期补检不会再发送 refresh，请求记录中只有预期的 logout 204。
+
+## 2026-07-11 强制改密验收结果
+
+- `frontend` 下执行 `pnpm build` 通过，Vue 类型检查和 Vite 生产构建均成功。
+- 后端 `user_password_reset_requires_reset_permission` 和 `current_user_changes_only_own_password_with_current_password` 定向测试通过。
+- 浏览器中临时密码用户从 `/login?redirect=/items` 登录后进入 `/change-password?redirect=/items`，未挂载业务 Shell。
+- 输入错误当前密码时保留表单并显示“当前密码错误”，服务端返回预期 401。
+- 输入正确当前密码后改密接口返回 204，当前会话清除强制标记并恢复 `/items`。
+- 已完成强制改密的普通用户可以主动打开 `/change-password`，页面提供返回总览和退出入口。
+- 390×844 移动视口下表单、提示和操作按钮无溢出或重叠。
+- 修改密码表单包含供浏览器密码管理器识别的视觉隐藏 username 字段；最终页面控制台无警告或错误。
+- 测试使用独立临时用户，完成后已由管理员禁用；浏览器只保留原管理员页面。
 
 ## 完成标准
 

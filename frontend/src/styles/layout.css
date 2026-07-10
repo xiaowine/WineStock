@@ -55,12 +55,6 @@
   font-weight: 700;
 }
 
-.desktop-nav__status {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .desktop-workspace {
   position: relative;
   flex: 1;
@@ -178,36 +172,7 @@
   flex-direction: column;
 }
 
-.standalone-page {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 24px;
-  background: var(--color-page);
-}
-
-.standalone-panel {
-  display: grid;
-  width: min(100%, 520px);
-  gap: 22px;
-  padding: 24px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.standalone-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.standalone-description {
-  color: var(--color-muted);
-  overflow-wrap: anywhere;
-}
-
-.desktop-auth-page {
+.auth-page {
   display: grid;
   min-height: 100vh;
   place-items: center;
@@ -215,7 +180,7 @@
   background: var(--color-page);
 }
 
-.desktop-auth-panel {
+.auth-panel {
   display: grid;
   width: min(100%, 440px);
   gap: 24px;
@@ -225,12 +190,12 @@
   background: var(--color-surface);
 }
 
-.desktop-auth-header {
+.auth-header {
   display: grid;
   gap: 22px;
 }
 
-.desktop-auth-header p:not(.eyebrow) {
+.auth-header p:not(.eyebrow) {
   margin-top: 8px;
   color: var(--color-muted);
 }
@@ -269,12 +234,5 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 4px;
-}
-
-.mobile-drawer-status {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
   padding: 0 4px;
 }

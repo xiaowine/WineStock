@@ -63,6 +63,38 @@ export function establishAuthSession(response: AuthTokenResponse): void {
   mutableAuthStatus.value = 'authenticated'
 }
 
+/** 改密接口成功后清除当前会话的强制改密标记；token 和权限保持不变。 */
+export function markPasswordChangeCompleted(): void {
+  const current = mutableAuthSession.value
+  if (!current) {
+    return
+  }
+
+  mutableAuthSession.value = {
+    ...current,
+    user: {
+      ...current.user,
+      password_change_required: false,
+    },
+  }
+}
+
+/** 当前用户权限被管理接口修改后同步会话快照；后续请求仍由后端重新执行授权。 */
+export function replaceCurrentSessionPermissions(userId: number, permissions: readonly string[]): void {
+  const current = mutableAuthSession.value
+  if (!current || current.user.id !== String(userId)) {
+    return
+  }
+
+  mutableAuthSession.value = {
+    ...current,
+    user: {
+      ...current.user,
+      permissions: [...permissions],
+    },
+  }
+}
+
 /** 启动同源标签页间的持久会话清理同步；重复调用不会注册多个监听器。 */
 export function startAuthSessionSynchronization(): void {
   if (stopPersistedSessionSynchronization) {

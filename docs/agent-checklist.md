@@ -136,6 +136,18 @@ cargo +stable test --workspace
 cargo +stable build -p winestock-server
 ```
 
+## API 契约核对顺序
+
+判断后端是否存在某个接口、查询参数、请求字段或响应字段时，按以下顺序核对：
+
+1. 优先读取当前运行服务输出的 `/api-docs/openapi.json`；它是当前公开 HTTP 契约的直接证据。
+2. 再核对 `docs/business-api.md`、`docs/business-api/` 和对应领域 API 文档，理解业务语义与权限要求。
+3. 只有需要追踪实现、排查契约与行为不一致或修改后端时，才继续查看 controller、service 和 repository 源码。
+
+不要因为前端未调用、页面未展示、手写 TypeScript DTO 缺少字段或源码搜索没有命中预期名称，就判断 API 不存在。删除前端 API 能力或交互入口前，必须先核对 OpenAPI 契约。
+
+仓库不提交静态 `openapi.json`；OpenAPI JSON 由运行中的 core/Axum 服务动态生成。服务已经运行时直接读取当前服务地址下的 `/api-docs/openapi.json`，不需要重新启动服务。
+
 For local API documentation smoke testing, run:
 
 ```text

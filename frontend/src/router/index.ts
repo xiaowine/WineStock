@@ -1,5 +1,6 @@
 // 本文件拥有 frontend 路由表和 history 策略；它不实现鉴权状态或平台 WebView 生命周期。
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { userPermissions } from '../auth/permissions'
 import AppShell from '../layouts/AppShell.vue'
 
 const routes: RouteRecordRaw[] = [
@@ -33,6 +34,16 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: true,
         },
       },
+      {
+        path: 'users',
+        name: 'users',
+        component: () => import('../pages/UsersPage.vue'),
+        meta: {
+          title: '用户管理',
+          requiresAuth: true,
+          requiredPermission: userPermissions.read,
+        },
+      },
     ],
   },
   {
@@ -54,11 +65,22 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
-    path: '/:pathMatch(.*)*',
-    name: 'not-found',
-    component: () => import('../pages/NotFoundPage.vue'),
+    path: '/change-password',
+    name: 'change-password',
+    component: () => import('../pages/ChangePasswordPage.vue'),
     meta: {
-      title: '页面不存在',
+      title: '修改密码',
+      requiresAuth: true,
+      allowsPasswordChangeRequired: true,
+    },
+  },
+  {
+    // 显式清空 catch-all 参数，避免 pathMatch 被继承到无参数的 dashboard 路由。
+    path: '/:pathMatch(.*)*',
+    name: 'home-fallback',
+    redirect: { name: 'dashboard', params: {} },
+    meta: {
+      title: 'WineStock',
       requiresAuth: false,
     },
   },
