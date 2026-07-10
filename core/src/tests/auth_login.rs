@@ -23,6 +23,21 @@ fn auth_request_validation_rejects_blank_or_oversized_fields() {
     };
     assert!(register.validate().is_err());
 
+    let short_password_register = AuthRegisterRequest {
+        username: "admin".to_owned(),
+        password: "short".to_owned(),
+    };
+    assert!(short_password_register.validate().is_err());
+
+    let legacy_password_login = AuthLoginRequest {
+        username: "admin".to_owned(),
+        password: "short".to_owned(),
+        device_name: "workstation".to_owned(),
+        client_kind: AuthClientKind::Desktop,
+        version: "1.0.0".to_owned(),
+    };
+    assert!(legacy_password_login.validate().is_ok());
+
     let login = AuthLoginRequest {
         username: "admin".to_owned(),
         password: "password".to_owned(),

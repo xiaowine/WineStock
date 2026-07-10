@@ -42,7 +42,7 @@ pub struct AuthLoginRequest {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub username: String,
 
-    /// 明文密码只允许出现在登录请求中，服务端不得持久化该值。
+    /// 明文密码只允许出现在登录请求中，服务端不得持久化该值；登录不得用新密码策略拒绝历史凭据。
     #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
     pub password: String,
 
@@ -69,8 +69,8 @@ pub struct AuthRegisterRequest {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub username: String,
 
-    /// 明文密码只允许出现在注册请求中，服务端会保存 Argon2 哈希。
-    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    /// 明文密码只允许出现在注册请求中，长度要求为 8 至 256 个字符，服务端会保存 Argon2 哈希。
+    #[garde(length(min = 8, max = 256), custom(validate_not_blank))]
     pub password: String,
 }
 
