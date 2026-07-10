@@ -73,13 +73,17 @@ pub(crate) async fn get_user(
     load_admin_user_response(&rbac, &user).await
 }
 
-/// 更新用户状态；禁止禁用最后一个拥有用户权限管理能力的 active 用户。
+/// 更新用户状态；禁止停用当前操作者，并保护最后一个 active 权限管理员。
 pub(crate) async fn update_user_status(
     state: &CoreState,
     current_user: &CurrentUser,
     id: i64,
     request: controller::UserStatusUpdateRequest,
 ) -> Result<controller::UserAdminResponse, AuthApiError> {
+    if id == current_user.user_id && request.status == controller::UserStatus::Disabled {
+        return Err(AuthApiError::SelfStatusUpdateForbidden);
+    }
+
     let status = request.status.as_code().to_owned();
     let transaction = state.database().begin().await?;
     let users = UserRepository::new(&transaction);
@@ -154,7 +158,7 @@ pub(crate) async fn update_user_permissions(
     Ok(response)
 }
 
-/// 拥有重置密码权限的用户设置目标用户临时密码；目标用户下次登录后必须改密。
+/// 为其他用户设置临时密码；禁止作用于当前操作者，目标用户下次登录后必须改密。
 pub(crate) async fn reset_user_password(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -164,6 +168,10 @@ pub(crate) async fn reset_user_password(
     if request.password.is_empty() {
         return Err(AuthApiError::InvalidRequest);
     }
+    if id == current_user.user_id {
+        return Err(AuthApiError::SelfPasswordResetForbidden);
+    }
+
     let password_hash = create_password_hash(&request.password)?;
     let transaction = state.database().begin().await?;
     let users = UserRepository::new(&transaction);

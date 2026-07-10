@@ -38,6 +38,7 @@
 - `core/src/users/service/register.rs`：用户注册、首个用户事务判断、全部权限分配和审计。
 - `core/src/users/service/me.rs`：当前用户快照与自助改密。
 - `core/src/users/service/management.rs`：用户列表、详情、启停、权限替换、临时密码和防锁死规则。
+- 用户管理 service 同时拒绝当前操作者停用自己或为自己设置管理员临时密码，避免绕过前端入口限制。
 - `core/src/users/service/response.rs`：用户与权限响应投影。
 - `core/src/users/service/pagination.rs`：用户分页。
 - `core/src/users/service/validation.rs`：用户名、搜索、状态和权限代码归一化。

@@ -32,6 +32,12 @@ pub enum AuthApiError {
     /// 操作会导致系统没有可分配权限的 active 用户。
     LastPermissionManagerRequired,
 
+    /// 当前操作者试图停用自己的账号。
+    SelfStatusUpdateForbidden,
+
+    /// 当前操作者试图为自己的账号设置管理员临时密码。
+    SelfPasswordResetForbidden,
+
     /// 用户名或密码错误，响应不暴露具体失败点。
     InvalidCredentials,
 
@@ -79,6 +85,16 @@ impl IntoResponse for AuthApiError {
                 StatusCode::CONFLICT,
                 "last_permission_manager_required",
                 "至少需要保留一个可管理权限的启用用户",
+            ),
+            Self::SelfStatusUpdateForbidden => (
+                StatusCode::FORBIDDEN,
+                "self_status_update_forbidden",
+                "不能停用当前账号",
+            ),
+            Self::SelfPasswordResetForbidden => (
+                StatusCode::FORBIDDEN,
+                "self_password_reset_forbidden",
+                "不能为当前账号设置临时密码",
             ),
             Self::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,

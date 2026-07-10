@@ -422,6 +422,62 @@ async fn user_management_protects_last_active_permission_manager() {
     assert_eq!(remove_manage_permission.status(), StatusCode::OK);
 }
 
+#[tokio::test]
+async fn user_management_rejects_self_disable_and_self_temporary_password_reset() {
+    let app = seeded_app().await;
+    let admin_login = login_request(&app, "admin", "password").await;
+    let admin_id = user_id(&app, "admin").await;
+    let audit_count_before = audit_count(&app, admin_id).await;
+
+    let disable_self = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{admin_id}/status"),
+        &admin_login.body.access_token,
+        &UserStatusUpdateRequest {
+            status: UserStatus::Disabled,
+        },
+    )
+    .await;
+    assert_eq!(disable_self.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        error_code(disable_self).await,
+        "self_status_update_forbidden"
+    );
+
+    let reset_self = authorized_json_request(
+        &app,
+        "POST",
+        &format!("/api/users/{admin_id}/password"),
+        &admin_login.body.access_token,
+        &UserPasswordResetRequest {
+            password: "temporary-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(reset_self.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        error_code(reset_self).await,
+        "self_password_reset_forbidden"
+    );
+
+    let admin = UserRepository::new(app.state.database())
+        .find_by_id(admin_id)
+        .await
+        .expect("admin lookup should succeed")
+        .expect("admin should exist");
+    assert_eq!(admin.status, "active");
+    assert!(!admin.password_change_required);
+    assert_eq!(audit_count(&app, admin_id).await, audit_count_before);
+
+    let refresh = raw_refresh_request(&app, &admin_login.body.refresh_token).await;
+    assert_eq!(refresh.status(), StatusCode::OK);
+    let original_password = raw_login_request(&app, "admin", "password").await;
+    assert_eq!(original_password.status(), StatusCode::OK);
+    let rejected_password = raw_login_request(&app, "admin", "temporary-password").await;
+    assert_eq!(rejected_password.status(), StatusCode::UNAUTHORIZED);
+}
+
 async fn user_id(app: &crate::test_support::TestApp, username: &str) -> i64 {
     UserRepository::new(app.state.database())
         .find_by_username(username)
