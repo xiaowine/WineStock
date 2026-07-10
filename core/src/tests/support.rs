@@ -47,7 +47,6 @@ pub(crate) async fn seeded_app() -> TestApp {
         .create_user(CreateUser {
             username: "admin".to_owned(),
             password_hash: password_hash("password"),
-            display_name: Some("Admin".to_owned()),
         })
         .await
         .expect("user should be created");
@@ -99,7 +98,6 @@ pub(crate) async fn seed_plain_user(database: &DatabaseConnection, username: &st
         .create_user(CreateUser {
             username: username.to_owned(),
             password_hash: password_hash(password),
-            display_name: None,
         })
         .await
         .expect("plain user should be created");

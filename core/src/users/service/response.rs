@@ -36,7 +36,6 @@ pub(super) async fn load_admin_user_response(
     Ok(controller::UserAdminResponse {
         id: user.id,
         username: user.username.clone(),
-        display_name: user.display_name.clone(),
         status: controller::UserStatus::from_code(&user.status)?,
         permissions: rbac.list_user_permissions(user.id).await?,
         password_change_required: user.password_change_required,

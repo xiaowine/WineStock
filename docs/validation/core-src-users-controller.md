@@ -6,9 +6,9 @@
 
 - `UserListQuery.page`：可空；服务层归一为最小 1。
 - `UserListQuery.page_size`：可空；服务层默认 50，最大 200。
-- `UserListQuery.search`：可空；存在时 trim 后不能为空，用于用户名或展示名模糊搜索。
+- `UserListQuery.search`：可空；存在时 trim 后不能为空，用于用户名模糊搜索。
 - `UserListQuery.status`：可空；存在时只允许 `active` 或 `disabled`。
-- `UserAdminResponse`：返回用户 ID、用户名、展示名、状态、权限、强制改密标记、创建时间和更新时间；不返回密码哈希。
+- `UserAdminResponse`：返回用户 ID、用户名、状态、权限、强制改密标记、创建时间和更新时间；不返回密码哈希。
 
 ## 写请求 DTO
 

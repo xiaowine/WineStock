@@ -42,7 +42,6 @@ pub(crate) async fn register(
         CreateUser {
             username,
             password_hash,
-            display_name: None,
         },
         current_user,
     )

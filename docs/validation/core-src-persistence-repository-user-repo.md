@@ -12,14 +12,13 @@
 |-----------------|--------------------------------------------------------------------|
 | `username`      | `garde length(min = 1, max = 64)`；trim 后非空；数据库唯一                   |
 | `password_hash` | `garde length(min = 1, max = 512)`；trim 后非空；由服务端 Argon2 生成；不得是明文密码 |
-| `display_name`  | 可空；存在时 trim 后非空，最大 64 字节；当前注册流程写入 `None`                           |
 
 ## `UserRepository`
 
 写库约束：
 
 - `create_user()` 只创建 `active` 用户。
-- `list_users()` 支持按用户名/展示名模糊搜索和状态筛选；分页参数由服务层归一化。
+- `list_users()` 支持按用户名模糊搜索和状态筛选；分页参数由服务层归一化。
 - `update_status()` 只写入服务层已经校验过的 `active` 或 `disabled`。
 - `update_password_hash()` 只接收服务端生成的 Argon2 哈希，不接收明文密码；调用方必须同时声明是否要求用户下次登录后改密。
 - `created_at` 和 `updated_at` 使用 SQLite UTC 时间生成。

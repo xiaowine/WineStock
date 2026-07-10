@@ -85,6 +85,15 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
     assert_eq!(
         query_i64(
             &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('auth_users') WHERE name = 'display_name'",
+            "count",
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
             "SELECT COUNT(*) AS count FROM pragma_table_info('auth_users') WHERE name = 'password_change_required'",
             "count",
         )

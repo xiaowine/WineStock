@@ -3,7 +3,7 @@
 //! 本模块属于 `core` 的持久化层，封装用户创建、查询、状态更新、密码哈希和强制改密标记更新。
 //! 权限定义和分配关系属于 RBAC repository，不应混入账号仓储。
 
-use crate::validation::{validate_not_blank, validate_optional_not_blank};
+use crate::validation::validate_not_blank;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr,
     EntityTrait, QueryFilter, Set, Statement, Value,
@@ -23,10 +23,6 @@ pub(crate) struct CreateUser {
     /// 已完成算法处理的密码哈希，不接受明文密码。
     #[garde(length(min = 1, max = 512), custom(validate_not_blank))]
     pub password_hash: String,
-
-    /// 展示名称；为空时可回退使用用户名。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
-    pub display_name: Option<String>,
 }
 
 /// 用户分页查询条件。
@@ -38,7 +34,7 @@ pub(crate) struct ListUsers {
     /// 每页数量。
     pub page_size: u64,
 
-    /// 用户名或展示名模糊搜索关键字。
+    /// 用户名模糊搜索关键字。
     pub search: Option<String>,
 
     /// 按用户状态筛选。
@@ -79,7 +75,6 @@ where
         let active_user = user::ActiveModel {
             username: Set(input.username),
             password_hash: Set(input.password_hash),
-            display_name: Set(input.display_name),
             status: Set("active".to_owned()),
             password_change_required: Set(false),
             created_at: Set(now.clone()),
@@ -132,7 +127,6 @@ where
                         auth_users.id,
                         auth_users.username,
                         auth_users.password_hash,
-                        auth_users.display_name,
                         auth_users.status,
                         auth_users.password_change_required,
                         auth_users.created_at,
@@ -155,7 +149,6 @@ where
                     id: row.try_get("", "id")?,
                     username: row.try_get("", "username")?,
                     password_hash: row.try_get("", "password_hash")?,
-                    display_name: row.try_get("", "display_name")?,
                     status: row.try_get("", "status")?,
                     password_change_required: row.try_get("", "password_change_required")?,
                     created_at: row.try_get("", "created_at")?,
@@ -228,9 +221,8 @@ fn list_users_query_parts(input: &ListUsers) -> (String, String, Vec<Value>) {
     let mut values = Vec::new();
 
     if let Some(search) = input.search.as_ref() {
-        clauses.push("(auth_users.username LIKE ? OR auth_users.display_name LIKE ?)");
+        clauses.push("auth_users.username LIKE ?");
         let pattern = format!("%{search}%");
-        values.push(pattern.clone().into());
         values.push(pattern.into());
     }
 

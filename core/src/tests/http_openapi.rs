@@ -35,6 +35,9 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     let value: serde_json::Value = json_body(response).await;
     assert!(value["components"]["schemas"]["ApiErrorResponse"].is_object());
     assert!(value["components"]["schemas"]["LocationGroupTreeNode"].is_object());
+    assert!(
+        value["components"]["schemas"]["UserAdminResponse"]["properties"]["display_name"].is_null()
+    );
     assert!(value["components"]["securitySchemes"]["bearerAuth"].is_object());
     assert!(value["paths"]["/api/health"].is_object());
     assert!(value["paths"]["/api/health"]["get"]["security"].is_null());

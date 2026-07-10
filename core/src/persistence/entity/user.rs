@@ -18,9 +18,6 @@ pub struct Model {
     /// 密码哈希，不保存明文密码。
     pub password_hash: String,
 
-    /// 展示名称；为空时可回退使用用户名。
-    pub display_name: Option<String>,
-
     /// 用户状态，当前允许 `active` 或 `disabled`。
     pub status: String,
 

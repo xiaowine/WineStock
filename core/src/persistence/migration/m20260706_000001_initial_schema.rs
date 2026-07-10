@@ -44,7 +44,6 @@ const INITIAL_SCHEMA: &[&str] = &[
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
-        display_name TEXT,
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
         password_change_required INTEGER NOT NULL DEFAULT 0 CHECK (password_change_required IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

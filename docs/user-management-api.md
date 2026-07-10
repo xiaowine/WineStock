@@ -29,7 +29,6 @@
 | --- | --- | --- |
 | `id` | integer | 用户 ID |
 | `username` | string | 登录用户名 |
-| `display_name` | string/null | 展示名称 |
 | `status` | `active`/`disabled` | 用户状态 |
 | `permissions` | string[] | 用户直接拥有的权限代码 |
 | `password_change_required` | boolean | 是否必须先修改临时密码 |
@@ -53,7 +52,7 @@
 - 查询参数：
   - `page`：页码，默认 1。
   - `page_size`：每页数量，默认 50，最大 200。
-  - `search`：按用户名或展示名模糊搜索。
+  - `search`：按用户名模糊搜索。
   - `status`：按 `active` 或 `disabled` 筛选。
 - 响应：`200` + `PaginatedResponse<UserAdminResponse>`
 - 失败：

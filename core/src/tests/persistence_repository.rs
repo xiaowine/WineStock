@@ -29,7 +29,6 @@ async fn refresh_token_repository_handles_create_revoke_and_rotate_in_transactio
         .create_user(CreateUser {
             username: "admin".to_owned(),
             password_hash: "password-hash".to_owned(),
-            display_name: Some("Admin".to_owned()),
         })
         .await
         .expect("user should be created");
@@ -151,7 +150,6 @@ async fn rbac_user_permission_assignment_can_append_or_replace_permissions() {
         .create_user(CreateUser {
             username: "ops".to_owned(),
             password_hash: "password-hash".to_owned(),
-            display_name: Some("Ops".to_owned()),
         })
         .await
         .expect("user should be created");
@@ -200,7 +198,6 @@ async fn wal_allows_reads_while_a_write_transaction_is_open() {
         .create_user(CreateUser {
             username: "reader".to_owned(),
             password_hash: "password-hash".to_owned(),
-            display_name: None,
         })
         .await
         .expect("seed user should be created");

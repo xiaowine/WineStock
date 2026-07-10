@@ -177,7 +177,6 @@ PUT /api/users/{id}/roles
 {
   "id": 1,
   "username": "admin",
-  "display_name": "Admin",
   "status": "active",
   "permissions": ["stock.item.read", "user.read"],
   "created_at": "...",

@@ -61,7 +61,7 @@ pub(crate) struct UserListQuery {
     /// 每页数量，默认 50，最大 200。
     pub page_size: Option<u64>,
 
-    /// 按用户名或展示名模糊搜索。
+    /// 按用户名模糊搜索。
     pub search: Option<String>,
 
     /// 按用户状态筛选，允许 `active` 或 `disabled`。
@@ -76,9 +76,6 @@ pub(crate) struct UserAdminResponse {
 
     /// 登录用户名。
     pub username: String,
-
-    /// 展示名称。
-    pub display_name: Option<String>,
 
     /// 用户状态。
     pub status: UserStatus,
