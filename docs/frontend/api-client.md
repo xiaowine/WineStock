@@ -102,11 +102,14 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 - 记录包含 API 根地址，切换服务时不会把旧 token 发送到新服务。
 - 纯 Web、Tauri WebView2 和 Android WebView 使用同一存储机制，不需要平台桥或 Cookie。
 - localStorage 中的 refresh token 可被同源 JavaScript 读取，因此必须配合严格 CSP、受控资源和 refresh token 轮换。
-- 尚未实现登出页面和路由守卫。
+- 会话公开 `idle`、`restoring`、`authenticated`、`anonymous` 和 `unavailable` 状态，路由只把明确 `anonymous` 视为未登录。
+- 桌面端已经提供真实登出入口，全局路由守卫已经接入。
+
+登出 API、会话初始化状态和路由守卫的完整实现见 [`auth-logout-and-route-guards.md`](auth-logout-and-route-guards.md)。
 
 ## 会话恢复与轮换
 
-- 应用挂载时异步读取持久化 refresh token 并调用 `POST /api/auth/refresh`。
+- 初始路由导航等待统一初始化 Promise；持久 token 存在时调用 `POST /api/auth/refresh`。
 - access token 临近过期时，首个业务请求先执行 refresh。
 - 并发请求共用同一个 refresh Promise，避免重复使用已经轮换失效的旧 token。
 - 支持 Web Locks 时，同源标签页和 Worker 共用独占 refresh 锁；获得锁后才读取 localStorage 中的最新 token。
@@ -114,7 +117,16 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 - refresh 成功后先覆盖保存新 refresh token，再更新内存会话。
 - `invalid_refresh_token` 只有在失败 token 仍是当前持久记录时才会清除 localStorage，避免旧标签页删除其它标签页的新 token。
 - 一个标签页移除持久 token 时，其它同源标签页通过 `storage` 事件清除内存会话。
-- 网络或服务暂时不可用时不删除持久化 token，后续 API 请求可以再次尝试恢复。
+- 网络或服务暂时不可用时进入 `unavailable`，不删除持久化 token，也不把受保护页面误重定向为凭据失效。
+
+## 登出
+
+- `POST /api/auth/logout` 只提交获得跨标签页锁后重新读取的最新 refresh token，不依赖 Bearer access token。
+- refresh 与 logout 使用同一个 Web Locks 独占锁，避免只吊销已经被其它标签页轮换的旧 token。
+- 服务端返回 204 时结果为 `revoked`；`invalid_refresh_token` 或本地已无 token 时结果为 `already_invalid`。
+- 网络、配置、5xx 或响应错误时结果为 `local_only`；无论哪种结果，本机会清除内存和持久会话。
+- 同标签页重复登出复用一个 Promise；登出期间 API client 不再启动新的 refresh。
+- 其它标签页收到持久 token 移除事件后清除内存 access token，并由路由监听离开受保护页面。
 
 ## 当前注册与登录接入
 
@@ -124,6 +136,6 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 - 桌面登录页调用 `POST /api/auth/login`。
 - 登录请求的设备名称、客户端类型和版本号来自运行时配置。
 - 字段校验错误映射到用户名和密码输入框。
-- 登录成功建立内存会话并导航到总览。
+- 登录成功建立内存会话；合法内部 `redirect` 使用 replace 回到原目标，其它值回到总览。
 - 移动端登录页面仍为占位内容，注册路由只显示桌面端完成提示。
 - 服务端返回 `password_change_required` 时当前停留在登录页并明确提示，相关 UI 流程尚未确定。

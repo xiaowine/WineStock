@@ -18,6 +18,10 @@
       </header>
 
       <form class="auth-form" novalidate @submit.prevent="submitLogin">
+        <div v-if="logoutWarning" class="form-warning" role="status">
+          {{ logoutWarning }}
+        </div>
+
         <label class="form-field">
           <span>用户名</span>
           <input
@@ -75,7 +79,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { login } from '../../api/auth'
 import {
   ApiConfigurationError,
@@ -86,8 +90,10 @@ import {
 import { resolveApiClientMetadata } from '../../api/runtime-config'
 import { establishAuthSession } from '../../auth/session'
 import { AuthPersistenceError } from '../../auth/storage'
+import { resolvePostLoginLocation } from '../../router/guards'
 
 const router = useRouter()
+const route = useRoute()
 const username = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
@@ -96,6 +102,9 @@ const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({})
 
 const usernameError = computed(() => fieldErrors.value.username?.[0])
 const passwordError = computed(() => fieldErrors.value.password?.[0])
+const logoutWarning = computed(() =>
+  route.query.logout === 'local_only' ? '本机已退出，但服务端会话吊销未确认' : '',
+)
 
 /** 校验并提交桌面登录表单；失败时保留输入并映射统一 API 错误。 */
 async function submitLogin(): Promise<void> {
@@ -122,7 +131,7 @@ async function submitLogin(): Promise<void> {
     }
 
     establishAuthSession(response)
-    await router.replace({ name: 'dashboard' })
+    await router.replace(resolvePostLoginLocation(router, route.query.redirect))
   } catch (error) {
     applyLoginError(error)
   } finally {

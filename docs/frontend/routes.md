@@ -44,21 +44,23 @@ http://127.0.0.1:<vite-port>/#/items
 
 ## 鉴权状态
 
-`requiresAuth` 当前只是路由契约元数据，尚未执行登录拦截。
-API client、localStorage 持久会话、启动恢复和 refresh 轮换已经建立，但路由守卫尚未实现。
-在守卫完成前，不在各业务页面分散添加登录判断。
+`frontend/src/router/guards.ts` 已经统一执行 `requiresAuth`，业务页面不再分散判断登录状态：
 
-后续鉴权守卫需要统一处理：
+- 初始导航等待会话层的同一个初始化 Promise，避免恢复完成前闪跳登录页。
+- 只有明确 `anonymous` 才把受保护页面 replace 到 `/login?redirect=<内部路径>`。
+- `unavailable` 保留目标页面和持久 token，由应用壳显示服务连接异常。
+- 已登录访问登录页时进入 dashboard。
+- 登录成功后只接受以 `/` 开头、非 `//`、无反斜杠且能匹配现有路由的内部 redirect；其它值进入 dashboard。
+- 会话在停留期间变为 `anonymous` 时，监听器会把当前受保护页面 replace 到登录页。
+- 一个标签页退出后，其它标签页通过 storage 事件清理内存会话并触发相同导航。
 
-- 未登录访问受保护页面时导航到登录页。
-- 登录成功后恢复原目标页面。
-- 未恢复出有效会话时统一进入登录页。
-- 用户权限变化后的导航可见性与接口 `403` 状态。
+完整状态模型、登出竞态和验收记录见 [`auth-logout-and-route-guards.md`](auth-logout-and-route-guards.md)。
 
 ## 尚未确认
 
 - 除总览和物品外的一级模块路由与排序。
 - 路由和具体权限代码的完整映射。
+- 用户权限变化后的导航可见性与接口 `403` 状态。
 - 页面参数、详情页层级、编辑页是独立页面还是面板。
 - 服务端 `password_change_required` 状态的前端呈现方式；当前没有独立修改密码页面。
 - Android 返回键和平台深链接行为。

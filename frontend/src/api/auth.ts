@@ -30,6 +30,12 @@ export interface AuthRefreshRequest {
   refresh_token: string
 }
 
+/** 吊销 refresh token 的登出请求。 */
+export interface AuthLogoutRequest {
+  /** 当前持有的 opaque refresh token。 */
+  refresh_token: string
+}
+
 /** 登录响应中的当前用户摘要。 */
 export interface AuthUserResponse {
   /** 字符串形式的用户 ID。 */
@@ -75,6 +81,15 @@ export function registerInitialUser(request: AuthRegisterRequest): Promise<AuthU
 /** 轮换 refresh token 并获取新的 access token。 */
 export function refresh(request: AuthRefreshRequest): Promise<AuthTokenResponse> {
   return apiClient.request<AuthTokenResponse>('/api/auth/refresh', {
+    method: 'POST',
+    json: request,
+    authenticated: false,
+  })
+}
+
+/** 吊销当前 refresh token；接口不依赖 Bearer access token。 */
+export function logout(request: AuthLogoutRequest): Promise<void> {
+  return apiClient.request<void>('/api/auth/logout', {
     method: 'POST',
     json: request,
     authenticated: false,
