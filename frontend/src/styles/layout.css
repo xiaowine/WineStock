@@ -14,12 +14,20 @@
   top: 0;
   z-index: var(--z-nav);
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   height: var(--nav-height-desktop);
   padding: 0 16px;
   border-bottom: 1px solid var(--color-border);
   background: #fbfbfc;
+}
+
+.desktop-account {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: end;
 }
 
 .brand-lockup {
@@ -163,7 +171,9 @@
 }
 
 .mobile-topbar__actions {
+  position: relative;
   display: inline-flex;
+  align-items: center;
   gap: 4px;
 }
 

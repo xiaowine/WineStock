@@ -19,9 +19,12 @@
 - `frontend/src/router/navigation.ts`：当前应用壳一级导航入口，不执行权限判断。
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
-- `frontend/src/layouts/DesktopShell.vue`：桌面顶部会话/连接状态、左侧导航、当前用户摘要、真实登出按钮和嵌套路由出口。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、Drawer 和嵌套路由出口；当前未接入真实登录界面。
-- `frontend/src/components/SidebarUserSummary.vue`：桌面侧栏底部的只读用户头像和名称。
+- `frontend/src/layouts/DesktopShell.vue`：桌面顶部会话状态、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口。
+- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、真实用户头像、紧凑账户弹层、Drawer 和嵌套路由出口。
+- `frontend/src/components/AccountUserSummary.vue`：桌面顶部与移动账户弹层复用的只读用户头像和名称摘要。
+- `frontend/src/components/AccountPopover.vue`：桌面和移动共用的账户操作弹层；移动端可补充用户摘要，组件不直接读取或清理会话。
+- `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
+- `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
 
 ## API client 与鉴权状态
 
@@ -75,7 +78,7 @@
 
 ## 样式和文档
 
-- `frontend/src/styles/`：浅色 token、基础样式、布局、组件和响应式规则。
+- `frontend/src/styles/`：浅色视觉与 motion token、减少动态效果适配、布局、组件和响应式规则。
 - `docs/frontend/page-framework.md`：页面框架和桌面/移动所有权。
 - `docs/frontend/routes.md`：路由、history 策略和鉴权守卫状态。
 - `docs/frontend/api-client.md`：API 地址、请求行为、错误契约和会话边界。

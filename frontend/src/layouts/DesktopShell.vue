@@ -1,6 +1,6 @@
 <!--
   本文件拥有桌面端应用壳，属于 frontend 布局层。
-  它组织顶部状态、路由导航、账户退出入口和子路由出口，不拥有 token 规则或平台 shell 生命周期。
+  它组织顶部状态、顶部账户摘要、路由导航和子路由出口，不拥有 token 规则或平台 shell 生命周期。
 -->
 <template>
   <div class="app-shell desktop-shell" data-shell="desktop">
@@ -21,6 +21,38 @@
         >
           {{ authStatusLabel }}
         </span>
+      </div>
+
+      <div class="desktop-account">
+        <button
+          class="desktop-account-trigger"
+          type="button"
+          :aria-expanded="accountMenuOpen"
+          aria-controls="desktop-account-popover"
+          :aria-label="`查看当前用户 ${userDisplayName} 的账户信息`"
+          @click="toggleAccountMenu"
+        >
+          <AccountUserSummary :initials="userInitials" :display-name="userDisplayName" />
+        </button>
+        <button
+          v-if="accountMenuOpen"
+          class="account-popover-backdrop"
+          type="button"
+          aria-label="关闭账户信息"
+          @click="closeAccountMenu"
+        />
+        <Transition name="account-popover">
+          <AccountPopover
+            v-if="accountMenuOpen"
+            id="desktop-account-popover"
+            :initials="userInitials"
+            :display-name="userDisplayName"
+            :show-user-summary="false"
+            :logout-error="logoutError"
+            :is-logging-out="isLoggingOut"
+            @logout="handleLogout"
+          />
+        </Transition>
       </div>
     </header>
 
@@ -45,20 +77,6 @@
             </RouterLink>
           </div>
 
-          <div class="sidebar-account-panel">
-            <SidebarUserSummary :initials="userInitials" :display-name="userDisplayName" />
-            <p v-if="logoutError" class="sidebar-account-error" role="alert">
-              {{ logoutError }}
-            </p>
-            <button
-              class="secondary-button sidebar-logout-button"
-              type="button"
-              :disabled="isLoggingOut"
-              @click="handleLogout"
-            >
-              {{ isLoggingOut ? '正在退出…' : '退出登录' }}
-            </button>
-          </div>
         </aside>
 
         <section class="desktop-content-pane">
@@ -70,21 +88,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { AuthPersistenceError } from '../auth/storage'
-import {
-  authSession,
-  authStatus,
-  isLoggingOut,
-  logoutAuthSession,
-  type LogoutResult,
-} from '../auth/session'
-import SidebarUserSummary from '../components/SidebarUserSummary.vue'
+import { computed } from 'vue'
+import { authSession, authStatus } from '../auth/session'
+import AccountPopover from '../components/AccountPopover.vue'
+import AccountUserSummary from '../components/AccountUserSummary.vue'
+import { useAccountPopover } from '../composables/useAccountPopover'
+import { useShellLogout } from '../composables/useShellLogout'
 import { appNavigation } from '../router/navigation'
 
-const router = useRouter()
-const logoutError = ref('')
+const {
+  accountMenuOpen,
+  closeAccountMenu,
+  toggleAccountMenu: toggleAccountPopover,
+} = useAccountPopover()
+const { handleLogout, isLoggingOut, logoutError } = useShellLogout()
 const userDisplayName = computed(
   () =>
     authSession.value?.user.username ??
@@ -106,24 +123,8 @@ const authStatusLabel = computed(() => {
     : '当前未登录'
 })
 
-/** 吊销服务端会话并退出本机；仅在服务端吊销未确认时把固定提示带到登录页。 */
-async function handleLogout(): Promise<void> {
+function toggleAccountMenu(): void {
   logoutError.value = ''
-
-  let result: LogoutResult
-  try {
-    result = await logoutAuthSession()
-  } catch (error) {
-    logoutError.value =
-      error instanceof AuthPersistenceError
-        ? '无法清除本地登录状态，请检查浏览器存储权限后重试'
-        : '退出失败，请稍后重试'
-    return
-  }
-
-  await router.replace({
-    name: 'login',
-    query: result === 'local_only' ? { logout: 'local_only' } : undefined,
-  })
+  toggleAccountPopover()
 }
 </script>

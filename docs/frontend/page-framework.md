@@ -12,7 +12,7 @@
 - 顶部栏不承担页面跳转。
 - 桌面左侧导航区域和右侧内容区域是同级区域，不做卡片套卡片。
 - 移动端模块导航使用 Drawer，页面级操作后续用 Sheet 或其它页面级容器。
-- 桌面端当前用户摘要固定在左侧导航底部，显示头像和名称，不占用顶部栏。
+- 桌面和移动端的当前用户头像统一位于顶部栏右侧；桌面同时显示名称，弹层只保留账户操作；移动端顶栏只保留头像，弹层再补全用户名和账户操作。
 - 前端只实现浅色主视觉。
 
 当前没有确认：
@@ -70,6 +70,7 @@ DesktopShell
 - 产品标识。
 - 服务状态。
 - 当前服务地址或连接状态。
+- 顶部右侧的当前用户头像和名称；点击后显示账户操作弹层。
 - 搜索、通知等少量快捷入口位置。
 
 页面和模块跳转不放在顶部栏。
@@ -86,7 +87,6 @@ DesktopShell
 - 当前业务域的筛选入口。
 - 批量操作、导出等快捷操作。
 - 后续可能加入的树形导航、分类导航等工作区导航。
-- 底部固定的当前用户摘要，只读显示头像和名称，不提供页面跳转。
 
 样式上使用浅底色和右边线表达区域边界，避免卡片套卡片。
 左侧导航面板里的具体内容尚未确认。
@@ -128,6 +128,7 @@ MobileShell
 
 - 左侧导航按钮。
 - 当前页面标题。
+- 右侧当前用户头像；点击后显示名称和退出入口的紧凑弹层。
 - 搜索、新增等少量高频动作的位置。
 
 顶部栏不放完整模块导航。
@@ -186,8 +187,8 @@ frontend/src/styles/
 
 职责：
 
-- `tokens.css`：颜色、字体、尺寸、圆角、阴影、层级和导航高度。
-- `base.css`：全局字体、基础元素、滚动和 focus 行为。
+- `tokens.css`：颜色、字体、尺寸、圆角、阴影、层级、导航高度和统一 motion 变量。
+- `base.css`：全局字体、基础元素、滚动、focus 行为和减少动态效果适配。
 - `layout.css`：DesktopShell、MobileShell、主容器、导航区和 Drawer 布局。
 - `components.css`：按钮、状态标记、指标、表格、列表和通用面板。
 - `responsive.css`：断点显示和窄桌面微调。
@@ -207,9 +208,12 @@ frontend/src/styles/
 - `frontend/src/router/`：Vue Router 路由表、路由元数据和应用壳一级导航配置。
 - `frontend/src/composables/useResponsiveShell.ts`：根据 `768px` 断点只挂载当前需要的 Shell，避免桌面和移动 Shell 同时渲染。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择入口。
-- `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、路由导航面板和嵌套路由内容区。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、嵌套路由内容区和左侧路由导航 Drawer。
-- `frontend/src/components/SidebarUserSummary.vue`：桌面侧栏底部的当前用户头像和名称展示；当前没有点击行为。
+- `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、顶部账户摘要、路由导航面板和嵌套路由内容区。
+- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、头像账户弹层、嵌套路由内容区和左侧路由导航 Drawer。
+- `frontend/src/components/AccountUserSummary.vue`：桌面顶部和移动账户弹层复用的当前用户头像与名称展示。
+- `frontend/src/components/AccountPopover.vue`：桌面和移动共用的紧凑账户信息与退出入口弹层。
+- `frontend/src/composables/useAccountPopover.ts`：账户弹层开关、路由变化关闭和 Escape 关闭逻辑。
+- `frontend/src/composables/useShellLogout.ts`：桌面与移动应用壳共用的退出操作和反馈编排。
 - `frontend/src/api/`：运行时服务地址、通用 HTTP 请求、统一错误和注册/登录接口契约。
 - `frontend/src/auth/session.ts`：当前登录 token、用户摘要、启动恢复和串行 refresh 轮换。
 - `frontend/src/auth/storage.ts`：纯 Web、Tauri WebView2 和 Android WebView 共用的版本化 localStorage refresh token 存储。

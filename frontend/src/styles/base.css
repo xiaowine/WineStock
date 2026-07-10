@@ -1,4 +1,4 @@
-/* 本文件定义 frontend 基础渲染规则，不包含桌面或移动端专属布局。 */
+/* 本文件定义 frontend 基础渲染和减少动态效果规则，不包含桌面或移动端专属布局。 */
 * {
   box-sizing: border-box;
 }
@@ -74,4 +74,15 @@ h3 {
 
 #app {
   min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

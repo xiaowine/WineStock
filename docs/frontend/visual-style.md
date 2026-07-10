@@ -89,10 +89,35 @@
 - 图标后续统一使用同一套线性图标。
 - 没有统一图标库前，图标只作为占位，不代表最终图标方案。
 
+## 动效
+
+动效属于同一套中性业务工具视觉语言，目标是帮助用户理解浮层从哪里出现、状态何时完成，而不是制造装饰感。
+
+统一规则：
+
+- 快速反馈使用 `120ms`，浮层进入、离开和列表重排使用 `160ms`。
+- 所有组件必须使用 `tokens.css` 中的 motion 变量，不在组件内自行硬编码时长或缓动曲线。
+- 标准缓动统一使用 `cubic-bezier(0.2, 0, 0, 1)`，保持快速响应并平稳结束。
+- 进入时使用透明度配合小幅定向位移；位移方向应体现触发位置或浮层来源。
+- 锚定在控件旁的 Popover 使用 `6px` 位移，可配合最多 `0.98` 的轻微缩放。
+- 屏幕边缘出现的 Notice 可使用 `18px` 位移，但时长和缓动必须与其它浮层一致。
+- Drawer、Dialog、Sheet 后续增加动画时也必须复用相同 token：遮罩只改变透明度，内容只做来源方向位移，不使用另一套动画语言。
+- 关闭动画与打开动画保持同一方向逻辑，不使用弹跳、旋转、明显过冲或大幅缩放。
+- 系统启用 `prefers-reduced-motion: reduce` 时，将非必要动画压缩为近乎即时的状态切换。
+
+当前 motion token：
+
+- `--motion-duration-fast`
+- `--motion-duration-standard`
+- `--motion-ease-standard`
+- `--motion-distance-small`
+- `--motion-distance-medium`
+
 ## 当前源码对应
 
-- `frontend/src/styles/tokens.css`：当前视觉 token。
+- `frontend/src/styles/tokens.css`：当前颜色、尺寸和统一 motion token。
 - `frontend/src/styles/layout.css`：桌面和移动端应用壳布局。
 - `frontend/src/styles/components.css`：当前原型组件外观。
+- `frontend/src/styles/base.css`：基础渲染规则和减少动态效果适配。
 
 当前原型中的业务文字、数字、按钮和列表都是占位内容，不属于视觉风格结论。

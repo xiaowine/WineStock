@@ -1,4 +1,4 @@
-/* 本文件定义 frontend 浅色主题变量和应用壳尺寸，不拥有组件具体布局。 */
+/* 本文件定义 frontend 浅色主题、应用壳尺寸和统一动效变量，不拥有组件具体布局。 */
 :root {
   color-scheme: light;
 
@@ -33,6 +33,12 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --shadow-menu: 0 16px 40px rgb(23 32 42 / 16%);
+
+  --motion-duration-fast: 120ms;
+  --motion-duration-standard: 160ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-distance-small: 6px;
+  --motion-distance-medium: 18px;
 
   --nav-height-desktop: 54px;
   --topbar-height-mobile: 52px;

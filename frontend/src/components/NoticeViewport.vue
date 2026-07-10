@@ -258,18 +258,18 @@ function handleFocusOut(id: string, event: FocusEvent): void {
 .notice-list-enter-active,
 .notice-list-leave-active {
   transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    transform var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .notice-list-enter-from,
 .notice-list-leave-to {
   opacity: 0;
-  transform: translateX(18px);
+  transform: translateX(var(--motion-distance-medium));
 }
 
 .notice-list-move {
-  transition: transform 160ms ease;
+  transition: transform var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 @media (max-width: 767px) {
