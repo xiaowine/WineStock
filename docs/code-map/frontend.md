@@ -20,7 +20,7 @@
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
 - `frontend/src/layouts/DesktopShell.vue`：桌面品牌栏、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口；不展示未经真实数据支持的服务状态。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、顶部右侧用户头像、紧凑账户弹层、Drawer 和嵌套路由出口。
+- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、顶部右侧用户头像、紧凑账户弹层、带统一 motion token 动画的 Drawer 和嵌套路由出口。
 - `frontend/src/components/AccountUserSummary.vue`：桌面顶部与移动账户弹层复用的只读用户头像和名称摘要。
 - `frontend/src/components/AccountPopover.vue`：桌面和移动共用的账户操作弹层；移动端可补充用户摘要，组件不直接读取或清理会话。
 - `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航、线性图标和选中态渲染。

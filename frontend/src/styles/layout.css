@@ -208,11 +208,33 @@
   align-items: stretch;
 }
 
+/* 根层持有过渡时长，确保 Vue 在 Drawer 滑出完成前保留整个导航层。 */
+.mobile-nav-enter-active,
+.mobile-nav-leave-active {
+  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.mobile-nav-enter-active .mobile-nav-drawer,
+.mobile-nav-leave-active .mobile-nav-drawer {
+  transition: transform var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.mobile-nav-enter-from,
+.mobile-nav-leave-to {
+  opacity: 0;
+}
+
+.mobile-nav-enter-from .mobile-nav-drawer,
+.mobile-nav-leave-to .mobile-nav-drawer {
+  transform: translateX(-100%);
+}
+
 .mobile-nav-backdrop {
   position: absolute;
   inset: 0;
   border: 0;
   background: rgb(23 32 42 / 38%);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav-drawer {

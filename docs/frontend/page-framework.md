@@ -140,7 +140,7 @@ MobileShell
 Drawer 打开时：
 
 - 页面右侧压暗。
-- Drawer 从左侧出现。
+- 导航层整体淡入，Drawer 使用统一 motion token 从左侧滑入；关闭时等待面板原路退出后再移除导航层。
 - 选择模块后关闭 Drawer。
 - 不改变主内容滚动位置。
 

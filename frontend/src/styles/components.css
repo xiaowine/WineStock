@@ -29,6 +29,18 @@
   background: rgb(23 32 42 / 4%);
 }
 
+.mobile-nav-trigger[aria-expanded='true'],
+.mobile-nav-trigger[aria-expanded='true']:hover {
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.mobile-nav-trigger,
+.mobile-account-trigger {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .primary-button,
 .secondary-button {
   display: inline-flex;
@@ -581,6 +593,7 @@
   padding: 0;
   border: 0;
   background: transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .account-popover {
