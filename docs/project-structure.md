@@ -52,7 +52,8 @@ WineStock/
     platforms.md
     project-structure.md
     agent-checklist.md
-    code-map.md
+    code-map.md                  # 分层代码地图总索引
+    code-map/                    # 按 workspace/shared/core/server/frontend 拆分的子地图
     database-schema.md
     rbac-permission-model.md
     implementation-notes/

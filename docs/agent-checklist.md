@@ -11,6 +11,7 @@ Read:
 - `docs/platforms.md`
 - `docs/project-structure.md`
 - `docs/code-map.md`
+- 与当前改动对应的 `docs/code-map/*.md` 或 `docs/code-map/core/*.md` 子地图
 
 Then identify:
 

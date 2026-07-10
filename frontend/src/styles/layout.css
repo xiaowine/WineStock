@@ -14,7 +14,7 @@
   top: 0;
   z-index: var(--z-nav);
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   height: var(--nav-height-desktop);
   padding: 0 16px;
@@ -49,16 +49,8 @@
 
 .desktop-nav__status {
   display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-
-.desktop-nav__actions {
-  display: inline-flex;
-  align-items: center;
   justify-content: flex-end;
-  min-width: 168px;
-  gap: 6px;
+  gap: 8px;
 }
 
 .desktop-workspace {
@@ -178,6 +170,70 @@
 .main-viewport--mobile {
   padding: 10px 0 18px;
   background: var(--color-surface);
+}
+
+.route-page {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.standalone-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-page);
+}
+
+.standalone-panel {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 22px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.standalone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.standalone-description {
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.desktop-auth-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 40px;
+  background: var(--color-page);
+}
+
+.desktop-auth-panel {
+  display: grid;
+  width: min(100%, 440px);
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.desktop-auth-header {
+  display: grid;
+  gap: 22px;
+}
+
+.desktop-auth-header p:not(.eyebrow) {
+  margin-top: 8px;
+  color: var(--color-muted);
 }
 
 .mobile-nav-layer {

@@ -24,6 +24,19 @@
   .metric-card small {
     display: none;
   }
+
+  .main-viewport--mobile .route-page {
+    padding: 0 12px;
+  }
+
+  .standalone-page {
+    align-items: start;
+    padding: calc(18px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .standalone-panel {
+    padding: 20px;
+  }
 }
 
 @media (min-width: 768px) {
@@ -38,21 +51,15 @@
 
 @media (max-width: 1040px) and (min-width: 768px) {
   .desktop-nav {
-    grid-template-columns: auto 1fr auto;
     padding: 0 14px;
   }
 
-  .brand-lockup,
-  .desktop-nav__actions {
+  .brand-lockup {
     min-width: 132px;
   }
 
   .brand-name {
     display: none;
-  }
-
-  .desktop-nav__status {
-    justify-content: flex-start;
   }
 
   .desktop-nav__status .status-chip:last-child {

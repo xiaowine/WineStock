@@ -30,11 +30,17 @@ select {
   font: inherit;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 button {
   cursor: pointer;
 }
 
-button:focus-visible {
+button:focus-visible,
+a:focus-visible {
   outline: 3px solid rgb(111 42 54 / 24%);
   outline-offset: 2px;
 }

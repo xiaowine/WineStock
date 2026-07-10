@@ -126,10 +126,11 @@ Do not add outdated or unverified dependency versions.
 
 ## Code Map Rules
 
-Read [`docs/code-map.md`](docs/code-map.md) before large or cross-module implementation work.
-When generating new code, adding or moving modules or crates, changing public API surfaces, or making broad code changes, update [`docs/code-map.md`](docs/code-map.md) in the same change.
+Read the [`docs/code-map.md`](docs/code-map.md) index and the relevant structure-specific map under `docs/code-map/` before large or cross-module implementation work.
+When generating new code, adding or moving modules or crates, changing public API surfaces, or making broad code changes, update the relevant structure-specific map in the same change.
+Update the root index only when top-level components, map files, or dependency directions change.
 If the code map is missing or stale, regenerate it before continuing implementation.
-Write and maintain [`docs/code-map.md`](docs/code-map.md) in Chinese.
+Write and maintain the root index and all structure-specific code maps in Chinese.
 
 ## Implementation Discipline
 

@@ -13,7 +13,7 @@ use axum::{
 use tower::ServiceExt;
 
 use crate::{
-    test_support::{error_code, json_body},
+    test_support::{empty_app, error_code, json_body},
     OPENAPI_JSON_PATH,
 };
 
@@ -158,8 +158,10 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
 }
 
 #[tokio::test]
-async fn cors_preflight_is_handled_before_route_matching() {
-    let response = crate::build_router()
+async fn cors_preflight_covers_merged_business_routes() {
+    let app = empty_app().await;
+    let response = app
+        .router
         .oneshot(
             Request::builder()
                 .method("OPTIONS")

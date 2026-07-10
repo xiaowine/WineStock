@@ -12,6 +12,7 @@
 - 顶部栏不承担页面跳转。
 - 桌面左侧导航区域和右侧内容区域是同级区域，不做卡片套卡片。
 - 移动端模块导航使用 Drawer，页面级操作后续用 Sheet 或其它页面级容器。
+- 桌面端当前用户摘要固定在左侧导航底部，显示头像和名称，不占用顶部栏。
 - 前端只实现浅色主视觉。
 
 当前没有确认：
@@ -23,7 +24,7 @@
 - 库存、用户、库位等业务页面的最终交互流程。
 - 当前原型里的库存列表、指标、SKU、服务地址、按钮文案和操作项。
 
-当前源码中的业务内容都是预览占位，用来验证页面框架和视觉层级，不代表产品内容设计已经定稿。
+除桌面登录和首个用户注册表单外，当前源码中的业务页面内容仍是预览占位，用来验证页面框架和视觉层级，不代表产品内容设计已经定稿。
 
 ## 所属边界
 
@@ -69,7 +70,7 @@ DesktopShell
 - 产品标识。
 - 服务状态。
 - 当前服务地址或连接状态。
-- 搜索、通知、当前用户等快捷入口位置。
+- 搜索、通知等少量快捷入口位置。
 
 页面和模块跳转不放在顶部栏。
 顶部栏内的具体按钮和状态内容尚未确认。
@@ -85,6 +86,7 @@ DesktopShell
 - 当前业务域的筛选入口。
 - 批量操作、导出等快捷操作。
 - 后续可能加入的树形导航、分类导航等工作区导航。
+- 底部固定的当前用户摘要，只读显示头像和名称，不提供页面跳转。
 
 样式上使用浅底色和右边线表达区域边界，避免卡片套卡片。
 左侧导航面板里的具体内容尚未确认。
@@ -199,20 +201,30 @@ frontend/src/styles/
 
 ## 当前源码对应
 
-当前原型实现位置：
+当前实现位置：
 
-- `frontend/src/App.vue`：前端应用入口，挂载桌面和移动 Shell。
+- `frontend/src/App.vue`：前端根路由出口，不再直接选择桌面或移动 Shell。
+- `frontend/src/router/`：Vue Router 路由表、路由元数据和应用壳一级导航配置。
 - `frontend/src/composables/useResponsiveShell.ts`：根据 `768px` 断点只挂载当前需要的 Shell，避免桌面和移动 Shell 同时渲染。
-- `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、左侧导航面板和右侧内容区。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、单列内容和左侧导航 Drawer。
+- `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择入口。
+- `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、路由导航面板和嵌套路由内容区。
+- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、嵌套路由内容区和左侧路由导航 Drawer。
+- `frontend/src/components/SidebarUserSummary.vue`：桌面侧栏底部的当前用户头像和名称展示；当前没有点击行为。
+- `frontend/src/api/`：运行时服务地址、通用 HTTP 请求、统一错误和注册/登录接口契约。
+- `frontend/src/auth/session.ts`：当前登录 token、用户摘要、启动恢复和串行 refresh 轮换。
+- `frontend/src/auth/storage.ts`：纯 Web、Tauri WebView2 和 Android WebView 共用的版本化 localStorage refresh token 存储。
+- `frontend/src/pages/LoginPage.vue`：登录路由的响应式入口，桌面端使用真实表单，移动端仍为占位内容。
+- `frontend/src/pages/login/DesktopLoginPage.vue`：桌面登录表单、字段错误映射和登录成功导航。
+- `frontend/src/pages/RegisterPage.vue`：注册路由的响应式入口，桌面端使用首个用户表单，移动端只保留说明。
+- `frontend/src/pages/register/DesktopRegisterPage.vue`：桌面首个用户注册、密码确认、注册后自动登录和错误映射。
+- `frontend/src/pages/`：除鉴权页外还包含总览、物品和 404 页面骨架；当前不包含最终业务内容。
 - `frontend/src/styles/`：页面框架样式层。
-- `frontend/src/mock/shellData.ts`：页面框架演示数据，只用于预览 Shell；其中的导航项、指标、库存条目、服务地址和操作文案都不是产品内容结论，后续接 API 或路由后应移除业务假数据。
+
+路由与 history 策略见 `docs/frontend/routes.md`，HTTP 边界见 `docs/frontend/api-client.md`。
 
 ## 后续实施顺序
 
-1. 建立路由和鉴权守卫。
-2. 建立 API client、token 管理、统一错误解析和字段级校验错误映射。
-3. 把当前 shell 原型中的演示数据替换为真实页面路由。
-4. 为首批页面分别补充页面文档，确认内容结构、字段、操作和移动端呈现方式。
-5. 再实现代表页面，验证桌面表格与移动列表的拆分边界。
-6. 抽取稳定通用组件，再补充业务页面文档。
+1. 实现登出和当前 `requiresAuth` 元数据对应的鉴权守卫；强制改密的前端呈现方式另行确认。
+2. 为首批页面分别补充页面文档，确认内容结构、字段、操作和移动端呈现方式。
+3. 实现桌面物品列表代表页面，再单独确认移动端呈现。
+4. 抽取稳定通用组件，再补充业务页面文档。
