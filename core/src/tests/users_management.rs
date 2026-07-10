@@ -379,24 +379,28 @@ async fn current_user_changes_only_own_password_with_current_password() {
 #[tokio::test]
 async fn user_management_protects_last_active_permission_manager() {
     let app = seeded_app().await;
-    let admin_login = login_request(&app, "admin", "password").await;
     let admin_id = user_id(&app, "admin").await;
+    seed_plain_user(app.state.database(), "management-operator", "password").await;
+    let management_operator = crate::security::CurrentUser {
+        user_id: user_id(&app, "management-operator").await,
+        access_token_id: "management-test".to_owned(),
+        permissions: vec![],
+        password_change_required: false,
+    };
 
-    let disable_last_manager = authorized_json_request(
-        &app,
-        "PATCH",
-        &format!("/api/users/{admin_id}/status"),
-        &admin_login.body.access_token,
-        &UserStatusUpdateRequest {
+    let disable_last_manager = crate::users::service::update_user_status(
+        &app.state,
+        &management_operator,
+        admin_id,
+        UserStatusUpdateRequest {
             status: UserStatus::Disabled,
         },
     )
     .await;
-    assert_eq!(disable_last_manager.status(), StatusCode::CONFLICT);
-    assert_eq!(
-        error_code(disable_last_manager).await,
-        "last_permission_manager_required"
-    );
+    assert!(matches!(
+        disable_last_manager,
+        Err(crate::security::AuthApiError::LastPermissionManagerRequired)
+    ));
 
     seed_plain_user(app.state.database(), "second-manager", "password").await;
     let second_id = user_id(&app, "second-manager").await;
@@ -409,17 +413,115 @@ async fn user_management_protects_last_active_permission_manager() {
         .await
         .expect("second manager should assign");
 
-    let remove_manage_permission = authorized_json_request(
+    let remove_manage_permission = crate::users::service::update_user_permissions(
+        &app.state,
+        &management_operator,
+        admin_id,
+        UserPermissionsUpdateRequest {
+            permissions: vec![],
+        },
+    )
+    .await;
+    assert!(remove_manage_permission.is_ok());
+}
+
+#[tokio::test]
+async fn user_management_rejects_changes_to_own_protected_permissions() {
+    let app = seeded_app().await;
+    let admin_login = login_request(&app, "admin", "password").await;
+    let admin_id = user_id(&app, "admin").await;
+    let audit_count_before = audit_count(&app, admin_id).await;
+
+    let remove_permission_definition_read = authorized_json_request(
         &app,
         "PUT",
         &format!("/api/users/{admin_id}/permissions"),
         &admin_login.body.access_token,
         &UserPermissionsUpdateRequest {
-            permissions: vec![],
+            permissions: vec![UPDATE_USER_PERMISSIONS_PERMISSION.to_owned()],
         },
     )
     .await;
-    assert_eq!(remove_manage_permission.status(), StatusCode::OK);
+    assert_eq!(
+        remove_permission_definition_read.status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        error_code(remove_permission_definition_read).await,
+        "self_protected_permissions_update_forbidden"
+    );
+
+    let remove_permissions_update = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/users/{admin_id}/permissions"),
+        &admin_login.body.access_token,
+        &UserPermissionsUpdateRequest {
+            permissions: vec![READ_USER_PERMISSION_DEFINITION_PERMISSION.to_owned()],
+        },
+    )
+    .await;
+    assert_eq!(remove_permissions_update.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        error_code(remove_permissions_update).await,
+        "self_protected_permissions_update_forbidden"
+    );
+    assert_eq!(audit_count(&app, admin_id).await, audit_count_before);
+
+    let update_other_own_permissions = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/users/{admin_id}/permissions"),
+        &admin_login.body.access_token,
+        &UserPermissionsUpdateRequest {
+            permissions: vec![
+                READ_USER_PERMISSION_DEFINITION_PERMISSION.to_owned(),
+                UPDATE_USER_PERMISSIONS_PERMISSION.to_owned(),
+            ],
+        },
+    )
+    .await;
+    assert_eq!(update_other_own_permissions.status(), StatusCode::OK);
+    let admin: UserAdminResponse = json_body(update_other_own_permissions).await;
+    assert_eq!(
+        admin.permissions,
+        vec![
+            READ_USER_PERMISSION_DEFINITION_PERMISSION.to_owned(),
+            UPDATE_USER_PERMISSIONS_PERMISSION.to_owned(),
+        ]
+    );
+
+    seed_plain_user(app.state.database(), "self-manager", "password").await;
+    let self_manager_id = user_id(&app, "self-manager").await;
+    assign_single_permission(
+        app.state.database(),
+        "self-manager",
+        "self-manager-only",
+        UPDATE_USER_PERMISSIONS_PERMISSION,
+    )
+    .await;
+    let self_manager_login = login_request(&app, "self-manager", "password").await;
+    let add_permission_definition_read = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/users/{self_manager_id}/permissions"),
+        &self_manager_login.body.access_token,
+        &UserPermissionsUpdateRequest {
+            permissions: vec![
+                READ_USER_PERMISSION_DEFINITION_PERMISSION.to_owned(),
+                UPDATE_USER_PERMISSIONS_PERMISSION.to_owned(),
+            ],
+        },
+    )
+    .await;
+    assert_eq!(
+        add_permission_definition_read.status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        error_code(add_permission_definition_read).await,
+        "self_protected_permissions_update_forbidden"
+    );
 }
 
 #[tokio::test]

@@ -16,7 +16,9 @@ use crate::{
     },
     security::{create_password_hash, AuthApiError, CurrentUser},
     state::CoreState,
-    users::{controller, UPDATE_USER_PERMISSIONS_PERMISSION},
+    users::{
+        controller, READ_USER_PERMISSION_DEFINITION_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
+    },
 };
 
 use super::{
@@ -115,7 +117,7 @@ pub(crate) async fn update_user_status(
     Ok(response)
 }
 
-/// 整体替换用户权限；禁止移除最后一个 active 权限管理员的管理权限。
+/// 整体替换用户权限；保护当前操作者的关键权限，并禁止移除最后一个 active 权限管理员的管理权限。
 pub(crate) async fn update_user_permissions(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -135,8 +137,14 @@ pub(crate) async fn update_user_permissions(
         .find_permission_ids_by_codes(&permission_codes)
         .await?
         .ok_or(AuthApiError::PermissionNotFound)?;
-    ensure_user_can_lose_permission_management(&rbac, &user, None, Some(&permission_codes)).await?;
     let previous_permissions = rbac.list_user_permissions(user.id).await?;
+    ensure_self_protected_permissions_unchanged(
+        current_user,
+        user.id,
+        &previous_permissions,
+        &permission_codes,
+    )?;
+    ensure_user_can_lose_permission_management(&rbac, &user, None, Some(&permission_codes)).await?;
     rbac.replace_user_permissions(user.id, &permission_ids)
         .await?;
     audit
@@ -156,6 +164,35 @@ pub(crate) async fn update_user_permissions(
     transaction.commit().await?;
 
     Ok(response)
+}
+
+/// 当前操作者更新自己的权限时，两项关键权限在更新前后必须保持不变。
+fn ensure_self_protected_permissions_unchanged(
+    current_user: &CurrentUser,
+    target_user_id: i64,
+    current_permissions: &[String],
+    next_permissions: &[String],
+) -> Result<(), AuthApiError> {
+    if current_user.user_id != target_user_id {
+        return Ok(());
+    }
+
+    for protected_permission in [
+        UPDATE_USER_PERMISSIONS_PERMISSION,
+        READ_USER_PERMISSION_DEFINITION_PERMISSION,
+    ] {
+        let currently_has_permission = current_permissions
+            .iter()
+            .any(|permission| permission == protected_permission);
+        let will_have_permission = next_permissions
+            .iter()
+            .any(|permission| permission == protected_permission);
+        if currently_has_permission != will_have_permission {
+            return Err(AuthApiError::SelfProtectedPermissionsUpdateForbidden);
+        }
+    }
+
+    Ok(())
 }
 
 /// 为其他用户设置临时密码；禁止作用于当前操作者，目标用户下次登录后必须改密。

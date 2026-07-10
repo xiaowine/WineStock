@@ -110,6 +110,7 @@
   - `400 invalid_request`
   - `401 invalid_access_token`
   - `403 permission_denied`
+  - `403 self_protected_permissions_update_forbidden`：当前操作者不能增加、移除自己的 `user.permissions.update` 或 `user.permission.read`。
   - `404 user_not_found` 或 `permission_not_found`
   - `409 last_permission_manager_required`
 
@@ -171,6 +172,7 @@
 - 禁止停用最后一个拥有 `user.permissions.update` 的 active 用户。
 - 禁止从最后一个拥有 `user.permissions.update` 的 active 用户身上移除该权限。
 - 只要还有一个 active 用户能分配权限，就可以修复其他授权问题。
+- 当前操作者更新自己的权限时，不能增加或移除自己的 `user.permissions.update` 和 `user.permission.read`；其他自身权限仍可调整。
 
 ## 审计
 

@@ -302,12 +302,12 @@ pub(crate) async fn update_user_status(
         (status = 200, description = "User permissions updated", body = UserAdminResponse),
         (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
-        (status = 403, description = "User manage permission required", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Permissions update permission required or protected self-permission change rejected", body = crate::http::ApiErrorResponse),
         (status = 404, description = "User or permission not found", body = crate::http::ApiErrorResponse),
         (status = 409, description = "Last active permission manager cannot lose manage permission", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 整体替换用户权限。
+/// 整体替换用户权限；当前操作者不能改动自己的权限管理和权限定义读取能力。
 pub(crate) async fn update_user_permissions(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,

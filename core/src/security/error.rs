@@ -38,6 +38,9 @@ pub enum AuthApiError {
     /// 当前操作者试图为自己的账号设置管理员临时密码。
     SelfPasswordResetForbidden,
 
+    /// 当前操作者试图改动自己账号上的受保护权限。
+    SelfProtectedPermissionsUpdateForbidden,
+
     /// 用户名或密码错误，响应不暴露具体失败点。
     InvalidCredentials,
 
@@ -95,6 +98,11 @@ impl IntoResponse for AuthApiError {
                 StatusCode::FORBIDDEN,
                 "self_password_reset_forbidden",
                 "不能为当前账号设置临时密码",
+            ),
+            Self::SelfProtectedPermissionsUpdateForbidden => (
+                StatusCode::FORBIDDEN,
+                "self_protected_permissions_update_forbidden",
+                "不能修改当前账号的关键权限",
             ),
             Self::InvalidCredentials => (
                 StatusCode::UNAUTHORIZED,

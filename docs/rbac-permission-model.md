@@ -121,6 +121,9 @@ JWT 不包含角色列表。
 为避免系统锁死，用户管理接口禁止禁用最后一个拥有 `user.permissions.update` 的 active 用户，也禁止从最后一个拥有该权限的
 active 用户身上移除 `user.permissions.update`。
 
+当前操作者更新自己的权限时，`user.permissions.update` 和 `user.permission.read` 必须保持不变；自己的其他权限仍可调整。
+这项限制在后端 service 层执行，不能只依赖前端禁用选项。
+
 ## 新增受保护能力
 
 新增受保护能力时：
