@@ -1,6 +1,7 @@
 /* 本文件拥有跨页面复用的按钮与轻量操作控件外观，不定义具体业务组件布局。 */
 .icon-button,
 .primary-button,
+.danger-button,
 .secondary-button,
 .text-button,
 .menu-item {
@@ -40,6 +41,7 @@
 }
 
 .primary-button,
+.danger-button,
 .secondary-button {
   display: inline-flex;
   align-items: center;
@@ -61,7 +63,17 @@
   background: var(--color-accent-strong);
 }
 
-.primary-button:disabled {
+.danger-button {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.danger-button:hover {
+  filter: brightness(0.92);
+}
+
+.primary-button:disabled,
+.danger-button:disabled {
   cursor: wait;
   opacity: 0.68;
 }
@@ -92,6 +104,7 @@
   color: var(--color-accent);
   font-size: 13px;
   font-weight: 650;
+  white-space: nowrap;
 }
 
 .text-button:hover {

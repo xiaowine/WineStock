@@ -31,9 +31,10 @@
 - `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点处理，以及复用统一 motion token 的打开和关闭动画。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
-- `frontend/src/components/users/`：创建用户、权限编辑、临时密码和启停确认表单。
+- `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
 - `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。
 - `frontend/src/components/users/UserListToolbar.vue`：用户列表搜索、状态分段筛选、结果数量、刷新和创建入口；不请求 API。
+- `frontend/src/components/users/UserActionsDialog.vue`：移动端用户管理操作面板，收敛普通操作并单独呈现删除入口；不调用业务 API。
 
 ## 全局操作反馈
 
@@ -64,7 +65,7 @@
 
 - `frontend/src/api/users.ts`
   - 定义用户分页、用户详情、权限定义和管理请求 DTO。
-  - 实现用户查询、后续用户注册、启停、权限替换、临时密码和权限定义接口。
+  - 实现用户查询、后续用户注册、启停、软删除、权限替换、临时密码和权限定义接口。
 
 - `frontend/src/api/health.ts`
   - 无鉴权调用 `GET /api/health` 并校验固定健康响应，用于独立于登录状态的服务可用性探测。
@@ -106,7 +107,7 @@
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：总览正式页面入口；业务指标尚未实现，发布界面不展示假指标或开发说明。
 - `frontend/src/pages/ItemsPage.vue`：物品正式页面入口；列表业务尚未实现，发布界面不展示假数据或开发说明。
-- `frontend/src/pages/UsersPage.vue`：用户列表、搜索、状态筛选、分页、创建、启停、权限和临时密码操作编排。
+- `frontend/src/pages/UsersPage.vue`：用户列表、搜索、状态筛选、分页、创建、启停、软删除、权限和临时密码操作编排。
 
 ## 样式和文档
 

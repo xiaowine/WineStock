@@ -105,6 +105,13 @@ export function updateUserStatus(
   })
 }
 
+/** 软删除目标用户并使其现有会话失效；成功响应为 204。 */
+export function deleteUser(userId: number): Promise<void> {
+  return apiClient.request<void>(`/api/users/${userId}`, {
+    method: 'DELETE',
+  })
+}
+
 /** 整体替换目标用户权限。 */
 export function updateUserPermissions(
   userId: number,

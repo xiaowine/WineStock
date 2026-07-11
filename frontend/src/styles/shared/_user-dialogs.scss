@@ -32,6 +32,10 @@
   white-space: nowrap;
 }
 
+.dialog-account-context--danger {
+  border-left-color: var(--color-danger);
+}
+
 .confirmation-copy {
   color: var(--color-muted);
   font-size: 14px;
@@ -47,5 +51,63 @@
 }
 
 .dialog-state--error {
+  color: var(--color-danger);
+}
+
+.user-actions-menu {
+  display: grid;
+  margin: -6px 0;
+}
+
+.user-action-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.user-action-option:last-child {
+  border-bottom: 0;
+}
+
+.user-action-option:hover {
+  background: var(--color-surface-raised);
+}
+
+.user-action-option > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.user-action-option strong {
+  font-size: 14px;
+  font-weight: 680;
+}
+
+.user-action-option small {
+  color: var(--color-subtle);
+  font-size: 12px;
+}
+
+.user-action-option > span:last-child {
+  color: var(--color-subtle);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.user-action-option--danger {
+  color: var(--color-danger);
+}
+
+.user-action-option--danger small,
+.user-action-option--danger > span:last-child {
   color: var(--color-danger);
 }

@@ -7,7 +7,7 @@
     <header class="content-header users-page__header">
       <div>
         <h1>用户管理</h1>
-        <p>查看账号状态，并按权限执行创建、启停、权限分配和临时密码操作。</p>
+        <p>查看账号状态，并按权限执行创建、启停、删除、权限分配和临时密码操作。</p>
       </div>
     </header>
 
@@ -108,6 +108,14 @@
                     >
                       {{ user.status === 'active' ? '停用' : '启用' }}
                     </button>
+                    <button
+                      v-if="canDelete && !isCurrentUser(user)"
+                      class="text-button"
+                      type="button"
+                      @click="openDeleteDialog(user)"
+                    >
+                      删除
+                    </button>
                     <span v-if="!hasAvailableAction(user)" class="row-actions__empty">无可用操作</span>
                   </div>
                 </td>
@@ -141,30 +149,13 @@
                 <dd>{{ formatDate(user.updated_at) }}</dd>
               </div>
             </dl>
-            <div class="row-actions row-actions--mobile">
+            <div v-if="hasAvailableAction(user)" class="row-actions row-actions--mobile">
               <button
-                v-if="canEditPermissions"
                 class="secondary-button"
                 type="button"
-                @click="openPermissionsDialog(user)"
+                @click="openActionsDialog(user)"
               >
-                权限
-              </button>
-              <button
-                v-if="canResetPassword && !isCurrentUser(user)"
-                class="secondary-button"
-                type="button"
-                @click="openPasswordDialog(user)"
-              >
-                临时密码
-              </button>
-              <button
-                v-if="canUpdateStatus && !isCurrentUser(user)"
-                class="secondary-button"
-                type="button"
-                @click="openStatusDialog(user)"
-              >
-                {{ user.status === 'active' ? '停用' : '启用' }}
+                管理操作
               </button>
             </div>
           </article>
@@ -226,6 +217,25 @@
       @close="closeDialogs"
       @submit="saveStatus"
     />
+    <UserDeleteDialog
+      :user="deleteUserTarget"
+      :submitting="actionSubmitting"
+      :error-message="actionError"
+      @close="closeDialogs"
+      @submit="confirmDeleteUser"
+    />
+    <UserActionsDialog
+      :user="actionsUser"
+      :can-edit-permissions="canEditPermissions"
+      :can-reset-password="Boolean(actionsUser && canResetPassword && !isCurrentUser(actionsUser))"
+      :can-update-status="Boolean(actionsUser && canUpdateStatus && !isCurrentUser(actionsUser))"
+      :can-delete="Boolean(actionsUser && canDelete && !isCurrentUser(actionsUser))"
+      @close="closeDialogs"
+      @permissions="selectPermissionsAction"
+      @password="selectPasswordAction"
+      @status="selectStatusAction"
+      @delete="selectDeleteAction"
+    />
   </section>
 </template>
 
@@ -233,6 +243,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  deleteUser,
   listPermissions,
   listUsers,
   registerUser,
@@ -251,7 +262,9 @@ import {
 } from '../api/errors'
 import { hasPermission, userPermissions } from '../auth/permissions'
 import { authSession, replaceCurrentSessionPermissions } from '../auth/session'
+import UserActionsDialog from '../components/users/UserActionsDialog.vue'
 import UserCreateDialog from '../components/users/UserCreateDialog.vue'
+import UserDeleteDialog from '../components/users/UserDeleteDialog.vue'
 import UserListToolbar from '../components/users/UserListToolbar.vue'
 import UserPasswordResetDialog from '../components/users/UserPasswordResetDialog.vue'
 import UserPermissionsDialog from '../components/users/UserPermissionsDialog.vue'
@@ -275,6 +288,8 @@ const createDialogOpen = ref(false)
 const permissionsUser = ref<UserAdminResponse | null>(null)
 const passwordUser = ref<UserAdminResponse | null>(null)
 const statusUser = ref<UserAdminResponse | null>(null)
+const deleteUserTarget = ref<UserAdminResponse | null>(null)
+const actionsUser = ref<UserAdminResponse | null>(null)
 const nextStatus = ref<UserStatus>('disabled')
 const actionSubmitting = ref(false)
 const actionError = ref('')
@@ -291,6 +306,9 @@ const canRegister = computed(() =>
 )
 const canUpdateStatus = computed(() =>
   hasPermission(currentPermissions.value, userPermissions.updateStatus),
+)
+const canDelete = computed(() =>
+  hasPermission(currentPermissions.value, userPermissions.delete),
 )
 const canResetPassword = computed(() =>
   hasPermission(currentPermissions.value, userPermissions.resetPassword),
@@ -390,6 +408,44 @@ function openStatusDialog(user: UserAdminResponse): void {
   nextStatus.value = user.status === 'active' ? 'disabled' : 'active'
 }
 
+function openDeleteDialog(user: UserAdminResponse): void {
+  closeDialogs()
+  deleteUserTarget.value = user
+}
+
+function openActionsDialog(user: UserAdminResponse): void {
+  closeDialogs()
+  actionsUser.value = user
+}
+
+function selectPermissionsAction(): void {
+  const target = actionsUser.value
+  if (target) {
+    openPermissionsDialog(target)
+  }
+}
+
+function selectPasswordAction(): void {
+  const target = actionsUser.value
+  if (target) {
+    openPasswordDialog(target)
+  }
+}
+
+function selectStatusAction(): void {
+  const target = actionsUser.value
+  if (target) {
+    openStatusDialog(target)
+  }
+}
+
+function selectDeleteAction(): void {
+  const target = actionsUser.value
+  if (target) {
+    openDeleteDialog(target)
+  }
+}
+
 function closeDialogs(): void {
   if (actionSubmitting.value) {
     return
@@ -398,6 +454,8 @@ function closeDialogs(): void {
   permissionsUser.value = null
   passwordUser.value = null
   statusUser.value = null
+  deleteUserTarget.value = null
+  actionsUser.value = null
   actionError.value = ''
 }
 
@@ -524,6 +582,33 @@ async function saveStatus(): Promise<void> {
   }
 }
 
+/** 软删除其他账号；成功后刷新当前筛选结果，并避免停留在已经变空的末页。 */
+async function confirmDeleteUser(): Promise<void> {
+  const target = deleteUserTarget.value
+  if (!target) {
+    return
+  }
+  actionSubmitting.value = true
+  actionError.value = ''
+  try {
+    await deleteUser(target.id)
+    deleteUserTarget.value = null
+    if (users.value.length === 1 && page.value > 1) {
+      page.value -= 1
+    }
+    await loadUsers()
+    notice.success('用户已删除', {
+      detail: `${target.username} 已退出登录，且无法再次使用该账号。`,
+      durationMs: 6_000,
+    })
+  } catch (error) {
+    actionError.value = userManagementErrorMessage(error, '删除用户失败')
+    notice.error(actionError.value)
+  } finally {
+    actionSubmitting.value = false
+  }
+}
+
 function replaceUser(updated: UserAdminResponse): void {
   users.value = users.value.map((user) => (user.id === updated.id ? updated : user))
 }
@@ -535,7 +620,8 @@ function isCurrentUser(user: UserAdminResponse): boolean {
 function hasAvailableAction(user: UserAdminResponse): boolean {
   return (
     canEditPermissions.value ||
-    (!isCurrentUser(user) && (canResetPassword.value || canUpdateStatus.value))
+    (!isCurrentUser(user) &&
+      (canResetPassword.value || canUpdateStatus.value || canDelete.value))
   )
 }
 
@@ -574,6 +660,9 @@ function userManagementErrorMessage(error: unknown, fallback: string): string {
     }
     if (error.code === 'user_not_found') {
       return '用户不存在或已被删除'
+    }
+    if (error.code === 'self_user_delete_forbidden') {
+      return '不能删除当前登录账号'
     }
     if (error.code === 'permission_not_found') {
       return '权限定义已变化，请重新加载后再试'
