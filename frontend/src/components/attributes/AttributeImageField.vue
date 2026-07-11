@@ -17,16 +17,38 @@
         <span>PNG、JPEG 或 WebP，最大 15MB</span>
       </div>
     </div>
-    <div class="inbound-file-field__actions">
-      <label class="secondary-button">
-        {{ value ? '替换' : '选择图片' }}
-        <input type="file" accept="image/png,image/jpeg,image/webp" @change="selectFile" />
-      </label>
-      <div class="inbound-file-field__color" title="未选择颜色时使用系统随机色">
-        <input v-model="solidColor" type="color" aria-label="纯色图片颜色" @change="generateSolidColor" />
-        <button class="secondary-button" type="button" @click="generateSolidColor">纯色图</button>
+    <div class="inbound-file-field__source">
+      <div class="inbound-file-field__source-tabs" role="group" aria-label="图片来源">
+        <button
+          type="button"
+          :class="{ 'inbound-file-field__source-tab--active': sourceMode === 'file' }"
+          :aria-pressed="sourceMode === 'file'"
+          @click="sourceMode = 'file'"
+        >
+          本地图片
+        </button>
+        <button
+          type="button"
+          :class="{ 'inbound-file-field__source-tab--active': sourceMode === 'solid' }"
+          :aria-pressed="sourceMode === 'solid'"
+          @click="sourceMode = 'solid'"
+        >
+          纯色图片
+        </button>
       </div>
-      <button v-if="value" class="text-button" type="button" @click="remove">删除</button>
+      <div class="inbound-file-field__source-controls">
+        <label v-if="sourceMode === 'file'" class="secondary-button inbound-file-field__file-button">
+          {{ value ? '替换图片' : '选择图片' }}
+          <input type="file" accept="image/png,image/jpeg,image/webp" @change="selectFile" />
+        </label>
+        <div v-else class="inbound-file-field__solid-controls">
+          <label>
+            <span>颜色</span>
+            <input v-model="solidColor" type="color" aria-label="纯色图片颜色" @change="generateSolidColor" />
+          </label>
+        </div>
+        <button v-if="value" class="text-button inbound-file-field__remove" type="button" @click="remove">删除当前图片</button>
+      </div>
     </div>
   </div>
 </template>
@@ -43,9 +65,11 @@ const props = withDefaults(defineProps<{ modelValue?: FileDraftValue; invalid?: 
 const emit = defineEmits<{ 'update:modelValue': [value: FileDraftValue | undefined] }>()
 const value = toRef(props, 'modelValue')
 const solidColor = ref(randomSolidColor())
+const sourceMode = ref<'file' | 'solid'>(imageSourceMode(value.value))
 
 watch(value, (next, previous) => {
   if (previous && previous !== next) releaseImageDraft(previous)
+  if (next !== previous && next) sourceMode.value = imageSourceMode(next)
   if (next?.localFile && !next.previewUrl) next.previewUrl = URL.createObjectURL(next.localFile)
   else if (next?.fileId && !next.previewUrl) void loadPreview(next)
 }, { immediate: true })
@@ -62,6 +86,7 @@ async function selectFile(event: Event): Promise<void> {
   if (!file) return
   const error = await validateImageFile(file)
   if (error) { notice.warning('无法选择该图片', { detail: error }); return }
+  sourceMode.value = 'file'
   replace(file)
 }
 
@@ -73,7 +98,10 @@ function replace(file: File): void {
 }
 
 async function generateSolidColor(): Promise<void> {
-  try { replace(await createSolidColorImage(solidColor.value)) }
+  try {
+    sourceMode.value = 'solid'
+    replace(await createSolidColorImage(solidColor.value))
+  }
   catch (error) { notice.error(errorMessage(error, '纯色图片生成失败')) }
 }
 
@@ -104,4 +132,181 @@ function formatFileSize(bytes: number): string {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
+function imageSourceMode(target: FileDraftValue | undefined): 'file' | 'solid' {
+  return target?.name.startsWith('solid-') ? 'solid' : 'file'
+}
+
 </script>
+
+<style scoped>
+.inbound-file-field {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.inbound-file-field.inbound-control--error {
+  padding: 6px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+}
+
+.inbound-file-field__preview {
+  display: flex;
+  min-width: 0;
+  min-height: 64px;
+  align-items: center;
+  gap: 9px;
+  padding: 7px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.inbound-file-field__preview--empty {
+  border-style: dashed;
+  color: var(--color-muted);
+}
+
+.inbound-file-field__preview img {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.inbound-file-field__preview > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.inbound-file-field__preview strong,
+.inbound-file-field__preview span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inbound-file-field__preview span {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.inbound-file-field__source {
+  display: grid;
+  gap: 9px;
+}
+
+.inbound-file-field__source-tabs {
+  display: inline-grid;
+  width: fit-content;
+  grid-template-columns: repeat(2, 1fr);
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.inbound-file-field__source-tabs button {
+  min-width: 88px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.inbound-file-field__source-tabs button:hover {
+  color: var(--color-text);
+}
+
+.inbound-file-field__source-tabs .inbound-file-field__source-tab--active {
+  background: var(--color-surface);
+  color: var(--color-accent-strong);
+  box-shadow: 0 1px 2px rgb(23 32 42 / 10%);
+}
+
+.inbound-file-field__source-controls {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inbound-file-field__source-controls .secondary-button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inbound-file-field__file-button input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.inbound-file-field__solid-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inbound-file-field__solid-controls label {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.inbound-file-field__solid-controls input[type='color'] {
+  width: 24px;
+  height: 24px;
+  padding: 1px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.inbound-file-field__remove {
+  margin-left: auto;
+}
+
+@media (max-width: 480px) {
+  .inbound-file-field__source-tabs {
+    width: 100%;
+  }
+
+  .inbound-file-field__source-controls,
+  .inbound-file-field__solid-controls {
+    align-items: stretch;
+  }
+
+  .inbound-file-field__source-controls .secondary-button {
+    min-height: 38px;
+  }
+
+  .inbound-file-field__remove {
+    margin-left: 0;
+  }
+}
+</style>

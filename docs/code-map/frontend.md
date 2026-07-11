@@ -33,7 +33,10 @@
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点处理，以及复用统一 motion token 的打开和关闭动画。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：只读展示物品属性，并编辑当前明细的批次、有效期、入库模板和入库属性。
-- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件，负责签名预检、本地预览、纯色图生成、替换和删除；不在编辑阶段上传。
+- `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
+- `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
+- `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库流程的第二步，编辑来源、备注、数量、价格和分组库位，并展示逐行完整性状态。
+- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件，以“本地图片/纯色图片”互斥来源模式完成签名预检、本地预览、纯色图生成、替换和删除；不在编辑阶段上传。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL。
 - `frontend/src/components/items/`：物品基础资料、可选属性模板和任意属性编辑控件。
@@ -135,7 +138,7 @@
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`pages/items/model.ts`：带鉴权主图缩略图的物品列表，以及新建/编辑、必选主图、分类、可选预设、自定义属性和图片属性编排；新建时默认生成随机纯色图，保存前统一上传待处理图片。
-- `frontend/src/pages/InboundDraftPage.vue`：桌面端多明细入库工作台布局和提交/错误焦点编排；拥有审核权限时提供直接入库与提交审核两种动作，并按 API 返回模式显示结果。
+- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、草稿恢复、物品去重、动态模板、图片上传、提交确认和后端错误定位。
 - `frontend/src/pages/PlaceholderPage.vue`：入库记录、出库、审批、库位、分类与模板、替代料和事件日志共用的无数据占位页，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
@@ -156,6 +159,7 @@
 - `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。
 - `frontend/docs/user-management.md`：用户管理页面、权限边界、API、密码安全和验收重点。
 - `frontend/docs/visual-style.md`：当前视觉规则。
+- `frontend/docs/ui-consistency-checklist.md`：业务页面在多步骤导航、表单工具栏、列表/表格、状态反馈、抽屉和响应式布局上的一致性规则与验收清单。
 - `frontend/docs/async-state-transitions.md`：加载、恢复、后台刷新和错误切换的防闪烁呈现规则。
 
 ## 平台边界

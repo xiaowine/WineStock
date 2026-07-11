@@ -15,6 +15,7 @@ Axum 不服务前端构建产物。
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。
 - `user-management.md`：用户列表、创建、启停、权限、临时密码和前后端授权边界。
 - `visual-style.md`：当前视觉风格方向、颜色/圆角/阴影/密度规则和避免事项。
+- `ui-consistency-checklist.md`：多步骤流程、表单、列表、表格、抽屉和响应式页面的一致性实现与量化验收清单。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
 
 ## 后续建议拆分

@@ -1,224 +1,89 @@
 <!--
-  本文件拥有桌面端多明细入库工作台，属于 frontend 页面层。
-  它管理本地草稿、动态模板、临时图片和 pending 单据创建，不拥有审批或成功后详情跳转。
+  本文件拥有可跨桌面与移动端使用的多明细入库工作台，属于 frontend 页面层。
+  它管理本地草稿、动态模板、临时图片和入库单创建，不拥有后续审批或单据详情展示。
 -->
 <template>
   <section class="route-page inbound-draft-page">
     <header class="content-header inbound-draft-page__header">
-      <h1>新建入库</h1>
+      <div class="inbound-page-title">
+        <div class="inbound-progress" aria-label="入库流程进度">
+          <span :class="{ 'inbound-progress__step--active': currentStep === 'catalog' }">1</span>
+          <i></i>
+          <span :class="{ 'inbound-progress__step--active': currentStep === 'draft' }">2</span>
+        </div>
+        <div>
+          <h1>新建入库</h1>
+        </div>
+      </div>
+      <div v-if="currentStep === 'draft'" class="inbound-draft-summary" aria-label="当前入库草稿摘要">
+        <span><strong>{{ draftItems.length }}</strong> 条明细</span>
+        <span><strong>{{ quantitySummary }}</strong> {{ quantitySummaryLabel }}</span>
+        <span><strong>¥{{ formatMoney(draftTotal) }}</strong> 预计金额</span>
+      </div>
       <div class="inbound-page-actions">
-        <span>{{ draftItems.length }} 条明细</span>
-        <span>{{ formatQuantity(draftQuantity) }} 件</span>
-        <strong>预计金额 {{ formatMoney(draftTotal) }}</strong>
-        <button class="secondary-button" type="button" :disabled="!hasDraft || submitting" @click="openClearConfirmation">
-          清空
-        </button>
-        <button
-          v-if="canDirectInbound"
-          class="secondary-button"
-          type="button"
-          :disabled="submitting"
-          @click="reviewDraft('pending_approval')"
-        >
-          {{ submitting ? '处理中…' : '提交审核' }}
-        </button>
-        <button class="primary-button" type="button" :disabled="submitting" @click="reviewDraft(defaultSubmissionMode)">
-          {{ submitting ? '处理中…' : canDirectInbound ? '确认入库' : '提交审核' }}
-        </button>
+        <button class="text-button inbound-clear-button" type="button" :disabled="!hasDraft || submitting" @click="openClearConfirmation">清空草稿</button>
+        <template v-if="currentStep === 'draft'">
+          <button v-if="canDirectInbound" class="secondary-button" type="button" :disabled="submitting" @click="reviewDraft('pending_approval')">提交审核</button>
+          <button class="primary-button" type="button" :disabled="submitting" @click="reviewDraft(defaultSubmissionMode)">
+            {{ submitting ? '正在提交…' : canDirectInbound ? '直接入库' : '提交审核' }}
+          </button>
+        </template>
       </div>
     </header>
-    <div class="inbound-draft-page__mobile-note">当前批量入库工作台仅在桌面宽度下提供。</div>
 
-    <div class="inbound-workbench">
-      <section class="inbound-catalog" aria-labelledby="inbound-catalog-title">
-        <header class="inbound-panel-header">
-          <div>
-            <h2 id="inbound-catalog-title">物品列表</h2>
-            <p>{{ itemResultLabel }}</p>
-          </div>
-        </header>
+    <InboundCatalogStep
+      v-if="currentStep === 'catalog'"
+      :items="items"
+      :search-input="searchInput"
+      :loading-items="loadingItems"
+      :item-error="itemError"
+      :items-exhausted="itemsExhausted"
+      :draft-counts="draftItemCounts"
+      :can-continue="draftItems.length > 0"
+      @update:search-input="searchInput = $event"
+      @search-input="handleSearchInput"
+      @search="submitSearch"
+      @reset-items="resetItems"
+      @load-next-items="loadNextItems"
+      @scroll-items="handleItemScroll"
+      @list-element="itemList = $event"
+      @toggle-item="toggleCatalogItem"
+      @continue="openDraftStep"
+    />
 
-        <form class="inbound-search" role="search" @submit.prevent="submitSearch">
-          <label for="inbound-item-search">搜索物品</label>
-          <div>
-            <input
-              id="inbound-item-search"
-              ref="itemSearchInput"
-              v-model="searchInput"
-              type="search"
-              placeholder="名称、SKU 或模板属性"
-              autocomplete="off"
-              @input="handleSearchInput"
-              @search="handleSearchInput"
-            />
-            <button class="secondary-button" type="submit" :disabled="loadingItems">查询</button>
-          </div>
-        </form>
-
-        <div v-if="itemError && items.length === 0" class="inbound-panel-state inbound-panel-state--error" role="alert">
-          <p>{{ itemError }}</p>
-          <button class="text-button" type="button" @click="resetItems">重试</button>
+    <InboundDraftStep
+      v-else
+      :lines="draftItems"
+      :locations="locations"
+      :location-error="locationError"
+      :source="source"
+      :notes="notes"
+      :notes-open="notesOpen"
+      :validation-attempted="validationAttempted"
+      :selected-line-id="selectedLineId"
+      :drawer-open="selectedLine !== null"
+      @update:source="source = $event"
+      @update:notes="notes = $event"
+      @update:notes-open="notesOpen = $event"
+      @continue-adding="continueAddingItems"
+      @retry-locations="loadLocationOptions"
+      @select-line="selectLine"
+      @remove-line="removeLine"
+    >
+      <Transition name="inbound-editor">
+        <div v-if="selectedLine" class="inbound-line-editor-layer">
+          <button class="inbound-line-editor-backdrop" type="button" aria-label="关闭当前明细详情" @click="closeLineEditor"></button>
+          <InboundLineEditor
+            :line="selectedLine"
+            :templates="inboundTemplates"
+            :validation-attempted="validationAttempted"
+            @close="closeLineEditor"
+            @select-template="selectInboundTemplate"
+            @retry-template="retryLineTemplate"
+          />
         </div>
-        <div v-else-if="loadingItems && items.length === 0" class="inbound-panel-state" role="status">正在加载物品…</div>
-        <div v-else-if="items.length === 0" class="inbound-panel-state">没有找到可加入入库单的物品。</div>
-
-        <div
-          v-else
-          :ref="setItemList"
-          class="inbound-item-list"
-          aria-label="可选物品"
-          @scroll.passive="handleItemScroll"
-        >
-          <article
-            v-for="item in items"
-            :key="item.id"
-            class="inbound-item-card"
-            :class="{ 'inbound-item-card--added': draftItemIds.has(item.id) }"
-            draggable="true"
-            @dragstart="startDragging($event, item)"
-            @dragend="draggingItemId = null"
-            @dblclick="addItem(item)"
-          >
-            <div class="inbound-item-card__identity">
-              <AuthenticatedImage :file-id="item.image_file_id" :alt="`${item.name} 主图`" :size="34" />
-              <div>
-                <strong :title="item.name">{{ item.name }}</strong>
-                <span>{{ item.sku }} · {{ item.unit }}</span>
-              </div>
-            </div>
-          </article>
-          <div v-if="loadingItems" class="inbound-panel-state" role="status">正在加载更多物品…</div>
-          <div v-else-if="itemError" class="inbound-panel-state inbound-panel-state--error" role="alert">
-            <p>{{ itemError }}</p>
-            <button class="text-button" type="button" @click="loadNextItems">重试本页</button>
-          </div>
-          <div v-else-if="itemsExhausted" class="inbound-panel-state">已加载全部物品</div>
-        </div>
-      </section>
-
-      <section
-        class="inbound-order"
-        :class="{ 'inbound-order--drag-active': draggingItemId !== null }"
-        aria-labelledby="inbound-order-title"
-        @dragover.prevent
-        @drop="dropItem"
-      >
-        <header class="inbound-panel-header inbound-order__header">
-          <div>
-            <h2 id="inbound-order-title">入库明细</h2>
-            <p>{{ draftItems.length }} 条明细</p>
-          </div>
-        </header>
-
-        <div class="inbound-order__body">
-          <section class="inbound-order-meta" aria-label="入库单基础信息">
-            <label class="inbound-order-meta__source">
-              <span>来源 *</span>
-              <input
-                ref="sourceInput"
-                v-model="source"
-                :class="{ 'inbound-control--error': validationAttempted && !source.trim() }"
-                :title="validationAttempted && !source.trim() ? '请填写入库来源' : undefined"
-                type="text"
-                maxlength="128"
-                placeholder="供应商名称或采购单号"
-              />
-            </label>
-            <button
-              class="inbound-order-meta__notes-toggle"
-              :class="{ 'inbound-order-meta__notes-toggle--filled': notes.trim().length > 0 }"
-              type="button"
-              :aria-expanded="notesOpen"
-              aria-controls="inbound-order-notes"
-              @click="notesOpen = !notesOpen"
-            >
-              {{ notesOpen ? '收起备注' : notes.trim() ? '备注 · 已填写' : '添加备注' }}
-            </button>
-            <label v-if="notesOpen" id="inbound-order-notes" class="inbound-order-meta__notes">
-              <span>备注</span>
-              <input v-model="notes" type="text" maxlength="1024" placeholder="可选，记录采购或收货说明" />
-            </label>
-          </section>
-
-          <div v-if="locationError" class="inbound-location-error" role="alert">
-            {{ locationError }}
-            <button class="text-button" type="button" @click="loadLocationOptions">重试</button>
-          </div>
-
-          <div v-if="draftItems.length === 0" class="inbound-drop-zone">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z M4 7.5l8 4.5 8-4.5 M12 12v9" />
-            </svg>
-            <strong>拖动物品到这里</strong>
-            <span>同一物品可重复添加为不同批次，也可以双击左侧物品。</span>
-          </div>
-
-          <div v-else class="inbound-detail-workspace">
-            <section class="inbound-lines" aria-label="入库明细">
-              <table>
-                <thead>
-                  <tr><th>物品</th><th>数量</th><th>单价</th><th>库位</th><th>小计</th><th><span class="visually-hidden">操作</span></th></tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="line in draftItems"
-                    :key="line.lineId"
-                    :class="{ 'inbound-line--selected': selectedLineId === line.lineId }"
-                    @click="selectLine(line.lineId)"
-                  >
-                    <td><div class="inbound-line__identity"><AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="30" /><div><strong>{{ line.item.name }}</strong><span>{{ line.item.sku }} · {{ line.item.unit }}</span></div></div></td>
-                    <td>
-                      <input
-                        v-model.number="line.quantity"
-                        :data-line-id="line.lineId"
-                        data-field="quantity"
-                        :class="{ 'inbound-control--error': validationAttempted && !validQuantity(line.quantity) }"
-                        :title="validationAttempted && !validQuantity(line.quantity) ? '入库数量必须大于 0' : undefined"
-                        type="number" min="0.01" step="0.01" aria-label="入库数量"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        v-model.number="line.unitPrice"
-                        :data-line-id="line.lineId"
-                        data-field="unitPrice"
-                        :class="{ 'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice) }"
-                        :title="validationAttempted && !validUnitPrice(line.unitPrice) ? '入库单价不能小于 0' : undefined"
-                        type="number" min="0" step="0.01" aria-label="入库单价"
-                      />
-                    </td>
-                    <td>
-                      <select
-                        v-model="line.locationId"
-                        :data-line-id="line.lineId"
-                        data-field="locationId"
-                        :class="{ 'inbound-control--error': validationAttempted && line.locationId === null }"
-                        :title="validationAttempted && line.locationId === null ? '请选择入库库位' : undefined"
-                        aria-label="入库库位"
-                      >
-                        <option :value="null">请选择</option>
-                        <option v-for="location in locations" :key="location.id" :value="location.id">{{ location.code }} · {{ location.name }}</option>
-                      </select>
-                    </td>
-                    <td class="inbound-line__subtotal">{{ formatMoney(lineSubtotal(line)) }}</td>
-                    <td><button class="inbound-line__remove" type="button" :aria-label="`移除 ${line.item.name}`" @click.stop="removeLine(line.lineId)">×</button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
-
-            <InboundLineEditor
-              v-if="selectedLine"
-              :line="selectedLine"
-              :templates="inboundTemplates"
-              :validation-attempted="validationAttempted"
-              @select-template="selectInboundTemplate"
-              @retry-template="retryLineTemplate"
-            />
-          </div>
-        </div>
-      </section>
-    </div>
+      </Transition>
+    </InboundDraftStep>
 
     <ModalDialog
       :open="confirmationMode !== null"
@@ -227,7 +92,7 @@
       :busy="clearingDraft"
       @close="cancelConfirmation"
     >
-      <p>{{ confirmationMode === 'clear' ? '此操作无法撤销。' : '确认离开当前入库工作台吗？' }}</p>
+      <p>{{ confirmationMode === 'clear' ? '此操作无法撤销。' : '确认离开当前入库流程吗？' }}</p>
       <template #actions>
         <button class="secondary-button" type="button" :disabled="clearingDraft" @click="cancelConfirmation">取消</button>
         <button class="primary-button" type="button" :disabled="clearingDraft" @click="confirmCurrentAction">
@@ -235,15 +100,38 @@
         </button>
       </template>
     </ModalDialog>
+
+    <ModalDialog
+      :open="submissionConfirmationMode !== null"
+      :title="submissionConfirmationMode === 'direct' ? '确认直接入库？' : '确认提交审核？'"
+      :description="submissionConfirmationMode === 'direct' ? '提交后将立即增加库存并写入库存流水。' : '提交后单据进入待审批状态，审批通过前不会增加库存。'"
+      :busy="submitting"
+      @close="cancelSubmissionConfirmation"
+    >
+      <dl class="inbound-submit-summary">
+        <div><dt>入库来源</dt><dd>{{ source.trim() }}</dd></div>
+        <div><dt>明细数量</dt><dd>{{ draftItems.length }} 条</dd></div>
+        <div><dt>入库总量</dt><dd>{{ quantitySummary }}</dd></div>
+        <div><dt>预计金额</dt><dd>¥{{ formatMoney(draftTotal) }}</dd></div>
+      </dl>
+      <p v-if="submissionConfirmationMode === 'direct'" class="inbound-submit-warning">请确认库位、数量和单价无误。直接入库完成后应通过后续库存业务进行调整。</p>
+      <template #actions>
+        <button class="secondary-button" type="button" :disabled="submitting" @click="cancelSubmissionConfirmation">返回检查</button>
+        <button class="primary-button" type="button" :disabled="submitting" @click="submitConfirmedDraft">
+          {{ submitting ? '正在提交…' : submissionConfirmationMode === 'direct' ? '确认并入库' : '确认提交' }}
+        </button>
+      </template>
+    </ModalDialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import ModalDialog from '../components/ModalDialog.vue'
+import InboundCatalogStep from '../components/inbound/InboundCatalogStep.vue'
+import InboundDraftStep from '../components/inbound/InboundDraftStep.vue'
 import InboundLineEditor from '../components/inbound/InboundLineEditor.vue'
-import AuthenticatedImage from '../components/attributes/AuthenticatedImage.vue'
 import {
   createInbound, listLocations, type InboundSubmissionMode, type LocationResponse,
 } from '../api/inbound'
@@ -268,14 +156,15 @@ import {
 } from './inbound-draft/presentation'
 
 type ConfirmationMode = 'clear' | 'leave' | null
-const itemSearchInput = ref<HTMLInputElement | null>(null)
-const draggingItemId = ref<number | null>(null)
+type InboundDraftStepName = 'catalog' | 'draft'
+const stepSessionKey = 'winestock.inbound.step'
+const restoredNoticeSessionKey = 'winestock.inbound.restored-notice'
+const currentStep = ref<InboundDraftStepName>(readSessionStep())
 const draftItems = ref<InboundDraftLine[]>([])
 const locations = ref<LocationResponse[]>([])
 const inboundTemplates = ref<InboundTemplateResponse[]>([])
 const locationError = ref('')
 const source = ref('')
-const sourceInput = ref<HTMLInputElement | null>(null)
 const notes = ref('')
 const notesOpen = ref(false)
 const selectedLineId = ref<string | null>(null)
@@ -283,6 +172,7 @@ const submitting = ref(false)
 const validationAttempted = ref(false)
 const confirmationMode = ref<ConfirmationMode>(null)
 const clearingDraft = ref(false)
+const submissionConfirmationMode = ref<InboundSubmissionMode | null>(null)
 let locationAbortController: AbortController | null = null
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
 const templateAbortControllers = new Map<string, AbortController>()
@@ -291,17 +181,23 @@ const itemTemplateCache = new Map<number, ItemAttributeTemplateResponse>()
 
 const {
   items, searchInput, loadingItems, itemError, itemList, itemsExhausted,
-  itemResultLabel, resetItems, loadNextItems, submitSearch, handleSearchInput, handleItemScroll,
+  resetItems, loadNextItems, submitSearch, handleSearchInput, handleItemScroll,
 } = useInboundItemCatalog((error) => itemErrorMessage(error))
 
-function setItemList(element: unknown): void {
-  itemList.value = element instanceof HTMLElement ? element : null
-}
-
-const draftItemIds = computed(() => new Set(draftItems.value.map((line) => line.item.id)))
+const draftItemCounts = computed(() => {
+  const counts = new Map<number, number>()
+  for (const line of draftItems.value) counts.set(line.item.id, (counts.get(line.item.id) ?? 0) + 1)
+  return counts
+})
 const selectedLine = computed(() => draftItems.value.find((line) => line.lineId === selectedLineId.value) ?? null)
 const draftQuantity = computed(() => draftItems.value.reduce((total, line) => total + positiveNumber(line.quantity), 0))
 const draftTotal = computed(() => draftItems.value.reduce((total, line) => total + lineSubtotal(line), 0))
+const quantitySummary = computed(() => {
+  const units = new Set(draftItems.value.map((line) => line.item.unit).filter(Boolean))
+  if (units.size === 1) return `${formatQuantity(draftQuantity.value)} ${Array.from(units)[0]}`
+  return draftItems.value.length ? '按明细分别计量' : '0'
+})
+const quantitySummaryLabel = computed(() => quantitySummary.value === '按明细分别计量' ? '数量' : '入库总量')
 const hasDraft = computed(() => source.value.trim().length > 0 || notes.value.trim().length > 0 || draftItems.value.length > 0)
 const draftReady = computed(() => source.value.trim().length > 0 && draftItems.value.length > 0 && draftItems.value.every(lineReady))
 const canDirectInbound = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.inboundApprove))
@@ -310,21 +206,54 @@ const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useInboundDraf
   source, notes, notesOpen, draftItems, hasDraft,
 )
 
+// 响应式 Shell 在断点切换时会重挂载页面，步骤必须在当前标签页内保持稳定。
+watch(currentStep, (step) => sessionStorage.setItem(stepSessionKey, step))
+
 onMounted(async () => {
   const restored = await restoreDraft()
-  selectedLineId.value = draftItems.value[0]?.lineId ?? null
+  const removedDuplicates = removeRestoredDuplicateItems()
+  // 恢复历史草稿只恢复数据，不主动进入任一明细的详情编辑模式。
+  selectedLineId.value = null
+  currentStep.value = draftItems.value.length > 0 ? readSessionStep() : 'catalog'
   draftItems.value.forEach((line) => { if (line.templateId) void loadLineTemplate(line, line.templateId) })
-  if (restored) notice.info('已恢复上次未提交的入库草稿')
+  if (restored && sessionStorage.getItem(restoredNoticeSessionKey) !== 'shown') {
+    sessionStorage.setItem(restoredNoticeSessionKey, 'shown')
+    notice.info('已恢复上次未提交的入库草稿')
+  }
+  if (removedDuplicates > 0) notice.info(`已移除 ${removedDuplicates} 条重复物品明细`)
   resumeDraftSaving()
   void resetItems()
   void loadLocationOptions()
   void loadInboundTemplateOptions()
+  window.addEventListener('keydown', handlePageKeydown)
 })
+
+/** 兼容旧版草稿数据，恢复时按物品 ID 保留第一条明细并清理重复项资源。 */
+function removeRestoredDuplicateItems(): number {
+  const seen = new Set<number>()
+  const unique: InboundDraftLine[] = []
+  const duplicates: InboundDraftLine[] = []
+  for (const line of draftItems.value) {
+    if (seen.has(line.item.id)) duplicates.push(line)
+    else {
+      seen.add(line.item.id)
+      unique.push(line)
+    }
+  }
+  if (!duplicates.length) return 0
+  duplicates.forEach((line) => {
+    void deleteLineUploads(line)
+    revokeLinePreviews(line)
+  })
+  draftItems.value = unique
+  return duplicates.length
+}
 
 onBeforeUnmount(() => {
   locationAbortController?.abort()
   templateAbortControllers.forEach((controller) => controller.abort())
   draftItems.value.forEach(revokeLinePreviews)
+  window.removeEventListener('keydown', handlePageKeydown)
 })
 
 onBeforeRouteLeave(() => {
@@ -347,25 +276,21 @@ async function loadLocationOptions(): Promise<void> {
   }
 }
 
-function startDragging(event: DragEvent, item: ItemResponse): void {
-  draggingItemId.value = item.id
-  event.dataTransfer?.setData('text/plain', String(item.id))
-  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
-}
-
-function dropItem(event: DragEvent): void {
-  const itemId = Number(event.dataTransfer?.getData('text/plain'))
-  draggingItemId.value = null
-  const item = items.value.find((candidate) => candidate.id === itemId)
-  if (item) addItem(item)
-}
-
-/** 每次添加都创建独立 lineId，同一物品可分别维护多个批次和库位。 */
+/** 选择阶段按物品去重，每个物品在当前入库单中只保留一条独立明细。 */
 function addItem(item: ItemResponse): void {
+  if (draftItems.value.some((line) => line.item.id === item.id)) return
   const line = createDraftLine(item)
   draftItems.value.push(line)
-  selectedLineId.value = line.lineId
+  // 添加物品只创建明细；详情编辑必须由用户通过“详情”按钮显式进入。
+  selectedLineId.value = null
   void loadDefaultInboundTemplate(line)
+  notice.info(`已加入 ${item.name}`)
+}
+
+function toggleCatalogItem(item: ItemResponse): void {
+  const line = draftItems.value.find((candidate) => candidate.item.id === item.id)
+  if (line) removeLine(line.lineId)
+  else addItem(item)
 }
 
 async function loadInboundTemplateOptions(): Promise<void> {
@@ -451,10 +376,29 @@ function removeLine(lineId: string): void {
   void deleteLineUploads(line)
   revokeLinePreviews(line)
   draftItems.value = draftItems.value.filter((candidate) => candidate.lineId !== lineId)
-  if (selectedLineId.value === lineId) selectedLineId.value = draftItems.value[0]?.lineId ?? null
+  if (selectedLineId.value === lineId) selectedLineId.value = null
+  notice.info(`已移除 ${line.item.name}`)
+}
+
+function openDraftStep(): void {
+  if (draftItems.value.length === 0) return
+  selectedLineId.value = null
+  currentStep.value = 'draft'
+}
+
+function continueAddingItems(): void {
+  selectedLineId.value = null
+  currentStep.value = 'catalog'
+  void nextTick(() => document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus())
 }
 
 function selectLine(lineId: string): void { selectedLineId.value = lineId }
+
+function closeLineEditor(): void {
+  const lineId = selectedLineId.value
+  selectedLineId.value = null
+  if (lineId) void nextTick(() => document.querySelector<HTMLElement>(`[data-line-action="${lineId}"]`)?.focus())
+}
 
 async function reviewDraft(submissionMode: InboundSubmissionMode): Promise<void> {
   validationAttempted.value = true
@@ -463,6 +407,12 @@ async function reviewDraft(submissionMode: InboundSubmissionMode): Promise<void>
     await focusFirstError()
     return
   }
+  submissionConfirmationMode.value = submissionMode
+}
+
+async function submitConfirmedDraft(): Promise<void> {
+  const submissionMode = submissionConfirmationMode.value
+  if (!submissionMode || submitting.value) return
   submitting.value = true
   try {
     await uploadImageDrafts(inboundDraftImages())
@@ -472,6 +422,7 @@ async function reviewDraft(submissionMode: InboundSubmissionMode): Promise<void>
     } else {
       notice.success('入库单已提交', { detail: `单号 #${created.id} 已进入待审批状态。` })
     }
+    submissionConfirmationMode.value = null
     clearLocalDraftState()
   } catch (error) {
     const failedImage = firstFailedImage()
@@ -486,6 +437,15 @@ async function reviewDraft(submissionMode: InboundSubmissionMode): Promise<void>
   } finally {
     submitting.value = false
   }
+}
+
+function cancelSubmissionConfirmation(): void {
+  if (!submitting.value) submissionConfirmationMode.value = null
+}
+
+function handlePageKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || submissionConfirmationMode.value !== null || confirmationMode.value !== null) return
+  if (selectedLineId.value) closeLineEditor()
 }
 
 function inboundDraftImages(): FileDraftValue[] {
@@ -536,6 +496,7 @@ function clearLocalDraftState(): void {
   notesOpen.value = false
   draftItems.value = []
   selectedLineId.value = null
+  currentStep.value = 'catalog'
   validationAttempted.value = false
   removePersistedDraft()
 }
@@ -548,8 +509,19 @@ async function deleteLineUploads(line: InboundDraftLine): Promise<void> {
 }
 
 async function focusFirstError(): Promise<void> {
-  if (!source.value.trim()) { sourceInput.value?.focus(); return }
-  if (draftItems.value.length === 0) { itemSearchInput.value?.focus(); return }
+  if (draftItems.value.length === 0) {
+    currentStep.value = 'catalog'
+    await nextTick()
+    document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus()
+    return
+  }
+  currentStep.value = 'draft'
+  selectedLineId.value = null
+  await nextTick()
+  if (!source.value.trim()) {
+    document.querySelector<HTMLElement>('[data-inbound-source]')?.focus()
+    return
+  }
   for (const line of draftItems.value) {
     if (!validQuantity(line.quantity)) return focusLineControl(line, 'quantity')
     if (!validUnitPrice(line.unitPrice)) return focusLineControl(line, 'unitPrice')
@@ -561,12 +533,14 @@ async function focusFirstError(): Promise<void> {
 }
 
 async function focusLineControl(line: InboundDraftLine, field: string): Promise<void> {
-  selectedLineId.value = line.lineId
+  currentStep.value = 'draft'
+  selectedLineId.value = null
   await nextTick()
   document.querySelector<HTMLElement>(`[data-line-id="${line.lineId}"][data-field="${field}"]`)?.focus()
 }
 
 async function focusLineTemplate(line: InboundDraftLine, fieldName?: string): Promise<void> {
+  currentStep.value = 'draft'
   selectedLineId.value = line.lineId
   await nextTick()
   if (fieldName) document.querySelector<HTMLElement>(`[data-template-field="${CSS.escape(fieldName)}"]`)?.focus()
@@ -580,6 +554,7 @@ async function focusBackendError(error: unknown): Promise<void> {
   const line = draftItems.value[lineIndex]
   if (!line) return
   validationAttempted.value = true
+  currentStep.value = 'draft'
   if (error.code === 'location_not_found') await focusLineControl(line, 'locationId')
   else if (error.code === 'template_not_found') await focusLineTemplate(line)
   else if (error.code === 'invalid_inbound_field' || error.code === 'inbound_file_unavailable') {
@@ -596,6 +571,10 @@ function draftBlockingReason(): string {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null }
+
+function readSessionStep(): InboundDraftStepName {
+  return sessionStorage.getItem(stepSessionKey) === 'draft' ? 'draft' : 'catalog'
+}
 </script>
 
 <style lang="scss" src="./InboundDraftPage.scss"></style>
