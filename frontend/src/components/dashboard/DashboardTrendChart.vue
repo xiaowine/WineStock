@@ -84,7 +84,7 @@ const PADDING_LEFT = 54
 const PADDING_RIGHT = 18
 const PADDING_TOP = 18
 const PADDING_BOTTOM = 34
-const Y_TICK_COUNT = 4
+const Y_TICK_COUNT = 5
 
 interface ChartPoint {
   x: number
@@ -106,7 +106,7 @@ const maximumValue = computed(() => {
     0,
     ...props.daily.flatMap((item) => [item.inbound_quantity, item.outbound_quantity]),
   )
-  return maximum > 0 ? maximum : 1
+  return calculateAxisMaximum(maximum)
 })
 const inboundPoints = computed(() => createPoints('inbound_quantity'))
 const outboundPoints = computed(() => createPoints('outbound_quantity'))
@@ -179,6 +179,20 @@ function xForIndex(index: number): number {
 function yForValue(value: number): number {
   const plotHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM
   return PADDING_TOP + (1 - value / maximumValue.value) * plotHeight
+}
+
+/** 为纵轴保留约一成顶部空间，并把刻度步长归一到易读数值。 */
+function calculateAxisMaximum(maximum: number): number {
+  if (maximum <= 0) {
+    return 1
+  }
+
+  const roughStep = (maximum * 1.1) / Y_TICK_COUNT
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const normalizedStep = roughStep / magnitude
+  const niceStepFactors = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
+  const niceStep = (niceStepFactors.find((factor) => factor >= normalizedStep) ?? 10) * magnitude
+  return niceStep * Y_TICK_COUNT
 }
 
 function createSmoothPath(points: readonly ChartPoint[]): string {
