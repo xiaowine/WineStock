@@ -3,21 +3,9 @@ import type { FileAttributeReference, InboundCreateRequest } from '../../api/inb
 import type { InboundTemplateResponse } from '../../api/inboundTemplates'
 import type { TemplateFieldResponse } from '../../api/templateFields'
 import type { ItemResponse } from '../../api/items'
+import { isImageDraftValue, releaseImageDraft, type ImageDraftValue } from '../../components/attributes/imageDraft'
 
-/** 模板图片在草稿中的上传与展示状态。 */
-export interface FileDraftValue {
-  kind: 'file'
-  fileId?: number
-  name: string
-  mimeType: string
-  sizeBytes: number
-  status: 'uploading' | 'uploaded' | 'failed'
-  progress: number
-  error: string
-  previewUrl?: string
-  localFile?: File
-  abortController?: AbortController
-}
+export type FileDraftValue = ImageDraftValue
 
 /** 单个模板字段的草稿值。 */
 export type AttributeValue = string | number | boolean | FileDraftValue | undefined
@@ -71,7 +59,7 @@ export function templateFieldError(line: InboundDraftLine, field: TemplateFieldR
     const file = fileValue(line, field.field_name)
     if (!file) return '请选择图片'
     if (file.status === 'uploading') return '请等待图片上传完成'
-    if (file.status === 'failed' || !file.fileId) return file.error || '图片上传失败'
+    if (file.status === 'failed' && !file.localFile) return file.error || '请重新选择图片'
   }
   return typeof value === 'string' && !value.trim() ? '请输入有效文本' : null
 }
@@ -97,7 +85,7 @@ export function buildInboundRequest(source: string, notes: string, lines: Inboun
 
 export function revokeLinePreviews(line: InboundDraftLine): void {
   Object.values(line.extAttributes).forEach((value) => {
-    if (typeof value === 'object' && value?.kind === 'file' && value.previewUrl) URL.revokeObjectURL(value.previewUrl)
+    if (isImageDraftValue(value)) releaseImageDraft(value)
   })
 }
 

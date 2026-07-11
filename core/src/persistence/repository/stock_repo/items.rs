@@ -34,12 +34,15 @@ where
     {
         validate_repository_input(&input)?;
         let transaction = self.database.begin().await?;
+        ensure_item_image_available(&transaction, input.image_file_id, input.image_owner_user_id)
+            .await?;
         let now = sqlite_now(&transaction).await?;
         let active_model = stock_item::ActiveModel {
             name: Set(input.name),
             sku: Set(input.sku),
             category_id: Set(input.category_id),
             attribute_template_id: Set(input.attribute_template_id),
+            image_file_id: Set(input.image_file_id),
             unit: Set(input.unit),
             description: Set(input.description),
             default_price: Set(input.default_price),
@@ -179,6 +182,13 @@ where
         if let Some(attribute_template_id) = input.attribute_template_id {
             active_model.attribute_template_id = Set(attribute_template_id);
         }
+        if let Some(image_file_id) = input.image_file_id {
+            let owner_user_id = input
+                .image_owner_user_id
+                .ok_or_else(|| DbErr::Custom("item image owner missing".to_owned()))?;
+            ensure_item_image_available(&transaction, image_file_id, owner_user_id).await?;
+            active_model.image_file_id = Set(image_file_id);
+        }
         if let Some(unit) = input.unit {
             active_model.unit = Set(unit);
         }
@@ -280,7 +290,7 @@ where
         let rows = self
             .database
             .query_all(stock_item_query(
-                "id, name, sku, category_id, attribute_template_id, unit, description, default_price, reorder_point, created_at, updated_at, deleted_at",
+                "id, name, sku, category_id, attribute_template_id, image_file_id, unit, description, default_price, reorder_point, created_at, updated_at, deleted_at",
                 search_like,
                 category_id,
                 Some(limit),
@@ -296,6 +306,7 @@ where
                     sku: row.try_get("", "sku")?,
                     category_id: row.try_get("", "category_id")?,
                     attribute_template_id: row.try_get("", "attribute_template_id")?,
+                    image_file_id: row.try_get("", "image_file_id")?,
                     unit: row.try_get("", "unit")?,
                     description: row.try_get("", "description")?,
                     default_price: row.try_get("", "default_price")?,
@@ -443,6 +454,7 @@ fn item_created_details(item: &stock_item::Model) -> String {
         "sku": item.sku,
         "category_id": item.category_id,
         "attribute_template_id": item.attribute_template_id,
+        "image_file_id": item.image_file_id,
         "unit": item.unit,
         "default_price": item.default_price,
         "reorder_point": item.reorder_point
@@ -472,6 +484,7 @@ fn item_audit_snapshot(item: &stock_item::Model) -> serde_json::Value {
         "sku": item.sku,
         "category_id": item.category_id,
         "attribute_template_id": item.attribute_template_id,
+        "image_file_id": item.image_file_id,
         "unit": item.unit,
         "description": item.description,
         "default_price": item.default_price,
@@ -495,6 +508,9 @@ fn item_changed_fields(
     }
     if previous.attribute_template_id != updated.attribute_template_id {
         fields.push("attribute_template_id");
+    }
+    if previous.image_file_id != updated.image_file_id {
+        fields.push("image_file_id");
     }
     if previous.unit != updated.unit {
         fields.push("unit");
@@ -586,12 +602,46 @@ where
               AND f.mime_type IN ('image/png', 'image/jpeg', 'image/webp')
               AND NOT EXISTS (SELECT 1 FROM storage_item_file_bindings b WHERE b.file_object_id = f.id)
               AND NOT EXISTS (SELECT 1 FROM storage_inbound_file_bindings b WHERE b.file_object_id = f.id)
+              AND NOT EXISTS (SELECT 1 FROM stock_items item WHERE item.image_file_id = f.id)
             "#,
             vec![result.last_insert_id.into(), now.into(), file_id.into(), owner_id.into()],
         )).await?;
         if binding.rows_affected() != 1 {
             return Err(DbErr::Custom("item file unavailable".to_owned()));
         }
+    }
+    Ok(())
+}
+
+/// 在调用方事务内确认主图属于操作者、类型正确且未被其它业务记录占用。
+async fn ensure_item_image_available<C>(
+    connection: &C,
+    file_id: i64,
+    owner_user_id: i64,
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    let row = connection
+        .query_one(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            SELECT COUNT(*) AS count
+            FROM storage_file_objects f
+            WHERE f.id = ?
+              AND f.owner_user_id = ?
+              AND f.mime_type IN ('image/png', 'image/jpeg', 'image/webp')
+              AND NOT EXISTS (SELECT 1 FROM stock_items item WHERE item.image_file_id = f.id)
+              AND NOT EXISTS (SELECT 1 FROM storage_item_file_bindings b WHERE b.file_object_id = f.id)
+              AND NOT EXISTS (SELECT 1 FROM storage_inbound_file_bindings b WHERE b.file_object_id = f.id)
+            "#,
+            vec![file_id.into(), owner_user_id.into()],
+        ))
+        .await?
+        .ok_or_else(|| DbErr::RecordNotFound("item image availability".to_owned()))?;
+    let count: i64 = row.try_get("", "count")?;
+    if count != 1 {
+        return Err(DbErr::Custom(format!("item image unavailable:{file_id}")));
     }
     Ok(())
 }

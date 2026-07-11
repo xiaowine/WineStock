@@ -96,6 +96,7 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffi
             sku: format!("EVT-{suffix}"),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(app, access_token).await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,

@@ -20,7 +20,8 @@
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
-- `frontend/src/composables/useInboundDraftPersistence.ts`：版本化入库草稿序列化/恢复和浏览器原生关闭提示，只持久化已上传文件引用。
+- `frontend/src/composables/useInboundDraftPersistence.ts`：版本化入库草稿序列化/恢复和浏览器原生关闭提示；普通字段保存在 `localStorage`，待上传图片通过独立存储模块写入 IndexedDB。
+- `frontend/src/storage/inboundDraftImageStore.ts`：入库草稿本地图片 Blob 的 IndexedDB 存取，不保存普通字段或执行上传。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
 - `frontend/src/layouts/DesktopShell.vue`：桌面品牌栏、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口；不展示未经真实数据支持的服务状态。
 - `frontend/src/layouts/MobileShell.vue`：移动顶部栏、顶部右侧用户头像、紧凑账户弹层、带统一 motion token 动画的 Drawer 和嵌套路由出口。
@@ -32,7 +33,9 @@
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点处理，以及复用统一 motion token 的打开和关闭动画。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：只读展示物品属性，并编辑当前明细的批次、有效期、入库模板和入库属性。
-- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件，负责签名预检、上传进度、鉴权缩略图、替换、删除和重试。
+- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件，负责签名预检、本地预览、纯色图生成、替换和删除；不在编辑阶段上传。
+- `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
+- `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL。
 - `frontend/src/components/items/`：物品基础资料、可选属性模板和任意属性编辑控件。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
@@ -131,8 +134,8 @@
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
-- `frontend/src/pages/ItemsPage.vue`、`pages/items/model.ts`：物品列表、新建/编辑、分类、可选预设、自定义属性和图片属性编排。
-- `frontend/src/pages/InboundDraftPage.vue`：桌面端多明细入库工作台布局和提交/错误焦点编排；支持同物品多批次、清空/离开确认，不执行成功后详情跳转。
+- `frontend/src/pages/ItemsPage.vue`、`pages/items/model.ts`：带鉴权主图缩略图的物品列表，以及新建/编辑、必选主图、分类、可选预设、自定义属性和图片属性编排；新建时默认生成随机纯色图，保存前统一上传待处理图片。
+- `frontend/src/pages/InboundDraftPage.vue`：桌面端多明细入库工作台布局和提交/错误焦点编排；物品目录、明细表和当前明细均展示鉴权主图，支持同物品多批次、提交前统一上传图片、清空/离开确认，不执行成功后详情跳转。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用转换和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。

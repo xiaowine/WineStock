@@ -75,6 +75,8 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 
 `ApiClient.upload<T>()` 使用 `XMLHttpRequest` 发送 multipart，从而提供浏览器原生上传进度；它仍复用同一个 access token provider、`invalid_access_token` 强制 refresh 和统一 `ApiError` 契约。页面不得自行从持久化存储读取 token。
 
+图片在编辑阶段只保留本地 `File`/`Blob` 和预览地址。新建物品自动生成随机纯色 PNG 作为必选主图，用户可以选择颜色重新生成或替换为真实图片。物品保存或入库提交时，页面先通过统一上传入口取得文件 ID，再构造业务请求；前端生成图片与用户选择图片使用相同流程。入库草稿的普通字段保存在 `localStorage`，尚未上传的图片保存在 IndexedDB，业务提交成功或确认清空后一起删除。
+
 请求路径必须以 `/` 开头且作为当前根地址的相对 API 路径处理，调用方不能传入外部绝对 URL，以免 Bearer token 泄漏到其它 host。
 
 ## 错误类型

@@ -21,6 +21,12 @@ export interface ItemDraft {
   sku: string
   categoryId: number | null
   attributeTemplateId: number | null
+  /** 当前物品必选主图草稿。 */
+  image: FileDraftValue | null
+  /** 当前主图是否为尚未绑定的临时图片。 */
+  imageTemporary: boolean
+  /** 更新成功后需要删除的旧主图文件 ID。 */
+  obsoleteImageFileId: number | null
   unit: string
   description: string
   defaultPrice: number | null
@@ -29,13 +35,16 @@ export interface ItemDraft {
 }
 
 export function emptyItemDraft(): ItemDraft {
-  return { id: null, name: '', sku: '', categoryId: null, attributeTemplateId: null, unit: '个', description: '', defaultPrice: null, reorderPoint: null, attributes: [] }
+  return { id: null, name: '', sku: '', categoryId: null, attributeTemplateId: null, image: null, imageTemporary: true, obsoleteImageFileId: null, unit: '个', description: '', defaultPrice: null, reorderPoint: null, attributes: [] }
 }
 
 export function draftFromItem(item: ItemResponse): ItemDraft {
   return {
     id: item.id, name: item.name, sku: item.sku, categoryId: item.category_id,
     attributeTemplateId: item.attribute_template_id, unit: item.unit,
+    image: { kind: 'file', fileId: item.image_file_id, name: `${item.name} 主图`, mimeType: 'image/*', sizeBytes: 0, status: 'uploaded', progress: 100, error: '' },
+    imageTemporary: false,
+    obsoleteImageFileId: null,
     description: item.description ?? '', defaultPrice: item.default_price,
     reorderPoint: item.reorder_point,
     attributes: item.attributes.map((attribute) => ({

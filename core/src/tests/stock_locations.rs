@@ -228,6 +228,7 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str) -> i6
             sku: "LOC-TRANSFER-001".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(app, access_token).await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,

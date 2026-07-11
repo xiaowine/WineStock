@@ -33,6 +33,10 @@ export interface ItemResponse {
   category_id: number | null
   /** 可选物品属性模板 ID。 */
   attribute_template_id: number | null
+  /** 必选物品主图文件对象 ID。 */
+  image_file_id: number
+  /** 物品主图受控读取地址。 */
+  image_url: string
   /** 计量单位。 */
   unit: string
   /** 可选物品描述。 */
@@ -54,6 +58,7 @@ export interface ItemCreateRequest {
   sku: string
   category_id?: number
   attribute_template_id?: number
+  image_file_id: number
   unit: string
   description?: string
   default_price?: number

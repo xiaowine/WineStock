@@ -2,6 +2,7 @@
 import { deleteImage } from '../../api/files'
 import type { FileDraftValue } from '../inbound-draft/model'
 import type { ItemAttributeDraft, ItemDraft } from './model'
+import { releaseImageDraft } from '../../components/attributes/imageDraft'
 
 /** 中止上传、释放预览，并删除当前属性尚未绑定的服务端文件。 */
 export async function discardTemporaryAttributeFile(attribute: ItemAttributeDraft): Promise<void> {
@@ -13,7 +14,12 @@ export async function discardTemporaryAttributeFile(attribute: ItemAttributeDraf
 
 /** 并行清理整个物品草稿中的未绑定图片。 */
 export async function discardTemporaryItemFiles(draft: ItemDraft): Promise<void> {
-  await Promise.all(draft.attributes.map(discardTemporaryAttributeFile))
+  const deletions = draft.attributes.map(discardTemporaryAttributeFile)
+  if (draft.imageTemporary && draft.image) {
+    releaseImageDraft(draft.image)
+    if (draft.image.fileId) deletions.push(deleteImage(draft.image.fileId))
+  }
+  await Promise.all(deletions)
 }
 
 function isFileDraftValue(value: ItemAttributeDraft['value']): value is FileDraftValue {

@@ -39,6 +39,10 @@ pub(crate) struct ItemCreateRequest {
     #[garde(skip)]
     pub attribute_template_id: Option<i64>,
 
+    /// 必选物品主图文件对象 ID；应先通过图片上传接口取得。
+    #[garde(range(min = 1))]
+    pub image_file_id: i64,
+
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
@@ -89,6 +93,10 @@ pub(crate) struct ItemUpdateRequest {
     )]
     #[garde(skip)]
     pub attribute_template_id: Option<Option<i64>>,
+
+    /// 新物品主图文件对象 ID；字段缺失表示保留当前图片。
+    #[garde(range(min = 1))]
+    pub image_file_id: Option<i64>,
 
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
@@ -174,6 +182,14 @@ pub(crate) struct ItemResponse {
     #[garde(skip)]
     pub attribute_template_id: Option<i64>,
 
+    /// 物品主图文件对象 ID。
+    #[garde(range(min = 1))]
+    pub image_file_id: i64,
+
+    /// 物品主图受控读取地址。
+    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    pub image_url: String,
+
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
@@ -225,6 +241,14 @@ pub(crate) struct ItemDetailResponse {
     /// 可选物品属性模板 ID。
     #[garde(skip)]
     pub attribute_template_id: Option<i64>,
+
+    /// 物品主图文件对象 ID。
+    #[garde(range(min = 1))]
+    pub image_file_id: i64,
+
+    /// 物品主图受控读取地址。
+    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    pub image_url: String,
 
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]

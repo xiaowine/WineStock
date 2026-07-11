@@ -1,6 +1,5 @@
 // 本文件拥有入库草稿页的错误文案与轻量格式化，属于 frontend 展示层；它不修改草稿状态。
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from '../../api/errors'
-import type { ItemResponse } from '../../api/items'
 
 export function inboundSubmitErrorMessage(error: unknown): { title: string; detail?: string } {
   if (error instanceof ApiError) {
@@ -40,9 +39,6 @@ export function formatQuantity(value: number): string {
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(value)
 }
 
-export function itemInitial(item: ItemResponse): string {
-  return Array.from(item.name.trim())[0]?.toUpperCase() ?? '#'
-}
 
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'

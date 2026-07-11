@@ -22,6 +22,12 @@ pub(crate) struct CreateStockItem {
     /// 可选物品属性模板 ID；模板只提供预设字段。
     #[garde(skip)]
     pub attribute_template_id: Option<i64>,
+    /// 必选物品主图文件对象 ID。
+    #[garde(range(min = 1))]
+    pub image_file_id: i64,
+    /// 上传主图的所有者用户 ID；仓储事务据此完成最终占用检查。
+    #[garde(range(min = 1))]
+    pub image_owner_user_id: i64,
     /// 计量单位，裁剪后不能为空。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
@@ -54,6 +60,12 @@ pub(crate) struct UpdateStockItem {
     /// 属性模板 ID；外层表示是否修改，内层表示是否清空。
     #[garde(skip)]
     pub attribute_template_id: Option<Option<i64>>,
+    /// 新物品主图文件对象 ID；为空表示保留当前图片。
+    #[garde(range(min = 1))]
+    pub image_file_id: Option<i64>,
+    /// 新主图上传者 ID；更换图片时必须存在。
+    #[garde(custom(crate::persistence::repository::validation::validate_optional_positive_id))]
+    pub image_owner_user_id: Option<i64>,
     /// 计量单位，存在时裁剪后不能为空。
     #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,

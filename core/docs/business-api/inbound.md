@@ -39,7 +39,7 @@ file 值必须是 `{ "file_id": id }`。文件需要由当前创建人上传、�
 
 ### `POST /api/files/images`
 
-权限为 `stock.item.manage` 或 `stock.inbound.create` 中任一项。multipart 单文件上传，支持 PNG、JPEG、WebP，最大 15MB，同时校验声明 MIME、真实签名和大小。返回文件 ID、名称、MIME、大小和受控读取地址；同一接口也用于物品图片属性。
+权限为 `stock.item.manage` 或 `stock.inbound.create` 中任一项。multipart 单文件上传，支持 PNG、JPEG、WebP，最大 15MB，同时校验声明 MIME、真实签名和大小。返回文件 ID、名称、MIME、大小和受控读取地址；同一接口也用于物品必选主图和扩展图片属性。
 
 ### `GET /api/files/{id}`
 

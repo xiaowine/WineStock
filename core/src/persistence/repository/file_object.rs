@@ -44,7 +44,7 @@ pub(crate) struct CreateFileObject {
     pub owner_user_id: Option<i64>,
 }
 
-/// 文件读取授权所需的元数据和两类可选业务绑定信息。
+/// 文件读取授权所需的元数据和物品/入库可选业务绑定信息。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FileAccessRecord {
     /// 文件对象元数据。
@@ -56,15 +56,15 @@ pub(crate) struct FileAccessRecord {
     /// 已绑定入库单 ID；为空表示仍是临时上传。
     pub inbound_order_id: Option<i64>,
 
-    /// 已绑定物品 ID；为空表示未绑定物品属性。
+    /// 已绑定物品 ID；可能来自必选主图或扩展图片属性。
     pub item_id: Option<i64>,
 
-    /// 已绑定属性字段名称。
+    /// 已绑定字段名称；物品主图使用固定中文名称。
     pub field_name: Option<String>,
 }
 
 impl FileAccessRecord {
-    /// 判断文件是否已经绑定任一物品属性或入库属性。
+    /// 判断文件是否已经绑定物品主图、物品属性或入库属性。
     pub(crate) fn is_bound(&self) -> bool {
         self.item_id.is_some() || self.inbound_order_item_id.is_some()
     }
@@ -146,13 +146,16 @@ impl<'db> FileObjectRepository<'db> {
                 SELECT f.id, f.sha256, f.mime_type, f.size_bytes, f.storage_path,
                        f.original_name, f.created_at, f.owner_user_id,
                        ia.inbound_order_item_id, i.order_id AS inbound_order_id,
-                       item_attr.item_id, COALESCE(ia.field_name, item_attr.field_name) AS field_name
+                       COALESCE(main_item.id, item_attr.item_id) AS item_id,
+                       COALESCE(ia.field_name, item_attr.field_name,
+                         CASE WHEN main_item.id IS NOT NULL THEN '物品主图' END) AS field_name
                 FROM storage_file_objects f
                 LEFT JOIN storage_inbound_file_bindings inbound_binding ON inbound_binding.file_object_id = f.id
                 LEFT JOIN stock_inbound_order_item_attributes ia ON ia.id = inbound_binding.inbound_order_item_attribute_id
                 LEFT JOIN stock_inbound_order_items i ON i.id = ia.inbound_order_item_id
                 LEFT JOIN storage_item_file_bindings item_binding ON item_binding.file_object_id = f.id
                 LEFT JOIN stock_item_attributes item_attr ON item_attr.id = item_binding.item_attribute_id
+                LEFT JOIN stock_items main_item ON main_item.image_file_id = f.id
                 WHERE f.id = ?
                 "#,
                 [id.into()],
@@ -164,7 +167,7 @@ impl<'db> FileObjectRepository<'db> {
 
     /// 删除当前用户拥有且尚未绑定的临时文件元数据。
     ///
-    /// 返回 false 表示记录不存在、所有者不匹配或已经被入库明细绑定。
+    /// 返回 false 表示记录不存在、所有者不匹配或已经被任一业务记录绑定。
     pub(crate) async fn delete_unbound_owned(
         &self,
         id: i64,
@@ -184,6 +187,10 @@ impl<'db> FileObjectRepository<'db> {
                   AND NOT EXISTS (
                       SELECT 1 FROM storage_item_file_bindings b
                       WHERE b.file_object_id = storage_file_objects.id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM stock_items item
+                      WHERE item.image_file_id = storage_file_objects.id
                   )
                 "#,
                 [id.into(), owner_user_id.into()],
@@ -214,6 +221,10 @@ impl<'db> FileObjectRepository<'db> {
                       SELECT 1 FROM storage_item_file_bindings b
                       WHERE b.file_object_id = f.id
                   )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM stock_items item
+                      WHERE item.image_file_id = f.id
+                  )
                 ORDER BY f.id
                 "#,
                 [modifier.into()],
@@ -238,6 +249,10 @@ impl<'db> FileObjectRepository<'db> {
                   AND NOT EXISTS (
                       SELECT 1 FROM storage_item_file_bindings b
                       WHERE b.file_object_id = storage_file_objects.id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM stock_items item
+                      WHERE item.image_file_id = storage_file_objects.id
                   )
                 "#,
                 [id.into()],

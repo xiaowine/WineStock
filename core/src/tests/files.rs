@@ -75,6 +75,7 @@ async fn item_file_attribute_binds_to_item_and_uses_item_read_permission() {
             sku: "ITEM-WITH-IMAGE".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
             unit: "个".to_owned(),
             description: None,
             default_price: None,
@@ -102,6 +103,7 @@ async fn item_file_attribute_binds_to_item_and_uses_item_read_permission() {
             sku: None,
             category_id: None,
             attribute_template_id: None,
+            image_file_id: None,
             unit: None,
             description: None,
             default_price: None,
@@ -130,6 +132,79 @@ async fn item_file_attribute_binds_to_item_and_uses_item_read_permission() {
 }
 
 #[tokio::test]
+async fn item_main_image_is_required_bound_and_replaceable() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let first_image_id = crate::test_support::upload_test_image(&app, &token).await;
+    let created = authorized_json(
+        &app,
+        "/api/items",
+        &token,
+        &ItemCreateRequest {
+            name: "必选主图物品".to_owned(),
+            sku: "REQUIRED-MAIN-IMAGE".to_owned(),
+            category_id: None,
+            attribute_template_id: None,
+            image_file_id: first_image_id,
+            unit: "个".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: Vec::new(),
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let created: ItemResponse = json_body(created).await;
+    assert_eq!(created.image_file_id, first_image_id);
+    assert_eq!(created.image_url, format!("/api/files/{first_image_id}"));
+
+    let bound_delete = authorized_empty(
+        &app,
+        "DELETE",
+        &format!("/api/files/{first_image_id}"),
+        &token,
+    )
+    .await;
+    assert_eq!(bound_delete.status(), StatusCode::CONFLICT);
+
+    let second_image_id = crate::test_support::upload_test_image(&app, &token).await;
+    let updated = authorized_put_json(
+        &app,
+        &format!("/api/items/{}", created.id),
+        &token,
+        &ItemUpdateRequest {
+            name: None,
+            sku: None,
+            category_id: None,
+            attribute_template_id: None,
+            image_file_id: Some(second_image_id),
+            unit: None,
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: None,
+        },
+    )
+    .await;
+    assert_eq!(updated.status(), StatusCode::OK);
+    let updated: ItemResponse = json_body(updated).await;
+    assert_eq!(updated.image_file_id, second_image_id);
+
+    let old_delete = authorized_empty(
+        &app,
+        "DELETE",
+        &format!("/api/files/{first_image_id}"),
+        &token,
+    )
+    .await;
+    assert_eq!(old_delete.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
 async fn item_rejects_reusing_one_temporary_file_for_multiple_attributes() {
     let app = seeded_app().await;
     let token = login_request(&app, "admin", "password")
@@ -151,6 +226,7 @@ async fn item_rejects_reusing_one_temporary_file_for_multiple_attributes() {
             sku: "LEGACY-ITEM-FILE".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
             unit: "个".to_owned(),
             description: None,
             default_price: None,
@@ -177,6 +253,7 @@ async fn item_rejects_reusing_one_temporary_file_for_multiple_attributes() {
             sku: "DUPLICATE-ITEM-FILE".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
             unit: "个".to_owned(),
             description: None,
             default_price: None,
@@ -442,6 +519,7 @@ async fn seed_file_item(app: &crate::test_support::TestApp, token: &str) -> (i64
             sku: "FILE-ITEM".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(app, token).await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,

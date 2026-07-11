@@ -109,7 +109,7 @@
 .inbound-search label,
 .inbound-order-meta label > span,
 .inbound-line-editor label > span,
-.inbound-template-fields label > span,
+.inbound-template-field > span,
 .inbound-line-editor header > div > span {
   color: var(--color-muted);
   font-size: 12px;
@@ -160,7 +160,7 @@
 }
 
 .inbound-order-meta > label:not(.inbound-order-meta__notes),
-.inbound-template-fields label {
+.inbound-template-field {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -265,19 +265,6 @@
   min-width: 0;
   align-items: center;
   gap: 10px;
-}
-
-.inbound-item-card__mark {
-  display: inline-grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--color-nav);
-  color: var(--color-accent);
-  font-size: 13px;
-  font-weight: 720;
 }
 
 .inbound-item-card__identity > div {
@@ -424,6 +411,17 @@
   white-space: nowrap;
 }
 
+.inbound-line__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.inbound-line__identity > div {
+  min-width: 0;
+}
+
 .inbound-lines td:first-child span {
   color: var(--color-subtle);
   font-size: 11px;
@@ -497,14 +495,15 @@
 
 .inbound-line-editor > header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   margin-bottom: 10px;
 }
 
 .inbound-line-editor > header > div {
   display: flex;
+  min-width: 0;
+  flex: 1;
   align-items: baseline;
   gap: 8px;
 }
@@ -715,6 +714,22 @@
   clip: rect(0 0 0 0);
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.inbound-file-field__color {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inbound-file-field__color input {
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  cursor: pointer;
 }
 
 @media (max-width: 1099px) and (min-width: 768px) {

@@ -3,6 +3,7 @@
   <form class="item-editor" @submit.prevent="$emit('save')">
     <header><div><h2>{{ draft.id ? '编辑物品' : '新建物品' }}</h2><p>属性模板是可选预设，自定义字段不会被模板限制。</p></div><button class="primary-button" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存物品' }}</button></header>
     <div class="item-editor__base">
+      <div class="item-editor__image"><span>物品主图 *</span><AttributeImageField :model-value="draft.image ?? undefined" :delete-on-remove="draft.imageTemporary" label="物品主图" @update:model-value="updateMainImage" /></div>
       <label><span>名称 *</span><input v-model="draft.name" maxlength="128" required /></label>
       <label><span>SKU *</span><input v-model="draft.sku" maxlength="64" required /></label>
       <label><span>分类</span><select v-model="draft.categoryId"><option :value="null">未分类</option><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></label>
@@ -25,10 +26,19 @@ import type { ItemAttributeTemplateResponse } from '../../api/itemAttributeTempl
 import { applyAttributeTemplate, newCustomAttribute, type ItemDraft } from '../../pages/items/model'
 import { discardTemporaryAttributeFile } from '../../pages/items/fileCleanup'
 import ItemAttributeEditor from './ItemAttributeEditor.vue'
+import AttributeImageField from '../attributes/AttributeImageField.vue'
+import type { FileDraftValue } from '../../pages/inbound-draft/model'
 import { notice } from '../../notices/notice'
 
 const props = defineProps<{ draft: ItemDraft; categories: ItemCategoryResponse[]; templates: ItemAttributeTemplateResponse[]; saving: boolean }>()
 defineEmits<{ save: [] }>()
+function updateMainImage(value: FileDraftValue | undefined): void {
+  if (!props.draft.imageTemporary && props.draft.image?.fileId) {
+    props.draft.obsoleteImageFileId = props.draft.image.fileId
+  }
+  props.draft.image = value ?? null
+  props.draft.imageTemporary = true
+}
 async function selectTemplate(event: Event): Promise<void> {
   const id = Number((event.target as HTMLSelectElement).value)
   const template = props.templates.find((candidate) => candidate.id === id) ?? null

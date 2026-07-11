@@ -26,7 +26,7 @@
 ## Service
 
 - `service.rs`：库存服务入口和子模块重新导出。
-- `service/items.rs`、`item_attributes.rs`：物品 CRUD、任意属性校验、文件所有权、搜索和库存快照。
+- `service/items.rs`、`item_attributes.rs`：物品必选主图、CRUD、任意属性校验、文件所有权、搜索和库存快照。
 - `service/templates/`：分类与两类模板的独立 CRUD/copy 和共享字段规则。
 - `service/locations.rs`：分组树、库位 CRUD、移库、循环和占用校验。
 - `service/inbound.rs`：独立入库模板推导/选择、实际入库属性校验、图片引用、审批和错误定位。

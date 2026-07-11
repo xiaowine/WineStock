@@ -47,6 +47,8 @@ async fn item_crud_uses_permissions_and_soft_delete() {
             sku: " CORK-001 ".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &login.body.access_token)
+                .await,
             unit: "pcs".to_owned(),
             description: Some("Bottle closure".to_owned()),
             default_price: Some(1.25),
@@ -70,6 +72,8 @@ async fn item_crud_uses_permissions_and_soft_delete() {
             sku: "CORK-001".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &login.body.access_token)
+                .await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
@@ -105,6 +109,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
             sku: Some("CORK-002".to_owned()),
             category_id: None,
             attribute_template_id: Some(Some(attribute_template_id)),
+            image_file_id: None,
             unit: None,
             description: Some(Some("Updated closure".to_owned())),
             default_price: Some(Some(1.50)),
@@ -209,6 +214,7 @@ async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
                 "sku": "CLEARABLE-ITEM",
                 "category_id": category["id"],
                 "attribute_template_id": template["id"],
+                "image_file_id": crate::test_support::upload_test_image(&app, &token).await,
                 "unit": "个",
                 "description": "待清空",
                 "default_price": 12.5,
@@ -336,6 +342,22 @@ async fn item_validation_and_authorization_fail_before_write() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
 
+    let missing_image = authorized_json_request(
+        &app,
+        "POST",
+        "/api/items",
+        &login.body.access_token,
+        &serde_json::json!({
+            "name": "Missing Image",
+            "sku": "MISSING-IMAGE",
+            "unit": "pcs",
+            "attributes": []
+        }),
+    )
+    .await;
+    assert_eq!(missing_image.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(missing_image).await, "invalid_request");
+
     let invalid = authorized_json_request(
         &app,
         "POST",
@@ -346,6 +368,8 @@ async fn item_validation_and_authorization_fail_before_write() {
             sku: "BAD-001".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &login.body.access_token)
+                .await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: Some(-1.0),
@@ -367,6 +391,8 @@ async fn item_validation_and_authorization_fail_before_write() {
             sku: "BAD-DATE-001".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &login.body.access_token)
+                .await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
@@ -412,6 +438,7 @@ async fn item_validation_and_authorization_fail_before_write() {
             sku: "VIEW-001".to_owned(),
             category_id: None,
             attribute_template_id: None,
+            image_file_id: 1,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
@@ -609,6 +636,7 @@ async fn seed_item(
             sku: sku.to_owned(),
             category_id: None,
             attribute_template_id: Some(template_id),
+            image_file_id: crate::test_support::upload_test_image(app, access_token).await,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,

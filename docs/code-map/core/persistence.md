@@ -19,7 +19,7 @@
 - `entity/auth_signing_key.rs`：JWT signing key。
 - `entity/refresh_token.rs`：refresh token 设备记录和吊销状态。
 - `entity/user.rs`：用户、状态和强制改密标记。
-- `entity/file_object.rs`：文件元数据。
+- `entity/file_object.rs`：文件元数据；物品主图通过 `stock_items.image_file_id` 直接引用。
 - `entity/inbound_file_binding.rs`、`item_file_binding.rs`：文件对象与具体属性行的一对一绑定。
 - `entity/stock_item.rs`、`stock_item_category.rs`、`item_attribute.rs`：物品基础资料、分类和实际属性。
 - `entity/item_attribute_template*.rs`：可选物品属性预设。
@@ -32,7 +32,7 @@
 - `repository/user_repo.rs`：用户创建、查询、分页、状态、密码哈希和强制改密标记。
 - `repository/rbac_repo.rs`：权限定义、用户权限、整体替换和防锁死查询。
 - `repository/refresh_token_repo.rs`：refresh token 创建、查询、吊销和事务轮换。
-- `repository/file_object.rs`：文件元数据、绑定访问查询、临时删除和孤儿清理查询，不保存文件内容。
+- `repository/file_object.rs`：文件元数据、物品主图/属性/入库绑定访问查询、临时删除和孤儿清理查询，不保存文件内容。
 - `repository/time.rs`：SQLite UTC 时间辅助函数。
 - `repository/validation.rs`：repository 写库输入校验。
 
@@ -40,7 +40,7 @@
 
 - `repository/stock_repo.rs`：`StockRepository` 入口和稳定重新导出。
 - `stock_repo/types/`：按物品、库位、模板、入库、出库和分析审计子域拆分仓储输入与读取模型，不执行查询。
-- `stock_repo/items.rs`：物品、任意属性、物品文件绑定和库存快照。
+- `stock_repo/items.rs`：物品必选主图、任意属性、扩展文件绑定和库存快照。
 - `stock_repo/categories.rs`：物品分类。
 - `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储。
 - `stock_repo/locations.rs`：分组、库位和移库。

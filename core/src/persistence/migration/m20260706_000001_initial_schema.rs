@@ -250,6 +250,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         sku TEXT NOT NULL,
         category_id INTEGER,
         attribute_template_id INTEGER,
+        image_file_id INTEGER NOT NULL UNIQUE,
         unit TEXT NOT NULL,
         description TEXT,
         default_price REAL CHECK (default_price IS NULL OR default_price >= 0),
@@ -258,7 +259,8 @@ const INITIAL_SCHEMA: &[&str] = &[
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         deleted_at TEXT,
         FOREIGN KEY (category_id) REFERENCES stock_item_categories(id) ON DELETE SET NULL,
-        FOREIGN KEY (attribute_template_id) REFERENCES stock_item_attribute_templates(id) ON DELETE SET NULL
+        FOREIGN KEY (attribute_template_id) REFERENCES stock_item_attribute_templates(id) ON DELETE SET NULL,
+        FOREIGN KEY (image_file_id) REFERENCES storage_file_objects(id) ON DELETE RESTRICT
     )
     "#,
     r#"

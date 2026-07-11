@@ -89,7 +89,7 @@ pub(super) async fn upload_image(
     })
 }
 
-/// 按临时所有权或已绑定入库权限读取图片内容。
+/// 按临时所有权或已绑定物品/入库权限读取图片内容。
 pub(super) async fn read_file(
     state: &CoreState,
     current_user: &CurrentUser,

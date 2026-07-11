@@ -142,7 +142,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `storage_item_file_bindings`
 
-物品图片引用表。`file_object_id` 与 `item_attribute_id` 均唯一，保证单张图片只绑定一个物品 file 属性。
+物品扩展图片属性引用表。`file_object_id` 与 `item_attribute_id` 均唯一，保证单张图片只绑定一个物品 file 属性；物品必选主图不使用本表，直接由 `stock_items.image_file_id` 引用。
 
 ### `stock_item_categories`
 
@@ -173,9 +173,12 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `sku`：物品编号；未软删除记录内唯一。
 - `category_id`：可选物品分类 ID。
 - `attribute_template_id`：可选物品属性模板 ID。
+- `image_file_id`：必选且唯一的物品主图文件对象 ID，外键指向 `storage_file_objects`。
 - `default_price`：参考单价，不允许为负。
 - `reorder_point`：再订货点，不允许为负。
 - `deleted_at`：软删除时间；为空表示当前有效。
+
+数据库通过 `NOT NULL` 保证每个物品都有主图，通过 `UNIQUE` 保证一张文件对象不能作为多个物品的主图。数据库只保存文件 ID；真实磁盘相对路径仍只存在于 `storage_file_objects`。
 
 ### `stock_item_attributes`
 

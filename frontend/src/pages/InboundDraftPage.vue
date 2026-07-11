@@ -71,7 +71,7 @@
             @dblclick="addItem(item)"
           >
             <div class="inbound-item-card__identity">
-              <span class="inbound-item-card__mark" aria-hidden="true">{{ itemInitial(item) }}</span>
+              <AuthenticatedImage :file-id="item.image_file_id" :alt="`${item.name} 主图`" :size="34" />
               <div>
                 <strong :title="item.name">{{ item.name }}</strong>
                 <span>{{ item.sku }} · {{ item.unit }}</span>
@@ -157,7 +157,7 @@
                     :class="{ 'inbound-line--selected': selectedLineId === line.lineId }"
                     @click="selectLine(line.lineId)"
                   >
-                    <td><strong>{{ line.item.name }}</strong><span>{{ line.item.sku }} · {{ line.item.unit }}</span></td>
+                    <td><div class="inbound-line__identity"><AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="30" /><div><strong>{{ line.item.name }}</strong><span>{{ line.item.sku }} · {{ line.item.unit }}</span></div></div></td>
                     <td>
                       <input
                         v-model.number="line.quantity"
@@ -234,6 +234,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import ModalDialog from '../components/ModalDialog.vue'
 import InboundLineEditor from '../components/inbound/InboundLineEditor.vue'
+import AuthenticatedImage from '../components/attributes/AuthenticatedImage.vue'
 import { createInbound, listLocations, type LocationResponse } from '../api/inbound'
 import { getItemAttributeTemplate, type ItemAttributeTemplateResponse } from '../api/itemAttributeTemplates'
 import { getInboundTemplate, listInboundTemplates, type InboundTemplateResponse } from '../api/inboundTemplates'
@@ -243,13 +244,14 @@ import { ApiError } from '../api/errors'
 import { useInboundDraftPersistence } from '../composables/useInboundDraftPersistence'
 import { useInboundItemCatalog } from '../composables/useInboundItemCatalog'
 import { notice } from '../notices/notice'
+import { isImageDraftValue, uploadImageDrafts } from '../components/attributes/imageDraft'
 import {
   buildInboundRequest, createDraftLine, lineReady, lineSubtotal, positiveNumber,
   revokeLinePreviews, templateFieldError, validQuantity, validUnitPrice,
   type FileDraftValue, type InboundDraftLine,
 } from './inbound-draft/model'
 import {
-  formatMoney, formatQuantity, inboundSubmitErrorMessage, isAbortError, itemErrorMessage, itemInitial,
+  formatMoney, formatQuantity, inboundSubmitErrorMessage, isAbortError, itemErrorMessage,
 } from './inbound-draft/presentation'
 
 type ConfirmationMode = 'clear' | 'leave' | null
@@ -293,8 +295,8 @@ const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useInboundDraf
   source, notes, notesOpen, draftItems, hasDraft,
 )
 
-onMounted(() => {
-  const restored = restoreDraft()
+onMounted(async () => {
+  const restored = await restoreDraft()
   selectedLineId.value = draftItems.value[0]?.lineId ?? null
   draftItems.value.forEach((line) => { if (line.templateId) void loadLineTemplate(line, line.templateId) })
   if (restored) notice.info('已恢复上次未提交的入库草稿')
@@ -448,16 +450,36 @@ async function reviewDraft(): Promise<void> {
   }
   submitting.value = true
   try {
+    await uploadImageDrafts(inboundDraftImages())
     const created = await createInbound(buildInboundRequest(source.value, notes.value, draftItems.value))
     notice.success('入库单已提交', { detail: `单号 #${created.id} 已进入待审批状态。` })
     clearLocalDraftState()
   } catch (error) {
+    const failedImage = firstFailedImage()
+    if (failedImage) {
+      notice.error('入库图片上传失败', { detail: failedImage.value.error })
+      await focusLineTemplate(failedImage.line, failedImage.fieldName)
+      return
+    }
     const message = inboundSubmitErrorMessage(error)
     notice.error(message.title, { detail: message.detail })
     await focusBackendError(error)
   } finally {
     submitting.value = false
   }
+}
+
+function inboundDraftImages(): FileDraftValue[] {
+  return draftItems.value.flatMap((line) => Object.values(line.extAttributes).filter(isImageDraftValue))
+}
+
+function firstFailedImage(): { line: InboundDraftLine; fieldName: string; value: FileDraftValue } | null {
+  for (const line of draftItems.value) {
+    for (const [fieldName, value] of Object.entries(line.extAttributes)) {
+      if (isImageDraftValue(value) && value.status === 'failed') return { line, fieldName, value }
+    }
+  }
+  return null
 }
 
 function openClearConfirmation(): void { if (hasDraft.value) confirmationMode.value = 'clear' }

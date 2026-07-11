@@ -25,6 +25,9 @@ pub struct Model {
     /// 可选物品属性模板 ID；模板只提供录入预设，不限制自定义属性。
     pub attribute_template_id: Option<i64>,
 
+    /// 必选物品主图文件对象 ID；文件内容由受控文件服务读取。
+    pub image_file_id: i64,
+
     /// 计量单位，例如个、米、KG 或件。
     pub unit: String,
 

@@ -2,6 +2,7 @@
 <template>
   <section class="inbound-line-editor" aria-label="当前明细详情">
     <header>
+      <AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" />
       <div><span>当前明细</span><strong>{{ line.item.name }}</strong></div>
       <small>{{ line.item.sku }}</small>
     </header>
@@ -25,7 +26,7 @@
         <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.name }}</option>
       </select>
     </label>
-    <section v-if="line.templateLoading" class="inbound-template-state">正在加载物品模板…</section>
+    <section v-if="line.templateLoading" class="inbound-template-state">正在加载入库模板…</section>
     <section v-else-if="line.templateError" class="inbound-template-state inbound-template-state--error" role="alert">
       <span>{{ line.templateError }}</span>
       <button class="text-button" type="button" data-template-retry @click="$emit('retry-template', line)">重试</button>
@@ -33,11 +34,12 @@
     <section v-else-if="line.template" class="inbound-template-fields">
       <header><strong>{{ line.template.name }}</strong><span>提交与审批时校验</span></header>
       <div>
-        <label v-for="field in line.template.fields" :key="field.id">
+        <div v-for="field in line.template.fields" :key="field.id" class="inbound-template-field">
           <span>{{ field.field_name }}<template v-if="field.required"> *</template></span>
           <AttributeImageField
             v-if="field.field_type === 'file'"
             :model-value="fileValue(line, field.field_name)"
+            :label="field.field_name"
             :invalid="fieldInvalid(field)"
             :title="fieldTitle(field)"
             :data-template-field="field.field_name"
@@ -46,6 +48,7 @@
           <select
             v-else-if="field.field_type === 'select'"
             v-model="line.extAttributes[field.field_name]"
+            :aria-label="field.field_name"
             :data-template-field="field.field_name"
             :class="{ 'inbound-control--error': fieldInvalid(field) }"
             :title="fieldTitle(field)"
@@ -55,6 +58,7 @@
           <select
             v-else-if="field.field_type === 'boolean'"
             v-model="line.extAttributes[field.field_name]"
+            :aria-label="field.field_name"
             :data-template-field="field.field_name"
             :class="{ 'inbound-control--error': fieldInvalid(field) }"
             :title="fieldTitle(field)"
@@ -64,13 +68,14 @@
           <input
             v-else
             v-model="line.extAttributes[field.field_name]"
+            :aria-label="field.field_name"
             :data-template-field="field.field_name"
             :class="{ 'inbound-control--error': fieldInvalid(field) }"
             :type="inputType(field.field_type)"
             :placeholder="field.default_value ?? undefined"
             :title="fieldTitle(field)"
           />
-        </label>
+        </div>
       </div>
     </section>
     <p v-else class="inbound-line-editor__empty">该物品没有需要填写的模板扩展属性。</p>
@@ -82,6 +87,7 @@ import type { TemplateFieldResponse, TemplateFieldType } from '../../api/inbound
 import type { InboundTemplateResponse } from '../../api/inboundTemplates'
 import { fileValue, templateFieldError, type InboundDraftLine } from '../../pages/inbound-draft/model'
 import AttributeImageField from '../attributes/AttributeImageField.vue'
+import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
 
 const props = defineProps<{ line: InboundDraftLine; templates: InboundTemplateResponse[]; validationAttempted: boolean }>()
 const emit = defineEmits<{ 'retry-template': [line: InboundDraftLine]; 'select-template': [templateId: number | null] }>()

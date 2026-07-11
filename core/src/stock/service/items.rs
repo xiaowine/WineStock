@@ -4,8 +4,10 @@
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use crate::{
+    files::stored_image_matches_metadata,
     persistence::repository::{
-        CreateStockItem, ListStockItems, StockItemListRecord, StockRepository, UpdateStockItem,
+        CreateStockItem, FileObjectRepository, ListStockItems, StockItemListRecord,
+        StockRepository, UpdateStockItem,
     },
     security::CurrentUser,
     state::CoreState,
@@ -28,6 +30,7 @@ pub(crate) async fn create_item(
     request: controller::ItemCreateRequest,
 ) -> Result<controller::ItemResponse, StockApiError> {
     let repository = StockRepository::new(state.database());
+    validate_item_main_image(state, current_user, request.image_file_id).await?;
     if let Some(category_id) = request.category_id {
         if repository
             .find_active_item_category_by_id(category_id)
@@ -45,11 +48,21 @@ pub(crate) async fn create_item(
         request.attributes,
     )
     .await?;
+    if attributes
+        .iter()
+        .any(|attribute| attribute.file_object_id == Some(request.image_file_id))
+    {
+        return Err(StockApiError::ItemImageUnavailable {
+            file_id: request.image_file_id,
+        });
+    }
     let input = CreateStockItem {
         name: normalize_required_text(&request.name)?,
         sku: normalize_required_text(&request.sku)?,
         category_id: request.category_id,
         attribute_template_id: request.attribute_template_id,
+        image_file_id: request.image_file_id,
+        image_owner_user_id: current_user.user_id,
         unit: normalize_required_text(&request.unit)?,
         description: normalize_optional_text(request.description)?,
         default_price: validate_non_negative(request.default_price)?,
@@ -150,6 +163,12 @@ pub(crate) async fn update_item(
         .find_active_item_by_id(id)
         .await?
         .ok_or(StockApiError::ItemNotFound)?;
+    let image_file_id = request
+        .image_file_id
+        .filter(|file_id| *file_id != current.image_file_id);
+    if let Some(file_id) = image_file_id {
+        validate_item_main_image(state, current_user, file_id).await?;
+    }
     if let Some(sku) = sku.as_deref() {
         if repository.active_sku_exists_except(sku, Some(id)).await? {
             return Err(StockApiError::SkuTaken);
@@ -181,6 +200,16 @@ pub(crate) async fn update_item(
         ),
         None => None,
     };
+    let effective_image_file_id = image_file_id.unwrap_or(current.image_file_id);
+    if attributes.as_ref().is_some_and(|attributes| {
+        attributes
+            .iter()
+            .any(|attribute| attribute.file_object_id == Some(effective_image_file_id))
+    }) {
+        return Err(StockApiError::ItemImageUnavailable {
+            file_id: effective_image_file_id,
+        });
+    }
     let Some(item) = repository
         .update_item(
             id,
@@ -192,6 +221,8 @@ pub(crate) async fn update_item(
                 sku,
                 category_id: request.category_id,
                 attribute_template_id: request.attribute_template_id,
+                image_file_id,
+                image_owner_user_id: image_file_id.map(|_| current_user.user_id),
                 unit: request
                     .unit
                     .map(|unit| normalize_required_text(&unit))
@@ -217,6 +248,24 @@ pub(crate) async fn update_item(
         item: detail.item,
         attributes: detail.attributes,
     })
+}
+
+/// 校验物品主图文件元数据、磁盘内容、所有权和当前绑定状态。
+async fn validate_item_main_image(
+    state: &CoreState,
+    current_user: &CurrentUser,
+    file_id: i64,
+) -> Result<(), StockApiError> {
+    let record = FileObjectRepository::new(state.database())
+        .find_access_record(file_id)
+        .await?
+        .ok_or(StockApiError::ItemImageUnavailable { file_id })?;
+    let owned_unbound =
+        record.file.owner_user_id == Some(current_user.user_id) && !record.is_bound();
+    if !owned_unbound || !stored_image_matches_metadata(state.storage(), &record.file) {
+        return Err(StockApiError::ItemImageUnavailable { file_id });
+    }
+    Ok(())
 }
 
 fn normalize_nullable_text(

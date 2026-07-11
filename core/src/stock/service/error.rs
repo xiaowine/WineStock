@@ -35,6 +35,9 @@ pub(crate) enum StockApiError {
     /// SKU 已被其他未软删除物品占用。
     SkuTaken,
 
+    /// 物品主图不存在、无权使用、内容损坏或已经被其它业务记录绑定。
+    ItemImageUnavailable { file_id: i64 },
+
     /// 模板名称已被其他未软删除模板占用。
     TemplateNameTaken,
 
@@ -165,6 +168,14 @@ impl IntoResponse for StockApiError {
                     serde_json::json!({ "line_index": line_index, "field_name": field_name, "file_id": file_id }),
                 );
             }
+            Self::ItemImageUnavailable { file_id } => {
+                return api_error_response_with_details(
+                    StatusCode::CONFLICT,
+                    "item_image_unavailable",
+                    "物品主图不存在、无权使用或已被占用",
+                    serde_json::json!({ "file_id": file_id }),
+                );
+            }
             other => return other.into_plain_response(),
         }
     }
@@ -250,7 +261,8 @@ impl StockApiError {
             | Self::InboundLocationInvalid { .. }
             | Self::InboundTemplateInvalid { .. }
             | Self::InboundFieldInvalid { .. }
-            | Self::InboundFileUnavailable { .. } => unreachable!("结构化入库错误已提前处理"),
+            | Self::InboundFileUnavailable { .. }
+            | Self::ItemImageUnavailable { .. } => unreachable!("结构化库存错误已提前处理"),
             Self::Database(source) => {
                 let _ = source;
                 (
@@ -298,6 +310,13 @@ pub(super) fn map_stock_db_error(source: DbErr) -> StockApiError {
         }
         DbErr::Custom(message) if message == "item file unavailable" => {
             StockApiError::InvalidRequest
+        }
+        DbErr::Custom(message) if message.starts_with("item image unavailable:") => {
+            let file_id = message
+                .split_once(':')
+                .and_then(|(_, value)| value.parse().ok())
+                .unwrap_or(0);
+            StockApiError::ItemImageUnavailable { file_id }
         }
         DbErr::Custom(message)
             if message == "location transfer target unchanged"

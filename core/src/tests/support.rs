@@ -287,3 +287,35 @@ pub(crate) async fn error_code(response: axum::response::Response) -> String {
         .expect("error code should be a string")
         .to_owned()
 }
+
+/// 上传一张最小测试 PNG，并返回可用于物品主图的临时文件 ID。
+pub(crate) async fn upload_test_image(app: &TestApp, access_token: &str) -> i64 {
+    const PNG_BYTES: &[u8] = b"\x89PNG\r\n\x1a\nwinestock";
+    let boundary = "winestock-shared-test-image";
+    let mut body = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"item.png\"\r\nContent-Type: image/png\r\n\r\n"
+    )
+    .into_bytes();
+    body.extend_from_slice(PNG_BYTES);
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/files/images")
+                .header("authorization", format!("Bearer {access_token}"))
+                .header(
+                    "content-type",
+                    format!("multipart/form-data; boundary={boundary}"),
+                )
+                .body(Body::from(body))
+                .expect("test image request should build"),
+        )
+        .await
+        .expect("test image upload should complete");
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let value: serde_json::Value = json_body(response).await;
+    value["id"].as_i64().expect("test image id should exist")
+}
