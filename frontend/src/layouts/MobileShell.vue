@@ -14,11 +14,16 @@
         :aria-expanded="navOpen"
         @click="openNavigation"
       >
-        ☰
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
       </button>
       <div class="mobile-topbar__title">
-        <span>WineStock</span>
-        <strong>{{ pageTitle }}</strong>
+        <span class="mobile-topbar__brand-mark" aria-hidden="true">W</span>
+        <span class="mobile-topbar__context">
+          <small>WineStock</small>
+          <strong>{{ pageTitle }}</strong>
+        </span>
       </div>
       <div v-if="userDisplayName" class="mobile-topbar__actions">
         <button
@@ -68,10 +73,18 @@
         <button class="mobile-nav-backdrop" type="button" aria-label="关闭导航" @click="navOpen = false" />
         <aside class="mobile-nav-drawer">
           <div class="mobile-nav-drawer__header">
-            <div>
-              <h2>导航</h2>
+            <div class="mobile-nav-drawer__brand">
+              <span class="brand-mark" aria-hidden="true">W</span>
+              <div>
+                <strong>WineStock</strong>
+                <span>应用导航</span>
+              </div>
             </div>
-            <button class="icon-button" type="button" aria-label="关闭导航" @click="navOpen = false">×</button>
+            <button class="icon-button" type="button" aria-label="关闭导航" @click="navOpen = false">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m6 6 12 12M18 6 6 18" />
+              </svg>
+            </button>
           </div>
 
           <AppNavigationList :items="visibleNavigation" @navigate="navOpen = false" />

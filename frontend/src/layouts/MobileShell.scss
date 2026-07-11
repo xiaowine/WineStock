@@ -12,29 +12,53 @@
   grid-template-columns: 44px minmax(0, 1fr) auto;
   align-items: center;
   min-height: calc(var(--topbar-height-mobile) + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) 10px 0;
+  padding: env(safe-area-inset-top) 12px 0;
   border-bottom: 1px solid var(--color-border);
-  background: #fbfbfc;
+  background: rgb(251 251 252 / 94%);
+  box-shadow: 0 1px 10px rgb(23 32 42 / 4%);
+  backdrop-filter: blur(14px);
 }
 
 .mobile-topbar__title {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.mobile-topbar__brand-mark {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgb(111 42 54 / 24%);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.mobile-topbar__context {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-.mobile-topbar__title span {
+.mobile-topbar__context small {
   color: var(--color-subtle);
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
 }
 
-.mobile-topbar__title strong {
+.mobile-topbar__context strong {
   max-width: 100%;
   overflow: hidden;
   color: var(--color-text);
-  font-size: 16px;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -104,10 +128,35 @@
 
 .mobile-nav-drawer__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 4px;
+  padding: 0 4px 14px;
+  border-bottom: 1px solid var(--color-nav-border);
+}
+
+.mobile-nav-drawer__brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-nav-drawer__brand > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.mobile-nav-drawer__brand strong {
+  color: var(--color-nav-text);
+  font-size: 15px;
+}
+
+.mobile-nav-drawer__brand span:not(.brand-mark) {
+  color: var(--color-nav-muted);
+  font-size: 12px;
 }
 
 .mobile-nav-trigger[aria-expanded='true'],
@@ -120,6 +169,16 @@
 .mobile-account-trigger {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-trigger svg,
+.mobile-nav-drawer__header .icon-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 
 .mobile-account-trigger {
