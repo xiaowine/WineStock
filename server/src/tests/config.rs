@@ -1,5 +1,6 @@
 //! server shell 配置加载测试。
 
+use std::fs;
 use tempfile::tempdir;
 use winestock_shared::{RuntimeMode, ServerConfig};
 
@@ -73,28 +74,6 @@ fn creates_default_json_config_when_missing() {
     let file_config = AppConfig::from_json_str(&file_content).expect("created config should parse");
     assert_eq!(file_config.storage.database_path, "winestock.sqlite");
     assert_eq!(file_config.storage.files_dir, "files");
-}
-
-#[test]
-fn existing_json_config_is_not_overwritten() {
-    let temp = tempdir().expect("temp dir should exist");
-    let config_path = temp.path().join("config.json");
-    let mut custom_config = AppConfig::default();
-    custom_config.server.port = 19001;
-    let mut custom_content = custom_config
-        .to_json_string_pretty()
-        .expect("custom config should serialize");
-    custom_content.push('\n');
-    fs::write(&config_path, &custom_content).expect("custom config should write");
-
-    let loaded = load_config(&config_path).expect("existing config should load");
-
-    assert!(!loaded.created_default);
-    assert_eq!(loaded.config.server.port, 19001);
-    assert_eq!(
-        fs::read_to_string(&config_path).expect("custom config should remain readable"),
-        custom_content
-    );
 }
 
 #[test]

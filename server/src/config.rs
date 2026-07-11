@@ -4,11 +4,11 @@
 //! 它负责把配置中的相对存储路径解析到该 `data` 目录，但不决定 core 的业务配置含义。
 
 use std::{
-    env, fs, io,
+    env, fs,
     path::{Path, PathBuf},
 };
 
-use winestock_shared::{AppConfig, StorageConfig};
+use winestock_shared::{load_or_create_json_config, AppConfig, StorageConfig};
 
 use crate::error::ServerShellError;
 
@@ -47,63 +47,24 @@ fn config_path_from_exe_path(exe_path: &Path) -> Result<PathBuf, ServerShellErro
 
 /// 读取或创建配置文件，并把存储路径解析到配置文件所在目录。
 pub(crate) fn load_config(config_path: &Path) -> Result<LoadedConfig, ServerShellError> {
-    let (mut config, created_default) = match fs::read_to_string(config_path) {
-        Ok(content) => (
-            AppConfig::from_json_str(&content).map_err(|source| ServerShellError::ParseConfig {
-                path: config_path.to_path_buf(),
-                source,
-            })?,
-            false,
-        ),
-        Err(source) if source.kind() == io::ErrorKind::NotFound => {
-            (create_default_config_file(config_path)?, true)
-        }
-        Err(source) => {
-            return Err(ServerShellError::ReadConfig {
-                path: config_path.to_path_buf(),
-                source,
-            });
-        }
-    };
+    let loaded = load_or_create_json_config(config_path, &server_default_config())
+        .map_err(ServerShellError::LoadConfigFile)?;
+    let mut config = loaded.config;
 
     resolve_storage_paths(&mut config, config_path);
     Ok(LoadedConfig {
         config,
-        created_default,
+        created_default: loaded.created_default,
     })
 }
 
-/// 缺失配置文件时写入共享默认配置；已有配置不会进入这个函数。
-fn create_default_config_file(config_path: &Path) -> Result<AppConfig, ServerShellError> {
-    if let Some(parent) = config_path
-        .parent()
-        .filter(|path| !path.as_os_str().is_empty())
-    {
-        fs::create_dir_all(parent).map_err(|source| ServerShellError::CreateConfigDirectory {
-            path: parent.to_path_buf(),
-            source,
-        })?;
-    }
-
+/// 构造 server shell 的默认配置；存储路径相对于固定的 `data` 配置目录。
+fn server_default_config() -> AppConfig {
     let mut config = AppConfig::default();
     // 配置文件已经位于 data/ 目录内，写入文件的默认存储路径要相对这个目录。
     config.storage.database_path = "winestock.sqlite".to_owned();
     config.storage.files_dir = "files".to_owned();
-    let mut content = config.to_json_string_pretty().map_err(|source| {
-        ServerShellError::SerializeDefaultConfig {
-            path: config_path.to_path_buf(),
-            source,
-        }
-    })?;
-    content.push('\n');
-
-    // 配置文件属于平台壳管理；缺失时写入共享默认配置，避免用户手动创建。
-    fs::write(config_path, content).map_err(|source| ServerShellError::WriteDefaultConfig {
-        path: config_path.to_path_buf(),
-        source,
-    })?;
-
-    Ok(config)
+    config
 }
 
 /// 校验服务端 shell 只能运行需要本地服务的模式。

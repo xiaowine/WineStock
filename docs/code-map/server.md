@@ -16,7 +16,7 @@
 
 - `server/src/config.rs`
   - 使用当前可执行文件目录固定定位 `data/config.json`。
-  - 配置缺失时创建默认 JSON 后继续启动。
+  - 为 server shell 构造相对于 `data` 目录的默认存储配置，并调用 shared 加载或创建 JSON 文件。
   - 相对存储路径以配置文件所在目录为基准。
   - 确保 server shell 只运行本地服务模式，并在 core 打开 SQLite 前创建存储目录。
 
@@ -25,7 +25,7 @@
 
 - `server/src/tests/`
   - `lib.rs` 覆盖 shell 生命周期相关行为。
-  - `config.rs` 覆盖固定配置路径、默认文件创建、已有配置保留和路径解析。
+  - `config.rs` 覆盖固定配置路径、server 默认配置创建、运行模式和路径解析。
 
 ## 运行流程
 

@@ -1,13 +1,13 @@
 # Shared 代码地图
 
-`shared` 是平台无关运行配置、配置解析错误和基础文本校验 crate。
+`shared` 是平台无关运行配置、JSON 配置文件加载、配置错误和基础文本校验 crate。
 它不能依赖 `core`、Axum、平台 shell、WebView 或前端构建产物，也不承载 HTTP DTO。
 
 ## 源码
 
 - `shared/src/lib.rs`
-  - 作为 crate 薄入口，公开 `config`、`error` 和 `text_validation`，私有声明 `config_validation`。
-  - 重新导出启动配置公共类型，不直接承载配置实体或校验实现。
+  - 作为 crate 薄入口，公开 `config`、`config_file`、`error` 和 `text_validation`，私有声明 `config_validation`。
+  - 重新导出启动配置与配置文件加载公共类型，不直接承载具体实现。
 
 - `shared/src/config.rs`
   - 定义 `AppConfig`、`ServerConfig`、`StorageConfig` 和 `RuntimeMode`。
@@ -15,8 +15,13 @@
   - `AppConfig::from_json_str()` 在反序列化后执行校验。
   - `ServerConfig` 不包含独立 `enabled` 开关；是否使用本地服务由运行模式决定。
 
+- `shared/src/config_file.rs`
+  - 读取调用方指定路径上的 JSON 配置文件，并在文件缺失时创建调用方提供的默认配置。
+  - 使用格式化 JSON、末尾换行和非覆盖式创建；不决定任何平台 shell 的配置位置或默认路径。
+
 - `shared/src/error.rs`
   - 定义 `ConfigParseError`，区分 JSON 结构错误和字段约束错误。
+  - 定义带路径和 source 链的 `ConfigFileError`，统一描述配置文件读取、解析和缺失初始化失败。
 
 - `shared/src/config_validation.rs`
   - 定义配置实体内部使用的 `garde` 自定义校验函数。
@@ -28,8 +33,9 @@
 
 ## 测试与约束文档
 
-- `shared/src/tests/lib.rs`：shared 配置和基础校验测试入口。
+- `shared/src/tests/lib.rs`：shared 配置、配置文件创建与保留、基础校验测试入口。
 - `docs/validation/shared-src-config.md`：启动配置和运行模式限制。
+- `docs/validation/shared-src-config-file.md`：JSON 配置文件加载和缺失初始化边界。
 - `docs/validation/shared-src-error.md`：配置解析错误。
 - `docs/validation/shared-src-config-validation.md`：配置自定义校验边界。
 - `docs/validation/shared-src-text-validation.md`：基础文本校验边界。

@@ -6,7 +6,7 @@
 use std::{error::Error, fmt, io, path::PathBuf};
 
 use winestock_core::{CoreBootstrapError, ServerStartError};
-use winestock_shared::{ConfigParseError, RuntimeMode};
+use winestock_shared::{ConfigFileError, RuntimeMode};
 
 /// 服务端 shell 自身的配置、生命周期和启动错误。
 #[derive(Debug)]
@@ -23,50 +23,8 @@ pub enum ServerShellError {
         path: PathBuf,
     },
 
-    /// 读取已有配置文件失败。
-    ReadConfig {
-        /// 配置文件路径。
-        path: PathBuf,
-
-        /// 底层 IO 错误。
-        source: io::Error,
-    },
-
-    /// 配置文件内容不是合法启动配置。
-    ParseConfig {
-        /// 配置文件路径。
-        path: PathBuf,
-
-        /// JSON 解析或字段约束错误。
-        source: ConfigParseError,
-    },
-
-    /// 创建默认配置目录失败。
-    CreateConfigDirectory {
-        /// 需要创建的目录路径。
-        path: PathBuf,
-
-        /// 底层 IO 错误。
-        source: io::Error,
-    },
-
-    /// 序列化默认配置失败。
-    SerializeDefaultConfig {
-        /// 目标配置文件路径。
-        path: PathBuf,
-
-        /// JSON 序列化错误。
-        source: serde_json::Error,
-    },
-
-    /// 写入默认配置文件失败。
-    WriteDefaultConfig {
-        /// 目标配置文件路径。
-        path: PathBuf,
-
-        /// 底层 IO 错误。
-        source: io::Error,
-    },
+    /// shared 层读取、解析或创建 JSON 配置文件失败。
+    LoadConfigFile(ConfigFileError),
 
     /// 配置关闭了自动启动，本服务端 shell 不继续启动。
     AutoStartDisabled,
@@ -100,17 +58,7 @@ impl fmt::Display for ServerShellError {
             Self::MissingExecutableDirectory { path } => {
                 write!(f, "当前程序路径没有可用目录: {}", path.display())
             }
-            Self::ReadConfig { path, .. } => write!(f, "读取配置文件失败: {}", path.display()),
-            Self::ParseConfig { path, .. } => write!(f, "解析配置文件失败: {}", path.display()),
-            Self::CreateConfigDirectory { path, .. } => {
-                write!(f, "创建默认配置目录失败: {}", path.display())
-            }
-            Self::SerializeDefaultConfig { path, .. } => {
-                write!(f, "生成默认配置内容失败: {}", path.display())
-            }
-            Self::WriteDefaultConfig { path, .. } => {
-                write!(f, "写入默认配置文件失败: {}", path.display())
-            }
+            Self::LoadConfigFile(source) => write!(f, "加载 JSON 配置失败: {source}"),
             Self::AutoStartDisabled => write!(
                 f,
                 "server.auto_start_server 为 false，服务端 shell 不会自动启动服务"
@@ -132,11 +80,7 @@ impl Error for ServerShellError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::ResolveExecutablePath { source } => Some(source),
-            Self::ReadConfig { source, .. } => Some(source),
-            Self::ParseConfig { source, .. } => Some(source),
-            Self::CreateConfigDirectory { source, .. } => Some(source),
-            Self::SerializeDefaultConfig { source, .. } => Some(source),
-            Self::WriteDefaultConfig { source, .. } => Some(source),
+            Self::LoadConfigFile(source) => Some(source),
             Self::PrepareStorage { source, .. } => Some(source),
             Self::CoreBootstrap(source) => Some(source),
             Self::Start(source) => Some(source),
