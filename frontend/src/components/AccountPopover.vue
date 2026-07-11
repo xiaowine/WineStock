@@ -46,3 +46,5 @@ const emit = defineEmits<{
   logout: []
 }>()
 </script>
+
+<style lang="scss" src="./AccountPopover.scss"></style>

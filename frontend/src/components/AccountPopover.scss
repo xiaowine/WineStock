@@ -1,0 +1,63 @@
+/* 本文件拥有账户弹层、遮罩、错误和开关动效，不处理会话退出行为。 */
+.account-popover__logout:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.account-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.account-popover {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 1;
+  display: grid;
+  width: min(260px, calc(100vw - 20px));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-menu);
+  transform-origin: top right;
+}
+
+.account-popover-enter-active,
+.account-popover-leave-active {
+  transition:
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    transform var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.account-popover-enter-from,
+.account-popover-leave-to {
+  opacity: 0;
+  transform: translateY(calc(0px - var(--motion-distance-small))) scale(0.98);
+}
+
+.desktop-account .account-popover {
+  width: 176px;
+}
+
+.account-popover .account-user-summary {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.account-popover__logout {
+  width: 100%;
+}
+
+.account-popover__error {
+  color: var(--color-danger);
+  font-size: 12px;
+  line-height: 1.45;
+}

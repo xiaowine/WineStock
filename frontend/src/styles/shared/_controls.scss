@@ -1,0 +1,107 @@
+/* 本文件拥有跨页面复用的按钮与轻量操作控件外观，不定义具体业务组件布局。 */
+.icon-button,
+.primary-button,
+.secondary-button,
+.text-button,
+.menu-item {
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-weight: 680;
+}
+
+.icon-button:hover,
+.secondary-button:hover,
+.desktop-content-pane .menu-item:hover {
+  background: rgb(23 32 42 / 4%);
+}
+
+.mobile-nav-trigger[aria-expanded='true'],
+.mobile-nav-trigger[aria-expanded='true']:hover {
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.mobile-nav-trigger,
+.mobile-account-trigger {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.primary-button {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.primary-button:hover {
+  background: var(--color-accent-strong);
+}
+
+.primary-button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.secondary-button:disabled,
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.primary-button--compact {
+  min-width: 64px;
+}
+
+.primary-button--full {
+  width: 100%;
+}
+
+.secondary-button {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.text-button {
+  min-height: 30px;
+  padding: 0 5px;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.text-button:hover {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+}
+
+.eyebrow {
+  margin-bottom: 4px;
+  color: var(--color-subtle);
+  font-size: 12px;
+  font-weight: 620;
+}

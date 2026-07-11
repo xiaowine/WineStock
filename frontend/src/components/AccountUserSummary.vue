@@ -20,3 +20,5 @@ defineProps<{
   displayName: string
 }>()
 </script>
+
+<style lang="scss" src="./AccountUserSummary.scss"></style>

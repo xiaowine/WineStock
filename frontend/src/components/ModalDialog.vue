@@ -112,3 +112,5 @@ function requestClose(): void {
   }
 }
 </script>
+
+<style lang="scss" src="./ModalDialog.scss"></style>

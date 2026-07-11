@@ -592,3 +592,5 @@ function userManagementErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 </script>
+
+<style lang="scss" src="./UsersPage.scss"></style>

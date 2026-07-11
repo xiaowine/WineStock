@@ -14,3 +14,5 @@ import MobileShell from './MobileShell.vue'
 
 const { isDesktop } = useResponsiveShell()
 </script>
+
+<style lang="scss" src="./AppShell.scss"></style>

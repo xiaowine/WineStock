@@ -1,0 +1,98 @@
+/* 本文件拥有桌面应用壳、导航栏、工作区和账户触发器布局，不拥有业务页面样式。 */
+.desktop-shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-nav {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  height: var(--nav-height-desktop);
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: #fbfbfc;
+}
+
+.desktop-account {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-self: end;
+}
+
+.desktop-workspace {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: calc(100vh - var(--nav-height-desktop));
+}
+
+.main-viewport {
+  min-width: 0;
+}
+
+.main-viewport--desktop {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  min-height: calc(100vh - var(--nav-height-desktop));
+  background: var(--color-surface);
+}
+
+.desktop-navigation-pane,
+.desktop-content-pane {
+  min-width: 0;
+}
+
+.desktop-navigation-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 10px;
+  border-right: 1px solid var(--color-nav-border);
+  background: var(--color-nav);
+}
+
+.mobile-nav-drawer h2 {
+  color: var(--color-nav-text);
+}
+
+.desktop-content-pane {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 18px 22px 22px;
+  background: var(--color-surface);
+}
+
+.desktop-account-trigger {
+  position: relative;
+  z-index: 2;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+
+.desktop-account-trigger[aria-expanded='true'],
+.desktop-account-trigger:hover {
+  background: rgb(23 32 42 / 5%);
+}
+
+@media (max-width: 1040px) and (min-width: 768px) {
+  .desktop-nav {
+    padding: 0 14px;
+  }
+
+  .brand-lockup {
+    min-width: 132px;
+  }
+
+  .brand-name {
+    display: none;
+  }
+}

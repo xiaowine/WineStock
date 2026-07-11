@@ -9,3 +9,5 @@
     </Transition>
   </RouterView>
 </template>
+
+<style lang="scss" src="./RouteContentView.scss"></style>

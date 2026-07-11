@@ -1,0 +1,21 @@
+/* 本文件拥有路由页面与内容标题的通用骨架样式，不定义具体业务页面数据展示。 */
+.content-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.content-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.route-page {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}

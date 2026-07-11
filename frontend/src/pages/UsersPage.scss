@@ -1,0 +1,289 @@
+/* 本文件拥有用户管理页面的状态、表格、移动列表、分页和状态标签样式，不拥有子对话框布局。 */
+.status-pill {
+  display: inline-flex;
+  min-width: 48px;
+  justify-content: center;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.status-pill--ok {
+  background: var(--color-teal-soft);
+  color: var(--color-teal);
+}
+
+.status-pill--warn {
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.status-pill--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.status-pill--neutral {
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.users-page__header p {
+  max-width: 680px;
+  margin-top: 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.page-state {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-height: 140px;
+  align-content: center;
+  margin-top: 16px;
+  padding: 20px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+.page-state--error {
+  color: var(--color-danger);
+}
+
+.users-content {
+  position: relative;
+  min-width: 0;
+}
+
+.users-content[aria-busy='true'] {
+  opacity: 0.72;
+}
+
+.users-table-wrap {
+  min-width: 0;
+  margin-top: 14px;
+  overflow-x: auto;
+  border-top: 1px solid var(--color-border);
+}
+
+.users-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.users-table th,
+.users-table td {
+  padding: 9px 8px;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.users-table th:last-child,
+.users-table td:last-child {
+  border-right: 0;
+}
+
+.users-table th {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.users-table th:first-child,
+.users-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 170px;
+  min-width: 170px;
+  max-width: 170px;
+  padding-left: 8px;
+  padding-right: 10px;
+  background: var(--color-surface-raised);
+  box-shadow:
+    inset -1px 0 var(--color-border-strong),
+    12px 0 16px -16px rgb(23 32 42 / 48%);
+}
+
+.users-table th:last-child,
+.users-table td:last-child {
+  padding-right: 0;
+}
+
+.users-table th:last-child,
+.users-table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  padding-left: 10px;
+  padding-right: 8px;
+  background: var(--color-surface-raised);
+  box-shadow:
+    inset 1px 0 var(--color-border-strong),
+    -12px 0 16px -16px rgb(23 32 42 / 48%);
+}
+
+.users-table th:first-child,
+.users-table th:last-child {
+  z-index: 2;
+}
+
+.users-table__actions-heading {
+  width: 200px;
+}
+
+.users-table__user-column {
+  width: 170px;
+}
+
+.users-table__status-column {
+  width: 90px;
+}
+
+.users-table__permissions-column {
+  width: 85px;
+}
+
+.users-table__password-column {
+  width: 100px;
+}
+
+.users-table__actions-column {
+  width: 200px;
+}
+
+.user-identity-cell {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.user-identity-cell strong {
+  display: block;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-identity-cell small {
+  color: var(--color-subtle);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.row-actions__empty {
+  color: var(--color-subtle);
+  font-size: 12px;
+}
+
+.users-mobile-list {
+  display: none;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 14px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 767px) {
+  .users-table-wrap {
+    display: none;
+  }
+
+  .users-mobile-list {
+    display: grid;
+    margin-top: 12px;
+    margin-right: 4px;
+    margin-left: 4px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .user-mobile-item {
+    display: grid;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .user-mobile-item > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .user-mobile-item > header > div {
+    min-width: 0;
+  }
+
+  .user-mobile-item > header h2 {
+    max-width: min(52vw, 200px);
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-mobile-item > header p {
+    margin-top: 2px;
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
+
+  .user-mobile-item dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0;
+  }
+
+  .user-mobile-item dl > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .user-mobile-item dt {
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
+
+  .user-mobile-item dd {
+    margin: 2px 0 0;
+    color: var(--color-text);
+    font-size: 13px;
+  }
+
+  .row-actions--mobile {
+    gap: 8px;
+  }
+
+  .row-actions--mobile .secondary-button {
+    flex: 1 1 88px;
+  }
+
+  .pagination {
+    justify-content: space-between;
+  }
+}

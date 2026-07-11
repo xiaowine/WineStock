@@ -1,0 +1,98 @@
+/* 本文件拥有登录、注册和修改密码页面共用的认证页面布局与响应式规则，不处理鉴权状态。 */
+.auth-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 40px;
+  background: var(--color-page);
+}
+
+.auth-panel {
+  display: grid;
+  width: min(100%, 440px);
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.auth-header {
+  display: grid;
+  gap: 22px;
+}
+
+.auth-header p:not(.eyebrow) {
+  margin-top: 8px;
+  color: var(--color-muted);
+}
+
+.auth-form {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-page-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.auth-page-switch a {
+  color: var(--color-accent);
+  font-weight: 650;
+}
+
+.auth-page-switch a:hover {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+}
+
+.auth-runtime-note {
+  color: var(--color-subtle);
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-runtime-note code {
+  font-family: var(--font-mono);
+}
+
+.auth-account-context {
+  padding: 10px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.auth-account-context strong {
+  color: var(--color-text);
+}
+
+.auth-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.auth-page-actions > * {
+  flex: 1 1 140px;
+}
+
+@media (max-width: 767px) {
+  .auth-page {
+    align-items: start;
+    padding: calc(18px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .auth-panel {
+    gap: 20px;
+    padding: 20px;
+  }
+}

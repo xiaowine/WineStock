@@ -176,25 +176,40 @@ desktop: >= 768px
 
 ```text
 frontend/src/styles/
-  tokens.css
-  base.css
-  layout.css
-  components.css
-  responsive.css
+  index.scss
+  foundation/
+    _tokens.scss
+    _base.scss
+  shared/
+    _brand.scss
+    _controls.scss
+    _forms.scss
+    _page.scss
+    _user-dialogs.scss
+  pages/
+    _auth.scss
+frontend/src/layouts/*.scss
+frontend/src/components/**/*.scss
+frontend/src/pages/*.scss
 ```
 
 职责：
 
-- `tokens.css`：颜色、字体、尺寸、圆角、阴影、层级、导航高度和统一 motion 变量。
-- `base.css`：全局字体、基础元素、滚动、focus 行为和减少动态效果适配。
-- `layout.css`：DesktopShell、MobileShell、主容器、导航区和 Drawer 布局。
-- `components.css`：按钮、状态标记、指标、表格、列表和通用面板。
-- `responsive.css`：断点显示和窄桌面微调。
+- `index.scss`：使用 Sass `@use` 装配全局基础层，不导入具体页面或组件实现。
+- `foundation/`：颜色、字体、尺寸、圆角、阴影、层级、导航高度、motion token、基础元素和减少动态效果适配。
+- `shared/`：只放已经跨多个页面或组件复用的视觉原语，不接收单一业务页面的选择器。
+- `styles/pages/_auth.scss`：认证页面族共享的布局和表单排列。
+- `layouts/*.scss`：样式跟随所属 Shell，包含该 Shell 自己的断点调整。
+- `components/**/*.scss`：样式与 Vue 组件同目录，组件状态和响应式规则由组件自身维护。
+- `pages/*.scss`：业务页面表格、列表、分页和页面级状态由页面自身维护。
 
 规则：
 
-- 断点文件只负责布局切换，不写两套完整视觉系统。
+- 不再建立集中式 `responsive.scss`；断点规则放回对应布局、组件或页面文件。
 - 组件样式使用同一套 token。
+- 运行时主题值继续使用 CSS 自定义属性，不能用 Sass 变量替代。
+- SCSS 嵌套只用于明确的组件状态和子元素，避免按 DOM 结构进行深层嵌套。
+- 无跨组件或插槽选择器依赖的新样式优先使用 scoped；需要外部上下文时必须让全局选择器的所有权清晰可追踪。
 - 不把深色模式混入当前阶段。
 - 不使用大面积装饰渐变、漂浮卡片和营销化 hero。
 
@@ -221,7 +236,8 @@ frontend/src/styles/
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的独立修改密码页面，强制改密时阻断其它前端页面。
 - `frontend/src/pages/UsersPage.vue`：桌面表格和移动列表共用数据、筛选分页和管理操作状态。
 - `frontend/src/pages/`：除鉴权页外还包含总览和物品正式页面入口；未实现的业务内容不展示假数据或开发说明。
-- `frontend/src/styles/`：页面框架样式层。
+- `frontend/src/styles/index.scss`：全局基础与共享视觉原语入口。
+- `frontend/src/layouts/*.scss`、`frontend/src/components/**/*.scss`、`frontend/src/pages/*.scss`：按 Vue 所有权拆分的布局、组件和页面样式。
 
 路由与 history 策略见 `docs/frontend/routes.md`，HTTP 边界见 `docs/frontend/api-client.md`。
 

@@ -1,0 +1,25 @@
+/* 本文件拥有跨认证页面与应用壳复用的 WineStock 品牌标识样式，不拥有平台生命周期。 */
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  min-width: 168px;
+  gap: 9px;
+}
+
+.brand-mark {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgb(111 42 54 / 28%);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 700;
+}

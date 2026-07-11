@@ -1,0 +1,22 @@
+/* 本文件拥有嵌套路由页面切换动效，不拥有具体页面布局或数据。 */
+.route-page-enter-active {
+  transition:
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    transform var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.route-page-leave-active {
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.route-page-enter-from {
+  opacity: 0;
+  transform: translateX(var(--motion-distance-small));
+}
+
+.route-page-leave-to {
+  opacity: 0;
+  transform: translateX(calc(0px - var(--motion-distance-small)));
+}

@@ -63,3 +63,5 @@ const navigationIconPaths: Record<AppNavigationIcon, string> = {
   users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M3 21v-2a6 6 0 0 1 6-6h1 M16 11a4 4 0 0 0 0-8 M14 13h1a6 6 0 0 1 6 6v2',
 }
 </script>
+
+<style lang="scss" src="./AppNavigationList.scss"></style>

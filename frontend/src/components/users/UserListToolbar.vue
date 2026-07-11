@@ -96,3 +96,5 @@ async function selectStatus(nextStatus: '' | UserStatus): Promise<void> {
 }
 
 </script>
+
+<style lang="scss" src="./UserListToolbar.scss"></style>

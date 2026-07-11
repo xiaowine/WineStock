@@ -1,0 +1,145 @@
+/* 本文件拥有通用模态框外壳、过渡和移动端底部面板适配，不拥有具体对话框业务内容。 */
+.modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(23 32 42 / 42%);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.modal-enter-active .modal-panel,
+.modal-leave-active .modal-panel {
+  transition:
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    transform var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.modal-enter-from,
+.modal-leave-to,
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  opacity: 0;
+}
+
+.modal-enter-from .modal-panel,
+.modal-leave-to .modal-panel {
+  transform: translateY(var(--motion-distance-small)) scale(0.98);
+}
+
+.modal-panel {
+  display: grid;
+  grid-template-areas:
+    'header'
+    'context'
+    'body'
+    'notice'
+    'actions';
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  width: min(100%, 480px);
+  max-height: min(86vh, 760px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-menu);
+  transform-origin: center;
+}
+
+.modal-panel--wide {
+  width: min(100%, 720px);
+}
+
+.modal-panel--wide .modal-body {
+  padding-top: 0;
+}
+
+.modal-header {
+  grid-area: header;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-context {
+  grid-area: context;
+  padding: 14px 18px 0;
+  background: var(--color-surface);
+}
+
+.modal-header--compact {
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.modal-header p {
+  margin-top: 5px;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.modal-body {
+  grid-area: body;
+  min-height: 0;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.modal-actions {
+  grid-area: actions;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.modal-notice {
+  grid-area: notice;
+  padding: 0 18px 12px;
+  background: var(--color-surface);
+}
+
+.modal-notice .form-warning {
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .modal-layer {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modal-panel,
+  .modal-panel--wide {
+    width: 100%;
+    max-height: calc(92vh - env(safe-area-inset-top));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .modal-enter-from .modal-panel,
+  .modal-leave-to .modal-panel {
+    transform: translateY(var(--motion-distance-medium)) scale(0.98);
+  }
+
+  .modal-actions {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .modal-context {
+    padding: 12px 14px 0;
+  }
+}

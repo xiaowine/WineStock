@@ -1,0 +1,51 @@
+/* 本文件拥有用户管理对话框共用的表单、账号上下文和状态样式，不拥有模态框外壳。 */
+.dialog-form {
+  display: grid;
+  gap: 16px;
+}
+
+.dialog-content {
+  display: grid;
+  gap: 16px;
+}
+
+.dialog-account-context {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-surface-raised);
+}
+
+.dialog-account-context span {
+  color: var(--color-subtle);
+  font-size: 12px;
+}
+
+.dialog-account-context strong {
+  display: block;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirmation-copy {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.dialog-state {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  min-height: 120px;
+  align-content: center;
+  color: var(--color-muted);
+}
+
+.dialog-state--error {
+  color: var(--color-danger);
+}

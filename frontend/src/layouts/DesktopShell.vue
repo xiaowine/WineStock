@@ -87,3 +87,5 @@ function toggleAccountMenu(): void {
   toggleAccountPopover()
 }
 </script>
+
+<style lang="scss" src="./DesktopShell.scss"></style>

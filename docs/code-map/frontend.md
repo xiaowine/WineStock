@@ -6,7 +6,7 @@
 
 ## 工程入口
 
-- `frontend/package.json`：Vue、Vite 和 Vue Router 依赖；安装和脚本统一使用 pnpm。
+- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用 pnpm。
 - `frontend/src/main.ts`：注册有效 token provider、跨标签页同步和自动刷新调度，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
 - `frontend/src/App.vue`：前端根 `RouterView` 和全局 Notice 挂载点，不拥有具体页面布局。
 - `frontend/src/env.d.ts`：Vite 环境变量和平台运行时注入对象类型。
@@ -100,7 +100,12 @@
 
 ## 样式和文档
 
-- `frontend/src/styles/`：浅色视觉与 motion token、减少动态效果适配、布局、组件和响应式规则。
+- `frontend/src/styles/index.scss`：全局 SCSS 入口，仅装配 foundation、shared 和认证页面族样式。
+- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染和减少动态效果适配。
+- `frontend/src/styles/shared/`：品牌、控件、表单、页面骨架和用户对话框共享视觉原语。
+- `frontend/src/layouts/*.scss`：AppShell、DesktopShell 和 MobileShell 各自拥有的布局与断点规则。
+- `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的外观与响应式规则。
+- `frontend/src/pages/*.scss`：具体业务页面拥有的表格、移动列表、状态和分页样式。
 - `docs/frontend/page-framework.md`：页面框架和桌面/移动所有权。
 - `docs/frontend/routes.md`：路由、history 策略和鉴权守卫状态。
 - `docs/frontend/api-client.md`：API 地址、请求行为、错误契约和会话边界。

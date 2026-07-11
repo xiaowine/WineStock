@@ -1,0 +1,145 @@
+/* 本文件拥有移动应用壳、顶部栏、导航抽屉和账户触发器布局，不拥有业务页面样式。 */
+.mobile-shell {
+  display: none;
+  min-height: 100vh;
+}
+
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: calc(var(--topbar-height-mobile) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  background: #fbfbfc;
+}
+
+.mobile-topbar__title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.mobile-topbar__title span {
+  color: var(--color-subtle);
+  font-size: 12px;
+}
+
+.mobile-topbar__title strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-topbar__actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.main-viewport--mobile {
+  padding: 10px 0 18px;
+  background: var(--color-surface);
+}
+
+.mobile-nav-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: flex;
+  align-items: stretch;
+}
+
+/* 根层持有过渡时长，确保 Vue 在 Drawer 滑出完成前保留整个导航层。 */
+.mobile-nav-enter-active,
+.mobile-nav-leave-active {
+  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.mobile-nav-enter-active .mobile-nav-drawer,
+.mobile-nav-leave-active .mobile-nav-drawer {
+  transition: transform var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.mobile-nav-enter-from,
+.mobile-nav-leave-to {
+  opacity: 0;
+}
+
+.mobile-nav-enter-from .mobile-nav-drawer,
+.mobile-nav-leave-to .mobile-nav-drawer {
+  transform: translateX(-100%);
+}
+
+.mobile-nav-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(23 32 42 / 38%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-drawer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(82vw, 304px);
+  min-height: 100%;
+  flex-direction: column;
+  gap: 18px;
+  padding: calc(14px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom));
+  border-right: 1px solid var(--color-nav-border);
+  background: var(--color-nav);
+  box-shadow: var(--shadow-menu);
+}
+
+.mobile-nav-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.mobile-nav-trigger[aria-expanded='true'],
+.mobile-nav-trigger[aria-expanded='true']:hover {
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.mobile-nav-trigger,
+.mobile-account-trigger {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-account-trigger {
+  position: relative;
+  z-index: 2;
+  display: inline-grid;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.mobile-account-trigger[aria-expanded='true'] .account-user-summary__avatar,
+.mobile-account-trigger:hover .account-user-summary__avatar {
+  border-color: rgb(111 42 54 / 38%);
+  background: #ecdadd;
+}
+
+@media (max-width: 767px) {
+  .main-viewport--mobile .route-page {
+    padding: 0 12px;
+  }
+}

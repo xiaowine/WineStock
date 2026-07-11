@@ -1,0 +1,25 @@
+/* 本文件拥有响应式应用壳的根背景和桌面、移动壳显示切换，不拥有任一壳的内部布局。 */
+.app-shell {
+  min-height: 100vh;
+  background: var(--color-page);
+}
+
+@media (max-width: 767px) {
+  .desktop-shell {
+    display: none;
+  }
+
+  .mobile-shell {
+    display: block;
+  }
+}
+
+@media (min-width: 768px) {
+  .desktop-shell {
+    display: flex;
+  }
+
+  .mobile-shell {
+    display: none;
+  }
+}

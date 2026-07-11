@@ -259,3 +259,5 @@ function submitPermissions(): void {
   emit('submit', Array.from(permissions))
 }
 </script>
+
+<style lang="scss" src="./UserPermissionsDialog.scss"></style>

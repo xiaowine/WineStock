@@ -94,7 +94,7 @@ function handleFocusOut(id: string, event: FocusEvent): void {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .notice-viewport {
   position: fixed;
   top: calc(10px + env(safe-area-inset-top));

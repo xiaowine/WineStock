@@ -97,7 +97,7 @@
 统一规则：
 
 - 快速反馈使用 `120ms`，浮层进入、离开和列表重排使用 `160ms`。
-- 所有组件必须使用 `tokens.css` 中的 motion 变量，不在组件内自行硬编码时长或缓动曲线。
+- 所有组件必须使用 `frontend/src/styles/foundation/_tokens.scss` 输出的 motion 变量，不在组件内自行硬编码时长或缓动曲线。
 - 标准缓动统一使用 `cubic-bezier(0.2, 0, 0, 1)`，保持快速响应并平稳结束。
 - 进入时使用透明度配合小幅定向位移；位移方向应体现触发位置或浮层来源。
 - 锚定在控件旁的 Popover 使用 `6px` 位移，可配合最多 `0.98` 的轻微缩放。
@@ -119,9 +119,13 @@
 
 ## 当前源码对应
 
-- `frontend/src/styles/tokens.css`：当前颜色、尺寸和统一 motion token。
-- `frontend/src/styles/layout.css`：桌面和移动端应用壳布局。
-- `frontend/src/styles/components.css`：当前原型组件外观。
-- `frontend/src/styles/base.css`：基础渲染规则和减少动态效果适配。
+- `frontend/src/styles/index.scss`：全局 SCSS 装配入口，只加载基础、共享控件和跨页面模式。
+- `frontend/src/styles/foundation/`：运行时 CSS token、基础渲染、可访问性辅助类和减少动态效果适配。
+- `frontend/src/styles/shared/`：品牌、按钮、表单、页面骨架和用户对话框共享样式。
+- `frontend/src/styles/pages/_auth.scss`：登录、注册和修改密码共用的认证页面样式。
+- `frontend/src/layouts/*.scss`：桌面与移动应用壳各自拥有的布局和响应式规则。
+- `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的样式。
+- `frontend/src/pages/*.scss`：具体业务页面拥有的表格、列表、状态和分页样式。
+- `frontend/src/components/NoticeViewport.vue`：仅由 Notice 组件使用的 scoped SCSS。
 
 当前原型中的业务文字、数字、按钮和列表都是占位内容，不属于视觉风格结论。
