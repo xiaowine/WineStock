@@ -204,18 +204,19 @@
 }
 
 .dashboard-slow-moving__table td:first-child {
-  display: grid;
   min-width: 0;
-  gap: 2px;
 }
 
 .dashboard-slow-moving__table td:first-child strong {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dashboard-slow-moving__table td:first-child small {
+  display: block;
+  margin-top: 2px;
   color: var(--color-subtle);
 }
 
