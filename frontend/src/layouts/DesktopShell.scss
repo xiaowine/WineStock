@@ -1,7 +1,10 @@
 /* 本文件拥有桌面应用壳、导航栏、工作区和账户触发器布局，不拥有业务页面样式。 */
 .desktop-shell {
   display: flex;
+  height: 100vh;
+  height: 100dvh;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .desktop-nav {
@@ -9,6 +12,7 @@
   top: 0;
   z-index: var(--z-nav);
   display: grid;
+  flex: 0 0 var(--nav-height-desktop);
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   height: var(--nav-height-desktop);
@@ -29,7 +33,7 @@
   position: relative;
   flex: 1;
   width: 100%;
-  min-height: calc(100vh - var(--nav-height-desktop));
+  min-height: 0;
 }
 
 .main-viewport {
@@ -38,8 +42,9 @@
 
 .main-viewport--desktop {
   display: grid;
+  height: 100%;
   grid-template-columns: 224px minmax(0, 1fr);
-  min-height: calc(100vh - var(--nav-height-desktop));
+  min-height: 0;
   background: var(--color-surface);
 }
 
@@ -65,6 +70,9 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
+  /* 桌面壳固定在视口内，业务内容只在本区域滚动，避免顶部栏和侧栏被页面带走。 */
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   padding: 18px 22px 22px;
   background: var(--color-surface);
 }

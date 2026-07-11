@@ -6,6 +6,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  overscroll-behavior: none;
   background: var(--color-page);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -21,6 +22,11 @@ body {
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
+  overscroll-behavior: none;
+  /* WebView 中的应用界面不应像网页正文一样被拖选。 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 button,
@@ -30,9 +36,25 @@ select {
   font: inherit;
 }
 
+/* 可编辑控件仍需支持光标定位、复制和替换文本。 */
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 a {
   color: inherit;
   text-decoration: none;
+  /* 禁止浏览器和 WebView 把链接拖成 URL、快捷方式或浮动预览。 */
+  -webkit-user-drag: none;
+}
+
+img {
+  /* 图片不参与应用内拖拽，避免被拖成文件或浮动预览。 */
+  -webkit-user-drag: none;
 }
 
 button {
