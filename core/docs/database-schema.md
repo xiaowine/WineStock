@@ -10,7 +10,7 @@
 
 - `auth_`：账号、权限、令牌和鉴权内部状态。
 - `storage_`：服务端可查询的存储元数据。
-- `stock_`：库存模板、物品、出入库单据、批次、流水和替代料关系。
+- `stock_`：物品分类、两类属性模板、物品与入库实际属性、单据、批次、流水和替代料关系。
 - `audit_`：跨业务操作审计事件。
 
 不要把 `seaql_migrations`、`sqlite_master` 或 `sqlite_sequence` 当成 WineStock 业务表。
@@ -53,8 +53,8 @@
 - `stock.item.read`：查看库存物品列表、详情和物品筛选值。
 - `stock.location.manage`：管理库位分组、库位和整批次移库。
 - `stock.location.read`：查看库位分组树和库位列表。
-- `stock.template.manage`：管理库存模板和模板字段。
-- `stock.template.read`：查看库存模板列表和详情。
+- `stock.template.manage`：管理物品分类、物品属性模板和入库模板。
+- `stock.template.read`：查看分类和两类模板。
 - `stock.inbound.create`：创建入库单。
 - `stock.inbound.read`：查看入库单列表、详情和入库历史筛选值。
 - `stock.inbound.approve`：审批或拒绝入库单。
@@ -128,25 +128,41 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `storage_path`：文件在 `files/` 目录下的相对路径。
 - `owner_user_id`：文件所有者账号；用户删除后允许置空。
 
-### `stock_templates`
+图片内容使用 SHA-256 派生的 `images/<前两位>/<次两位>/<sha256>.<类型>` 相对路径保存。多个元数据记录可以复用同一内容文件；删除元数据时只有在没有其它记录引用该路径后才删除磁盘内容。
 
-库存模板表。模板定义物品分类所需的扩展字段，入库审批阶段会按物品关联模板校验扩展属性。
-本地服务启动补齐 `元器件`、`3D打印耗材` 和 `通用` 三个内置模板；同名记录存在时跳过，因此不会覆盖用户修改或恢复用户软删除的模板。
+### `storage_inbound_file_bindings`
 
-重要字段：
+入库图片引用表。声明文件对象已经归属到具体入库明细属性。
 
-- `name`：模板名称；未软删除记录内唯一。
-- `deleted_at`：软删除时间；为空表示当前有效。
+重要字段和约束：
 
-### `stock_template_fields`
+- `file_object_id`：关联 `storage_file_objects`，全表唯一，保证同一临时上传不能绑定多个明细。
+- `inbound_order_item_attribute_id`：关联 `stock_inbound_order_item_attributes`，全表唯一。
+- 创建入库单时，本表与单据、明细和属性在同一事务中写入。
 
-库存模板字段表。每条记录描述一个模板字段的名称、类型、必填性、可搜索性、候选值和默认值。
+### `storage_item_file_bindings`
 
-重要字段：
+物品图片引用表。`file_object_id` 与 `item_attribute_id` 均唯一，保证单张图片只绑定一个物品 file 属性。
 
-- `field_type`：只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
-- `options_json`：`select` 等字段类型使用的候选值 JSON。
-- `sort_order`：模板详情展示和校验时的稳定排序依据。
+### `stock_item_categories`
+
+物品分类表，只负责归类，不包含模板字段。重要字段为 `name`、`description`、`sort_order` 和 `deleted_at`。
+
+### `stock_item_attribute_templates`
+
+可选物品属性预设。`default_inbound_template_id` 可推荐一套入库模板，但物品可以不使用模板，也可以增加自定义属性。
+
+### `stock_item_attribute_template_fields`
+
+物品属性预设字段。字段类型只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
+
+### `stock_inbound_templates`
+
+入库属性模板，只描述单次收货或当前批次状态。
+
+### `stock_inbound_template_fields`
+
+入库模板字段，保存必填性、可搜索性、候选值、默认值和稳定排序。
 
 ### `stock_items`
 
@@ -155,10 +171,15 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 重要字段：
 
 - `sku`：物品编号；未软删除记录内唯一。
-- `category_id`：关联模板 ID；模板删除后允许置空。
+- `category_id`：可选物品分类 ID。
+- `attribute_template_id`：可选物品属性模板 ID。
 - `default_price`：参考单价，不允许为负。
 - `reorder_point`：再订货点，不允许为负。
 - `deleted_at`：软删除时间；为空表示当前有效。
+
+### `stock_item_attributes`
+
+物品固有属性表。每条记录保存 `field_name`、`field_type`、合法 `value_json`、可选 `unit` 和可选模板字段来源。`template_field_id` 为空表示自定义属性，同一物品字段名唯一。
 
 ### `stock_location_groups`
 
@@ -194,14 +215,18 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_inbound_order_items`
 
-入库单明细表。记录入库物品、数量、单价、库位 ID、外部批次号、有效期和模板扩展属性。
+入库单明细表。记录入库物品、数量、单价、库位、外部批次号、有效期和可选入库模板 ID。
 
 重要字段：
 
 - `quantity`：入库数量，必须大于 0。
 - `unit_price`：入库单价，不允许为负。
 - `location_id`：入库库位，必须指向有效库位。
-- `ext_attributes_json`：按物品模板校验后的扩展属性 JSON。
+- `inbound_template_id`：本明细使用的入库模板；模板软删除后允许置空，实际属性仍保留。
+
+### `stock_inbound_order_item_attributes`
+
+单次入库实际属性表。每条记录保存属性名称、类型、JSON 值、可选单位、排序和可选模板字段来源。同一入库明细字段名唯一；file 值使用 `{ "file_id": id }`，真实文件归属由 `storage_inbound_file_bindings` 约束。
 
 ### `stock_batches`
 

@@ -9,9 +9,9 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest, ItemResponse,
-        OutboundCreateRequest, OutboundItemRequest, OutboundResponse, TemplateCreateRequest,
-        TemplateFieldDef, TemplateFieldType, TemplateResponse,
+        InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
+        InboundTemplateResponse, ItemCreateRequest, ItemResponse, OutboundCreateRequest,
+        OutboundItemRequest, OutboundResponse, TemplateFieldDef, TemplateFieldType,
     },
     test_support::{
         bootstrap_location_id, error_code, json_body, login_request, seed_stock_location,
@@ -282,7 +282,7 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
 async fn outbound_search_uses_history_scope() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let item_id = seed_search_item(&app, &login.body.access_token).await;
+    let (item_id, inbound_template_id) = seed_search_item(&app, &login.body.access_token).await;
     let outbound_location_id = seed_stock_location(&app, "OUT-L-01").await;
     seed_approved_inbound_with_attributes(
         &app,
@@ -292,6 +292,7 @@ async fn outbound_search_uses_history_scope() {
         "OUT-HIST-001",
         "2029-01-01",
         Some(outbound_location_id),
+        Some(inbound_template_id),
         Some(serde_json::json!({
             "brand": "OutboundHistoryNeedle"
         })),
@@ -389,10 +390,12 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffi
             name: format!("Outbound Bottle {suffix}"),
             sku: format!("OUT-{suffix}"),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
@@ -401,13 +404,13 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffi
     item["id"].as_i64().expect("item id should exist")
 }
 
-async fn seed_search_item(app: &crate::test_support::TestApp, access_token: &str) -> i64 {
+async fn seed_search_item(app: &crate::test_support::TestApp, access_token: &str) -> (i64, i64) {
     let template = authorized_json_request(
         app,
         "POST",
-        "/api/templates",
+        "/api/inbound-templates",
         access_token,
-        &TemplateCreateRequest {
+        &InboundTemplateCreateRequest {
             name: "Outbound Search Template".to_owned(),
             description: None,
             fields: vec![TemplateFieldDef {
@@ -422,7 +425,7 @@ async fn seed_search_item(app: &crate::test_support::TestApp, access_token: &str
     )
     .await;
     assert_eq!(template.status(), StatusCode::CREATED);
-    let template: TemplateResponse = json_body(template).await;
+    let template: InboundTemplateResponse = json_body(template).await;
 
     let item = authorized_json_request(
         app,
@@ -432,18 +435,20 @@ async fn seed_search_item(app: &crate::test_support::TestApp, access_token: &str
         &ItemCreateRequest {
             name: "OutboundSearchBottle".to_owned(),
             sku: "OUT-SEARCH-001".to_owned(),
-            category_id: Some(template.id),
+            category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: Some("outbound search fixture".to_owned()),
             default_price: None,
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
     assert_eq!(item.status(), StatusCode::CREATED);
     let item: ItemResponse = json_body(item).await;
 
-    item.id
+    (item.id, template.id)
 }
 
 async fn seed_approved_inbound(
@@ -463,6 +468,7 @@ async fn seed_approved_inbound(
         expires_at,
         None,
         None,
+        None,
     )
     .await;
 }
@@ -475,6 +481,7 @@ async fn seed_approved_inbound_with_attributes(
     batch_no: &str,
     expires_at: &str,
     location_id: Option<i64>,
+    inbound_template_id: Option<i64>,
     ext_attributes: Option<serde_json::Value>,
 ) {
     let location_id = match location_id {
@@ -496,6 +503,7 @@ async fn seed_approved_inbound_with_attributes(
                 location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some(expires_at.to_owned()),
+                inbound_template_id,
                 ext_attributes,
             }],
         },

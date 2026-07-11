@@ -25,11 +25,17 @@
   - 定义 HTTP DTO 和 repository 输入共享的业务字段校验函数。
   - 复用 shared 基础文本规则，不访问数据库或平台 shell。
 
+- `core/src/files/`
+  - `controller.rs`：图片 multipart 上传、受控读取/删除 DTO 和 handler。
+  - `service.rs`：签名/MIME/大小校验、SHA-256 内容寻址、动态授权和 24 小时孤儿清理。
+  - `error.rs`：文件 API 稳定错误码和启动清理错误。
+  - 文件模块处理物品属性和入库属性共用的受控图片，不拥有前端文件选择器或客户端路径。
+
 ## 启动与服务生命周期
 
 - `core/src/bootstrap.rs`
   - 定义 `CoreBootstrap`、`LocalServiceBootstrap` 和 `bootstrap_from_config()`。
-  - 本地服务模式下打开存储、执行 migration、补齐 RBAC、库存默认数据和鉴权设置。
+  - 本地服务模式下打开存储、执行 migration、补齐 RBAC、库存默认数据、清理超期临时图片并初始化鉴权设置。
   - 远端-only 模式跳过本地存储初始化。
 
 - `core/src/server.rs`

@@ -96,10 +96,7 @@ pub(super) fn append_item_search_filter(
     values: &mut Vec<Value>,
     search_like: &str,
 ) {
-    let json_each = json_each_object("inbound_items.ext_attributes_json");
-    let json_predicate = json_scalar_predicate("json_values");
-    let json_value = json_scalar_value("json_values");
-    sql.push_str(&format!(
+    sql.push_str(
         r#"
         AND (
             lower(stock_items.name) LIKE ?
@@ -108,8 +105,18 @@ pub(super) fn append_item_search_filter(
             OR lower(COALESCE(stock_items.description, '')) LIKE ?
             OR EXISTS (
                 SELECT 1
-                FROM stock_templates templates
-                WHERE templates.id = stock_items.category_id
+                FROM stock_item_categories categories
+                WHERE categories.id = stock_items.category_id
+                  AND categories.deleted_at IS NULL
+                  AND (
+                      lower(categories.name) LIKE ?
+                      OR lower(COALESCE(categories.description, '')) LIKE ?
+                  )
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM stock_item_attribute_templates templates
+                WHERE templates.id = stock_items.attribute_template_id
                   AND templates.deleted_at IS NULL
                   AND (
                       lower(templates.name) LIKE ?
@@ -118,19 +125,14 @@ pub(super) fn append_item_search_filter(
             )
             OR EXISTS (
                 SELECT 1
-                FROM stock_batches batches
-                JOIN stock_inbound_order_items inbound_items
-                  ON inbound_items.id = batches.inbound_order_item_id
-                JOIN {json_each} AS json_values
-                WHERE batches.item_id = stock_items.id
-                  AND batches.remaining_quantity > 0
-                  AND {json_predicate}
-                  AND lower({json_value}) LIKE ?
+                FROM stock_item_attributes attributes
+                WHERE attributes.item_id = stock_items.id
+                  AND lower(attributes.value_json) LIKE ?
             )
         )
-        "#
-    ));
-    for _ in 0..7 {
+        "#,
+    );
+    for _ in 0..9 {
         values.push(search_like.into());
     }
 }
@@ -141,10 +143,7 @@ pub(super) fn append_inbound_search_filter(
     values: &mut Vec<Value>,
     search_like: &str,
 ) {
-    let json_each = json_each_object("inbound_items.ext_attributes_json");
-    let json_predicate = json_scalar_predicate("json_values");
-    let json_value = json_scalar_value("json_values");
-    clauses.push(format!(
+    clauses.push(
         r#"
         (
             lower(stock_inbound_orders.source) LIKE ?
@@ -167,15 +166,16 @@ pub(super) fn append_inbound_search_filter(
                       OR lower(COALESCE(matched_items.description, '')) LIKE ?
                       OR EXISTS (
                           SELECT 1
-                          FROM {json_each} AS json_values
-                          WHERE {json_predicate}
-                            AND lower({json_value}) LIKE ?
+                          FROM stock_inbound_order_item_attributes attributes
+                          WHERE attributes.inbound_order_item_id = inbound_items.id
+                            AND lower(attributes.value_json) LIKE ?
                       )
                   )
             )
         )
         "#
-    ));
+        .to_owned(),
+    );
     for _ in 0..12 {
         values.push(search_like.into());
     }
@@ -187,10 +187,7 @@ pub(super) fn append_outbound_search_filter(
     values: &mut Vec<Value>,
     search_like: &str,
 ) {
-    let json_each = json_each_object("inbound_items.ext_attributes_json");
-    let json_predicate = json_scalar_predicate("json_values");
-    let json_value = json_scalar_value("json_values");
-    clauses.push(format!(
+    clauses.push(
         r#"
         (
             lower(stock_outbound_orders.destination) LIKE ?
@@ -230,9 +227,9 @@ pub(super) fn append_outbound_search_filter(
                                 OR lower(COALESCE(batches.expires_at, '')) LIKE ?
                                 OR EXISTS (
                                     SELECT 1
-                                    FROM {json_each} AS json_values
-                                    WHERE {json_predicate}
-                                      AND lower({json_value}) LIKE ?
+                                    FROM stock_inbound_order_item_attributes attributes
+                                    WHERE attributes.inbound_order_item_id = inbound_items.id
+                                      AND lower(attributes.value_json) LIKE ?
                                 )
                             )
                       )
@@ -240,7 +237,8 @@ pub(super) fn append_outbound_search_filter(
             )
         )
         "#
-    ));
+        .to_owned(),
+    );
     for _ in 0..12 {
         values.push(search_like.into());
     }
@@ -299,18 +297,18 @@ fn group_filter_rows(rows: Vec<RawFilterValueRow>) -> Vec<StockFilterFieldRecord
 fn item_base_filter_values_sql() -> String {
     r#"
     SELECT 'base:category' AS field_key,
-           '所属模板' AS field_label,
+           '物品分类' AS field_label,
            'base' AS field_source,
            'text' AS field_value_type,
-           templates.name AS field_value,
+           categories.name AS field_value,
            COUNT(DISTINCT items.id) AS value_count,
            10 AS field_order
     FROM stock_batches batches
     JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-    JOIN stock_templates templates ON templates.id = items.category_id AND templates.deleted_at IS NULL
+    JOIN stock_item_categories categories ON categories.id = items.category_id AND categories.deleted_at IS NULL
     WHERE batches.remaining_quantity > 0
-      AND trim(templates.name) <> ''
-    GROUP BY templates.name
+      AND trim(categories.name) <> ''
+    GROUP BY categories.name
 
     UNION ALL
 
@@ -349,18 +347,17 @@ fn item_base_filter_values_sql() -> String {
 }
 
 fn item_template_filter_values_sql() -> String {
-    template_filter_values_sql(
+    attribute_filter_values_sql(
         "items.id",
         r#"
         FROM stock_batches batches
         JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-        JOIN stock_template_fields fields
-          ON fields.template_id = items.category_id
-         AND fields.searchable = 1
-        JOIN stock_inbound_order_items inbound_items
-          ON inbound_items.id = batches.inbound_order_item_id
+        JOIN stock_item_attributes attributes ON attributes.item_id = items.id
+        JOIN stock_item_attribute_template_fields fields
+          ON fields.id = attributes.template_field_id AND fields.searchable = 1
         "#,
         "batches.remaining_quantity > 0",
+        "attributes",
     )
 }
 
@@ -456,18 +453,19 @@ fn inbound_base_filter_values_sql() -> String {
 }
 
 fn inbound_template_filter_values_sql() -> String {
-    template_filter_values_sql(
+    attribute_filter_values_sql(
         "orders.id",
         r#"
         FROM stock_inbound_orders orders
         JOIN stock_inbound_order_items inbound_items
           ON inbound_items.order_id = orders.id
-        JOIN stock_items items ON items.id = inbound_items.item_id
-        JOIN stock_template_fields fields
-          ON fields.template_id = items.category_id
-         AND fields.searchable = 1
+        JOIN stock_inbound_order_item_attributes attributes
+          ON attributes.inbound_order_item_id = inbound_items.id
+        JOIN stock_inbound_template_fields fields
+          ON fields.id = attributes.template_field_id AND fields.searchable = 1
         "#,
         "1 = 1",
+        "attributes",
     )
 }
 
@@ -565,24 +563,25 @@ fn outbound_base_filter_values_sql() -> String {
 }
 
 fn outbound_template_filter_values_sql() -> String {
-    template_filter_values_sql(
+    attribute_filter_values_sql(
         "orders.id",
         &format!(
             r#"
         FROM stock_outbound_orders orders
         JOIN stock_outbound_order_items outbound_items
           ON outbound_items.order_id = orders.id
-        JOIN stock_items items ON items.id = outbound_items.item_id
-        JOIN stock_template_fields fields
-          ON fields.template_id = items.category_id
-         AND fields.searchable = 1
         {}
         JOIN stock_inbound_order_items inbound_items
           ON inbound_items.id = batches.inbound_order_item_id
+        JOIN stock_inbound_order_item_attributes attributes
+          ON attributes.inbound_order_item_id = inbound_items.id
+        JOIN stock_inbound_template_fields fields
+          ON fields.id = attributes.template_field_id AND fields.searchable = 1
         "#,
             outbound_batch_join_sql()
         ),
         "1 = 1",
+        "attributes",
     )
 }
 
@@ -602,14 +601,14 @@ fn outbound_batch_join_sql() -> &'static str {
     "#
 }
 
-fn template_filter_values_sql(
+fn attribute_filter_values_sql(
     entity_id_expr: &str,
     from_clause: &str,
     where_clause: &str,
+    attribute_alias: &str,
 ) -> String {
-    let json_each = json_each_object("inbound_items.ext_attributes_json");
-    let json_predicate = json_scalar_predicate("json_values");
-    let json_value = json_scalar_value("json_values");
+    let json_type = format!("json_type({attribute_alias}.value_json)");
+    let json_value = format!("CASE {json_type} WHEN 'true' THEN 'true' WHEN 'false' THEN 'false' ELSE CAST(json_extract({attribute_alias}.value_json, '$') AS TEXT) END");
     format!(
         r#"
         WITH template_values AS (
@@ -620,10 +619,10 @@ fn template_filter_values_sql(
                    {json_value} AS field_value,
                    {entity_id_expr} AS entity_id
             {from_clause}
-            JOIN {json_each} AS json_values
-              ON json_values.key = fields.field_name
             WHERE {where_clause}
-              AND {json_predicate}
+              AND json_valid({attribute_alias}.value_json)
+              AND {json_type} IN ('text', 'integer', 'real', 'true', 'false')
+              AND ({json_type} <> 'text' OR trim(CAST(json_extract({attribute_alias}.value_json, '$') AS TEXT)) <> '')
         ),
         template_field_types AS (
             SELECT field_key,
@@ -653,23 +652,5 @@ fn template_filter_values_sql(
                  values_rows.field_value
         ORDER BY field_order ASC, values_rows.field_label ASC, value_count DESC, values_rows.field_value ASC
         "#
-    )
-}
-
-fn json_each_object(column: &str) -> String {
-    format!(
-        "json_each(CASE WHEN {column} IS NOT NULL AND json_valid({column}) AND substr(ltrim({column}), 1, 1) = '{{' THEN {column} ELSE '{{}}' END)"
-    )
-}
-
-fn json_scalar_predicate(alias: &str) -> String {
-    format!(
-        "{alias}.type IN ('text', 'integer', 'real', 'true', 'false') AND ({alias}.type <> 'text' OR trim(CAST({alias}.value AS TEXT)) <> '')"
-    )
-}
-
-fn json_scalar_value(alias: &str) -> String {
-    format!(
-        "CASE {alias}.type WHEN 'true' THEN 'true' WHEN 'false' THEN 'false' ELSE CAST({alias}.value AS TEXT) END"
     )
 }

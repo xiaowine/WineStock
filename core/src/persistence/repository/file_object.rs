@@ -4,7 +4,10 @@
 //! 文件内容读写属于 `StorageRuntime.files_dir` 对应的文件系统目录，不在 repository 中处理。
 
 use crate::validation::{validate_not_blank, validate_optional_not_blank};
-use sea_orm::{ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr, EntityTrait,
+    QueryFilter, QueryResult, Set, Statement,
+};
 
 use crate::persistence::entity::file_object;
 
@@ -39,6 +42,42 @@ pub(crate) struct CreateFileObject {
     /// 文件所有者用户 ID；系统级文件或未归属文件允许为空。
     #[garde(custom(validate_optional_positive_id))]
     pub owner_user_id: Option<i64>,
+}
+
+/// 文件读取授权所需的元数据和两类可选业务绑定信息。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FileAccessRecord {
+    /// 文件对象元数据。
+    pub file: file_object::Model,
+
+    /// 已绑定入库明细 ID；为空表示仍是临时上传。
+    pub inbound_order_item_id: Option<i64>,
+
+    /// 已绑定入库单 ID；为空表示仍是临时上传。
+    pub inbound_order_id: Option<i64>,
+
+    /// 已绑定物品 ID；为空表示未绑定物品属性。
+    pub item_id: Option<i64>,
+
+    /// 已绑定属性字段名称。
+    pub field_name: Option<String>,
+}
+
+impl FileAccessRecord {
+    /// 判断文件是否已经绑定任一物品属性或入库属性。
+    pub(crate) fn is_bound(&self) -> bool {
+        self.item_id.is_some() || self.inbound_order_item_id.is_some()
+    }
+}
+
+/// 超过保留期限且尚未绑定的临时文件对象。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StaleFileObject {
+    /// 文件对象 ID。
+    pub id: i64,
+
+    /// 文件在服务端文件目录下的相对路径。
+    pub storage_path: String,
 }
 
 /// 文件对象仓储层只管理 SQLite 元数据，不读写大对象文件内容。
@@ -83,6 +122,7 @@ impl<'db> FileObjectRepository<'db> {
     }
 
     /// 按 SHA-256 摘要查询文件元数据，可能返回多个不同 owner 或路径的记录。
+    #[allow(dead_code)]
     pub(crate) async fn find_by_sha256(
         &self,
         sha256: &str,
@@ -92,4 +132,157 @@ impl<'db> FileObjectRepository<'db> {
             .all(self.database)
             .await
     }
+
+    /// 查询文件元数据及物品/入库绑定关系，供受控读取和删除授权判断。
+    pub(crate) async fn find_access_record(
+        &self,
+        id: i64,
+    ) -> Result<Option<FileAccessRecord>, DbErr> {
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT f.id, f.sha256, f.mime_type, f.size_bytes, f.storage_path,
+                       f.original_name, f.created_at, f.owner_user_id,
+                       ia.inbound_order_item_id, i.order_id AS inbound_order_id,
+                       item_attr.item_id, COALESCE(ia.field_name, item_attr.field_name) AS field_name
+                FROM storage_file_objects f
+                LEFT JOIN storage_inbound_file_bindings inbound_binding ON inbound_binding.file_object_id = f.id
+                LEFT JOIN stock_inbound_order_item_attributes ia ON ia.id = inbound_binding.inbound_order_item_attribute_id
+                LEFT JOIN stock_inbound_order_items i ON i.id = ia.inbound_order_item_id
+                LEFT JOIN storage_item_file_bindings item_binding ON item_binding.file_object_id = f.id
+                LEFT JOIN stock_item_attributes item_attr ON item_attr.id = item_binding.item_attribute_id
+                WHERE f.id = ?
+                "#,
+                [id.into()],
+            ))
+            .await?;
+
+        row.map(decode_access_record).transpose()
+    }
+
+    /// 删除当前用户拥有且尚未绑定的临时文件元数据。
+    ///
+    /// 返回 false 表示记录不存在、所有者不匹配或已经被入库明细绑定。
+    pub(crate) async fn delete_unbound_owned(
+        &self,
+        id: i64,
+        owner_user_id: i64,
+    ) -> Result<bool, DbErr> {
+        let result = self
+            .database
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                DELETE FROM storage_file_objects
+                WHERE id = ? AND owner_user_id = ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM storage_inbound_file_bindings b
+                      WHERE b.file_object_id = storage_file_objects.id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM storage_item_file_bindings b
+                      WHERE b.file_object_id = storage_file_objects.id
+                  )
+                "#,
+                [id.into(), owner_user_id.into()],
+            ))
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// 查询超过指定小时数且仍未绑定的临时文件。
+    pub(crate) async fn list_stale_unbound(
+        &self,
+        older_than_hours: i64,
+    ) -> Result<Vec<StaleFileObject>, DbErr> {
+        let modifier = format!("-{older_than_hours} hours");
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT f.id, f.storage_path
+                FROM storage_file_objects f
+                WHERE julianday(f.created_at) < julianday('now', ?)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM storage_inbound_file_bindings b
+                      WHERE b.file_object_id = f.id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM storage_item_file_bindings b
+                      WHERE b.file_object_id = f.id
+                  )
+                ORDER BY f.id
+                "#,
+                [modifier.into()],
+            ))
+            .await?;
+        rows.into_iter().map(decode_stale_file).collect()
+    }
+
+    /// 以绑定不存在为条件删除指定临时文件元数据，避免清理竞态误删已绑定记录。
+    pub(crate) async fn delete_stale_unbound(&self, id: i64) -> Result<bool, DbErr> {
+        let result = self
+            .database
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                DELETE FROM storage_file_objects
+                WHERE id = ?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM storage_inbound_file_bindings b
+                      WHERE b.file_object_id = storage_file_objects.id
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM storage_item_file_bindings b
+                      WHERE b.file_object_id = storage_file_objects.id
+                  )
+                "#,
+                [id.into()],
+            ))
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// 查询仍引用同一服务端相对路径的文件元数据数量。
+    pub(crate) async fn count_by_storage_path(&self, path: &str) -> Result<i64, DbErr> {
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "SELECT COUNT(*) AS count FROM storage_file_objects WHERE storage_path = ?",
+                [path.into()],
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("file path reference count".to_owned()))?;
+        row.try_get("", "count")
+    }
+}
+
+fn decode_access_record(row: QueryResult) -> Result<FileAccessRecord, DbErr> {
+    Ok(FileAccessRecord {
+        file: file_object::Model {
+            id: row.try_get("", "id")?,
+            sha256: row.try_get("", "sha256")?,
+            mime_type: row.try_get("", "mime_type")?,
+            size_bytes: row.try_get("", "size_bytes")?,
+            storage_path: row.try_get("", "storage_path")?,
+            original_name: row.try_get("", "original_name")?,
+            created_at: row.try_get("", "created_at")?,
+            owner_user_id: row.try_get("", "owner_user_id")?,
+        },
+        inbound_order_item_id: row.try_get("", "inbound_order_item_id")?,
+        inbound_order_id: row.try_get("", "inbound_order_id")?,
+        item_id: row.try_get("", "item_id")?,
+        field_name: row.try_get("", "field_name")?,
+    })
+}
+
+fn decode_stale_file(row: QueryResult) -> Result<StaleFileObject, DbErr> {
+    Ok(StaleFileObject {
+        id: row.try_get("", "id")?,
+        storage_path: row.try_get("", "storage_path")?,
+    })
 }

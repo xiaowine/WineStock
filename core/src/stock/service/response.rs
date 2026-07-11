@@ -6,51 +6,55 @@
 use serde_json::Value;
 
 use crate::{
-    persistence::{
-        entity::stock_item,
-        repository::{
-            AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, OutboundOrderDetail,
-            StockFilterFieldRecord, StockItemDetail, StockLocationGroupRecord, StockLocationRecord,
-            StockLocationTransferRecord, StockSubstituteRecord, StockTemplateDetail,
-        },
+    persistence::repository::{
+        AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, OutboundOrderDetail,
+        StockFilterFieldRecord, StockItemDetail, StockItemListRecord, StockLocationGroupRecord,
+        StockLocationRecord, StockLocationTransferRecord, StockSubstituteRecord,
     },
     stock::controller,
 };
 
-use super::{
-    validation::{parse_options_json, sqlite_bool},
-    StockApiError,
-};
+use super::{item_attributes::item_attribute_responses, StockApiError};
 
 /// 把库存物品数据库模型转换为 HTTP 响应，不暴露软删除字段。
-pub(super) fn item_response(item: stock_item::Model) -> controller::ItemResponse {
-    controller::ItemResponse {
+pub(super) fn item_response(
+    record: StockItemListRecord,
+) -> Result<controller::ItemResponse, StockApiError> {
+    let item = record.item;
+    Ok(controller::ItemResponse {
         id: item.id,
         name: item.name,
         sku: item.sku,
         category_id: item.category_id,
+        attribute_template_id: item.attribute_template_id,
         unit: item.unit,
         description: item.description,
         default_price: item.default_price,
         reorder_point: item.reorder_point,
+        attributes: item_attribute_responses(record.attributes)?,
         created_at: item.created_at,
         updated_at: item.updated_at,
-    }
+    })
 }
 
 /// 把库存物品详情读取模型转换为 HTTP 响应，库存聚合只反映当前有效批次。
-pub(super) fn item_detail_response(detail: StockItemDetail) -> controller::ItemDetailResponse {
-    let item = item_response(detail.item);
+pub(super) fn item_detail_response(
+    detail: StockItemDetail,
+) -> Result<controller::ItemDetailResponse, StockApiError> {
+    let item = detail.item;
+    let attributes = item_attribute_responses(detail.attributes)?;
 
-    controller::ItemDetailResponse {
+    Ok(controller::ItemDetailResponse {
         id: item.id,
         name: item.name,
         sku: item.sku,
         category_id: item.category_id,
+        attribute_template_id: item.attribute_template_id,
         unit: item.unit,
         description: item.description,
         default_price: item.default_price,
         reorder_point: item.reorder_point,
+        attributes,
         created_at: item.created_at,
         updated_at: item.updated_at,
         current_quantity: detail.current_quantity,
@@ -84,7 +88,7 @@ pub(super) fn item_detail_response(detail: StockItemDetail) -> controller::ItemD
                 expires_at: batch.expires_at,
             })
             .collect(),
-    }
+    })
 }
 
 /// 把筛选值聚合记录转换为 HTTP 响应；字段来源和类型代码必须是服务端已知值。
@@ -159,37 +163,6 @@ pub(super) fn location_transfer_response(
     }
 }
 
-/// 把模板详情记录转换为 HTTP 响应；会把字段类型代码和 options JSON 恢复为 API 结构。
-pub(super) fn template_response(
-    detail: StockTemplateDetail,
-) -> Result<controller::TemplateResponse, StockApiError> {
-    let fields = detail
-        .fields
-        .into_iter()
-        .map(|field| {
-            Ok(controller::TemplateFieldResponse {
-                id: field.id,
-                field_name: field.field_name,
-                field_type: controller::TemplateFieldType::from_code(&field.field_type)?,
-                required: sqlite_bool(field.required),
-                searchable: sqlite_bool(field.searchable),
-                options: parse_options_json(field.options_json)?,
-                default_value: field.default_value,
-                sort_order: field.sort_order,
-            })
-        })
-        .collect::<Result<Vec<_>, StockApiError>>()?;
-
-    Ok(controller::TemplateResponse {
-        id: detail.template.id,
-        name: detail.template.name,
-        description: detail.template.description,
-        fields,
-        created_at: detail.template.created_at,
-        updated_at: detail.template.updated_at,
-    })
-}
-
 /// 把入库单详情转换为 HTTP 响应；扩展属性 JSON 解析失败时返回 `InvalidRequest`。
 pub(super) fn inbound_response(
     detail: InboundOrderDetail,
@@ -221,8 +194,9 @@ pub(super) fn inbound_response(
                     location_name: item.location_name,
                     batch_no: item.batch_no,
                     expires_at: item.expires_at,
+                    inbound_template_id: item.inbound_template_id,
                     ext_attributes: item
-                        .ext_attributes_json
+                        .attributes_json
                         .map(|json| serde_json::from_str(&json))
                         .transpose()
                         .map_err(|_| StockApiError::InvalidRequest)?,

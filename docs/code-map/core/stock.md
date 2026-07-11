@@ -14,8 +14,8 @@
 
 - `controller.rs`：库存 HTTP 控制器入口和子模块重新导出。
 - `controller/common.rs`：单据状态、筛选值 DTO 和共享正数校验。
-- `controller/items.rs`：物品 DTO、分页、搜索、筛选值、详情和 CRUD handler。
-- `controller/templates.rs`：模板与模板字段 DTO、CRUD/copy handler。
+- `controller/items.rs`、`item_attributes.rs`：物品基础资料、任意类型化属性、分页和 CRUD。
+- `controller/templates/`：分类、物品属性模板、入库模板和共享字段 DTO/handler。
 - `controller/locations.rs`：库位分组树、库位、整批次移库 DTO 和 handler。
 - `controller/inbound.rs`：入库单、分页、筛选值、详情和 handler。
 - `controller/outbound.rs`：出库单、搜索、筛选值、详情和 handler。
@@ -26,10 +26,10 @@
 ## Service
 
 - `service.rs`：库存服务入口和子模块重新导出。
-- `service/items.rs`：物品 CRUD、分页、搜索、筛选值、库存快照、SKU 冲突和审计。
-- `service/templates.rs`：模板 CRUD/copy、字段组合校验和审计。
+- `service/items.rs`、`item_attributes.rs`：物品 CRUD、任意属性校验、文件所有权、搜索和库存快照。
+- `service/templates/`：分类与两类模板的独立 CRUD/copy 和共享字段规则。
 - `service/locations.rs`：分组树、库位 CRUD、移库、循环和占用校验。
-- `service/inbound.rs`：入库创建、查询、审批、拒绝和模板扩展属性校验。
+- `service/inbound.rs`：独立入库模板推导/选择、实际入库属性校验、图片引用、审批和错误定位。
 - `service/outbound.rs`：出库创建、搜索、审批、拒绝和库存不足映射。
 - `service/dashboard.rs`：库存总览、趋势和呆滞料查询。
 - `service/substitutes.rs`：替代料关系、自引用/重复/循环校验和审计。
@@ -41,7 +41,7 @@
 
 ## 启动补齐
 
-- `core/src/stock/bootstrap.rs`
-  - 补齐 `元器件`、`3D打印耗材`、`通用` 三个内置模板。
+- `core/src/stock/bootstrap/`
+  - 分别补齐三个分类、三套物品属性预设和三套入库模板。
   - 只在没有任何有效库位时创建 `默认库区`/`DEFAULT`。
   - 不覆盖用户修改，不恢复被软删除的模板。

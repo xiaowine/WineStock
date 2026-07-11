@@ -19,6 +19,7 @@
 ```text
 http://127.0.0.1:<vite-port>/#/dashboard
 http://127.0.0.1:<vite-port>/#/items
+http://127.0.0.1:<vite-port>/#/inbound
 http://127.0.0.1:<vite-port>/#/users
 ```
 
@@ -30,7 +31,8 @@ http://127.0.0.1:<vite-port>/#/users
 | --- | --- | --- | --- | --- |
 | `/` | 无 | `AppShell` | 是 | 重定向到 `dashboard` |
 | `/dashboard` | `dashboard` | `AppShell` | 是 | 库存摘要、出入库趋势和呆滞物品总览；需要 `stock.dashboard.read` |
-| `/items` | `items` | `AppShell` | 是 | 物品正式页面入口，列表业务尚未实现 |
+| `/items` | `items` | `AppShell` | 是 | 物品列表、新建/编辑、分类、可选属性预设和自定义属性 |
+| `/inbound` | `inbound` | `AppShell` | 是 | 桌面端多明细入库工作台，支持本地草稿恢复、同物品多批次和模板图片；创建 pending 单据后留在当前页；需要 `stock.inbound.create`，移动导航暂不展示入口 |
 | `/users` | `users` | `AppShell` | 是 | 用户管理真实列表和管理操作；另需 `user.read` |
 | `/login` | `login` | 独立响应式页面 | 否 | 桌面和移动共用真实登录表单 |
 | `/register` | `register` | 独立响应式页面 | 否 | 桌面和移动共用首个用户注册及自动登录流程 |

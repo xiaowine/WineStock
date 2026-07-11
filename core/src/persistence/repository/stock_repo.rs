@@ -5,6 +5,7 @@
 
 use sea_orm::{ConnectionTrait, DatabaseConnection};
 
+mod categories;
 mod common;
 mod dashboard;
 mod events;
@@ -19,16 +20,18 @@ mod types;
 
 pub(crate) use search::{StockFilterFieldRecord, StockFilterValueRecord};
 pub(crate) use types::{
-    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateLocation,
-    CreateLocationGroup, CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem,
-    CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord, DashboardOverviewRecord,
-    InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord, ListAuditEvents,
-    ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
-    OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
-    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockLocationGroupRecord,
-    StockLocationRecord, StockLocationTransferRecord, StockSubstituteInput, StockSubstituteRecord,
-    StockTemplateDetail, TemplateFieldInput, UpdateLocation, UpdateLocationGroup, UpdateStockItem,
-    UpdateStockTemplate,
+    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateInboundTemplate,
+    CreateItemAttributeTemplate, CreateItemCategory, CreateLocation, CreateLocationGroup,
+    CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem, CreateStockItem,
+    DailyMovementTrendRecord, DashboardOverviewRecord, InboundAttributeInput, InboundOrderDetail,
+    InboundOrderItemRecord, InboundOrderRecord, InboundTemplateDetail, ItemAttributeInput,
+    ItemAttributeRecord, ItemAttributeTemplateDetail, ListAuditEvents, ListInboundOrders,
+    ListOutboundOrders, ListStockItems, OutboundOrderDetail, OutboundOrderItemRecord,
+    OutboundOrderRecord, Page, SlowMovingStockItemRecord, StockItemBatchRecord, StockItemDetail,
+    StockItemListRecord, StockItemLocationRecord, StockLocationGroupRecord, StockLocationRecord,
+    StockLocationTransferRecord, StockSubstituteInput, StockSubstituteRecord, TemplateFieldInput,
+    UpdateInboundTemplate, UpdateItemAttributeTemplate, UpdateItemCategory, UpdateLocation,
+    UpdateLocationGroup, UpdateStockItem,
 };
 
 /// stock 仓储层封装库存领域持久化语义。
@@ -46,5 +49,10 @@ where
     /// 创建绑定到同一个 SeaORM 连接的 stock 仓储。
     pub(crate) fn new(database: &'db C) -> Self {
         Self { database }
+    }
+
+    /// 返回当前仓储绑定的连接，供同一业务服务组合其它 repository。
+    pub(crate) fn database(&self) -> &'db C {
+        self.database
     }
 }

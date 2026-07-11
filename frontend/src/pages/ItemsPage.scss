@@ -1,0 +1,23 @@
+/* 本文件拥有桌面物品管理页与属性编辑器布局，不定义服务端属性或模板规则。 */
+.items-page { min-height: 0; }
+.items-page__workspace { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 16px; min-height: 0; }
+.items-page__list, .item-editor { border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface); }
+.items-page__list { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; }
+.items-page__list > label { display: grid; gap: 6px; }
+.items-page__list > label span { color: var(--color-muted); font-size: 12px; }
+.items-page__item { display: grid; gap: 3px; width: 100%; padding: 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; text-align: left; }
+.items-page__item:hover, .items-page__item--selected { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.items-page__item span, .items-page__item small, .items-page__state { color: var(--color-muted); }
+.items-page__state { padding: 14px 6px; text-align: center; }
+.items-page__state--error { color: var(--color-danger); }
+.item-editor { padding: 18px; overflow: auto; }
+.item-editor > header, .item-editor__attributes > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.item-editor > header p, .item-editor__attributes header span { margin: 4px 0 0; color: var(--color-muted); font-size: 12px; }
+.item-editor__base { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.item-editor__base label { display: grid; gap: 6px; }
+.item-editor__base label span { color: var(--color-muted); font-size: 12px; }
+.item-editor__description { grid-column: span 2; }
+.item-editor__attributes { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.item-attribute-editor { display: grid; grid-template-columns: minmax(120px, 0.8fr) 110px minmax(180px, 1.6fr) 100px auto; gap: 8px; align-items: center; margin-top: 10px; }
+.item-attribute-editor .inbound-file-field { min-width: 0; }
+@media (max-width: 900px) { .items-page__workspace { grid-template-columns: 1fr; } .item-editor__base { grid-template-columns: 1fr 1fr; } .item-attribute-editor { grid-template-columns: 1fr; } }

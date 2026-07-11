@@ -98,7 +98,7 @@
 文件：
 
 - `core/src/persistence/repository/mod.rs`
-- `core/src/persistence/repository/stock_repo/types.rs`
+- `core/src/persistence/repository/stock_repo/types/`
 - `core/src/persistence/repository/stock_repo/substitutes.rs`
 
 建议把 `BindStockSubstitute` 改为 `StockSubstituteInput`，表示替代料关系写库输入，而不是绑定动作。

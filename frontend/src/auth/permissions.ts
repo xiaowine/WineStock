@@ -14,6 +14,8 @@ export const userPermissions = {
 /** 库存业务页面使用的稳定权限代码。 */
 export const stockPermissions = {
   dashboardRead: 'stock.dashboard.read',
+  itemRead: 'stock.item.read',
+  inboundCreate: 'stock.inbound.create',
 } as const
 
 /** 判断权限快照是否包含指定权限。 */

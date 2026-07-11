@@ -49,7 +49,11 @@ pub(crate) struct InboundItemRequest {
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
 
-    /// 模板扩展属性；审批阶段按物品关联模板校验。
+    /// 可选入库模板 ID；为空时可由物品属性模板推荐值推导。
+    #[garde(skip)]
+    pub inbound_template_id: Option<i64>,
+
+    /// 模板扩展属性；创建和审批阶段都按物品当前模板校验，file 值使用 `{ "file_id": id }`。
     #[garde(skip)]
     pub ext_attributes: Option<Value>,
 }
@@ -136,6 +140,10 @@ pub(crate) struct InboundItemResponse {
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
 
+    /// 本明细使用的入库模板 ID。
+    #[garde(skip)]
+    pub inbound_template_id: Option<i64>,
+
     /// 模板扩展属性。
     #[garde(skip)]
     pub ext_attributes: Option<Value>,
@@ -208,10 +216,11 @@ pub(crate) struct InboundResponse {
         (status = 400, description = "Invalid inbound request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Inbound create permission required", body = crate::http::ApiErrorResponse),
-        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
+        (status = 404, description = "Item, location, or template not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Image reference unavailable", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 创建 pending 入库单；创建阶段不写库存批次或流水。
+/// 创建 pending 入库单；模板图片在同一事务绑定明细，创建阶段仍不写库存批次或流水。
 pub(crate) async fn create_inbound(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,

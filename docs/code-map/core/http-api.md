@@ -23,14 +23,18 @@
 - `GET /api-docs/openapi.json`
 - `/swagger-ui`
 
-## 模板与物品
+## 受控图片文件
 
-- `POST /api/templates`
-- `GET /api/templates`
-- `GET /api/templates/{id}`
-- `PUT /api/templates/{id}`
-- `DELETE /api/templates/{id}`
-- `POST /api/templates/{id}/copy`
+- `POST /api/files/images`
+  - 物品管理或入库创建权限任一满足即可上传，后续绑定决定读取权限。
+- `GET /api/files/{id}`
+- `DELETE /api/files/{id}`
+
+## 分类、模板与物品
+
+- `/api/item-categories` 与 `/api/item-categories/{id}`：分类 CRUD。
+- `/api/item-attribute-templates`、`/{id}`、`/{id}/copy`：物品属性预设 CRUD/copy。
+- `/api/inbound-templates`、`/{id}`、`/{id}/copy`：入库模板 CRUD/copy。
 - `POST /api/items`
 - `GET /api/items`
 - `GET /api/items/filter-values`

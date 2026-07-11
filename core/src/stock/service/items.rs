@@ -4,13 +4,17 @@
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
 use crate::{
-    persistence::repository::{CreateStockItem, ListStockItems, StockRepository, UpdateStockItem},
+    persistence::repository::{
+        CreateStockItem, ListStockItems, StockItemListRecord, StockRepository, UpdateStockItem,
+    },
     security::CurrentUser,
     state::CoreState,
     stock::controller,
 };
 
 use super::{
+    error::map_stock_db_error,
+    item_attributes::normalize_item_attributes,
     pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
     response::{filter_values_response, item_detail_response, item_response},
     validation::{normalize_optional_text, normalize_required_text, validate_non_negative},
@@ -23,16 +27,35 @@ pub(crate) async fn create_item(
     current_user: &CurrentUser,
     request: controller::ItemCreateRequest,
 ) -> Result<controller::ItemResponse, StockApiError> {
+    let repository = StockRepository::new(state.database());
+    if let Some(category_id) = request.category_id {
+        if repository
+            .find_active_item_category_by_id(category_id)
+            .await?
+            .is_none()
+        {
+            return Err(StockApiError::CategoryNotFound);
+        }
+    }
+    let attributes = normalize_item_attributes(
+        &repository,
+        current_user,
+        request.attribute_template_id,
+        None,
+        request.attributes,
+    )
+    .await?;
     let input = CreateStockItem {
         name: normalize_required_text(&request.name)?,
         sku: normalize_required_text(&request.sku)?,
         category_id: request.category_id,
+        attribute_template_id: request.attribute_template_id,
         unit: normalize_required_text(&request.unit)?,
         description: normalize_optional_text(request.description)?,
         default_price: validate_non_negative(request.default_price)?,
         reorder_point: validate_non_negative(request.reorder_point)?,
+        attributes,
     };
-    let repository = StockRepository::new(state.database());
     if repository
         .active_sku_exists_except(&input.sku, None)
         .await?
@@ -40,11 +63,18 @@ pub(crate) async fn create_item(
         return Err(StockApiError::SkuTaken);
     }
 
-    Ok(item_response(
-        repository
-            .create_item(input, Some(current_user.user_id))
-            .await?,
-    ))
+    let item = repository
+        .create_item(input, Some(current_user.user_id))
+        .await
+        .map_err(map_stock_db_error)?;
+    let detail = repository
+        .find_active_item_detail_by_id(item.id)
+        .await?
+        .ok_or(StockApiError::ItemNotFound)?;
+    item_response(StockItemListRecord {
+        item: detail.item,
+        attributes: detail.attributes,
+    })
 }
 
 /// 分页查询库存物品；查询参数在这里统一归一化，避免 repository 暴露 HTTP 默认值。
@@ -69,7 +99,11 @@ pub(crate) async fn list_items(
         .await?;
 
     Ok(PaginatedResponse {
-        items: result.items.into_iter().map(item_response).collect(),
+        items: result
+            .items
+            .into_iter()
+            .map(item_response)
+            .collect::<Result<Vec<_>, StockApiError>>()?,
         total: result.total,
         page,
         page_size,
@@ -95,10 +129,10 @@ pub(crate) async fn get_item(
         return Err(StockApiError::ItemNotFound);
     };
 
-    Ok(item_detail_response(detail))
+    item_detail_response(detail)
 }
 
-/// 更新库存物品基础资料；字段为空表示不修改，当前接口不通过 null 清空可空字段。
+/// 更新库存物品基础资料；字段缺失表示不修改，显式 null 可清空对应可空字段。
 ///
 /// 成功更新时会记录物品审计事件，包含关键字段的前后快照。
 pub(crate) async fn update_item(
@@ -112,12 +146,41 @@ pub(crate) async fn update_item(
         .map(|sku| normalize_required_text(&sku))
         .transpose()?;
     let repository = StockRepository::new(state.database());
+    let current = repository
+        .find_active_item_by_id(id)
+        .await?
+        .ok_or(StockApiError::ItemNotFound)?;
     if let Some(sku) = sku.as_deref() {
         if repository.active_sku_exists_except(sku, Some(id)).await? {
             return Err(StockApiError::SkuTaken);
         }
     }
 
+    if let Some(Some(category_id)) = request.category_id {
+        if repository
+            .find_active_item_category_by_id(category_id)
+            .await?
+            .is_none()
+        {
+            return Err(StockApiError::CategoryNotFound);
+        }
+    }
+    let effective_template_id = request
+        .attribute_template_id
+        .unwrap_or(current.attribute_template_id);
+    let attributes = match request.attributes {
+        Some(attributes) => Some(
+            normalize_item_attributes(
+                &repository,
+                current_user,
+                effective_template_id,
+                Some(id),
+                attributes,
+            )
+            .await?,
+        ),
+        None => None,
+    };
     let Some(item) = repository
         .update_item(
             id,
@@ -127,39 +190,54 @@ pub(crate) async fn update_item(
                     .map(|name| normalize_required_text(&name))
                     .transpose()?,
                 sku,
-                category_id: request.category_id.map(Some),
+                category_id: request.category_id,
+                attribute_template_id: request.attribute_template_id,
                 unit: request
                     .unit
                     .map(|unit| normalize_required_text(&unit))
                     .transpose()?,
-                description: request
-                    .description
-                    .map(|description| normalize_required_text(&description))
-                    .transpose()?
-                    .map(Some),
-                default_price: request
-                    .default_price
-                    .map(|value| {
-                        validate_non_negative(Some(value)).map(|value| value.expect("输入值已存在"))
-                    })
-                    .transpose()?
-                    .map(Some),
-                reorder_point: request
-                    .reorder_point
-                    .map(|value| {
-                        validate_non_negative(Some(value)).map(|value| value.expect("输入值已存在"))
-                    })
-                    .transpose()?
-                    .map(Some),
+                description: normalize_nullable_text(request.description)?,
+                default_price: validate_nullable_non_negative(request.default_price)?,
+                reorder_point: validate_nullable_non_negative(request.reorder_point)?,
+                attributes,
             },
             Some(current_user.user_id),
         )
-        .await?
+        .await
+        .map_err(map_stock_db_error)?
     else {
         return Err(StockApiError::ItemNotFound);
     };
 
-    Ok(item_response(item))
+    let detail = repository
+        .find_active_item_detail_by_id(item.id)
+        .await?
+        .ok_or(StockApiError::ItemNotFound)?;
+    item_response(StockItemListRecord {
+        item: detail.item,
+        attributes: detail.attributes,
+    })
+}
+
+fn normalize_nullable_text(
+    value: Option<Option<String>>,
+) -> Result<Option<Option<String>>, StockApiError> {
+    value
+        .map(|value| value.map(|text| normalize_required_text(&text)).transpose())
+        .transpose()
+}
+
+fn validate_nullable_non_negative(
+    value: Option<Option<f64>>,
+) -> Result<Option<Option<f64>>, StockApiError> {
+    value
+        .map(|value| {
+            value
+                .map(|number| validate_non_negative(Some(number)))
+                .transpose()
+        })
+        .transpose()
+        .map(|value| value.map(|value| value.flatten()))
 }
 
 /// 软删除库存物品；删除后物品不会再出现在库存物品查询结果中，并记录删除审计事件。

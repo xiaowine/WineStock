@@ -116,7 +116,7 @@ const {
 const { handleLogout, isLoggingOut, logoutError } = useShellLogout()
 const pageTitle = computed(() => route.meta.title)
 const visibleNavigation = computed(() =>
-  getVisibleAppNavigation(authSession.value?.user.permissions),
+  getVisibleAppNavigation(authSession.value?.user.permissions, { includeDesktopOnly: false }),
 )
 const userDisplayName = computed(() => authSession.value?.user.username ?? '')
 const userInitials = computed(() =>

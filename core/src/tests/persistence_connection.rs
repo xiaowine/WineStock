@@ -65,11 +65,18 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         "auth_signing_keys",
         "auth_refresh_tokens",
         "storage_file_objects",
-        "stock_templates",
-        "stock_template_fields",
+        "stock_item_categories",
+        "stock_item_attribute_templates",
+        "stock_item_attribute_template_fields",
+        "stock_inbound_templates",
+        "stock_inbound_template_fields",
         "stock_items",
+        "stock_item_attributes",
+        "storage_item_file_bindings",
         "stock_inbound_orders",
         "stock_inbound_order_items",
+        "stock_inbound_order_item_attributes",
+        "storage_inbound_file_bindings",
         "stock_outbound_orders",
         "stock_outbound_order_items",
         "stock_batches",
@@ -157,7 +164,7 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
     assert_eq!(
         query_i64(
             &storage.database,
-            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_stock_templates_name_active'",
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_stock_item_attribute_templates_name_active'",
             "count",
         )
         .await,
@@ -177,7 +184,7 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "INSERT INTO stock_templates (name, description) VALUES ('URL Template', NULL)"
+            "INSERT INTO stock_inbound_templates (name, description) VALUES ('URL Template', NULL)"
                 .to_owned(),
         ))
         .await
@@ -186,7 +193,7 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "INSERT INTO stock_template_fields (template_id, field_name, field_type) VALUES (1, 'datasheet', 'url')"
+            "INSERT INTO stock_inbound_template_fields (template_id, field_name, field_type) VALUES (1, 'datasheet', 'url')"
                 .to_owned(),
         ))
         .await

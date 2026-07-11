@@ -45,6 +45,18 @@ textarea,
   user-select: text;
 }
 
+/* 数字字段使用统一控件外观，不显示浏览器内置的上下调节按钮。 */
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 a {
   color: inherit;
   text-decoration: none;

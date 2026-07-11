@@ -150,9 +150,26 @@ const INITIAL_SCHEMA: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_storage_file_objects_owner_created
         ON storage_file_objects(owner_user_id, created_at DESC)
     "#,
-    // 库存模板定义物品分类的扩展字段，删除采用软删除以保留历史单据可追溯性。
+    // 分类只负责归类，属性模板是可选录入预设，二者不能再由同一个 ID 表达。
     r#"
-    CREATE TABLE IF NOT EXISTS stock_templates (
+    CREATE TABLE IF NOT EXISTS stock_item_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT
+    )
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_item_categories_name_active
+        ON stock_item_categories(name)
+        WHERE deleted_at IS NULL
+    "#,
+    // 入库模板描述单次收货或批次属性，不拥有物品固有资料。
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_inbound_templates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT,
@@ -162,12 +179,12 @@ const INITIAL_SCHEMA: &[&str] = &[
     )
     "#,
     r#"
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_templates_name_active
-        ON stock_templates(name)
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_inbound_templates_name_active
+        ON stock_inbound_templates(name)
         WHERE deleted_at IS NULL
     "#,
     r#"
-    CREATE TABLE IF NOT EXISTS stock_template_fields (
+    CREATE TABLE IF NOT EXISTS stock_inbound_template_fields (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         template_id INTEGER NOT NULL,
         field_name TEXT NOT NULL,
@@ -179,13 +196,52 @@ const INITIAL_SCHEMA: &[&str] = &[
         sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-        FOREIGN KEY (template_id) REFERENCES stock_templates(id) ON DELETE CASCADE,
+        FOREIGN KEY (template_id) REFERENCES stock_inbound_templates(id) ON DELETE CASCADE,
         UNIQUE (template_id, field_name)
     )
     "#,
     r#"
-    CREATE INDEX IF NOT EXISTS idx_stock_template_fields_template_order
-        ON stock_template_fields(template_id, sort_order, id)
+    CREATE INDEX IF NOT EXISTS idx_stock_inbound_template_fields_order
+        ON stock_inbound_template_fields(template_id, sort_order, id)
+    "#,
+    // 物品属性模板仅提供推荐字段，可关联默认入库模板；物品仍允许不使用模板或增加自定义字段。
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_item_attribute_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        default_inbound_template_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        deleted_at TEXT,
+        FOREIGN KEY (default_inbound_template_id) REFERENCES stock_inbound_templates(id) ON DELETE SET NULL
+    )
+    "#,
+    r#"
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_item_attribute_templates_name_active
+        ON stock_item_attribute_templates(name)
+        WHERE deleted_at IS NULL
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_item_attribute_template_fields (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_id INTEGER NOT NULL,
+        field_name TEXT NOT NULL,
+        field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'url', 'boolean')),
+        required INTEGER NOT NULL DEFAULT 0 CHECK (required IN (0, 1)),
+        searchable INTEGER NOT NULL DEFAULT 0 CHECK (searchable IN (0, 1)),
+        options_json TEXT,
+        default_value TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (template_id) REFERENCES stock_item_attribute_templates(id) ON DELETE CASCADE,
+        UNIQUE (template_id, field_name)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_item_attribute_template_fields_order
+        ON stock_item_attribute_template_fields(template_id, sort_order, id)
     "#,
     r#"
     CREATE TABLE IF NOT EXISTS stock_items (
@@ -193,6 +249,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         name TEXT NOT NULL,
         sku TEXT NOT NULL,
         category_id INTEGER,
+        attribute_template_id INTEGER,
         unit TEXT NOT NULL,
         description TEXT,
         default_price REAL CHECK (default_price IS NULL OR default_price >= 0),
@@ -200,7 +257,8 @@ const INITIAL_SCHEMA: &[&str] = &[
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         deleted_at TEXT,
-        FOREIGN KEY (category_id) REFERENCES stock_templates(id) ON DELETE SET NULL
+        FOREIGN KEY (category_id) REFERENCES stock_item_categories(id) ON DELETE SET NULL,
+        FOREIGN KEY (attribute_template_id) REFERENCES stock_item_attribute_templates(id) ON DELETE SET NULL
     )
     "#,
     r#"
@@ -212,6 +270,47 @@ const INITIAL_SCHEMA: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_stock_items_category_active
         ON stock_items(category_id, id)
         WHERE deleted_at IS NULL
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_items_attribute_template_active
+        ON stock_items(attribute_template_id, id)
+        WHERE deleted_at IS NULL
+    "#,
+    // 物品属性允许每个物品拥有不同字段；模板字段 ID 仅记录预设来源，不限制自定义字段。
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_item_attributes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        template_field_id INTEGER,
+        field_name TEXT NOT NULL,
+        field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'url', 'boolean')),
+        value_json TEXT NOT NULL,
+        unit TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (template_field_id) REFERENCES stock_item_attribute_template_fields(id) ON DELETE SET NULL,
+        UNIQUE (item_id, field_name)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_item_attributes_item_order
+        ON stock_item_attributes(item_id, sort_order, id)
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_item_attributes_field
+        ON stock_item_attributes(field_name, field_type)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS storage_item_file_bindings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_object_id INTEGER NOT NULL UNIQUE,
+        item_attribute_id INTEGER NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (file_object_id) REFERENCES storage_file_objects(id) ON DELETE RESTRICT,
+        FOREIGN KEY (item_attribute_id) REFERENCES stock_item_attributes(id) ON DELETE CASCADE
+    )
     "#,
     // 库位分组支持树形结构；库位本身不挂在物品上，而是挂在批次和库存流转记录上。
     r#"
@@ -300,11 +399,12 @@ const INITIAL_SCHEMA: &[&str] = &[
         location_id INTEGER NOT NULL,
         batch_no TEXT,
         expires_at TEXT,
-        ext_attributes_json TEXT,
+        inbound_template_id INTEGER,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         FOREIGN KEY (order_id) REFERENCES stock_inbound_orders(id) ON DELETE CASCADE,
         FOREIGN KEY (item_id) REFERENCES stock_items(id) ON DELETE RESTRICT,
-        FOREIGN KEY (location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT
+        FOREIGN KEY (location_id) REFERENCES stock_locations(id) ON DELETE RESTRICT,
+        FOREIGN KEY (inbound_template_id) REFERENCES stock_inbound_templates(id) ON DELETE SET NULL
     )
     "#,
     r#"
@@ -314,6 +414,41 @@ const INITIAL_SCHEMA: &[&str] = &[
     r#"
     CREATE INDEX IF NOT EXISTS idx_stock_inbound_order_items_item
         ON stock_inbound_order_items(item_id, id)
+    "#,
+    r#"
+    CREATE TABLE IF NOT EXISTS stock_inbound_order_item_attributes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        inbound_order_item_id INTEGER NOT NULL,
+        template_field_id INTEGER,
+        field_name TEXT NOT NULL,
+        field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'url', 'boolean')),
+        value_json TEXT NOT NULL,
+        unit TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (inbound_order_item_id) REFERENCES stock_inbound_order_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (template_field_id) REFERENCES stock_inbound_template_fields(id) ON DELETE SET NULL,
+        UNIQUE (inbound_order_item_id, field_name)
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_stock_inbound_item_attributes_item_order
+        ON stock_inbound_order_item_attributes(inbound_order_item_id, sort_order, id)
+    "#,
+    // 入库附件绑定具体入库属性，不再通过字段名间接声明归属。
+    r#"
+    CREATE TABLE IF NOT EXISTS storage_inbound_file_bindings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_object_id INTEGER NOT NULL UNIQUE,
+        inbound_order_item_attribute_id INTEGER NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY (file_object_id) REFERENCES storage_file_objects(id) ON DELETE RESTRICT,
+        FOREIGN KEY (inbound_order_item_attribute_id) REFERENCES stock_inbound_order_item_attributes(id) ON DELETE CASCADE
+    )
+    "#,
+    r#"
+    CREATE INDEX IF NOT EXISTS idx_storage_inbound_file_bindings_attribute
+        ON storage_inbound_file_bindings(inbound_order_item_attribute_id)
     "#,
     r#"
     CREATE TABLE IF NOT EXISTS stock_batches (
@@ -511,11 +646,20 @@ const DROP_SCHEMA: &[&str] = &[
     "DROP INDEX IF EXISTS idx_stock_batches_batch_no",
     "DROP INDEX IF EXISTS idx_stock_batches_item_fifo",
     "DROP TABLE IF EXISTS stock_batches",
+    "DROP INDEX IF EXISTS idx_storage_inbound_file_bindings_attribute",
+    "DROP TABLE IF EXISTS storage_inbound_file_bindings",
+    "DROP INDEX IF EXISTS idx_stock_inbound_item_attributes_item_order",
+    "DROP TABLE IF EXISTS stock_inbound_order_item_attributes",
     "DROP INDEX IF EXISTS idx_stock_inbound_order_items_item",
     "DROP INDEX IF EXISTS idx_stock_inbound_order_items_order",
     "DROP TABLE IF EXISTS stock_inbound_order_items",
     "DROP INDEX IF EXISTS idx_stock_inbound_orders_status_created",
     "DROP TABLE IF EXISTS stock_inbound_orders",
+    "DROP TABLE IF EXISTS storage_item_file_bindings",
+    "DROP INDEX IF EXISTS idx_stock_item_attributes_field",
+    "DROP INDEX IF EXISTS idx_stock_item_attributes_item_order",
+    "DROP TABLE IF EXISTS stock_item_attributes",
+    "DROP INDEX IF EXISTS idx_stock_items_attribute_template_active",
     "DROP INDEX IF EXISTS idx_stock_items_category_active",
     "DROP INDEX IF EXISTS idx_stock_items_sku_active",
     "DROP TABLE IF EXISTS stock_items",
@@ -526,10 +670,16 @@ const DROP_SCHEMA: &[&str] = &[
     "DROP INDEX IF EXISTS idx_stock_location_groups_child_name_active",
     "DROP INDEX IF EXISTS idx_stock_location_groups_root_name_active",
     "DROP TABLE IF EXISTS stock_location_groups",
-    "DROP INDEX IF EXISTS idx_stock_template_fields_template_order",
-    "DROP TABLE IF EXISTS stock_template_fields",
-    "DROP INDEX IF EXISTS idx_stock_templates_name_active",
-    "DROP TABLE IF EXISTS stock_templates",
+    "DROP INDEX IF EXISTS idx_stock_item_attribute_template_fields_order",
+    "DROP TABLE IF EXISTS stock_item_attribute_template_fields",
+    "DROP INDEX IF EXISTS idx_stock_item_attribute_templates_name_active",
+    "DROP TABLE IF EXISTS stock_item_attribute_templates",
+    "DROP INDEX IF EXISTS idx_stock_inbound_template_fields_order",
+    "DROP TABLE IF EXISTS stock_inbound_template_fields",
+    "DROP INDEX IF EXISTS idx_stock_inbound_templates_name_active",
+    "DROP TABLE IF EXISTS stock_inbound_templates",
+    "DROP INDEX IF EXISTS idx_stock_item_categories_name_active",
+    "DROP TABLE IF EXISTS stock_item_categories",
     "DROP INDEX IF EXISTS idx_storage_file_objects_owner_created",
     "DROP INDEX IF EXISTS idx_storage_file_objects_sha256",
     "DROP TABLE IF EXISTS storage_file_objects",

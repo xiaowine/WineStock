@@ -14,7 +14,7 @@ edition = "2021"
 
 [workspace.dependencies]
 # 统一在工作区根声明依赖版本，成员包通过 workspace = true 复用。
-axum = "0.8"
+axum = { version = "0.8", features = ["multipart"] }
 argon2 = "0.5.3"
 base64 = "0.22"
 getrandom = "0.4.3"

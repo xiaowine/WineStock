@@ -15,7 +15,7 @@
 
 - `core/src/security/current_user.rs`：`CurrentUser` extractor 和 bearer token 解析。
 - `core/src/security/jwt.rs`：`SecurityRuntime`、JWT claims 和 access token 签发/校验。
-- `core/src/security/middleware.rs`：路由鉴权中间件和 `AuthorizeRouteExt`；进入业务 handler 前读取数据库当前权限。
+- `core/src/security/middleware.rs`：路由鉴权中间件和 `AuthorizeRouteExt`；进入业务 handler 前读取数据库当前权限，支持单权限及“任一权限”策略。
 - `core/src/security/password.rs`：Argon2 密码哈希与校验。
 - `core/src/security/token.rs`：refresh token 哈希、随机文本和 JWT 时间戳。
 - `core/src/security/error.rs`：security、auth、users 共用的鉴权错误映射。

@@ -36,6 +36,16 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'inbound',
+        name: 'inbound',
+        component: () => import('../pages/InboundDraftPage.vue'),
+        meta: {
+          title: '新建入库',
+          requiresAuth: true,
+          requiredPermission: stockPermissions.inboundCreate,
+        },
+      },
+      {
         path: 'users',
         name: 'users',
         component: () => import('../pages/UsersPage.vue'),

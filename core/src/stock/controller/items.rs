@@ -9,7 +9,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     http::{ValidatedJson, ValidatedPath, ValidatedQuery},
@@ -17,6 +17,7 @@ use crate::{
     state::CoreState,
 };
 
+use super::item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 /// 创建库存物品请求。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
@@ -30,9 +31,13 @@ pub(crate) struct ItemCreateRequest {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
-    /// 关联模板 ID。
+    /// 关联物品分类 ID。
     #[garde(skip)]
     pub category_id: Option<i64>,
+
+    /// 可选物品属性模板 ID。
+    #[garde(skip)]
+    pub attribute_template_id: Option<i64>,
 
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
@@ -49,6 +54,10 @@ pub(crate) struct ItemCreateRequest {
     /// 再订货点，不允许为负。
     #[garde(skip)]
     pub reorder_point: Option<f64>,
+
+    /// 物品固有属性；不使用模板时也可自由添加。
+    #[garde(dive)]
+    pub attributes: Vec<ItemAttributeRequest>,
 }
 
 /// 更新库存物品请求；字段为空表示不修改。
@@ -63,25 +72,67 @@ pub(crate) struct ItemUpdateRequest {
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub sku: Option<String>,
 
-    /// 关联模板 ID；当前首版接口不通过 null 清空该字段。
+    /// 关联物品分类 ID；字段缺失表示不修改，null 表示清空分类。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_nullable_field",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[garde(skip)]
-    pub category_id: Option<i64>,
+    pub category_id: Option<Option<i64>>,
+
+    /// 可选物品属性模板 ID；字段缺失表示不修改，null 表示取消模板。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_nullable_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[garde(skip)]
+    pub attribute_template_id: Option<Option<i64>>,
 
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,
 
-    /// 物品描述；当前首版接口不通过 null 清空该字段。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
-    pub description: Option<String>,
-
-    /// 参考单价，不允许为负。
+    /// 物品描述；字段缺失表示不修改，null 表示清空。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_nullable_field",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[garde(skip)]
-    pub default_price: Option<f64>,
+    pub description: Option<Option<String>>,
 
-    /// 再订货点，不允许为负。
+    /// 参考单价；字段缺失表示不修改，null 表示清空。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_nullable_field",
+        skip_serializing_if = "Option::is_none"
+    )]
     #[garde(skip)]
-    pub reorder_point: Option<f64>,
+    pub default_price: Option<Option<f64>>,
+
+    /// 再订货点；字段缺失表示不修改，null 表示清空。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_nullable_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[garde(skip)]
+    pub reorder_point: Option<Option<f64>>,
+
+    /// 物品固有属性；存在时整体替换。
+    #[garde(skip)]
+    pub attributes: Option<Vec<ItemAttributeRequest>>,
+}
+
+/// 把更新 JSON 中明确出现的值包装为外层 `Some`，从而区分字段缺失与 null。
+fn deserialize_nullable_field<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
 }
 
 /// 库存物品分页查询参数。
@@ -115,9 +166,13 @@ pub(crate) struct ItemResponse {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
-    /// 关联模板 ID。
+    /// 关联物品分类 ID。
     #[garde(skip)]
     pub category_id: Option<i64>,
+
+    /// 可选物品属性模板 ID。
+    #[garde(skip)]
+    pub attribute_template_id: Option<i64>,
 
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
@@ -134,6 +189,10 @@ pub(crate) struct ItemResponse {
     /// 再订货点。
     #[garde(skip)]
     pub reorder_point: Option<f64>,
+
+    /// 物品固有属性。
+    #[garde(dive)]
+    pub attributes: Vec<ItemAttributeResponse>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。
     #[garde(skip)]
@@ -159,9 +218,13 @@ pub(crate) struct ItemDetailResponse {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
-    /// 关联模板 ID。
+    /// 关联物品分类 ID。
     #[garde(skip)]
     pub category_id: Option<i64>,
+
+    /// 可选物品属性模板 ID。
+    #[garde(skip)]
+    pub attribute_template_id: Option<i64>,
 
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
@@ -178,6 +241,10 @@ pub(crate) struct ItemDetailResponse {
     /// 再订货点。
     #[garde(skip)]
     pub reorder_point: Option<f64>,
+
+    /// 物品固有属性。
+    #[garde(dive)]
+    pub attributes: Vec<ItemAttributeResponse>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。
     #[garde(skip)]

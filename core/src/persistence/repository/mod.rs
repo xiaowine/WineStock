@@ -4,7 +4,6 @@
 
 mod audit_repo;
 mod auth_repo;
-#[allow(dead_code)]
 mod file_object;
 mod rbac_repo;
 mod refresh_token_repo;
@@ -17,23 +16,26 @@ mod validation;
 pub(crate) use audit_repo::{AuditRepository, RecordAuditEvent};
 #[allow(unused_imports)]
 pub(crate) use auth_repo::AuthRepository;
+pub(crate) use file_object::{CreateFileObject, FileObjectRepository};
 #[allow(unused_imports)]
 pub(crate) use rbac_repo::{PermissionRecord, RbacRepository};
 #[allow(unused_imports)]
 pub(crate) use refresh_token_repo::{CreateRefreshToken, RefreshTokenRepository};
 #[allow(unused_imports)]
 pub(crate) use stock_repo::{
-    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateLocation,
-    CreateLocationGroup, CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem,
-    CreateStockItem, CreateStockTemplate, DailyMovementTrendRecord, DashboardOverviewRecord,
-    InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord, ListAuditEvents,
-    ListInboundOrders, ListOutboundOrders, ListStockItems, OutboundOrderDetail,
-    OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
-    StockFilterFieldRecord, StockFilterValueRecord, StockItemBatchRecord, StockItemDetail,
+    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateInboundTemplate,
+    CreateItemAttributeTemplate, CreateItemCategory, CreateLocation, CreateLocationGroup,
+    CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem, CreateStockItem,
+    DailyMovementTrendRecord, DashboardOverviewRecord, InboundAttributeInput, InboundOrderDetail,
+    InboundOrderItemRecord, InboundOrderRecord, InboundTemplateDetail, ItemAttributeInput,
+    ItemAttributeRecord, ItemAttributeTemplateDetail, ListAuditEvents, ListInboundOrders,
+    ListOutboundOrders, ListStockItems, OutboundOrderDetail, OutboundOrderItemRecord,
+    OutboundOrderRecord, Page, SlowMovingStockItemRecord, StockFilterFieldRecord,
+    StockFilterValueRecord, StockItemBatchRecord, StockItemDetail, StockItemListRecord,
     StockItemLocationRecord, StockLocationGroupRecord, StockLocationRecord,
     StockLocationTransferRecord, StockRepository, StockSubstituteInput, StockSubstituteRecord,
-    StockTemplateDetail, TemplateFieldInput, UpdateLocation, UpdateLocationGroup, UpdateStockItem,
-    UpdateStockTemplate,
+    TemplateFieldInput, UpdateInboundTemplate, UpdateItemAttributeTemplate, UpdateItemCategory,
+    UpdateLocation, UpdateLocationGroup, UpdateStockItem,
 };
 pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
 #[allow(unused_imports)]

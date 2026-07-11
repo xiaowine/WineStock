@@ -61,8 +61,8 @@ auth_users
 | `stock.item.read`         | 查看库存物品列表、详情和物品筛选值        |
 | `stock.location.manage`   | 管理库位分组、库位和整批次移库          |
 | `stock.location.read`     | 查看库位分组树和库位列表              |
-| `stock.template.manage`   | 管理库存模板和模板字段              |
-| `stock.template.read`     | 查看库存模板列表和详情              |
+| `stock.template.manage`   | 管理物品分类和两类属性模板          |
+| `stock.template.read`     | 查看物品分类和两类属性模板          |
 | `stock.inbound.create`    | 创建入库单                    |
 | `stock.inbound.read`      | 查看入库单列表、详情和入库历史筛选值       |
 | `stock.inbound.approve`   | 审批或拒绝入库单                 |
@@ -129,6 +129,15 @@ active 用户身上移除 `user.permissions.update`。
 这项限制在后端 service 层执行，不能只依赖前端禁用选项。
 
 ## 新增受保护能力
+
+图片接口复用库存领域权限，不增加独立文件权限：
+
+- `POST /api/files/images` 要求 `stock.item.manage` 或 `stock.inbound.create` 中任一权限，分别支持物品属性和入库属性图片。
+- 未绑定文件的读取和删除按 `owner_user_id` 限制为上传所有者。
+- 文件绑定物品属性后，读取要求 `stock.item.read` 或 `stock.item.manage`。
+- 文件绑定入库属性后，读取要求 `stock.inbound.read` 或 `stock.inbound.approve`。
+- 任一绑定存在后，临时删除接口不再允许删除。
+- 所有这些接口都先经过登录鉴权；动态所有权和“读取或审批”条件由文件服务按数据库当前绑定状态判断。
 
 新增受保护能力时：
 

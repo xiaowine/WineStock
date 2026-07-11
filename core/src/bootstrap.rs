@@ -9,11 +9,13 @@ use winestock_shared::AppConfig;
 
 use crate::{
     auth::{bootstrap_auth, AuthBootstrap, AuthBootstrapError},
+    files::cleanup_orphaned_images,
     persistence::{
         migrate_storage_schema, open_sqlite_storage, StorageBootstrapError, StorageRuntime,
     },
     rbac::{bootstrap_builtin_rbac, RbacBootstrapError},
     stock::{bootstrap_default_templates, StockBootstrapError},
+    FileCleanupError,
 };
 
 /// core 根据启动配置完成的初始化结果。
@@ -54,6 +56,9 @@ pub enum CoreBootstrapError {
 
     /// 库存默认模板初始化失败。
     Stock(StockBootstrapError),
+
+    /// 临时图片孤儿文件清理失败。
+    Files(FileCleanupError),
 }
 
 impl fmt::Display for CoreBootstrapError {
@@ -63,6 +68,7 @@ impl fmt::Display for CoreBootstrapError {
             Self::Auth(source) => write!(f, "{source}"),
             Self::Rbac(source) => write!(f, "{source}"),
             Self::Stock(source) => write!(f, "{source}"),
+            Self::Files(source) => write!(f, "{source}"),
         }
     }
 }
@@ -74,6 +80,7 @@ impl Error for CoreBootstrapError {
             Self::Auth(source) => Some(source),
             Self::Rbac(source) => Some(source),
             Self::Stock(source) => Some(source),
+            Self::Files(source) => Some(source),
         }
     }
 }
@@ -105,6 +112,11 @@ pub async fn bootstrap_from_config(
     bootstrap_default_templates(&storage.database)
         .await
         .map_err(CoreBootstrapError::Stock)?;
+
+    // migration 完成后清理超期临时图片，避免中断上传长期占用磁盘。
+    cleanup_orphaned_images(&storage)
+        .await
+        .map_err(CoreBootstrapError::Files)?;
 
     let auth = bootstrap_auth(&storage.database)
         .await

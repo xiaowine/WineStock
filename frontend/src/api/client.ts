@@ -35,6 +35,28 @@ export interface ApiRequestOptions {
   headers?: HeadersInit
   /** 调用方控制取消请求的信号。 */
   signal?: AbortSignal
+  /** 成功响应读取方式；文件读取使用 blob，其余默认解析 JSON/文本。 */
+  responseType?: 'default' | 'blob'
+}
+
+/** XMLHttpRequest 上传进度快照。 */
+export interface ApiUploadProgress {
+  /** 已发送字节数。 */
+  loaded: number
+  /** 浏览器可知的请求体总字节数。 */
+  total: number
+  /** 0 到 100 的上传百分比；无法计算时为空。 */
+  percent: number | null
+}
+
+/** multipart 上传选项；XHR 仅用于提供浏览器原生上传进度。 */
+export interface ApiUploadOptions {
+  /** multipart 请求体。 */
+  formData: FormData
+  /** 调用方控制取消请求的信号。 */
+  signal?: AbortSignal
+  /** 上传进度回调。 */
+  onProgress?: (progress: ApiUploadProgress) => void
 }
 
 /** access token 提供函数；forceRefresh 为 true 时必须尝试 refresh token 轮换。 */
@@ -110,7 +132,9 @@ export class ApiClient {
         throw new ApiNetworkError(error)
       }
 
-      const payload = await readResponsePayload(response)
+      const payload = response.ok && options.responseType === 'blob'
+        ? await response.blob()
+        : await readResponsePayload(response)
       if (response.ok) {
         return payload as TResult
       }
@@ -138,6 +162,37 @@ export class ApiClient {
     }
 
     throw new ApiResponseError(url.toString(), new Error('API 请求重试状态无效'))
+  }
+
+  /**
+   * 上传 multipart 表单并报告真实上传进度。
+   * 该入口复用受管理 access token 和一次强制 refresh，页面不直接读取会话状态。
+   */
+  async upload<TResult>(path: string, options: ApiUploadOptions): Promise<TResult> {
+    if (!path.startsWith('/')) {
+      throw new ApiConfigurationError('API 请求路径必须以 / 开头')
+    }
+    const url = buildRequestUrl(resolveApiBaseUrl(), path, undefined)
+    let accessToken = await this.accessTokenProvider(false)
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const result = await sendMultipartRequest(url, options, accessToken, this.networkErrorHandler)
+      if (result.ok) {
+        return result.payload as TResult
+      }
+      const errorBody: ApiErrorBody = isApiErrorResponse(result.payload)
+        ? result.payload.error
+        : {
+            code: 'http_error',
+            message: `请求失败（HTTP ${result.status}）`,
+            details: result.payload ?? null,
+          }
+      if (attempt === 0 && errorBody.code === 'invalid_access_token') {
+        accessToken = await this.accessTokenProvider(true)
+        if (accessToken) continue
+      }
+      throw new ApiError(result.status, errorBody, url.toString())
+    }
+    throw new ApiResponseError(url.toString(), new Error('API 上传重试状态无效'))
   }
 }
 
@@ -188,5 +243,78 @@ async function readResponsePayload(response: Response): Promise<unknown> {
       throw new ApiResponseError(response.url, error)
     }
     return text
+  }
+}
+
+interface MultipartResult {
+  ok: boolean
+  status: number
+  payload: unknown
+}
+
+function sendMultipartRequest(
+  url: URL,
+  options: ApiUploadOptions,
+  accessToken: string | null,
+  networkErrorHandler: NetworkErrorHandler,
+): Promise<MultipartResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    let abortedByCaller = false
+    const abort = () => {
+      abortedByCaller = true
+      xhr.abort()
+    }
+    if (options.signal?.aborted) {
+      reject(new DOMException('请求已取消', 'AbortError'))
+      return
+    }
+    options.signal?.addEventListener('abort', abort, { once: true })
+    xhr.open('POST', url)
+    xhr.setRequestHeader('accept', 'application/json')
+    if (accessToken) xhr.setRequestHeader('authorization', `Bearer ${accessToken}`)
+    xhr.upload.onprogress = (event) => {
+      options.onProgress?.({
+        loaded: event.loaded,
+        total: event.lengthComputable ? event.total : 0,
+        percent: event.lengthComputable && event.total > 0
+          ? Math.min(100, Math.round((event.loaded / event.total) * 100))
+          : null,
+      })
+    }
+    xhr.onload = () => {
+      options.signal?.removeEventListener('abort', abort)
+      try {
+        resolve({
+          ok: xhr.status >= 200 && xhr.status < 300,
+          status: xhr.status,
+          payload: parseXhrPayload(xhr.responseText, xhr.getResponseHeader('content-type') ?? ''),
+        })
+      } catch (error) {
+        reject(error)
+      }
+    }
+    xhr.onerror = () => {
+      options.signal?.removeEventListener('abort', abort)
+      networkErrorHandler()
+      reject(new ApiNetworkError(new Error('XMLHttpRequest network error')))
+    }
+    xhr.onabort = () => {
+      options.signal?.removeEventListener('abort', abort)
+      reject(abortedByCaller
+        ? new DOMException('请求已取消', 'AbortError')
+        : new ApiNetworkError(new Error('XMLHttpRequest aborted')))
+    }
+    xhr.send(options.formData)
+  })
+}
+
+function parseXhrPayload(text: string, contentType: string): unknown {
+  if (!text) return undefined
+  if (!contentType.includes('application/json') && !contentType.includes('+json')) return text
+  try {
+    return JSON.parse(text) as unknown
+  } catch (error) {
+    throw new ApiResponseError('multipart upload', error)
   }
 }

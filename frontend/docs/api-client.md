@@ -67,10 +67,13 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 - JSON 请求体与 `Content-Type: application/json`。
 - 默认 `Accept: application/json`。
 - 可选 `AbortSignal`。
+- 成功响应按需读取为鉴权保护的 `Blob`。
 - 204 空响应。
 - access token provider 注入。
 - 网络连接失败通知函数注入；主动取消请求不会触发通知。
 - `invalid_access_token` 时通过 provider 强制 refresh 并最多重试一次。
+
+`ApiClient.upload<T>()` 使用 `XMLHttpRequest` 发送 multipart，从而提供浏览器原生上传进度；它仍复用同一个 access token provider、`invalid_access_token` 强制 refresh 和统一 `ApiError` 契约。页面不得自行从持久化存储读取 token。
 
 请求路径必须以 `/` 开头且作为当前根地址的相对 API 路径处理，调用方不能传入外部绝对 URL，以免 Bearer token 泄漏到其它 host。
 

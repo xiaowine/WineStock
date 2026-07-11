@@ -16,8 +16,8 @@
 | `stock.outbound.create` | 出库 | 创建出库单 |
 | `stock.outbound.read` | 出库 | 查看出库单列表、详情和出库历史筛选值 |
 | `stock.outbound.approve` | 出库 | 审批或拒绝出库单 |
-| `stock.template.read` | 模板管理 | 查看分类模板列表和详情 |
-| `stock.template.manage` | 模板管理 | 管理分类模板 |
+| `stock.template.read` | 分类与模板 | 查看物品分类、物品属性模板和入库模板 |
+| `stock.template.manage` | 分类与模板 | 管理物品分类和两类属性模板 |
 | `stock.dashboard.read` | 总览看板 | 查看看板总览和趋势 |
 | `stock.substitute.read` | 替代料管理 | 查看替代关系 |
 | `stock.substitute.manage` | 替代料管理 | 整体替换或删除替代关系 |

@@ -1,63 +1,52 @@
 # 入库 API
 
-入库核心流程：选择物品（自带分类）→ 选择库位 → 按该分类模板填写 `ext_attributes` → 服务端校验后生成入库单和批次。
+入库属性只描述本次收货。物品型号、品牌、参数、材质和产品图片属于物品属性，不会复制到入库明细属性中。
 
-### `POST /api/inbound`
+## `POST /api/inbound`
 
-创建 `pending` 入库单，同时携带模板化扩展属性。创建阶段只保存单据和明细，不生成批次、不写库存流水。
+创建 `pending` 入库单；创建阶段不增加库存。权限：`stock.inbound.create`。
 
-- 权限：`stock.inbound.create`
+请求主字段：`source`、可选 `notes` 和至少一条 `items`。每条明细包含：
 
-**请求体：`InboundCreateRequest`**
+| 字段 | 说明 |
+|---|---|
+| `item_id` | 有效物品 ID |
+| `quantity` | 大于 0 的数量 |
+| `unit_price` | 非负单价 |
+| `location_id` | 有效库位 ID |
+| `batch_no` | 可选外部批次号 |
+| `expires_at` | 可选有效期 |
+| `inbound_template_id` | 可选入库模板；为空时可由物品属性模板的推荐值推导 |
+| `ext_attributes` | 当前入库模板对应的一层 JSON 对象 |
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `source` | string | 是 | 来源（供应商名称或采购单号 PO） |
-| `items` | array | 是 | 入库物品明细 |
-| `notes` | string | 否 | 备注 |
+同一物品可以在一个请求中出现多次，每条明细独立保存数量、价格、库位、批次、有效期、入库模板和属性。
 
-**入库明细条目：`InboundItem`**
+模板值按必填、有限数字、HTTP/HTTPS URL、select 候选项、boolean、日期和 file 引用校验。实际值逐条写入 `stock_inbound_order_item_attributes`，不保存为明细表 JSON 列。
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `item_id` | integer | 是 | 物品 ID |
-| `quantity` | number | 是 | 入库数量 |
-| `unit_price` | number | 是 | 采购单价 |
-| `location_id` | integer | 是 | 存储库位 ID，必须指向未删除库位 |
-| `batch_no` | string | 否 | 外部批次号（为空时服务端自动生成） |
-| `expires_at` | string (date) | 否 | 有效期（若适用） |
-| `ext_attributes` | object | 否 | 模板化扩展属性，按物品分类模板校验（如电子元件填 `{"封装":"0603","品牌":"ST"}`） |
+file 值必须是 `{ "file_id": id }`。文件需要由当前创建人上传、尚未绑定，且是最大 15MB 的 PNG、JPEG 或 WebP。入库单、明细、属性和文件绑定在同一事务中提交。
 
-- 响应：`201` + `InboundResponse`，状态为 `pending`
-- 响应明细会返回 `location_id`、`location_code` 和 `location_name`。
-- 错误：`400` `ext_attributes` 不满足模板约束 / `404` 物品 ID 不存在
+结构化错误包含零基 `line_index`；字段错误同时包含 `field_name` 和稳定 `reason`。
 
-### `GET /api/inbound`
+## 查询与审批
 
+- `GET /api/inbound`：权限 `stock.inbound.read`，支持分页、物品、日期和自由搜索。
+- `GET /api/inbound/filter-values`：按全部入库历史聚合基础字段，以及入库模板中标记 searchable 的实际入库属性。
+- `GET /api/inbound/{id}`：返回单据、明细、`inbound_template_id` 和重建后的 `ext_attributes`。
+- `POST /api/stock-approvals/inbound/{id}/approve`：权限 `stock.inbound.approve`；重新校验入库模板、属性和文件绑定后生成批次与库存流水。
+- `POST /api/stock-approvals/inbound/{id}/reject`：权限 `stock.inbound.approve`；只更新单据状态。
 
-分页查询入库单列表。
+## 图片文件
 
-- 权限：`stock.inbound.read`
-- 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
-- 响应：`200` + `PaginatedResponse<InboundResponse>`
-- 说明：入库单搜索会匹配入库来源、备注、状态、库位编码/名称、批次号、有效期、关联物品基础字段和入库模板实际值；结果按入库单去重。空 `search` 返回 `400 invalid_request`。
+### `POST /api/files/images`
 
-### `GET /api/inbound/filter-values`
+权限为 `stock.item.manage` 或 `stock.inbound.create` 中任一项。multipart 单文件上传，支持 PNG、JPEG、WebP，最大 15MB，同时校验声明 MIME、真实签名和大小。返回文件 ID、名称、MIME、大小和受控读取地址；同一接口也用于物品图片属性。
 
-查询入库历史筛选值。
+### `GET /api/files/{id}`
 
-- 权限：`stock.inbound.read`
-- 查询参数：无
-- 响应：`200` + `FilterValuesResponse`
-- 统计范围：入库历史视角，不受当前库存余额影响。
-- 首版内置字段：`base:source`、`base:status`、`base:item`、`base:sku`、`base:location`、`base:batch_no`；`base:location` 的值为库位编码。
-- 模板字段：只返回 `stock_template_fields.searchable = true` 的一层 JSON 标量值；同名字段跨模板合并。
-- 计数：`count` 表示拥有该字段值的去重入库单数量。
+- 未绑定文件仅上传所有者可读。
+- 绑定物品属性后要求 `stock.item.read` 或 `stock.item.manage`。
+- 绑定入库属性后要求 `stock.inbound.read` 或 `stock.inbound.approve`。
 
-### `GET /api/inbound/{id}`
+### `DELETE /api/files/{id}`
 
-
-查看入库单详情（含入库明细和扩展属性）。
-
-- 权限：`stock.inbound.read`
-- 响应：`200` + `InboundResponse`
+仅所有者可删除尚未绑定的文件。任意物品或入库绑定存在时返回 `409 file_already_bound`。服务启动和每次上传前会清理超过 24 小时仍未绑定的文件元数据与无引用磁盘内容，也会回收写盘后、元数据创建前中断留下的无记录文件。

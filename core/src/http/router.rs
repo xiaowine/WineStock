@@ -4,7 +4,7 @@
 //! 它不直接实现 `auth`、`users` 或 `rbac` 的业务流程。
 
 use super::{cors, docs, error_response, health};
-use crate::{auth, state::CoreState, stock, users, LocalServiceBootstrap};
+use crate::{auth, files, state::CoreState, stock, users, LocalServiceBootstrap};
 use axum::middleware;
 use axum::routing::get;
 use axum::Router;
@@ -21,6 +21,7 @@ pub fn build_router_with_local_service(local_service: &LocalServiceBootstrap) ->
     // 业务路由始终挂在统一 `CoreState` 之下，避免某个局部运行时充当全局根状态。
     let router = base_router::<CoreState>()
         .merge(auth::router())
+        .merge(files::router(state.clone()))
         .merge(stock::router(state.clone()))
         .merge(users::router(state.clone()))
         .with_state(state);

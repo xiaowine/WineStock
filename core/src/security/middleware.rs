@@ -99,6 +99,19 @@ pub(crate) fn users_exist() -> AuthorizationCondition {
     })
 }
 
+/// 给路由增加“拥有任一指定权限”校验，适合由多个业务域共用的入口。
+pub(crate) fn require_any_permission(
+    route: MethodRouter<CoreState>,
+    core_state: CoreState,
+    permissions: &'static [&'static str],
+) -> MethodRouter<CoreState> {
+    apply_authorization(
+        route,
+        core_state,
+        AuthorizationPolicy::AnyPermission(permissions),
+    )
+}
+
 /// 为 Axum 路由提供链式鉴权声明，便于业务模块把权限要求贴近路由定义。
 pub(crate) trait AuthorizeRouteExt {
     /// 给路由增加“必须登录”的鉴权层。
@@ -110,6 +123,13 @@ pub(crate) trait AuthorizeRouteExt {
         self,
         core_state: CoreState,
         permission: &'static str,
+    ) -> MethodRouter<CoreState>;
+
+    /// 给路由增加“必须登录且拥有任一指定权限”的授权层。
+    fn require_any_permission(
+        self,
+        core_state: CoreState,
+        permissions: &'static [&'static str],
     ) -> MethodRouter<CoreState>;
 
     /// 给路由增加条件授权层；条件满足时必须登录且拥有指定权限。
@@ -136,6 +156,14 @@ impl AuthorizeRouteExt for MethodRouter<CoreState> {
             core_state,
             AuthorizationPolicy::Permission(permission),
         )
+    }
+
+    fn require_any_permission(
+        self,
+        core_state: CoreState,
+        permissions: &'static [&'static str],
+    ) -> MethodRouter<CoreState> {
+        require_any_permission(self, core_state, permissions)
     }
 
     fn require_permission_when(
@@ -177,6 +205,7 @@ enum AuthorizationPolicy {
     Authenticated,
     #[cfg_attr(not(test), allow(dead_code))]
     Permission(&'static str),
+    AnyPermission(&'static [&'static str]),
     ConditionalPermission {
         permission: &'static str,
         condition: AuthorizationCondition,
@@ -195,7 +224,8 @@ async fn authorize(
             let permission = match requirement {
                 AuthorizationRequirement::Bypass => unreachable!("Bypass 已在上方提前返回"),
                 AuthorizationRequirement::Authenticated => None,
-                AuthorizationRequirement::Permission(permission) => Some(permission),
+                AuthorizationRequirement::Permission(permission) => Some(&[permission][..]),
+                AuthorizationRequirement::AnyPermission(permissions) => Some(permissions),
             };
             let token = match bearer_token_from_headers(request.headers()) {
                 Some(token) => token.to_owned(),
@@ -210,8 +240,11 @@ async fn authorize(
             {
                 return AuthApiError::PasswordChangeRequired.into_response();
             }
-            if let Some(permission) = permission {
-                if !current_user.has_permission(permission) {
+            if let Some(permissions) = permission {
+                if !permissions
+                    .iter()
+                    .any(|permission| current_user.has_permission(permission))
+                {
                     return AuthApiError::PermissionDenied.into_response();
                 }
             }
@@ -231,6 +264,9 @@ async fn resolve_requirement(
         AuthorizationPolicy::Permission(permission) => {
             Ok(AuthorizationRequirement::Permission(permission))
         }
+        AuthorizationPolicy::AnyPermission(permissions) => {
+            Ok(AuthorizationRequirement::AnyPermission(permissions))
+        }
         AuthorizationPolicy::ConditionalPermission {
             permission,
             ref condition,
@@ -248,6 +284,7 @@ enum AuthorizationRequirement {
     Bypass,
     Authenticated,
     Permission(&'static str),
+    AnyPermission(&'static [&'static str]),
 }
 
 /// 从 bearer token 得到当前用户，并重新读取数据库中的当前权限。

@@ -95,10 +95,12 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffi
             name: format!("Event Bottle {suffix}"),
             sku: format!("EVT-{suffix}"),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
@@ -129,6 +131,7 @@ async fn seed_pending_inbound(
                 location_id,
                 batch_no: Some(format!("EVT-{item_id}")),
                 expires_at: Some("2027-01-01".to_owned()),
+                inbound_template_id: None,
                 ext_attributes: None,
             }],
         },

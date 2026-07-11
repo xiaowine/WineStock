@@ -16,7 +16,7 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 创建 pending 入库单和明细；创建阶段不改变库存。
+    /// 创建 pending 入库单、明细和图片字段绑定；创建阶段不改变库存。
     pub(crate) async fn create_inbound_order(
         &self,
         input: CreateInboundOrder,
@@ -55,12 +55,12 @@ where
 
         for item in &input.items {
             validate_repository_input(item)?;
-            transaction
+            let result = transaction
                 .execute(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_inbound_order_items
-                        (order_id, item_id, quantity, unit_price, location_id, batch_no, expires_at, ext_attributes_json, created_at)
+                        (order_id, item_id, quantity, unit_price, location_id, batch_no, expires_at, inbound_template_id, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     "#,
                     vec![
@@ -71,11 +71,74 @@ where
                         item.location_id.into(),
                         item.batch_no.clone().into(),
                         item.expires_at.clone().into(),
-                        item.ext_attributes_json.clone().into(),
+                        item.inbound_template_id.into(),
                         now.clone().into(),
                     ],
                 ))
                 .await?;
+            let inbound_order_item_id = i64::try_from(result.last_insert_id())
+                .map_err(|_| DbErr::Custom("inbound order item id overflow".to_owned()))?;
+            for attribute in &item.attributes {
+                validate_repository_input(attribute)?;
+                let result = transaction
+                    .execute(Statement::from_sql_and_values(
+                        DatabaseBackend::Sqlite,
+                        r#"
+                        INSERT INTO stock_inbound_order_item_attributes
+                            (inbound_order_item_id, template_field_id, field_name, field_type, value_json, unit, sort_order, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        "#,
+                        vec![
+                            inbound_order_item_id.into(),
+                            attribute.template_field_id.into(),
+                            attribute.field_name.clone().into(),
+                            attribute.field_type.clone().into(),
+                            attribute.value_json.clone().into(),
+                            attribute.unit.clone().into(),
+                            attribute.sort_order.into(),
+                            now.clone().into(),
+                        ],
+                    ))
+                    .await?;
+                let attribute_id = i64::try_from(result.last_insert_id())
+                    .map_err(|_| DbErr::Custom("inbound attribute id overflow".to_owned()))?;
+                let Some(file_object_id) = attribute.file_object_id else {
+                    continue;
+                };
+                let Some(owner_user_id) = attribute.file_owner_user_id else {
+                    return Err(DbErr::Custom("inbound file owner missing".to_owned()));
+                };
+                let result = transaction
+                    .execute(Statement::from_sql_and_values(
+                        DatabaseBackend::Sqlite,
+                        r#"
+                        INSERT INTO storage_inbound_file_bindings
+                            (file_object_id, inbound_order_item_attribute_id, created_at)
+                        SELECT f.id, ?, ?
+                        FROM storage_file_objects f
+                        WHERE f.id = ? AND f.owner_user_id = ?
+                          AND f.mime_type IN ('image/png', 'image/jpeg', 'image/webp')
+                          AND NOT EXISTS (
+                              SELECT 1 FROM storage_inbound_file_bindings b
+                              WHERE b.file_object_id = f.id
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM storage_item_file_bindings b
+                              WHERE b.file_object_id = f.id
+                          )
+                        "#,
+                        vec![
+                            attribute_id.into(),
+                            now.clone().into(),
+                            file_object_id.into(),
+                            owner_user_id.into(),
+                        ],
+                    ))
+                    .await?;
+                if result.rows_affected() != 1 {
+                    return Err(DbErr::Custom("inbound file unavailable".to_owned()));
+                }
+            }
         }
         insert_audit_event_on_connection(
             &transaction,
@@ -450,7 +513,7 @@ where
                    locations.name AS location_name,
                    inbound_items.batch_no,
                    inbound_items.expires_at,
-                   inbound_items.ext_attributes_json,
+                   inbound_items.inbound_template_id,
                    inbound_items.created_at
             FROM stock_inbound_order_items inbound_items
             JOIN stock_locations locations ON locations.id = inbound_items.location_id
@@ -461,22 +524,48 @@ where
         ))
         .await?;
 
-    rows.into_iter()
-        .map(|row| {
-            Ok(InboundOrderItemRecord {
-                id: row.try_get("", "id")?,
-                order_id: row.try_get("", "order_id")?,
-                item_id: row.try_get("", "item_id")?,
-                quantity: row.try_get("", "quantity")?,
-                unit_price: row.try_get("", "unit_price")?,
-                location_id: row.try_get("", "location_id")?,
-                location_code: row.try_get("", "location_code")?,
-                location_name: row.try_get("", "location_name")?,
-                batch_no: row.try_get("", "batch_no")?,
-                expires_at: row.try_get("", "expires_at")?,
-                ext_attributes_json: row.try_get("", "ext_attributes_json")?,
-                created_at: row.try_get("", "created_at")?,
-            })
-        })
-        .collect()
+    let mut result = Vec::with_capacity(rows.len());
+    for row in rows {
+        let item_id: i64 = row.try_get("", "id")?;
+        let attributes = connection
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT field_name, value_json
+                FROM stock_inbound_order_item_attributes
+                WHERE inbound_order_item_id = ?
+                ORDER BY sort_order ASC, id ASC
+                "#,
+                [item_id.into()],
+            ))
+            .await?;
+        let mut attribute_object = serde_json::Map::new();
+        for attribute in attributes {
+            let name: String = attribute.try_get("", "field_name")?;
+            let value_json: String = attribute.try_get("", "value_json")?;
+            let value = serde_json::from_str(&value_json)
+                .map_err(|_| DbErr::Custom("invalid inbound attribute json".to_owned()))?;
+            attribute_object.insert(name, value);
+        }
+        result.push(InboundOrderItemRecord {
+            id: item_id,
+            order_id: row.try_get("", "order_id")?,
+            item_id: row.try_get("", "item_id")?,
+            quantity: row.try_get("", "quantity")?,
+            unit_price: row.try_get("", "unit_price")?,
+            location_id: row.try_get("", "location_id")?,
+            location_code: row.try_get("", "location_code")?,
+            location_name: row.try_get("", "location_name")?,
+            batch_no: row.try_get("", "batch_no")?,
+            expires_at: row.try_get("", "expires_at")?,
+            inbound_template_id: row.try_get("", "inbound_template_id")?,
+            attributes_json: if attribute_object.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(attribute_object).to_string())
+            },
+            created_at: row.try_get("", "created_at")?,
+        });
+    }
+    Ok(result)
 }

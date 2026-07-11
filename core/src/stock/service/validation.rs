@@ -53,6 +53,31 @@ pub(super) fn validate_http_url(value: &str) -> Result<(), StockApiError> {
     }
 }
 
+/// 校验公历日期文本必须是实际存在的 `YYYY-MM-DD` 日期。
+pub(super) fn valid_iso_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    let Ok(year) = value[0..4].parse::<i32>() else {
+        return false;
+    };
+    let Ok(month) = value[5..7].parse::<u32>() else {
+        return false;
+    };
+    let Ok(day) = value[8..10].parse::<u32>() else {
+        return false;
+    };
+    let max_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0) => 29,
+        2 => 28,
+        _ => return false,
+    };
+    day >= 1 && day <= max_day
+}
+
 /// 校验可选数值必须有限且非负。
 pub(super) fn validate_non_negative(value: Option<f64>) -> Result<Option<f64>, StockApiError> {
     if value.is_some_and(|value| !value.is_finite() || value < 0.0) {

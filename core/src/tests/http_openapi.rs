@@ -54,11 +54,16 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert!(value["paths"]["/api/users/{id}/permissions"].is_object());
     assert!(value["paths"]["/api/users/{id}/password"].is_object());
     assert!(value["paths"]["/api/permissions"].is_object());
+    assert!(value["paths"]["/api/files/images"].is_object());
+    assert!(value["paths"]["/api/files/{id}"]["get"].is_object());
+    assert!(value["paths"]["/api/files/{id}"]["delete"].is_object());
     assert!(value["paths"]["/api/users/{id}/roles"].is_null());
     assert!(value["paths"]["/api/roles"].is_null());
-    assert!(value["paths"]["/api/templates"].is_object());
-    assert!(value["paths"]["/api/templates/{id}"].is_object());
-    assert!(value["paths"]["/api/templates/{id}/copy"].is_object());
+    assert!(value["paths"]["/api/item-categories"].is_object());
+    assert!(value["paths"]["/api/item-attribute-templates"].is_object());
+    assert!(value["paths"]["/api/item-attribute-templates/{id}/copy"].is_object());
+    assert!(value["paths"]["/api/inbound-templates"].is_object());
+    assert!(value["paths"]["/api/inbound-templates/{id}/copy"].is_object());
     assert!(value["paths"]["/api/items"].is_object());
     assert!(value["paths"]["/api/items/filter-values"].is_object());
     assert!(value["paths"]["/api/items/{id}"].is_object());
@@ -111,7 +116,10 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         "health",
         "auth",
         "users",
-        "templates",
+        "files",
+        "item-categories",
+        "item-attribute-templates",
+        "inbound-templates",
         "items",
         "locations",
         "inbound",
@@ -131,7 +139,20 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         "stock tag should be split into business tags"
     );
     assert_operation_tag(&value, "/api/health", "get", "health");
-    assert_operation_tag(&value, "/api/templates", "post", "templates");
+    assert_operation_tag(&value, "/api/item-categories", "post", "item-categories");
+    assert_operation_tag(
+        &value,
+        "/api/item-attribute-templates",
+        "post",
+        "item-attribute-templates",
+    );
+    assert_operation_tag(
+        &value,
+        "/api/inbound-templates",
+        "post",
+        "inbound-templates",
+    );
+    assert_operation_tag(&value, "/api/files/images", "post", "files");
     assert_operation_tag(&value, "/api/items", "post", "items");
     assert_operation_tag(&value, "/api/location-groups/tree", "get", "locations");
     assert_operation_tag(&value, "/api/inbound", "post", "inbound");

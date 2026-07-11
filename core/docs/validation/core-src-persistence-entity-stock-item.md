@@ -1,21 +1,8 @@
-# `core/src/persistence/entity/stock_item.rs`
+# Stock Item 与属性实体限制
 
-本文件定义 `stock_items` 的 SeaORM Entity。
-
-该实体不作为 HTTP 请求体直接接收。HTTP 物品输入限制见 `core/src/stock/controller/items.rs`，写库输入限制见 `core-src-persistence-repository-stock-repo.md`。
-
-## 字段约束
-
-| 字段 | 限制 |
-| --- | --- |
-| `id` | SQLite 自增主键 |
-| `name` | 非空文本；写库前由 repository 输入校验 |
-| `sku` | 非空文本；未软删除记录由 `idx_stock_items_sku_active` 保证唯一 |
-| `category_id` | 可空；外键指向 `stock_templates.id`，模板删除后置空 |
-| `unit` | 非空文本；写库前由 repository 输入校验 |
-| `description` | 可空 |
-| `default_price` | 可空；数据库 `CHECK` 限制非负 |
-| `reorder_point` | 可空；数据库 `CHECK` 限制非负 |
-| `created_at` | SQLite UTC 字符串 |
-| `updated_at` | SQLite UTC 字符串 |
-| `deleted_at` | 可空；为空表示当前有效，非空表示软删除 |
+- `stock_items.category_id` 外键指向物品分类。
+- `stock_items.attribute_template_id` 外键指向可选物品属性模板。
+- SKU 在未软删除物品内唯一；参考单价和再订货点不能为负。
+- `stock_item_attributes` 同一物品字段名唯一，类型受数据库 CHECK 限制，`value_json` 由 garde 和服务层保证为合法类型化 JSON。
+- 自定义属性的 `template_field_id` 为空；模板字段来源删除后允许置空。
+- `storage_item_file_bindings` 对文件 ID 和物品属性 ID 都执行唯一约束。

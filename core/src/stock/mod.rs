@@ -39,19 +39,47 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
         STOCK_BASE_PATH,
         Router::new()
             .route(
-                "/templates",
-                auth.template_manage(post(controller::create_template))
-                    .merge(auth.template_read(get(controller::list_templates))),
+                "/item-categories",
+                auth.template_manage(post(controller::create_item_category))
+                    .merge(auth.template_read(get(controller::list_item_categories))),
             )
             .route(
-                "/templates/{id}",
-                auth.template_read(get(controller::get_template))
-                    .merge(auth.template_manage(put(controller::update_template)))
-                    .merge(auth.template_manage(delete(controller::delete_template))),
+                "/item-categories/{id}",
+                auth.template_read(get(controller::get_item_category))
+                    .merge(auth.template_manage(put(controller::update_item_category)))
+                    .merge(auth.template_manage(delete(controller::delete_item_category))),
             )
             .route(
-                "/templates/{id}/copy",
-                auth.template_manage(post(controller::copy_template)),
+                "/item-attribute-templates",
+                auth.template_manage(post(controller::create_item_attribute_template))
+                    .merge(auth.template_read(get(controller::list_item_attribute_templates))),
+            )
+            .route(
+                "/item-attribute-templates/{id}",
+                auth.template_read(get(controller::get_item_attribute_template))
+                    .merge(auth.template_manage(put(controller::update_item_attribute_template)))
+                    .merge(
+                        auth.template_manage(delete(controller::delete_item_attribute_template)),
+                    ),
+            )
+            .route(
+                "/item-attribute-templates/{id}/copy",
+                auth.template_manage(post(controller::copy_item_attribute_template)),
+            )
+            .route(
+                "/inbound-templates",
+                auth.template_manage(post(controller::create_inbound_template))
+                    .merge(auth.template_read(get(controller::list_inbound_templates))),
+            )
+            .route(
+                "/inbound-templates/{id}",
+                auth.template_read(get(controller::get_inbound_template))
+                    .merge(auth.template_manage(put(controller::update_inbound_template)))
+                    .merge(auth.template_manage(delete(controller::delete_inbound_template))),
+            )
+            .route(
+                "/inbound-templates/{id}/copy",
+                auth.template_manage(post(controller::copy_inbound_template)),
             )
             .route(
                 "/items",
@@ -251,8 +279,8 @@ impl StockRouteAuth {
 mod stock_items_tests;
 
 #[cfg(test)]
-#[path = "../tests/stock_templates.rs"]
-mod stock_templates_tests;
+#[path = "../tests/stock_attribute_templates.rs"]
+mod stock_attribute_templates_tests;
 
 #[cfg(test)]
 #[path = "../tests/stock_inbound.rs"]

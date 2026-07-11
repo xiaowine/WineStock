@@ -253,10 +253,12 @@ async fn seed_item(app: &crate::test_support::TestApp, access_token: &str, suffi
             name: format!("Substitute Bottle {suffix}"),
             sku: format!("SUB-{suffix}"),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
@@ -289,6 +291,7 @@ async fn seed_approved_inbound(
                 location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2027-01-01".to_owned()),
+                inbound_template_id: None,
                 ext_attributes: None,
             }],
         },

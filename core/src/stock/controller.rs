@@ -7,6 +7,7 @@ mod common;
 pub(crate) mod dashboard;
 pub(crate) mod events;
 pub(crate) mod inbound;
+pub(crate) mod item_attributes;
 pub(crate) mod items;
 pub(crate) mod locations;
 pub(crate) mod outbound;
@@ -27,6 +28,7 @@ pub(crate) use inbound::{
     reject_inbound, InboundCreateRequest, InboundItemRequest, InboundItemResponse,
     InboundListQuery, InboundResponse,
 };
+pub(crate) use item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
 pub(crate) use items::{
     create_item, delete_item, get_item, item_filter_values, list_items, update_item,
     ItemBatchStockResponse, ItemCreateRequest, ItemDetailResponse, ItemListQuery,
@@ -51,7 +53,14 @@ pub(crate) use substitutes::{
     SubstituteReplaceRequest, SubstituteReplacementItem,
 };
 pub(crate) use templates::{
-    copy_template, create_template, delete_template, get_template, list_templates, update_template,
-    TemplateCopyRequest, TemplateCreateRequest, TemplateFieldDef, TemplateFieldResponse,
-    TemplateFieldType, TemplateResponse, TemplateUpdateRequest,
+    copy_inbound_template, copy_item_attribute_template, create_inbound_template,
+    create_item_attribute_template, create_item_category, delete_inbound_template,
+    delete_item_attribute_template, delete_item_category, get_inbound_template,
+    get_item_attribute_template, get_item_category, list_inbound_templates,
+    list_item_attribute_templates, list_item_categories, update_inbound_template,
+    update_item_attribute_template, update_item_category, InboundTemplateCreateRequest,
+    InboundTemplateResponse, InboundTemplateUpdateRequest, ItemAttributeTemplateCreateRequest,
+    ItemAttributeTemplateResponse, ItemAttributeTemplateUpdateRequest, ItemCategoryCreateRequest,
+    ItemCategoryResponse, ItemCategoryUpdateRequest, TemplateCopyRequest, TemplateFieldDef,
+    TemplateFieldResponse, TemplateFieldType,
 };

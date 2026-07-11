@@ -46,7 +46,7 @@
 - 响应：`200` + `FilterValuesResponse`
 - 统计范围：出库历史视角；批次和模板值从指定批次或已审批扣减流水反查。
 - 首版内置字段：`base:destination`、`base:status`、`base:item`、`base:sku`、`base:location`、`base:batch_no`；`base:location` 的值为库位编码。
-- 模板字段：只返回 `stock_template_fields.searchable = true` 的一层 JSON 标量值；同名字段跨模板合并。
+- 入库属性字段：只返回 `stock_inbound_template_fields.searchable = true` 且通过实际出库批次追溯到的标量值；同名字段跨模板合并。
 - 计数：`count` 表示拥有该字段值的去重出库单数量。
 
 ### `GET /api/outbound/{id}`

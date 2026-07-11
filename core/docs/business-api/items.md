@@ -1,92 +1,41 @@
 # 库存物品 API
 
-基础库存物品实体 CRUD。物品是库存流转的最小单位。
+物品是库存流转的最小业务对象。物品分类、可选属性模板和实际物品属性分别保存，模板不会限制自定义字段。
 
-当前实现状态：已实现 `POST /api/items`、`GET /api/items`、`GET /api/items/filter-values`、`GET /api/items/{id}`、`PUT /api/items/{id}` 和 `DELETE /api/items/{id}`，并纳入 OpenAPI。
+## 权限
 
-## 所需权限
-
-
-- `stock.item.read` — 查看物品列表、详情和物品筛选值
-- `stock.item.manage` — 创建、修改、删除物品
+- `stock.item.read`：列表、详情和筛选值。
+- `stock.item.manage`：创建、更新和软删除。
 
 ## 数据结构
 
+`ItemCreateRequest`、`ItemUpdateRequest` 和 `ItemResponse` 的核心字段：
 
-`ItemCreateRequest` / `ItemUpdateRequest` / `ItemResponse`
+| 字段 | 说明 |
+|---|---|
+| `name` | 物品名称 |
+| `sku` | 未软删除物品内唯一 SKU |
+| `category_id` | 可选物品分类 ID |
+| `attribute_template_id` | 可选物品属性模板 ID |
+| `unit` | 计量单位 |
+| `description` | 可选说明 |
+| `default_price` | 非负参考单价 |
+| `reorder_point` | 非负再订货点 |
+| `attributes` | 类型化物品固有属性数组 |
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `name` | string | 是 | 物品名称 |
-| `sku` | string | 是 | 物品编号/SKU，唯一 |
-| `category_id` | integer | 否 | 所属分类 ID，关联到分类模板 |
-| `unit` | string | 是 | 计量单位（个/米/KG/件等） |
-| `description` | string | 否 | 描述 |
-| `default_price` | number | 否 | 参考单价 |
-| `reorder_point` | number | 否 | 再订货点，库存低于此值时提醒 |
+单条属性包含可选 `template_field_id`、`field_name`、`field_type`、类型化 `value` 和可选 `unit`。字段名在同一物品内唯一。自定义属性的 `template_field_id` 为空。
 
-## 接口列表
+类型规则：数字必须有限；URL 只允许 HTTP/HTTPS；日期使用有效 `YYYY-MM-DD`；布尔值必须是 JSON boolean；模板 select 值必须属于候选项；file 值必须是 `{ "file_id": id }`。
 
-### `POST /api/items`
+## 接口
 
+- `POST /api/items`：创建物品、属性和文件绑定，全部处于同一数据库事务。
+- `GET /api/items`：按页返回基础资料和实际物品属性；支持 `page`、`page_size`、`category_id` 和非空 `search`。
+- `GET /api/items/filter-values`：只对当前仍有库存的物品聚合基础字段和模板中标记为 searchable 的物品属性。
+- `GET /api/items/{id}`：返回基础资料、物品属性、当前数量、价值、库位分布和批次摘要。
+- `PUT /api/items/{id}`：更新基础资料；传入 `attributes` 时整体替换实际属性。
+- `DELETE /api/items/{id}`：软删除物品。
 
-创建新物品。
+更新请求中，字段缺失表示保留原值；`category_id`、`attribute_template_id`、`description`、`default_price` 和 `reorder_point` 明确传 `null` 时会清空。已绑定当前物品的图片引用可以原样随更新请求提交，新图片仍要求是当前用户拥有的未绑定上传。
 
-- 权限：`stock.item.manage`
-- 请求：`ItemCreateRequest`
-- 响应：`201` + `ItemResponse`
-- 错误：`400` 参数校验失败 / `409` SKU 重复
-
-### `GET /api/items`
-
-
-分页查询物品列表。
-
-- 权限：`stock.item.read`
-- 查询参数：`page`、`page_size`、`category_id`（按分类筛选）、`search`（可选；不传时返回列表，传入非空值时按物品基础字段、模板元数据和当前库存模板值模糊搜索）
-- 响应：`200` + `PaginatedResponse<ItemResponse>`
-- 说明：模板实际值只从 `stock_batches.remaining_quantity > 0` 的当前库存批次追溯；同一物品多批次命中时结果仍按物品去重。空 `search` 返回 `400 invalid_request`。
-
-### `GET /api/items/filter-values`
-
-查询物品列表筛选值。
-
-- 权限：`stock.item.read`
-- 查询参数：无
-- 响应：`200` + `FilterValuesResponse`
-- 统计范围：当前库存视角，只统计 `remaining_quantity > 0` 的批次。
-- 首版内置字段：`base:category`、`base:unit`、`base:location`
-- 模板字段：只返回 `stock_template_fields.searchable = true` 的一层 JSON 标量值；同名字段跨模板合并。
-- 计数：`count` 表示拥有该字段值的去重物品数量。
-
-### `GET /api/items/{id}`
-
-
-查看单个物品详情，包含物品基础资料、当前库存总量、库存价值、库位分布和当前有效批次摘要。物品主数据不保存库位，库位分布来自当前有效批次的 `location_id`。
-
-- 权限：`stock.item.read`
-- 响应：`200` + `ItemDetailResponse`
-  - `current_quantity`：当前剩余库存总量，只统计 `stock_batches.remaining_quantity > 0` 的批次
-  - `inventory_value`：当前库存价值，按批次剩余数量乘以批次单价汇总
-  - `locations`：当前库存按库位聚合的数量、价值和批次数，包含 `location_id`、`location_code` 和 `location_name`
-  - `batches`：当前仍有余额的批次摘要，包含批次号、库位 ID/编码/名称、初始数量、剩余数量、单价、价值、入库时间和有效期
-- 错误：`404` 物品不存在
-
-### `PUT /api/items/{id}`
-
-
-更新物品信息。
-
-- 权限：`stock.item.manage`
-- 请求：`ItemUpdateRequest`（所有字段可选，只提交修改的部分）
-- 响应：`200` + `ItemResponse`
-- 错误：`404` / `409` SKU 冲突
-
-### `DELETE /api/items/{id}`
-
-
-删除物品（软删除）。
-
-- 权限：`stock.item.manage`
-- 响应：`204 No Content`
-- 错误：`404`
+自由搜索匹配物品基础字段、分类元数据、物品属性模板元数据和实际物品属性。物品属性属于物品自身，因此即使库存已经耗尽，仍可通过属性搜索到该物品；筛选值接口仍按当前库存范围统计。

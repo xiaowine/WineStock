@@ -9,9 +9,9 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
-        ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateCreateRequest,
-        TemplateFieldDef, TemplateFieldType, TemplateResponse,
+        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemAttributeRequest,
+        ItemAttributeTemplateCreateRequest, ItemAttributeTemplateResponse, ItemCreateRequest,
+        ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateFieldDef, TemplateFieldType,
     },
     test_support::{
         error_code, json_body, json_request, login_request, seed_stock_location, seeded_app,
@@ -46,10 +46,12 @@ async fn item_crud_uses_permissions_and_soft_delete() {
             name: "  Cabernet Cork  ".to_owned(),
             sku: " CORK-001 ".to_owned(),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: Some("Bottle closure".to_owned()),
             default_price: Some(1.25),
             reorder_point: Some(10.0),
+            attributes: Vec::new(),
         },
     )
     .await;
@@ -67,10 +69,12 @@ async fn item_crud_uses_permissions_and_soft_delete() {
             name: "Duplicate".to_owned(),
             sku: "CORK-001".to_owned(),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
@@ -90,7 +94,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     assert_eq!(list["total_pages"], 1);
     assert_eq!(list["items"][0]["sku"], "CORK-001");
 
-    let category_template_id = seed_item_search_template(&app, &login.body.access_token).await;
+    let attribute_template_id = seed_item_search_template(&app, &login.body.access_token).await;
     let updated = authorized_json_request(
         &app,
         "PUT",
@@ -99,11 +103,13 @@ async fn item_crud_uses_permissions_and_soft_delete() {
         &ItemUpdateRequest {
             name: Some("Reserve Cork".to_owned()),
             sku: Some("CORK-002".to_owned()),
-            category_id: Some(category_template_id),
+            category_id: None,
+            attribute_template_id: Some(Some(attribute_template_id)),
             unit: None,
-            description: Some("Updated closure".to_owned()),
-            default_price: Some(1.50),
-            reorder_point: Some(12.0),
+            description: Some(Some("Updated closure".to_owned())),
+            default_price: Some(Some(1.50)),
+            reorder_point: Some(Some(12.0)),
+            attributes: Some(Vec::new()),
         },
     )
     .await;
@@ -111,7 +117,7 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     let updated: ItemResponse = json_body(updated).await;
     assert_eq!(updated.name, "Reserve Cork");
     assert_eq!(updated.sku, "CORK-002");
-    assert_eq!(updated.category_id, Some(category_template_id));
+    assert_eq!(updated.attribute_template_id, Some(attribute_template_id));
 
     let deleted = authorized_empty_request(
         &app,
@@ -141,16 +147,115 @@ async fn item_crud_uses_permissions_and_soft_delete() {
         serde_json::json!([
             "name",
             "sku",
-            "category_id",
+            "attribute_template_id",
             "description",
             "default_price",
             "reorder_point"
         ])
     );
     assert_eq!(
-        audit_events[1].details["new"]["category_id"],
-        category_template_id
+        audit_events[1].details["new"]["attribute_template_id"],
+        attribute_template_id
     );
+}
+
+#[tokio::test]
+async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let category = authorized_json_request(
+        &app,
+        "POST",
+        "/api/item-categories",
+        &token,
+        &serde_json::json!({ "name": "可清空分类", "description": null, "sort_order": 9 }),
+    )
+    .await;
+    assert_eq!(category.status(), StatusCode::CREATED);
+    let category: serde_json::Value = json_body(category).await;
+    let template = authorized_json_request(
+        &app,
+        "POST",
+        "/api/item-attribute-templates",
+        &token,
+        &serde_json::json!({
+            "name": "可清空物品模板",
+            "description": null,
+            "default_inbound_template_id": null,
+            "fields": [{
+                "field_name": "可选属性",
+                "field_type": "text",
+                "required": false,
+                "searchable": false,
+                "options": null,
+                "default_value": null
+            }]
+        }),
+    )
+    .await;
+    assert_eq!(template.status(), StatusCode::CREATED);
+    let template: serde_json::Value = json_body(template).await;
+    let created: ItemResponse = json_body(
+        authorized_json_request(
+            &app,
+            "POST",
+            "/api/items",
+            &token,
+            &serde_json::json!({
+                "name": "可清空物品",
+                "sku": "CLEARABLE-ITEM",
+                "category_id": category["id"],
+                "attribute_template_id": template["id"],
+                "unit": "个",
+                "description": "待清空",
+                "default_price": 12.5,
+                "reorder_point": 3.0,
+                "attributes": []
+            }),
+        )
+        .await,
+    )
+    .await;
+
+    let cleared = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/items/{}", created.id),
+        &token,
+        &serde_json::json!({
+            "category_id": null,
+            "attribute_template_id": null,
+            "description": null,
+            "default_price": null,
+            "reorder_point": null,
+            "attributes": []
+        }),
+    )
+    .await;
+    assert_eq!(cleared.status(), StatusCode::OK);
+    let cleared: ItemResponse = json_body(cleared).await;
+    assert_eq!(cleared.category_id, None);
+    assert_eq!(cleared.attribute_template_id, None);
+    assert_eq!(cleared.description, None);
+    assert_eq!(cleared.default_price, None);
+    assert_eq!(cleared.reorder_point, None);
+
+    let renamed = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/items/{}", created.id),
+        &token,
+        &serde_json::json!({ "name": "清空后改名" }),
+    )
+    .await;
+    assert_eq!(renamed.status(), StatusCode::OK);
+    let renamed: ItemResponse = json_body(renamed).await;
+    assert_eq!(renamed.name, "清空后改名");
+    assert_eq!(renamed.category_id, None);
+    assert_eq!(renamed.attribute_template_id, None);
 }
 
 #[tokio::test]
@@ -164,6 +269,8 @@ async fn item_detail_returns_current_inventory_summary() {
         template_id,
         "Detail Sensor",
         "DETAIL-001",
+        "DetailNeedle",
+        "PrivateNeedle",
     )
     .await;
 
@@ -185,8 +292,6 @@ async fn item_detail_returns_current_inventory_summary() {
         &app,
         &login.body.access_token,
         item_id,
-        "DetailNeedle",
-        "PrivateNeedle",
         "A-01",
         "DETAIL-BATCH-001",
     )
@@ -195,8 +300,6 @@ async fn item_detail_returns_current_inventory_summary() {
         &app,
         &login.body.access_token,
         item_id,
-        "DetailNeedle",
-        "PrivateNeedle",
         "B-02",
         "DETAIL-BATCH-002",
     )
@@ -242,15 +345,44 @@ async fn item_validation_and_authorization_fail_before_write() {
             name: "Bad".to_owned(),
             sku: "BAD-001".to_owned(),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: None,
             default_price: Some(-1.0),
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
     assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
     assert_eq!(error_code(invalid).await, "invalid_request");
+
+    let invalid_date = authorized_json_request(
+        &app,
+        "POST",
+        "/api/items",
+        &login.body.access_token,
+        &ItemCreateRequest {
+            name: "Bad Date".to_owned(),
+            sku: "BAD-DATE-001".to_owned(),
+            category_id: None,
+            attribute_template_id: None,
+            unit: "pcs".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: vec![ItemAttributeRequest {
+                template_field_id: None,
+                field_name: "生产日期".to_owned(),
+                field_type: TemplateFieldType::Date,
+                value: serde_json::json!("2026-02-31"),
+                unit: None,
+            }],
+        },
+    )
+    .await;
+    assert_eq!(invalid_date.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(invalid_date).await, "invalid_request");
 
     let invalid_path = authorized_empty_request(
         &app,
@@ -279,10 +411,12 @@ async fn item_validation_and_authorization_fail_before_write() {
             name: "Viewer Item".to_owned(),
             sku: "VIEW-001".to_owned(),
             category_id: None,
+            attribute_template_id: None,
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
             reorder_point: None,
+            attributes: Vec::new(),
         },
     )
     .await;
@@ -290,7 +424,7 @@ async fn item_validation_and_authorization_fail_before_write() {
 }
 
 #[tokio::test]
-async fn item_search_and_filter_values_use_current_inventory_template_values() {
+async fn item_search_uses_item_attributes_while_filter_values_use_current_inventory() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let template_id = seed_item_search_template(&app, &login.body.access_token).await;
@@ -300,28 +434,12 @@ async fn item_search_and_filter_values_use_current_inventory_template_values() {
         template_id,
         "Searchable Sensor",
         "SEARCH-001",
-    )
-    .await;
-    create_and_approve_inbound(
-        &app,
-        &login.body.access_token,
-        item_id,
         "CurrentNeedle",
         "PrivateNeedle",
-        "A-01",
-        "CUR-001",
     )
     .await;
-    create_and_approve_inbound(
-        &app,
-        &login.body.access_token,
-        item_id,
-        "CurrentNeedle",
-        "PrivateNeedle",
-        "A-02",
-        "CUR-002",
-    )
-    .await;
+    create_and_approve_inbound(&app, &login.body.access_token, item_id, "A-01", "CUR-001").await;
+    create_and_approve_inbound(&app, &login.body.access_token, item_id, "A-02", "CUR-002").await;
 
     let historical_item_id = seed_item(
         &app,
@@ -329,14 +447,14 @@ async fn item_search_and_filter_values_use_current_inventory_template_values() {
         template_id,
         "Historical Sensor",
         "HIST-001",
+        "GoneNeedle",
+        "HiddenGoneNeedle",
     )
     .await;
     create_and_approve_inbound(
         &app,
         &login.body.access_token,
         historical_item_id,
-        "GoneNeedle",
-        "HiddenGoneNeedle",
         "Z-99",
         "GONE-001",
     )
@@ -386,7 +504,7 @@ async fn item_search_and_filter_values_use_current_inventory_template_values() {
     .await;
     assert_eq!(by_exhausted_value.status(), StatusCode::OK);
     let by_exhausted_value: serde_json::Value = json_body(by_exhausted_value).await;
-    assert_eq!(by_exhausted_value["total"], 0);
+    assert_eq!(by_exhausted_value["total"], 1);
 
     let empty_search =
         authorized_empty_request(&app, "GET", "/api/items?search=", &login.body.access_token).await;
@@ -439,11 +557,12 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
     let response = authorized_json_request(
         app,
         "POST",
-        "/api/templates",
+        "/api/item-attribute-templates",
         access_token,
-        &TemplateCreateRequest {
+        &ItemAttributeTemplateCreateRequest {
             name: "SearchFilterTemplate".to_owned(),
             description: Some("search metadata template".to_owned()),
+            default_inbound_template_id: None,
             fields: vec![
                 TemplateFieldDef {
                     field_name: "brand".to_owned(),
@@ -466,7 +585,7 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
     )
     .await;
     assert_eq!(response.status(), StatusCode::CREATED);
-    let template: TemplateResponse = json_body(response).await;
+    let template: ItemAttributeTemplateResponse = json_body(response).await;
 
     template.id
 }
@@ -477,6 +596,8 @@ async fn seed_item(
     template_id: i64,
     name: &str,
     sku: &str,
+    brand: &str,
+    internal_note: &str,
 ) -> i64 {
     let response = authorized_json_request(
         app,
@@ -486,11 +607,28 @@ async fn seed_item(
         &ItemCreateRequest {
             name: name.to_owned(),
             sku: sku.to_owned(),
-            category_id: Some(template_id),
+            category_id: None,
+            attribute_template_id: Some(template_id),
             unit: "pcs".to_owned(),
             description: None,
             default_price: None,
             reorder_point: None,
+            attributes: vec![
+                ItemAttributeRequest {
+                    template_field_id: None,
+                    field_name: "brand".to_owned(),
+                    field_type: TemplateFieldType::Text,
+                    value: serde_json::json!(brand),
+                    unit: None,
+                },
+                ItemAttributeRequest {
+                    template_field_id: None,
+                    field_name: "internal_note".to_owned(),
+                    field_type: TemplateFieldType::Text,
+                    value: serde_json::json!(internal_note),
+                    unit: None,
+                },
+            ],
         },
     )
     .await;
@@ -504,8 +642,6 @@ async fn create_and_approve_inbound(
     app: &crate::test_support::TestApp,
     access_token: &str,
     item_id: i64,
-    brand: &str,
-    internal_note: &str,
     location: &str,
     batch_no: &str,
 ) -> InboundResponse {
@@ -525,10 +661,8 @@ async fn create_and_approve_inbound(
                 location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2028-01-01".to_owned()),
-                ext_attributes: Some(serde_json::json!({
-                    "brand": brand,
-                    "internal_note": internal_note
-                })),
+                inbound_template_id: None,
+                ext_attributes: None,
             }],
         },
     )

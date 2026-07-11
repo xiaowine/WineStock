@@ -9,7 +9,7 @@ use axum::{
 };
 use sea_orm::DbErr;
 
-use crate::http::api_error_response;
+use crate::http::{api_error_response, api_error_response_with_details};
 
 /// 库存业务 API 错误。
 #[derive(Debug)]
@@ -23,6 +23,9 @@ pub(crate) enum StockApiError {
     /// 指定模板不存在或已软删除。
     TemplateNotFound,
 
+    /// 指定物品分类不存在或已软删除。
+    CategoryNotFound,
+
     /// 指定入库单不存在。
     InboundOrderNotFound,
 
@@ -34,6 +37,9 @@ pub(crate) enum StockApiError {
 
     /// 模板名称已被其他未软删除模板占用。
     TemplateNameTaken,
+
+    /// 分类名称已被其他未软删除分类占用。
+    CategoryNameTaken,
 
     /// 模板仍被未软删除物品引用，不能删除。
     TemplateInUse,
@@ -71,6 +77,29 @@ pub(crate) enum StockApiError {
     /// 指定批次不存在、无剩余库存或不满足移库条件。
     StockBatchNotFound,
 
+    /// 创建入库单时某条明细引用的物品已经失效。
+    InboundItemInvalid { line_index: usize, item_id: i64 },
+
+    /// 创建入库单时某条明细引用的库位已经失效。
+    InboundLocationInvalid { line_index: usize, location_id: i64 },
+
+    /// 创建入库单时某条明细关联的模板已经失效。
+    InboundTemplateInvalid { line_index: usize, template_id: i64 },
+
+    /// 创建或审批入库单时某个模板字段值不符合当前定义。
+    InboundFieldInvalid {
+        line_index: usize,
+        field_name: String,
+        reason: &'static str,
+    },
+
+    /// 入库明细引用的临时图片不存在、非当前用户所有或已被其它明细绑定。
+    InboundFileUnavailable {
+        line_index: usize,
+        field_name: String,
+        file_id: i64,
+    },
+
     /// 数据库读写失败。
     Database(DbErr),
 }
@@ -78,10 +107,80 @@ pub(crate) enum StockApiError {
 impl IntoResponse for StockApiError {
     // 将库存业务错误固定映射为 HTTP 状态码和稳定错误代码，避免 controller 分散处理。
     fn into_response(self) -> Response {
+        match self {
+            Self::InboundItemInvalid {
+                line_index,
+                item_id,
+            } => {
+                return api_error_response_with_details(
+                    StatusCode::NOT_FOUND,
+                    "item_not_found",
+                    "入库明细中的物品不存在或已失效",
+                    serde_json::json!({ "line_index": line_index, "item_id": item_id }),
+                );
+            }
+            Self::InboundLocationInvalid {
+                line_index,
+                location_id,
+            } => {
+                return api_error_response_with_details(
+                    StatusCode::NOT_FOUND,
+                    "location_not_found",
+                    "入库明细中的库位不存在或已失效",
+                    serde_json::json!({ "line_index": line_index, "location_id": location_id }),
+                );
+            }
+            Self::InboundTemplateInvalid {
+                line_index,
+                template_id,
+            } => {
+                return api_error_response_with_details(
+                    StatusCode::NOT_FOUND,
+                    "template_not_found",
+                    "入库明细关联的模板不存在或已失效",
+                    serde_json::json!({ "line_index": line_index, "template_id": template_id }),
+                );
+            }
+            Self::InboundFieldInvalid {
+                line_index,
+                field_name,
+                reason,
+            } => {
+                return api_error_response_with_details(
+                    StatusCode::BAD_REQUEST,
+                    "invalid_inbound_field",
+                    "入库模板字段不符合当前定义",
+                    serde_json::json!({ "line_index": line_index, "field_name": field_name, "reason": reason }),
+                );
+            }
+            Self::InboundFileUnavailable {
+                line_index,
+                field_name,
+                file_id,
+            } => {
+                return api_error_response_with_details(
+                    StatusCode::CONFLICT,
+                    "inbound_file_unavailable",
+                    "入库图片不存在、无权使用或已被其它明细绑定",
+                    serde_json::json!({ "line_index": line_index, "field_name": field_name, "file_id": file_id }),
+                );
+            }
+            other => return other.into_plain_response(),
+        }
+    }
+}
+
+impl StockApiError {
+    fn into_plain_response(self) -> Response {
         let (status, code, message) = match self {
             Self::InvalidRequest => (StatusCode::BAD_REQUEST, "invalid_request", "请求参数无效"),
             Self::ItemNotFound => (StatusCode::NOT_FOUND, "item_not_found", "物品不存在"),
             Self::TemplateNotFound => (StatusCode::NOT_FOUND, "template_not_found", "模板不存在"),
+            Self::CategoryNotFound => (
+                StatusCode::NOT_FOUND,
+                "category_not_found",
+                "物品分类不存在",
+            ),
             Self::InboundOrderNotFound => (
                 StatusCode::NOT_FOUND,
                 "inbound_order_not_found",
@@ -97,6 +196,11 @@ impl IntoResponse for StockApiError {
                 StatusCode::CONFLICT,
                 "template_name_taken",
                 "模板名称已存在",
+            ),
+            Self::CategoryNameTaken => (
+                StatusCode::CONFLICT,
+                "category_name_taken",
+                "物品分类名称已存在",
             ),
             Self::TemplateInUse => (StatusCode::CONFLICT, "template_in_use", "模板正在使用中"),
             Self::OrderNotPending => (
@@ -142,6 +246,11 @@ impl IntoResponse for StockApiError {
                 "stock_batch_not_found",
                 "库存批次不存在",
             ),
+            Self::InboundItemInvalid { .. }
+            | Self::InboundLocationInvalid { .. }
+            | Self::InboundTemplateInvalid { .. }
+            | Self::InboundFieldInvalid { .. }
+            | Self::InboundFileUnavailable { .. } => unreachable!("结构化入库错误已提前处理"),
             Self::Database(source) => {
                 let _ = source;
                 (
@@ -183,6 +292,12 @@ pub(super) fn map_stock_db_error(source: DbErr) -> StockApiError {
         }
         DbErr::Custom(message) if message == "stock batch not found" => {
             StockApiError::StockBatchNotFound
+        }
+        DbErr::Custom(message) if message == "inbound file unavailable" => {
+            StockApiError::InvalidRequest
+        }
+        DbErr::Custom(message) if message == "item file unavailable" => {
+            StockApiError::InvalidRequest
         }
         DbErr::Custom(message)
             if message == "location transfer target unchanged"

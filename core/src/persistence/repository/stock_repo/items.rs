@@ -5,17 +5,17 @@
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    QueryFilter, Set, Statement, TransactionTrait,
+    QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
 };
 use serde_json::json;
 
 use super::{
-    common::insert_audit_event_on_connection, search, CreateStockItem, ListStockItems, Page,
-    StockItemBatchRecord, StockItemDetail, StockItemLocationRecord, StockRepository,
-    UpdateStockItem,
+    common::insert_audit_event_on_connection, search, CreateStockItem, ItemAttributeInput,
+    ListStockItems, Page, StockItemBatchRecord, StockItemDetail, StockItemListRecord,
+    StockItemLocationRecord, StockRepository, UpdateStockItem,
 };
 use crate::persistence::{
-    entity::stock_item,
+    entity::{item_attribute, stock_item},
     repository::{time::sqlite_now, validation::validate_repository_input},
 };
 
@@ -39,6 +39,7 @@ where
             name: Set(input.name),
             sku: Set(input.sku),
             category_id: Set(input.category_id),
+            attribute_template_id: Set(input.attribute_template_id),
             unit: Set(input.unit),
             description: Set(input.description),
             default_price: Set(input.default_price),
@@ -55,6 +56,7 @@ where
         let item = find_active_item_by_id_on_connection(&transaction, result.last_insert_id)
             .await?
             .ok_or_else(|| DbErr::RecordNotFound("created stock item".to_owned()))?;
+        replace_item_attributes_on_connection(&transaction, item.id, &input.attributes).await?;
         if let Some(user_id) = audit_user_id {
             insert_audit_event_on_connection(
                 &transaction,
@@ -90,6 +92,7 @@ where
         let (current_quantity, inventory_value) = self.query_item_stock_summary(id).await?;
         let locations = self.query_item_stock_locations(id).await?;
         let batches = self.query_item_stock_batches(id).await?;
+        let attributes = list_item_attributes_on_connection(self.database, id).await?;
 
         Ok(Some(StockItemDetail {
             item,
@@ -97,6 +100,7 @@ where
             inventory_value,
             locations,
             batches,
+            attributes,
         }))
     }
 
@@ -120,7 +124,7 @@ where
     pub(crate) async fn list_active_items(
         &self,
         input: ListStockItems,
-    ) -> Result<Page<stock_item::Model>, DbErr> {
+    ) -> Result<Page<StockItemListRecord>, DbErr> {
         let limit = input.page_size as i64;
         let offset = ((input.page.saturating_sub(1)) * input.page_size) as i64;
         let search_like = input
@@ -131,9 +135,14 @@ where
         let total = self
             .count_active_items(search_like.as_deref(), input.category_id)
             .await?;
-        let items = self
+        let item_models = self
             .query_active_items(search_like.as_deref(), input.category_id, limit, offset)
             .await?;
+        let mut items = Vec::with_capacity(item_models.len());
+        for item in item_models {
+            let attributes = list_item_attributes_on_connection(self.database, item.id).await?;
+            items.push(StockItemListRecord { item, attributes });
+        }
 
         Ok(Page { items, total })
     }
@@ -167,6 +176,9 @@ where
         if let Some(category_id) = input.category_id {
             active_model.category_id = Set(category_id);
         }
+        if let Some(attribute_template_id) = input.attribute_template_id {
+            active_model.attribute_template_id = Set(attribute_template_id);
+        }
         if let Some(unit) = input.unit {
             active_model.unit = Set(unit);
         }
@@ -182,6 +194,9 @@ where
         active_model.updated_at = Set(now);
 
         let updated = active_model.update(&transaction).await?;
+        if let Some(attributes) = input.attributes {
+            replace_item_attributes_on_connection(&transaction, id, &attributes).await?;
+        }
         if let Some(user_id) = audit_user_id {
             insert_audit_event_on_connection(
                 &transaction,
@@ -265,7 +280,7 @@ where
         let rows = self
             .database
             .query_all(stock_item_query(
-                "id, name, sku, category_id, unit, description, default_price, reorder_point, created_at, updated_at, deleted_at",
+                "id, name, sku, category_id, attribute_template_id, unit, description, default_price, reorder_point, created_at, updated_at, deleted_at",
                 search_like,
                 category_id,
                 Some(limit),
@@ -280,6 +295,7 @@ where
                     name: row.try_get("", "name")?,
                     sku: row.try_get("", "sku")?,
                     category_id: row.try_get("", "category_id")?,
+                    attribute_template_id: row.try_get("", "attribute_template_id")?,
                     unit: row.try_get("", "unit")?,
                     description: row.try_get("", "description")?,
                     default_price: row.try_get("", "default_price")?,
@@ -426,6 +442,7 @@ fn item_created_details(item: &stock_item::Model) -> String {
         "name": item.name,
         "sku": item.sku,
         "category_id": item.category_id,
+        "attribute_template_id": item.attribute_template_id,
         "unit": item.unit,
         "default_price": item.default_price,
         "reorder_point": item.reorder_point
@@ -454,6 +471,7 @@ fn item_audit_snapshot(item: &stock_item::Model) -> serde_json::Value {
         "name": item.name,
         "sku": item.sku,
         "category_id": item.category_id,
+        "attribute_template_id": item.attribute_template_id,
         "unit": item.unit,
         "description": item.description,
         "default_price": item.default_price,
@@ -474,6 +492,9 @@ fn item_changed_fields(
     }
     if previous.category_id != updated.category_id {
         fields.push("category_id");
+    }
+    if previous.attribute_template_id != updated.attribute_template_id {
+        fields.push("attribute_template_id");
     }
     if previous.unit != updated.unit {
         fields.push("unit");
@@ -515,4 +536,77 @@ fn stock_item_query(
     }
 
     Statement::from_sql_and_values(DatabaseBackend::Sqlite, sql, values)
+}
+
+/// 整体替换物品属性；属性、文件绑定和物品基础资料共享调用方事务。
+async fn replace_item_attributes_on_connection<C>(
+    connection: &C,
+    item_id: i64,
+    attributes: &[ItemAttributeInput],
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    connection
+        .execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "DELETE FROM stock_item_attributes WHERE item_id = ?",
+            [item_id.into()],
+        ))
+        .await?;
+    for attribute in attributes {
+        validate_repository_input(attribute)?;
+        let now = sqlite_now(connection).await?;
+        let result = item_attribute::Entity::insert(item_attribute::ActiveModel {
+            item_id: Set(item_id),
+            template_field_id: Set(attribute.template_field_id),
+            field_name: Set(attribute.field_name.clone()),
+            field_type: Set(attribute.field_type.clone()),
+            value_json: Set(attribute.value_json.clone()),
+            unit: Set(attribute.unit.clone()),
+            sort_order: Set(attribute.sort_order),
+            created_at: Set(now.clone()),
+            updated_at: Set(now.clone()),
+            ..Default::default()
+        })
+        .exec(connection)
+        .await?;
+        let Some(file_id) = attribute.file_object_id else {
+            continue;
+        };
+        let Some(owner_id) = attribute.file_owner_user_id else {
+            return Err(DbErr::Custom("item file owner missing".to_owned()));
+        };
+        let binding = connection.execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            INSERT INTO storage_item_file_bindings (file_object_id, item_attribute_id, created_at)
+            SELECT f.id, ?, ? FROM storage_file_objects f
+            WHERE f.id = ? AND f.owner_user_id = ?
+              AND f.mime_type IN ('image/png', 'image/jpeg', 'image/webp')
+              AND NOT EXISTS (SELECT 1 FROM storage_item_file_bindings b WHERE b.file_object_id = f.id)
+              AND NOT EXISTS (SELECT 1 FROM storage_inbound_file_bindings b WHERE b.file_object_id = f.id)
+            "#,
+            vec![result.last_insert_id.into(), now.into(), file_id.into(), owner_id.into()],
+        )).await?;
+        if binding.rows_affected() != 1 {
+            return Err(DbErr::Custom("item file unavailable".to_owned()));
+        }
+    }
+    Ok(())
+}
+
+async fn list_item_attributes_on_connection<C>(
+    connection: &C,
+    item_id: i64,
+) -> Result<Vec<item_attribute::Model>, DbErr>
+where
+    C: ConnectionTrait,
+{
+    item_attribute::Entity::find()
+        .filter(item_attribute::Column::ItemId.eq(item_id))
+        .order_by_asc(item_attribute::Column::SortOrder)
+        .order_by_asc(item_attribute::Column::Id)
+        .all(connection)
+        .await
 }
