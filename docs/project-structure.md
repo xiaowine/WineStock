@@ -47,6 +47,7 @@ Items marked as current already exist.
 WineStock/
   AGENTS.md
   docs/
+    README.md                     # 项目级文档入口，只保存跨组件规范
     architecture.md
     runtime-networking.md
     platforms.md
@@ -54,17 +55,17 @@ WineStock/
     agent-checklist.md
     code-map.md                  # 分层代码地图总索引
     code-map/                    # 按 workspace/shared/core/server/frontend 拆分的子地图
-    database-schema.md
-    rbac-permission-model.md
-    implementation-notes/
+    implementation-notes/         # 仅保留跨组件方案
   Cargo.toml                     # current workspace manifest
   Cargo.lock                     # current Rust lockfile
   core/                          # current winestock-core library crate
     Cargo.toml
+    docs/                        # core API、数据库、权限、校验和实现记录
     src/
       lib.rs
   shared/                        # current winestock-shared library crate
     Cargo.toml
+    docs/                        # shared 配置与基础校验文档
     src/
       config.rs
       config_validation.rs
@@ -77,12 +78,14 @@ WineStock/
     app/
   server/                        # current winestock-server headless shell crate
     Cargo.toml
+    docs/                        # server shell 配置、部署和生命周期文档
     src/
       config.rs
       error.rs
       lib.rs
       main.rs
   frontend/
+    docs/                        # 前端路由、交互、视觉和页面文档
 ```
 
 ## Workspace Shape
@@ -174,6 +177,9 @@ It starts `core` based on shared config, reports service status and access URLs,
 
 `frontend` owns frontend source code.
 The selected frontend framework is a project choice, not an Axum service requirement.
+
+The root `docs/` directory owns only cross-component architecture, platform, networking, project-structure, agent-checklist, and whole-repository code-map documents.
+Component-specific documentation belongs under `core/docs/`, `shared/docs/`, `server/docs/`, `frontend/docs/`, or the corresponding future platform directory.
 
 ## Future Splits
 

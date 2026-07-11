@@ -1,6 +1,6 @@
 # WineStock 业务 API 文档
 
-本文档是业务 API 文档入口。详细接口按业务域拆分到 `docs/business-api/` 目录。
+本文档是业务 API 文档入口。详细接口按业务域拆分到 `core/docs/business-api/` 目录。
 
 每个接口的设计风格与当前 Core 中 auth/users 模块一致：
 
@@ -31,4 +31,4 @@
 - [`business-api/permissions.md`](business-api/permissions.md)：业务权限代码汇总。
 - [`business-api/implementation-order.md`](business-api/implementation-order.md)：实现顺序建议。
 
-每完成一个模块时，同步更新 `docs/code-map/core/stock.md`、`docs/code-map/core/http-api.md` 和对应的 `docs/business-api/*.md` 文档。
+每完成一个模块时，同步更新 `docs/code-map/core/stock.md`、`docs/code-map/core/http-api.md` 和对应的 `core/docs/business-api/*.md` 文档。

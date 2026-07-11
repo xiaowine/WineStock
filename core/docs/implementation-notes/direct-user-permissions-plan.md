@@ -315,11 +315,11 @@ auth_user_role_assignments
     - 密码、自助改密和审计脱敏规则不变。
 
 11. 修改文档：
-    - `docs/rbac-permission-model.md`
-    - `docs/user-management-api.md`
-    - `docs/database-schema.md`
+    - `core/docs/rbac-permission-model.md`
+    - `core/docs/user-management-api.md`
+    - `core/docs/database-schema.md`
     - `docs/code-map.md`
-    - `docs/validation/*`
+    - `core/docs/validation/*`
 
 ## 验证清单
 

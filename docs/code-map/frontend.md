@@ -121,13 +121,13 @@
 - `frontend/src/layouts/*.scss`：AppShell、DesktopShell 和 MobileShell 各自拥有的布局与断点规则。
 - `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的外观与响应式规则。
 - `frontend/src/pages/*.scss`：具体业务页面拥有的表格、移动列表、状态和分页样式。
-- `docs/frontend/page-framework.md`：页面框架和桌面/移动所有权。
-- `docs/frontend/routes.md`：路由、history 策略和鉴权守卫状态。
-- `docs/frontend/api-client.md`：API 地址、请求行为、错误契约和会话边界。
-- `docs/frontend/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。
-- `docs/frontend/user-management.md`：用户管理页面、权限边界、API、密码安全和验收重点。
-- `docs/frontend/visual-style.md`：当前视觉规则。
-- `docs/frontend/async-state-transitions.md`：加载、恢复、后台刷新和错误切换的防闪烁呈现规则。
+- `frontend/docs/page-framework.md`：页面框架和桌面/移动所有权。
+- `frontend/docs/routes.md`：路由、history 策略和鉴权守卫状态。
+- `frontend/docs/api-client.md`：API 地址、请求行为、错误契约和会话边界。
+- `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。
+- `frontend/docs/user-management.md`：用户管理页面、权限边界、API、密码安全和验收重点。
+- `frontend/docs/visual-style.md`：当前视觉规则。
+- `frontend/docs/async-state-transitions.md`：加载、恢复、后台刷新和错误切换的防闪烁呈现规则。
 
 ## 平台边界
 

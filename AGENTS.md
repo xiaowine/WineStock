@@ -1,7 +1,7 @@
 # Agent Instructions
 
 This file is the short operating guide for agents.
-Keep detailed design in `docs/*.md`.
+Keep cross-component design in `docs/*.md` and component-specific design in the owning component's `docs/` directory.
 Do not treat the current Android demo layout as the target architecture.
 
 ## Required Reading

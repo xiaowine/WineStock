@@ -1,6 +1,6 @@
 # 库存搜索和筛选值 API 实现方案
 
-本文档记录库存物品列表、入库历史列表和出库历史列表的搜索、筛选值接口设计与实现约束。正式接口说明以 `docs/business-api.md` 入口、`docs/business-api/` 拆分文档、OpenAPI 标注和 `docs/code-map.md` 为准。
+本文档记录库存物品列表、入库历史列表和出库历史列表的搜索、筛选值接口设计与实现约束。正式接口说明以 `core/docs/business-api.md` 入口、`core/docs/business-api/` 拆分文档、OpenAPI 标注和 `docs/code-map.md` 为准。
 
 ## 目标
 

@@ -141,7 +141,7 @@ cargo +stable build -p winestock-server
 判断后端是否存在某个接口、查询参数、请求字段或响应字段时，按以下顺序核对：
 
 1. 优先读取当前运行服务输出的 `/api-docs/openapi.json`；它是当前公开 HTTP 契约的直接证据。
-2. 再核对 `docs/business-api.md`、`docs/business-api/` 和对应领域 API 文档，理解业务语义与权限要求。
+2. 再核对 `core/docs/business-api.md`、`core/docs/business-api/` 和对应领域 API 文档，理解业务语义与权限要求。
 3. 只有需要追踪实现、排查契约与行为不一致或修改后端时，才继续查看 controller、service 和 repository 源码。
 
 不要因为前端未调用、页面未展示、手写 TypeScript DTO 缺少字段或源码搜索没有命中预期名称，就判断 API 不存在。删除前端 API 能力或交互入口前，必须先核对 OpenAPI 契约。

@@ -583,7 +583,7 @@ http/router
    - `users_me.rs`
 2. 更新：
    - `docs/code-map.md`
-   - `docs/rbac-permission-model.md`
+   - `core/docs/rbac-permission-model.md`
    - 本实施方案文档引用关系
 
 ### 阶段 7：用 `stock` 作为第二个正式业务样板

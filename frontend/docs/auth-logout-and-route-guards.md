@@ -365,8 +365,8 @@ watch(authStatus, (status) => {
 | `frontend/src/pages/LoginPage.vue` | 登录成功后恢复合法 redirect；显示本机退出警告 |
 | `frontend/src/pages/ChangePasswordPage.vue` | 实现响应式主动/强制改密、原目标恢复和退出入口 |
 | `docs/code-map/frontend.md` | 记录模块职责和新增守卫文件 |
-| `docs/frontend/api-client.md` | 记录登出、五态会话和多标签页语义 |
-| `docs/frontend/routes.md` | 记录实际守卫和安全回跳规则 |
+| `frontend/docs/api-client.md` | 记录登出、五态会话和多标签页语义 |
+| `frontend/docs/routes.md` | 记录实际守卫和安全回跳规则 |
 
 ## 落地顺序
 

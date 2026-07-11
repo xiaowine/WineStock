@@ -170,7 +170,7 @@ desktop: >= 768px
 
 ## 样式层级
 
-视觉风格规则见 `docs/frontend/visual-style.md`。
+视觉风格规则见 `frontend/docs/visual-style.md`。
 
 当前样式层级：
 
@@ -241,8 +241,8 @@ frontend/src/pages/*.scss
 - `frontend/src/styles/index.scss`：全局基础与共享视觉原语入口。
 - `frontend/src/layouts/*.scss`、`frontend/src/components/**/*.scss`、`frontend/src/pages/*.scss`：按 Vue 所有权拆分的布局、组件和页面样式。
 
-路由与 history 策略见 `docs/frontend/routes.md`，HTTP 边界见 `docs/frontend/api-client.md`。
-异步等待、后台刷新和错误恢复的稳定切换规则见 `docs/frontend/async-state-transitions.md`。
+路由与 history 策略见 `frontend/docs/routes.md`，HTTP 边界见 `frontend/docs/api-client.md`。
+异步等待、后台刷新和错误恢复的稳定切换规则见 `frontend/docs/async-state-transitions.md`。
 
 ## 后续实施顺序
 

@@ -636,7 +636,7 @@ tests/stock_detail.rs
 #### 任务
 
 1. 更新 `docs/code-map.md`
-2. 更新 `docs/rbac-permission-model.md`
+2. 更新 `core/docs/rbac-permission-model.md`
 3. 如有需要，补充：
    - identity 领域说明
    - stock API 结构说明

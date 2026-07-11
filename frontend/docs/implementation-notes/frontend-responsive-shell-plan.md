@@ -1,7 +1,7 @@
 # 前端响应式应用壳演进记录
 
 本文只记录前端页面框架讨论过程中的关键演进。
-当前实施准则以 `docs/frontend/page-framework.md` 为准。
+当前实施准则以 `frontend/docs/page-framework.md` 为准。
 
 ## 当前结论
 
@@ -38,6 +38,6 @@
 
 ## 后续文档入口
 
-- 当前页面框架：`docs/frontend/page-framework.md`
-- 前端文档目录：`docs/frontend/README.md`
-- 后续页面内容设计应新增到 `docs/frontend/`，不要把当前原型占位内容当作产品定稿。
+- 当前页面框架：`frontend/docs/page-framework.md`
+- 前端文档目录：`frontend/docs/README.md`
+- 后续页面内容设计应新增到 `frontend/docs/`，不要把当前原型占位内容当作产品定稿。

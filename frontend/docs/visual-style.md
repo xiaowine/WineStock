@@ -108,7 +108,7 @@
 - 移动顶栏中用于打开临时浮层的按钮应禁用浏览器原生 Tap Highlight，使用项目自己的 hover、展开和 `focus-visible` 状态；打开时还应立即释放粘滞焦点，并由 `aria-expanded` 覆盖触屏模拟 hover，避免高亮透过渐入遮罩残留。
 - 用于关闭浮层的全屏透明遮罩按钮必须禁用浏览器原生 Tap Highlight，避免关闭动画期间出现覆盖整个视口的系统高亮；普通可见按钮仍保留项目焦点样式。
 - 系统启用 `prefers-reduced-motion: reduce` 时，将非必要动画压缩为近乎即时的状态切换。
-- 快速异步操作的防闪烁不依赖动画时长：加载提示默认延迟 `200ms` 显示，出现后至少保持 `350ms`；详细规则见 `docs/frontend/async-state-transitions.md`。
+- 快速异步操作的防闪烁不依赖动画时长：加载提示默认延迟 `200ms` 显示，出现后至少保持 `350ms`；详细规则见 `frontend/docs/async-state-transitions.md`。
 
 当前 motion token：
 

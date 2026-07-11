@@ -8,4 +8,4 @@
 6. **替代料**（#4）— 依赖物品存在，可并行或稍后实现
 7. **事件日志**（#5）— 可作为贯穿各模块的横切关注点，随业务模块逐步补充实现
 
-每完成一个模块时，同步更新 `docs/code-map/core/stock.md`、`docs/code-map/core/http-api.md` 和对应的 `docs/business-api/*.md` 接口文档。
+每完成一个模块时，同步更新 `docs/code-map/core/stock.md`、`docs/code-map/core/http-api.md` 和对应的 `core/docs/business-api/*.md` 接口文档。

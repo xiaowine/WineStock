@@ -1,14 +1,11 @@
 # Implementation Notes
 
-This directory stores implementation plans, design notes, and historical decision drafts.
+This directory stores cross-component implementation plans, design notes, and historical decision drafts.
 
 Files here are non-normative by default. They do not add standing agent constraints unless a normative project document explicitly references them or a user asks to use one for a task.
 
+Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/docs/implementation-notes/` or the corresponding component directory.
+
 ## Current notes
 
-- `business-api-implementation-plan.md`: detailed implementation plan for the first stock business API slice described by `docs/business-api.md` and `docs/business-api/`.
-- `core-axum-structure-refactor-plan.md`: domain-oriented refactor plan for `core\src` API growth.
-- `core-spring-boot-style-refactor-plan.md`: historical implementation record for the refactor that moved `core\src` to `http / security / auth / users / rbac` with `controller + service` modules.
-- `frontend-responsive-shell-plan.md`: planning note for the shared frontend responsive application shell, desktop/mobile breakpoints, menu layer, and platform packaging boundary.
-- `stock-search-filter-values-plan.md`: design and implementation constraints for stock item, inbound, and outbound search/filter-values APIs.
-- `substitute-api-domain-migration-plan.md`: implementation plan for moving substitute management from item child paths to the standalone `/api/substitutes` business domain without compatibility routes.
+- `json-config-and-db-auth-settings.md`：同时涉及 shared 配置边界与 core 数据库存储的历史方案。

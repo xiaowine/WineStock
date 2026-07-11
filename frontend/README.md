@@ -3,8 +3,7 @@
 本目录保存 WineStock 的 Vue 共享前端源码。
 Desktop Tauri 与 Android 平台 shell 可以复用源码，但分别负责资源打包和 WebView 生命周期；Axum 不服务前端构建产物。
 
-第一次接手项目时，先阅读 [`../docs/frontend/getting-started.md`](../docs/frontend/getting-started.md)。
-需要评估当前问题和整改顺序时，阅读 [`../docs/frontend/remediation-report.md`](../docs/frontend/remediation-report.md)。
+第一次接手前端时，先阅读 [`docs/README.md`](docs/README.md) 了解当前页面、路由、API client 和视觉文档入口。
 
 ## 开发命令
 
@@ -23,4 +22,4 @@ pnpm build
 - `src/pages/`：页面路由入口。
 - `src/styles/`：浅色主题和布局样式。
 
-当前使用 hash history，具体原因与路由清单见 `../docs/frontend/routes.md`。
+当前使用 hash history，具体原因与路由清单见 [`docs/routes.md`](docs/routes.md)。

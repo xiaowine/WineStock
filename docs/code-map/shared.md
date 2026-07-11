@@ -34,8 +34,8 @@
 ## 测试与约束文档
 
 - `shared/src/tests/lib.rs`：shared 配置、配置文件创建与保留、基础校验测试入口。
-- `docs/validation/shared-src-config.md`：启动配置和运行模式限制。
-- `docs/validation/shared-src-config-file.md`：JSON 配置文件加载和缺失初始化边界。
-- `docs/validation/shared-src-error.md`：配置解析错误。
-- `docs/validation/shared-src-config-validation.md`：配置自定义校验边界。
-- `docs/validation/shared-src-text-validation.md`：基础文本校验边界。
+- `shared/docs/validation/shared-src-config.md`：启动配置和运行模式限制。
+- `shared/docs/validation/shared-src-config-file.md`：JSON 配置文件加载和缺失初始化边界。
+- `shared/docs/validation/shared-src-error.md`：配置解析错误。
+- `shared/docs/validation/shared-src-config-validation.md`：配置自定义校验边界。
+- `shared/docs/validation/shared-src-text-validation.md`：基础文本校验边界。

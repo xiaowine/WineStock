@@ -9,14 +9,13 @@ Axum 不服务前端构建产物。
 
 ## 当前文档
 
-- `getting-started.md`：第一次接手前端时的集中导览，包含启动、目录、运行链路、页面现状、常见改动入口和未完成项。
-- `remediation-report.md`：当前前端问题分级、目标结构、整改路线和阶段验收清单。
 - `page-framework.md`：当前认可的页面框架、桌面/移动布局、导航职责和样式层级；不确认具体业务页面内容。
 - `routes.md`：当前路由、history 策略、嵌套 Shell 边界和鉴权元数据状态。
 - `api-client.md`：运行时 API 地址、统一请求、错误契约、内存会话和当前注册/登录接入状态。
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。
 - `user-management.md`：用户列表、创建、启停、权限、临时密码和前后端授权边界。
 - `visual-style.md`：当前视觉风格方向、颜色/圆角/阴影/密度规则和避免事项。
+- `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
 
 ## 后续建议拆分
 

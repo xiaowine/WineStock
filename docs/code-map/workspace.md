@@ -23,11 +23,13 @@ WineStock 的正式产品目标是多平台，但当前 Rust 实现范围是 ser
 - `AGENTS.md`：agent 操作指南。
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
-- `docs/`：架构、网络、平台、项目结构、业务 API、验证约束、实现笔记和分层代码地图。
-- `docs/business-api.md` 与 `docs/business-api/`：业务 API 文档入口和按业务域拆分的详细接口文档。
-- `docs/frontend/`：前端页面框架、路由、API client、视觉和后续页面说明。
-- `docs/validation/`：按源码实体归档的字段限制、校验入口和数据库约束。
-- `docs/implementation-notes/`：关键实现方案和历史演进记录。
+- `docs/`：跨组件架构、网络、平台、项目结构、代理清单、跨组件实现笔记和分层代码地图。
+- `core/docs/business-api.md` 与 `core/docs/business-api/`：业务 API 文档入口和按业务域拆分的详细接口文档。
+- `core/docs/`：数据库、权限、用户管理、core 校验和实现记录。
+- `shared/docs/`：共享配置、配置文件加载和基础校验文档。
+- `frontend/docs/`：前端页面框架、路由、API client、视觉和后续页面说明。
+- `server/docs/`：server shell 文档入口和后续部署、配置说明归属位置。
+- `docs/implementation-notes/`：仅保留跨组件的关键方案和历史演进记录。
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关运行配置、配置解析错误和基础文本校验。
 - `server/`：运行共享服务的无头服务端 shell。

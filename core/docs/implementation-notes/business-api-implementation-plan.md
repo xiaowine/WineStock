@@ -1,11 +1,11 @@
 # WineStock 业务 API 实施方案
 
-本文档记录 `docs/business-api.md` 入口及 `docs/business-api/` 拆分文档对应的首版业务核心 API 落地方案。
+本文档记录 `core/docs/business-api.md` 入口及 `core/docs/business-api/` 拆分文档对应的首版业务核心 API 落地方案。
 它是实施计划，不直接改变项目架构约束；实施时仍以 `docs/architecture.md`、`docs/runtime-networking.md`、`docs/platforms.md`、`docs/project-structure.md`、`docs/agent-checklist.md` 和 `docs/code-map.md` 为准。
 
 ## 目标和范围
 
-按 `docs/business-api.md` 与 `docs/business-api/` 落地首版业务核心 API，范围限定在 `core` 共享 Axum 服务库、SQLite 持久化、RBAC、OpenAPI 和文档同步，不涉及桌面、Android、WebView 或前端打包。
+按 `core/docs/business-api.md` 与 `core/docs/business-api/` 落地首版业务核心 API，范围限定在 `core` 共享 Axum 服务库、SQLite 持久化、RBAC、OpenAPI 和文档同步，不涉及桌面、Android、WebView 或前端打包。
 
 业务默认规则：
 
@@ -34,8 +34,8 @@
   - `core/src/http/docs.rs` 纳入新 DTO、响应体和 endpoint。
   - `core/src/rbac/bootstrap.rs` 补齐新权限和角色权限关系。
 - 更新项目文档：
-  - `docs/business-api.md` 作为入口，`docs/business-api/` 记录已实现接口、审批 endpoint、状态枚举和软删除规则。
-  - `docs/code-map.md`、`docs/database-schema.md`、`docs/rbac-permission-model.md`、`docs/validation/*` 同步更新。
+  - `core/docs/business-api.md` 作为入口，`core/docs/business-api/` 记录已实现接口、审批 endpoint、状态枚举和软删除规则。
+  - `docs/code-map.md`、`core/docs/database-schema.md`、`core/docs/rbac-permission-model.md`、`core/docs/validation/*` 同步更新。
 
 ## HTTP API 和类型
 
@@ -136,7 +136,7 @@ DTO 统一使用：
    - 实现替代料整体替换、查询、删除关系和循环绑定检测。
    - 实现事件日志查询。
 6. 收尾：
-   - 更新 `docs/code-map.md`、`docs/database-schema.md`、`docs/business-api.md`、`docs/business-api/`、`docs/rbac-permission-model.md`、`docs/validation/*`。
+   - 更新 `docs/code-map.md`、`core/docs/database-schema.md`、`core/docs/business-api.md`、`core/docs/business-api/`、`core/docs/rbac-permission-model.md`、`core/docs/validation/*`。
    - 全量注释审计：搜索 `//`、`///`、`//!`、`/*`，确保变更源文件中的说明性注释为中文且不陈旧。
 
 ## 测试计划

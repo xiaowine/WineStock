@@ -11,7 +11,7 @@
   - 创建 auth、storage、stock 和 audit 业务表。
   - 建立 refresh token、文件、签名密钥、SKU、模板、FIFO 批次和审计查询索引或约束。
 
-数据库表与字段边界见 `docs/database-schema.md`。
+数据库表与字段边界见 `core/docs/database-schema.md`。
 
 ## Entity
 
@@ -49,4 +49,4 @@
 - `stock_repo/search.rs`：物品、入库、出库 JSON 标量搜索和筛选值聚合。
 - `stock_repo/common.rs`：库存余额、审计写入和 JSON 编码共享逻辑。
 
-字段约束来源见 `docs/validation/core-src-persistence-*.md`。
+字段约束来源见 `core/docs/validation/core-src-persistence-*.md`。

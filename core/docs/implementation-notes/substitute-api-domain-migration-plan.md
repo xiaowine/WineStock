@@ -146,22 +146,22 @@ OpenAPI schema 引用、path 收集和 tag 描述需要使用新 DTO 与新 hand
 
 需要同步更新：
 
-- `docs/business-api/substitutes.md`
-- `docs/business-api/permissions.md`
-- `docs/business-api.md`
+- `core/docs/business-api/substitutes.md`
+- `core/docs/business-api/permissions.md`
+- `core/docs/business-api.md`
 - `docs/code-map.md`
-- `docs/validation/core-src-stock-controller.md`
-- `docs/validation/core-src-persistence-repository-stock-repo.md`
-- 如审计动作改为 `replaced`，同步更新 `docs/business-api/events.md` 和相关测试预期。
+- `core/docs/validation/core-src-stock-controller.md`
+- `core/docs/validation/core-src-persistence-repository-stock-repo.md`
+- 如审计动作改为 `replaced`，同步更新 `core/docs/business-api/events.md` 和相关测试预期。
 
-如果 `docs/business-api/implementation-order.md` 提到旧路径，也要一并更新。
+如果 `core/docs/business-api/implementation-order.md` 提到旧路径，也要一并更新。
 
 ## 清理检查
 
 实施完成后运行以下搜索，结果中不应再出现旧路径或旧命名：
 
 ```text
-rg -n "/items/.+substitutes|items/substitutes|SubstituteBindRequest|bind_substitutes|BindStockSubstitute|substitute_id" core docs --glob "!docs/implementation-notes/substitute-api-domain-migration-plan.md"
+rg -n "/items/.+substitutes|items/substitutes|SubstituteBindRequest|bind_substitutes|BindStockSubstitute|substitute_id" core docs --glob "!core/docs/implementation-notes/substitute-api-domain-migration-plan.md"
 ```
 
 其中 `substitute_item_id` 是目标字段名，可以保留；裸 `substitute_id` 不应再作为路径参数或函数参数出现。
