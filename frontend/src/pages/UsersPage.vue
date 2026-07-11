@@ -1,5 +1,5 @@
 <!--
-  本文件拥有用户管理页面的数据加载、筛选分页和管理操作编排，属于 frontend 页面层。
+  本文件拥有用户管理页面的数据加载、筛选、无限滚动和管理操作编排，属于 frontend 页面层。
   它只通过 HTTP API 管理用户，不直接访问 token、数据库或后端内部业务对象。
 -->
 <template>
@@ -15,7 +15,7 @@
       v-model:search="searchInput"
       v-model:status="statusInput"
       :total="total"
-      :loading="loading"
+      :loading="listRequestPending"
       :can-register="canRegister"
       @apply="applyFilters"
       @refresh="refreshUsers"
@@ -25,7 +25,7 @@
     <section v-if="loadError" class="page-state page-state--error" role="alert">
       <h2>无法加载用户</h2>
       <p>{{ loadError }}</p>
-      <button class="secondary-button" type="button" @click="loadUsers">重试</button>
+      <button class="secondary-button" type="button" @click="resetAndLoadUsers">重试</button>
     </section>
 
     <section v-else class="users-content" :aria-busy="loading">
@@ -161,25 +161,19 @@
           </article>
         </div>
 
-        <nav v-if="totalPages > 1" class="pagination" aria-label="用户列表分页">
+        <div ref="loadMoreSentinel" class="users-load-more" aria-live="polite">
+          <span v-if="loadingMore" role="status">正在加载更多用户…</span>
           <button
+            v-else-if="loadMoreError"
             class="secondary-button"
             type="button"
-            :disabled="page <= 1 || loading"
-            @click="goToPage(page - 1)"
+            @click="loadNextPage"
           >
-            上一页
+            加载失败，点击重试
           </button>
-          <span>第 {{ page }} / {{ totalPages }} 页</span>
-          <button
-            class="secondary-button"
-            type="button"
-            :disabled="page >= totalPages || loading"
-            @click="goToPage(page + 1)"
-          >
-            下一页
-          </button>
-        </nav>
+          <span v-else-if="hasMoreUsers">继续向下滚动加载</span>
+          <span v-else>已加载全部 {{ total }} 个用户</span>
+        </div>
       </template>
     </section>
 
@@ -240,7 +234,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   deleteUser,
@@ -283,7 +277,10 @@ const statusInput = ref<'' | UserStatus>('')
 const activeSearch = ref('')
 const activeStatus = ref<'' | UserStatus>('')
 const loading = ref(false)
+const loadingMore = ref(false)
 const loadError = ref('')
+const loadMoreError = ref('')
+const loadMoreSentinel = ref<HTMLElement | null>(null)
 const createDialogOpen = ref(false)
 const permissionsUser = ref<UserAdminResponse | null>(null)
 const passwordUser = ref<UserAdminResponse | null>(null)
@@ -298,6 +295,7 @@ const permissionsLoading = ref(false)
 const permissionsLoadError = ref('')
 let usersAbortController: AbortController | null = null
 let permissionsAbortController: AbortController | null = null
+let loadMoreObserver: IntersectionObserver | null = null
 
 const currentPermissions = computed(() => authSession.value?.user.permissions)
 const currentUserId = computed(() => authSession.value?.user.id)
@@ -321,52 +319,100 @@ const canEditPermissions = computed(
 const hasActiveFilters = computed(
   () => Boolean(activeSearch.value) || Boolean(activeStatus.value),
 )
+const listRequestPending = computed(() => loading.value || loadingMore.value)
+const hasMoreUsers = computed(() => page.value < totalPages.value)
 
-onMounted(loadUsers)
+watch(loadMoreSentinel, (element, previousElement) => {
+  if (previousElement) {
+    loadMoreObserver?.unobserve(previousElement)
+  }
+  if (element) {
+    loadMoreObserver?.observe(element)
+  }
+})
+
+onMounted(() => {
+  loadMoreObserver = new IntersectionObserver(handleLoadMoreIntersection, {
+    rootMargin: '240px 0px',
+  })
+  if (loadMoreSentinel.value) {
+    loadMoreObserver.observe(loadMoreSentinel.value)
+  }
+  void loadUsers(1)
+})
 onBeforeUnmount(() => {
   usersAbortController?.abort()
   permissionsAbortController?.abort()
+  loadMoreObserver?.disconnect()
 })
 
-/** 查询用户列表；新请求会取消旧请求，避免慢响应覆盖最新筛选结果。 */
-async function loadUsers(): Promise<void> {
+/** 查询指定用户页；追加模式保留已加载数据，新请求会取消旧请求以避免响应乱序。 */
+async function loadUsers(targetPage: number, append = false): Promise<void> {
   usersAbortController?.abort()
   const controller = new AbortController()
   usersAbortController = controller
-  loading.value = true
-  loadError.value = ''
+  const shouldAppend = append && users.value.length > 0
+  loading.value = !shouldAppend
+  loadingMore.value = shouldAppend
+  loadMoreError.value = ''
+  if (!shouldAppend) {
+    loadError.value = ''
+  }
+  let requestSucceeded = false
 
   try {
     const response = await listUsers(
       {
-        page: page.value,
+        page: targetPage,
         page_size: PAGE_SIZE,
         search: activeSearch.value || undefined,
         status: activeStatus.value || undefined,
       },
       controller.signal,
     )
-    users.value = response.items
+    users.value = shouldAppend
+      ? mergeUsers(users.value, response.items)
+      : response.items
     total.value = response.total
     totalPages.value = response.total_pages
     page.value = response.page
+    requestSucceeded = true
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return
     }
-    loadError.value = userManagementErrorMessage(error, '加载用户失败')
-    notice.error(loadError.value)
+    const message = userManagementErrorMessage(error, shouldAppend ? '加载更多用户失败' : '加载用户失败')
+    if (shouldAppend) {
+      loadMoreError.value = message
+    } else {
+      loadError.value = message
+    }
+    notice.error(message)
   } finally {
     if (usersAbortController === controller) {
       usersAbortController = null
       loading.value = false
+      loadingMore.value = false
+      if (requestSucceeded) {
+        void nextTick().then(refreshLoadMoreObservation)
+      }
     }
   }
 }
 
-/** 手动刷新用户列表；与自动加载区分，仅手动成功时反馈。 */
+/** 清空已累积的分页数据并从第一页重新加载，避免筛选或数据变更造成跨页缺项。 */
+async function resetAndLoadUsers(): Promise<void> {
+  users.value = []
+  total.value = 0
+  page.value = 1
+  totalPages.value = 0
+  loadMoreError.value = ''
+  await loadUsers(1)
+}
+
+/** 手动刷新用户列表；刷新后从第一页重新开始无限滚动。 */
 async function refreshUsers(): Promise<void> {
-  await loadUsers()
+  await resetAndLoadUsers()
   if (!loadError.value) {
     notice.success('用户列表已刷新')
   }
@@ -375,13 +421,31 @@ async function refreshUsers(): Promise<void> {
 function applyFilters(): void {
   activeSearch.value = searchInput.value.trim()
   activeStatus.value = statusInput.value
-  page.value = 1
-  void loadUsers()
+  void resetAndLoadUsers()
 }
 
-function goToPage(nextPage: number): void {
-  page.value = nextPage
-  void loadUsers()
+/** 哨兵进入视口预加载范围时请求下一页；同一时刻只允许一个列表请求。 */
+function handleLoadMoreIntersection(entries: IntersectionObserverEntry[]): void {
+  if (entries.some((entry) => entry.isIntersecting)) {
+    void loadNextPage()
+  }
+}
+
+async function loadNextPage(): Promise<void> {
+  if (listRequestPending.value || !hasMoreUsers.value) {
+    return
+  }
+  await loadUsers(page.value + 1, true)
+}
+
+/** 追加后重新观察哨兵，使短列表可以继续加载直到填满可视区域。 */
+function refreshLoadMoreObservation(): void {
+  const sentinel = loadMoreSentinel.value
+  if (!sentinel || !loadMoreObserver) {
+    return
+  }
+  loadMoreObserver.unobserve(sentinel)
+  loadMoreObserver.observe(sentinel)
 }
 
 function openCreateDialog(): void {
@@ -473,8 +537,7 @@ async function createUser(request: { username: string; password: string }): Prom
     statusInput.value = ''
     activeSearch.value = ''
     activeStatus.value = ''
-    page.value = 1
-    await loadUsers()
+    await resetAndLoadUsers()
   } catch (error) {
     actionError.value = userManagementErrorMessage(error, '创建用户失败')
     notice.error(actionError.value)
@@ -569,8 +632,8 @@ async function saveStatus(): Promise<void> {
   actionError.value = ''
   try {
     const updated = await updateUserStatus(target.id, { status: nextStatus.value })
-    replaceUser(updated)
     statusUser.value = null
+    await resetAndLoadUsers()
     notice.success(`用户已${updated.status === 'active' ? '启用' : '停用'}`, {
       detail: updated.username,
     })
@@ -582,7 +645,7 @@ async function saveStatus(): Promise<void> {
   }
 }
 
-/** 软删除其他账号；成功后刷新当前筛选结果，并避免停留在已经变空的末页。 */
+/** 软删除其他账号；成功后从第一页重建无限列表，避免服务端分页前移造成漏项。 */
 async function confirmDeleteUser(): Promise<void> {
   const target = deleteUserTarget.value
   if (!target) {
@@ -593,10 +656,7 @@ async function confirmDeleteUser(): Promise<void> {
   try {
     await deleteUser(target.id)
     deleteUserTarget.value = null
-    if (users.value.length === 1 && page.value > 1) {
-      page.value -= 1
-    }
-    await loadUsers()
+    await resetAndLoadUsers()
     notice.success('用户已删除', {
       detail: `${target.username} 已退出登录，且无法再次使用该账号。`,
       durationMs: 6_000,
@@ -611,6 +671,15 @@ async function confirmDeleteUser(): Promise<void> {
 
 function replaceUser(updated: UserAdminResponse): void {
   users.value = users.value.map((user) => (user.id === updated.id ? updated : user))
+}
+
+function mergeUsers(
+  currentUsers: UserAdminResponse[],
+  nextUsers: UserAdminResponse[],
+): UserAdminResponse[] {
+  const usersById = new Map(currentUsers.map((user) => [user.id, user]))
+  nextUsers.forEach((user) => usersById.set(user.id, user))
+  return Array.from(usersById.values())
 }
 
 function isCurrentUser(user: UserAdminResponse): boolean {

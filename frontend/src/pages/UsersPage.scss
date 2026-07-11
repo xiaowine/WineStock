@@ -1,4 +1,4 @@
-/* 本文件拥有用户管理页面的状态、表格、移动列表、分页和状态标签样式，不拥有子对话框布局。 */
+/* 本文件拥有用户管理页面的状态、表格、移动列表、无限滚动和状态标签样式，不拥有子对话框布局。 */
 .status-pill {
   display: inline-flex;
   min-width: 48px;
@@ -223,14 +223,16 @@
   display: none;
 }
 
-.pagination {
+.users-load-more {
   display: flex;
+  min-height: 52px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
   padding-top: 14px;
   color: var(--color-muted);
   font-size: 13px;
+  text-align: center;
 }
 
 @media (max-width: 767px) {
@@ -308,7 +310,4 @@
     width: 100%;
   }
 
-  .pagination {
-    justify-content: space-between;
-  }
 }
