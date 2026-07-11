@@ -29,7 +29,7 @@ http://127.0.0.1:<vite-port>/#/users
 | 路径 | 路由名 | 布局 | `requiresAuth` | 当前职责 |
 | --- | --- | --- | --- | --- |
 | `/` | 无 | `AppShell` | 是 | 重定向到 `dashboard` |
-| `/dashboard` | `dashboard` | `AppShell` | 是 | 总览正式页面入口，业务指标尚未实现 |
+| `/dashboard` | `dashboard` | `AppShell` | 是 | 库存摘要、出入库趋势和呆滞物品总览；需要 `stock.dashboard.read` |
 | `/items` | `items` | `AppShell` | 是 | 物品正式页面入口，列表业务尚未实现 |
 | `/users` | `users` | `AppShell` | 是 | 用户管理真实列表和管理操作；另需 `user.read` |
 | `/login` | `login` | 独立响应式页面 | 否 | 桌面和移动共用真实登录表单 |

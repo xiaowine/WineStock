@@ -70,6 +70,9 @@
 - `frontend/src/api/health.ts`
   - 无鉴权调用 `GET /api/health` 并校验固定健康响应，用于独立于登录状态的服务可用性探测。
 
+- `frontend/src/api/dashboard.ts`
+  - 定义库存摘要、呆滞物品和每日趋势 DTO，并实现总览与趋势只读接口。
+
 - `frontend/src/service/availability.ts`
   - 启动后立即探测服务；可用时每 15 秒、不可用时每 5 秒检查一次，并在窗口聚焦、页面恢复可见或网络恢复时补检。
   - 公开服务状态、探测状态和成功序号；不启动 Axum、不管理 token，也不决定页面布局。
@@ -105,7 +108,8 @@
 - `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标并显示本机退出警告。
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
-- `frontend/src/pages/DashboardPage.vue`：总览正式页面入口；业务指标尚未实现，发布界面不展示假指标或开发说明。
+- `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
+- `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`：物品正式页面入口；列表业务尚未实现，发布界面不展示假数据或开发说明。
 - `frontend/src/pages/UsersPage.vue`：用户列表、搜索、状态筛选、分页、创建、启停、软删除、权限和临时密码操作编排。
 

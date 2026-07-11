@@ -8,6 +8,7 @@ import {
   ensureAuthSessionInitialized,
   isLoggingOut,
 } from '../auth/session'
+import { getDefaultAppRouteName } from './navigation'
 
 let guardsInstalled = false
 
@@ -40,10 +41,13 @@ export function installAuthGuards(router: Router): void {
       status === 'authenticated' &&
       !hasPermission(authSession.value?.user.permissions, to.meta.requiredPermission)
     ) {
-      return { name: 'dashboard' }
+      const fallbackName = getDefaultAppRouteName(authSession.value?.user.permissions)
+      if (fallbackName !== to.name) {
+        return { name: fallbackName }
+      }
     }
     if (to.name === 'login' && status === 'authenticated') {
-      return { name: 'dashboard' }
+      return { name: getDefaultAppRouteName(authSession.value?.user.permissions) }
     }
   })
 
@@ -76,9 +80,12 @@ export function installAuthGuards(router: Router): void {
       status === 'authenticated' &&
       !hasPermission(session?.user.permissions, currentRoute.meta.requiredPermission)
     ) {
-      void router.replace({ name: 'dashboard' }).catch((error: unknown) => {
-        console.warn('当前会话权限变化后无法返回总览', error)
-      })
+      const fallbackName = getDefaultAppRouteName(session?.user.permissions)
+      if (fallbackName !== currentRoute.name) {
+        void router.replace({ name: fallbackName }).catch((error: unknown) => {
+          console.warn('当前会话权限变化后无法返回可用页面', error)
+        })
+      }
       return
     }
 
@@ -100,23 +107,24 @@ export function installAuthGuards(router: Router): void {
  * 解析登录后的内部回跳目标；拒绝外部、反斜杠和未匹配路由，失败时回到 dashboard。
  */
 export function resolvePostLoginLocation(router: Router, redirect: unknown): RouteLocationRaw {
+  const defaultRoute = { name: getDefaultAppRouteName(authSession.value?.user.permissions) }
   if (
     typeof redirect !== 'string' ||
     !redirect.startsWith('/') ||
     redirect.startsWith('//') ||
     redirect.includes('\\')
   ) {
-    return { name: 'dashboard' }
+    return defaultRoute
   }
 
   try {
     const resolved = router.resolve(redirect)
     if (resolved.matched.length === 0 || resolved.name === 'home-fallback') {
-      return { name: 'dashboard' }
+      return defaultRoute
     }
     return { path: resolved.fullPath }
   } catch {
-    return { name: 'dashboard' }
+    return defaultRoute
   }
 }
 

@@ -1,6 +1,6 @@
 // 本文件拥有 frontend 路由表和 history 策略；它不实现鉴权状态或平台 WebView 生命周期。
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
-import { userPermissions } from '../auth/permissions'
+import { stockPermissions, userPermissions } from '../auth/permissions'
 import AppShell from '../layouts/AppShell.vue'
 
 const routes: RouteRecordRaw[] = [
@@ -23,6 +23,7 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '总览',
           requiresAuth: true,
+          requiredPermission: stockPermissions.dashboardRead,
         },
       },
       {

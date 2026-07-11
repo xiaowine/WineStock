@@ -1,5 +1,5 @@
 // 本文件拥有应用壳主导航配置和权限快照过滤，属于 frontend 路由层；后端仍决定最终授权。
-import { hasPermission } from '../auth/permissions'
+import { hasPermission, stockPermissions } from '../auth/permissions'
 
 /** 应用壳导航分组；管理入口与高频业务入口分开呈现。 */
 export type AppNavigationGroup = 'primary' | 'management'
@@ -23,7 +23,13 @@ export interface AppNavigationItem {
 
 /** 应用壳当前可见的一级导航入口。 */
 export const appNavigation: readonly AppNavigationItem[] = [
-  { routeName: 'dashboard', label: '总览', group: 'primary', icon: 'dashboard' },
+  {
+    routeName: 'dashboard',
+    label: '总览',
+    group: 'primary',
+    icon: 'dashboard',
+    requiredPermission: stockPermissions.dashboardRead,
+  },
   { routeName: 'items', label: '物品', group: 'primary', icon: 'items' },
   {
     routeName: 'users',
@@ -39,4 +45,9 @@ export function getVisibleAppNavigation(permissions: readonly string[] | undefin
   return appNavigation.filter((item) =>
     hasPermission(permissions, item.requiredPermission),
   )
+}
+
+/** 返回当前权限下第一个可用业务入口；无可见入口时保留总览作为错误承载页。 */
+export function getDefaultAppRouteName(permissions: readonly string[] | undefined): string {
+  return getVisibleAppNavigation(permissions)[0]?.routeName ?? 'dashboard'
 }

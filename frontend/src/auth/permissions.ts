@@ -11,6 +11,11 @@ export const userPermissions = {
   resetPassword: 'user.password.reset',
 } as const
 
+/** 库存业务页面使用的稳定权限代码。 */
+export const stockPermissions = {
+  dashboardRead: 'stock.dashboard.read',
+} as const
+
 /** 判断权限快照是否包含指定权限。 */
 export function hasPermission(
   permissions: readonly string[] | undefined,

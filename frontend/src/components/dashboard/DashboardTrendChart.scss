@@ -1,0 +1,164 @@
+/* 本文件拥有库存总览 SVG 曲线图、图例、悬浮提示和空状态样式，不拥有页面级布局。 */
+.dashboard-trend-chart {
+  min-width: 0;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.dashboard-trend-chart[aria-busy='true'] {
+  opacity: 0.68;
+}
+
+.dashboard-trend-chart__legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  margin-bottom: 10px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.dashboard-trend-chart__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-trend-chart__legend-line {
+  width: 20px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.dashboard-trend-chart__legend-line--inbound {
+  background: var(--color-teal);
+}
+
+.dashboard-trend-chart__legend-line--outbound {
+  background: var(--color-accent);
+}
+
+.dashboard-trend-chart__empty {
+  display: grid;
+  min-height: 230px;
+  place-content: center;
+  justify-items: center;
+  gap: 5px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-subtle);
+  text-align: center;
+}
+
+.dashboard-trend-chart__empty strong {
+  color: var(--color-muted);
+  font-size: 14px;
+}
+
+.dashboard-trend-chart__empty span {
+  font-size: 12px;
+}
+
+.dashboard-trend-chart__canvas {
+  position: relative;
+  min-width: 0;
+}
+
+.dashboard-trend-chart svg {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+.dashboard-trend-chart__grid line {
+  stroke: var(--color-border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-trend-chart__grid text,
+.dashboard-trend-chart__axis-labels text {
+  fill: var(--color-subtle);
+  font-size: 11px;
+}
+
+.dashboard-trend-chart__line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-trend-chart__line--inbound {
+  stroke: var(--color-teal);
+}
+
+.dashboard-trend-chart__line--outbound {
+  stroke: var(--color-accent);
+}
+
+.dashboard-trend-chart__line--coincident {
+  stroke-dasharray: 8 7;
+}
+
+.dashboard-trend-chart__hover line {
+  stroke: var(--color-border-strong);
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-trend-chart__hover circle {
+  stroke: var(--color-surface);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-trend-chart__dot--inbound {
+  fill: var(--color-teal);
+}
+
+.dashboard-trend-chart__dot--outbound {
+  fill: var(--color-accent);
+}
+
+.dashboard-trend-chart__tooltip {
+  position: absolute;
+  top: 12px;
+  z-index: 2;
+  display: grid;
+  min-width: 118px;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-menu);
+  color: var(--color-muted);
+  font-size: 12px;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.dashboard-trend-chart__tooltip strong {
+  margin-bottom: 2px;
+  color: var(--color-text);
+}
+
+@media (max-width: 767px) {
+  .dashboard-trend-chart__legend {
+    justify-content: flex-start;
+  }
+
+  .dashboard-trend-chart svg {
+    min-width: 640px;
+  }
+
+  .dashboard-trend-chart__canvas {
+    overflow-x: auto;
+  }
+
+  .dashboard-trend-chart__tooltip {
+    display: none;
+  }
+}
