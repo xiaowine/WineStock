@@ -283,6 +283,7 @@ async fn seed_approved_inbound(
         "/api/inbound",
         access_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "Substitute Supplier".to_owned(),
             notes: None,
             items: vec![InboundItemRequest {

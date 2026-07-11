@@ -44,7 +44,7 @@
 - `stock_repo/categories.rs`：物品分类。
 - `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储。
 - `stock_repo/locations.rs`：分组、库位和移库。
-- `stock_repo/inbound.rs`：入库单、明细、逐行属性与图片引用事务绑定，以及审批批次生成。
+- `stock_repo/inbound.rs`：入库单、明细、逐行属性与图片引用事务绑定，并复用同一事务步骤处理直接入库和后续审批。
 - `stock_repo/outbound.rs`：出库单、指定批次或 FIFO 扣减。
 - `stock_repo/dashboard.rs`：看板聚合。
 - `stock_repo/substitutes.rs`：替代料关系。

@@ -86,7 +86,7 @@
   - 定义分类、物品属性模板和入库模板的独立查询契约。
 
 - `frontend/src/api/inbound.ts`
-  - 定义入库创建、库位和模板字段 DTO，查询真实库位与模板详情，并提交 pending 入库单。
+  - 定义入库提交模式、创建响应、库位和模板字段 DTO，查询真实库位与模板详情，并提交待审批或直接入库请求。
 
 - `frontend/src/api/files.ts`
   - 定义图片文件 DTO、PNG/JPEG/WebP 文件头预检、15MB 限制和上传/读取/删除接口。
@@ -135,8 +135,8 @@
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`pages/items/model.ts`：带鉴权主图缩略图的物品列表，以及新建/编辑、必选主图、分类、可选预设、自定义属性和图片属性编排；新建时默认生成随机纯色图，保存前统一上传待处理图片。
-- `frontend/src/pages/InboundDraftPage.vue`：桌面端多明细入库工作台布局和提交/错误焦点编排；物品目录、明细表和当前明细均展示鉴权主图，支持同物品多批次、提交前统一上传图片、清空/离开确认，不执行成功后详情跳转。
-- `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用转换和请求构造规则。
+- `frontend/src/pages/InboundDraftPage.vue`：桌面端多明细入库工作台布局和提交/错误焦点编排；拥有审核权限时提供直接入库与提交审核两种动作，并按 API 返回模式显示结果。
+- `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。
 - `frontend/src/pages/UsersPage.vue`：用户列表、搜索、状态筛选、分页、创建、启停、软删除、权限和临时密码操作编排。

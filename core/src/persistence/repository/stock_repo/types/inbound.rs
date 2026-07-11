@@ -79,6 +79,9 @@ pub(crate) struct CreateInboundOrder {
     /// 创建人用户 ID。
     #[garde(skip)]
     pub created_by_user_id: Option<i64>,
+    /// 直接入库时的审批人用户 ID；为空时创建 pending 单据。
+    #[garde(skip)]
+    pub approved_by_user_id: Option<i64>,
     /// 入库明细。
     #[garde(dive)]
     pub items: Vec<CreateInboundOrderItem>,

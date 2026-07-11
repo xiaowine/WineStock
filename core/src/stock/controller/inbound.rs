@@ -21,6 +21,18 @@ use crate::{
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 
 use super::common::{validate_positive_number, OrderStatus};
+
+/// 创建入库单时采用的处理方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum InboundSubmissionMode {
+    /// 创建待审批单据，后续由拥有审核权限的用户处理。
+    PendingApproval,
+
+    /// 创建并直接完成入库，仅同时拥有创建和审核权限的用户可用。
+    Direct,
+}
+
 /// 创建入库单明细请求。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
 #[serde(deny_unknown_fields)]
@@ -62,6 +74,10 @@ pub(crate) struct InboundItemRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct InboundCreateRequest {
+    /// 本次提交是进入待审批状态还是直接完成入库。
+    #[garde(skip)]
+    pub submission_mode: InboundSubmissionMode,
+
     /// 入库来源。
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub source: String,
@@ -168,6 +184,11 @@ pub(crate) struct InboundResponse {
     #[garde(skip)]
     pub status: OrderStatus,
 
+    /// 仅创建接口返回本次采用的提交方式；查询和后续审批响应不重复推断历史创建意图。
+    #[garde(skip)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub submission_mode: Option<InboundSubmissionMode>,
+
     /// 入库备注。
     #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
     pub notes: Option<String>,
@@ -215,12 +236,12 @@ pub(crate) struct InboundResponse {
         (status = 201, description = "Inbound order created", body = InboundResponse),
         (status = 400, description = "Invalid inbound request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
-        (status = 403, description = "Inbound create permission required", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Inbound create permission required, and direct mode also requires inbound approve permission", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Item, location, or template not found", body = crate::http::ApiErrorResponse),
         (status = 409, description = "Image reference unavailable", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 创建 pending 入库单；模板图片在同一事务绑定明细，创建阶段仍不写库存批次或流水。
+/// 按请求模式创建待审批单据或在同一事务内直接完成入库。
 pub(crate) async fn create_inbound(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,

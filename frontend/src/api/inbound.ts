@@ -49,8 +49,13 @@ export interface FileAttributeReference {
   file_id: number
 }
 
-/** 创建 pending 入库单请求。 */
+/** 创建入库单时采用的服务端处理方式。 */
+export type InboundSubmissionMode = 'pending_approval' | 'direct'
+
+/** 创建待审批单据或直接完成入库的请求。 */
 export interface InboundCreateRequest {
+  /** 本次提交进入待审批状态，或在具备审核权限时直接完成入库。 */
+  submission_mode: InboundSubmissionMode
   /** 供应商名称或采购单号等入库来源。 */
   source: string
   /** 可选入库备注。 */
@@ -65,8 +70,10 @@ export interface InboundResponse {
   id: number
   /** 入库来源。 */
   source: string
-  /** 新建单据固定为 pending。 */
+  /** 创建后的真实单据状态。 */
   status: 'pending' | 'approved' | 'rejected'
+  /** 本次创建实际采用的处理方式。 */
+  submission_mode: InboundSubmissionMode
   /** 可选备注。 */
   notes: string | null
 }
@@ -76,7 +83,7 @@ export function listLocations(signal?: AbortSignal) {
   return apiClient.request<LocationResponse[]>('/api/locations', { signal })
 }
 
-/** 创建 pending 入库单；库存批次和流水仍由后续审批生成。 */
+/** 创建待审批单据或直接完成入库；响应明确返回实际采用的提交方式。 */
 export function createInbound(request: InboundCreateRequest) {
   return apiClient.request<InboundResponse>('/api/inbound', {
     method: 'POST',

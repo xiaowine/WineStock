@@ -123,6 +123,7 @@ async fn seed_pending_inbound(
         "/api/inbound",
         access_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "Event Supplier".to_owned(),
             notes: None,
             items: vec![InboundItemRequest {

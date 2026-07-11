@@ -18,6 +18,7 @@
 
 ## 入库
 
+- `submission_mode` 只允许 `pending_approval` 或 `direct`；`direct` 由服务层额外校验 `stock.inbound.approve`。
 - 每条明细独立携带 `inbound_template_id` 和 `ext_attributes`。
 - 未显式提供模板时，服务层可以使用物品属性模板的 `default_inbound_template_id`。
 - 实际属性按入库模板必填、类型和候选项校验；未知字段被拒绝。

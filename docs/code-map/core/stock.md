@@ -17,7 +17,7 @@
 - `controller/items.rs`、`item_attributes.rs`：物品基础资料、任意类型化属性、分页和 CRUD。
 - `controller/templates/`：分类、物品属性模板、入库模板和共享字段 DTO/handler。
 - `controller/locations.rs`：库位分组树、库位、整批次移库 DTO 和 handler。
-- `controller/inbound.rs`：入库单、分页、筛选值、详情和 handler。
+- `controller/inbound.rs`：入库提交模式、单据响应、分页、筛选值、详情和 handler。
 - `controller/outbound.rs`：出库单、搜索、筛选值、详情和 handler。
 - `controller/dashboard.rs`：库存总览和趋势。
 - `controller/substitutes.rs`：替代料整体替换、查询和删除。
@@ -29,7 +29,7 @@
 - `service/items.rs`、`item_attributes.rs`：物品必选主图、CRUD、任意属性校验、文件所有权、搜索和库存快照。
 - `service/templates/`：分类与两类模板的独立 CRUD/copy 和共享字段规则。
 - `service/locations.rs`：分组树、库位 CRUD、移库、循环和占用校验。
-- `service/inbound.rs`：独立入库模板推导/选择、实际入库属性校验、图片引用、审批和错误定位。
+- `service/inbound.rs`：独立入库模板推导/选择、实际入库属性校验、图片引用、直接入库权限判断、审批和错误定位。
 - `service/outbound.rs`：出库创建、搜索、审批、拒绝和库存不足映射。
 - `service/dashboard.rs`：库存总览、趋势和呆滞料查询。
 - `service/substitutes.rs`：替代料关系、自引用/重复/循环校验和审计。

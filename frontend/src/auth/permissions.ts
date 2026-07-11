@@ -16,6 +16,7 @@ export const stockPermissions = {
   dashboardRead: 'stock.dashboard.read',
   itemRead: 'stock.item.read',
   inboundCreate: 'stock.inbound.create',
+  inboundApprove: 'stock.inbound.approve',
 } as const
 
 /** 判断权限快照是否包含指定权限。 */

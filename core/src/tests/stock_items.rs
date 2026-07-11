@@ -680,6 +680,7 @@ async fn create_and_approve_inbound(
         "/api/inbound",
         access_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "Search Supplier".to_owned(),
             notes: Some("search fixture".to_owned()),
             items: vec![InboundItemRequest {

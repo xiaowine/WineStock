@@ -339,6 +339,7 @@ async fn inbound_file_binding_rolls_back_with_failed_order_and_blocks_temporary_
         .unwrap();
 
     let duplicate_file_request = InboundCreateRequest {
+        submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
         source: "Supplier".to_owned(),
         notes: None,
         items: vec![
@@ -363,6 +364,7 @@ async fn inbound_file_binding_rolls_back_with_failed_order_and_blocks_temporary_
         "/api/inbound",
         &creator_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "Supplier".to_owned(),
             notes: None,
             items: vec![inbound_line(item_id, location_id, template_id, file_id)],

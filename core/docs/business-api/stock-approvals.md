@@ -2,6 +2,8 @@
 
 库存审批接口承载会改变入库/出库单据状态并写入库存流水或审计事件的审批动作。入库/出库列表与详情仍归各自单据接口。
 
+拥有 `stock.inbound.create` 和 `stock.inbound.approve` 的用户也可以在创建入库单时使用 `submission_mode = direct`，原子完成创建和审批；本页接口继续处理已经存在的 `pending` 单据。
+
 ### `POST /api/stock-approvals/inbound/{id}/approve`
 
 审批入库单。服务端只允许审批 `pending` 单据；审批前按物品关联模板校验 `ext_attributes`，审批事务内再次确认明细库位仍未删除，然后生成批次、写入库存流水和审计事件。

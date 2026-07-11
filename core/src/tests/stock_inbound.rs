@@ -46,6 +46,10 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
         serde_json::to_value(order.status).expect("status should encode"),
         "pending"
     );
+    assert_eq!(
+        order.submission_mode,
+        Some(crate::stock::controller::InboundSubmissionMode::PendingApproval)
+    );
     assert_eq!(order.items.len(), 1);
     assert_eq!(table_count(&app, "stock_batches").await, 0);
     assert_eq!(table_count(&app, "stock_movements").await, 0);
@@ -76,6 +80,46 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     .await;
     assert_eq!(approve_again.status(), StatusCode::CONFLICT);
     assert_eq!(error_code(approve_again).await, "order_not_pending");
+}
+
+#[tokio::test]
+async fn inbound_direct_submission_approves_atomically_and_reports_mode() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let (item_id, template_id) = seed_template_bound_item(&app, &login.body.access_token).await;
+    let location_id = seed_stock_location(&app, "DIRECT-01").await;
+    let mut request = inbound_request(
+        item_id,
+        location_id,
+        template_id,
+        Some(serde_json::json!({"brand": "Direct", "abv": 12.5})),
+    );
+    request.submission_mode = crate::stock::controller::InboundSubmissionMode::Direct;
+
+    let response = authorized_json_request(
+        &app,
+        "POST",
+        "/api/inbound",
+        &login.body.access_token,
+        &request,
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let order: InboundResponse = json_body(response).await;
+    assert_eq!(
+        serde_json::to_value(order.status).expect("status should encode"),
+        "approved"
+    );
+    assert_eq!(
+        order.submission_mode,
+        Some(crate::stock::controller::InboundSubmissionMode::Direct)
+    );
+    assert_eq!(order.approved_by_user_id, order.created_by_user_id);
+    assert!(order.approved_at.is_some());
+    assert_eq!(table_count(&app, "stock_batches").await, 1);
+    assert_eq!(table_count(&app, "stock_movements").await, 1);
+    assert_eq!(audit_count_for_entity(&app, "inbound").await, 2);
 }
 
 #[tokio::test]
@@ -253,6 +297,21 @@ async fn inbound_validates_template_attributes_and_permissions() {
     .await;
     assert_eq!(forbidden_approve.status(), StatusCode::FORBIDDEN);
 
+    let mut direct_request = inbound_request(
+        item_id,
+        location_id,
+        template_id,
+        Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
+    );
+    direct_request.submission_mode = crate::stock::controller::InboundSubmissionMode::Direct;
+    let forbidden_direct =
+        authorized_json_request(&app, "POST", "/api/inbound", &staff_token, &direct_request).await;
+    assert_eq!(forbidden_direct.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        error_code(forbidden_direct).await,
+        "inbound_direct_approval_forbidden"
+    );
+
     let listed = authorized_empty_request(&app, "GET", "/api/inbound", &viewer_token).await;
     assert_eq!(listed.status(), StatusCode::OK);
 }
@@ -272,6 +331,7 @@ async fn inbound_search_and_filter_values_use_history_scope() {
         "/api/inbound",
         &login.body.access_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "SpecialSupplier".to_owned(),
             notes: Some("RareNoteNeedle".to_owned()),
             items: vec![
@@ -593,6 +653,7 @@ fn inbound_request(
     ext_attributes: Option<serde_json::Value>,
 ) -> InboundCreateRequest {
     InboundCreateRequest {
+        submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
         source: "Supplier A".to_owned(),
         notes: Some("first inbound".to_owned()),
         items: vec![InboundItemRequest {

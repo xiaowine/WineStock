@@ -175,6 +175,7 @@ pub(super) fn inbound_response(
         id: detail.order.id,
         source: detail.order.source,
         status: controller::OrderStatus::from_code(&detail.order.status)?,
+        submission_mode: None,
         notes: detail.order.notes,
         created_by_user_id: detail.order.created_by_user_id,
         approved_by_user_id: detail.order.approved_by_user_id,

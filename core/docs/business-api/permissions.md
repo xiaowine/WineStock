@@ -12,7 +12,7 @@
 | `stock.location.manage` | 库位管理 | 管理库位分组、库位和整批次移库 |
 | `stock.inbound.create` | 入库 | 创建入库单 |
 | `stock.inbound.read` | 入库 | 查看入库单列表、详情和入库历史筛选值 |
-| `stock.inbound.approve` | 入库 | 审批或拒绝入库单 |
+| `stock.inbound.approve` | 入库 | 审批或拒绝入库单；与创建权限同时具备时可直接入库 |
 | `stock.outbound.create` | 出库 | 创建出库单 |
 | `stock.outbound.read` | 出库 | 查看出库单列表、详情和出库历史筛选值 |
 | `stock.outbound.approve` | 出库 | 审批或拒绝出库单 |

@@ -1,5 +1,5 @@
 // 本文件拥有入库草稿的前端模型、模板字段校验和请求转换规则；它不发起 HTTP 请求或管理页面路由。
-import type { FileAttributeReference, InboundCreateRequest } from '../../api/inbound'
+import type { FileAttributeReference, InboundCreateRequest, InboundSubmissionMode } from '../../api/inbound'
 import type { InboundTemplateResponse } from '../../api/inboundTemplates'
 import type { TemplateFieldResponse } from '../../api/templateFields'
 import type { ItemResponse } from '../../api/items'
@@ -71,9 +71,14 @@ export function lineReady(line: InboundDraftLine): boolean {
 }
 
 /** 把页面草稿转换为稳定入库创建契约，file 字段只发送 file_id。 */
-export function buildInboundRequest(source: string, notes: string, lines: InboundDraftLine[]): InboundCreateRequest {
+export function buildInboundRequest(
+  source: string,
+  notes: string,
+  lines: InboundDraftLine[],
+  submissionMode: InboundSubmissionMode,
+): InboundCreateRequest {
   return {
-    source: source.trim(), notes: notes.trim() || undefined,
+    submission_mode: submissionMode, source: source.trim(), notes: notes.trim() || undefined,
     items: lines.map((line) => ({
       item_id: line.item.id, quantity: line.quantity, unit_price: line.unitPrice,
       location_id: line.locationId as number, batch_no: line.batchNo.trim() || undefined,

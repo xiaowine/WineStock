@@ -13,8 +13,17 @@
         <button class="secondary-button" type="button" :disabled="!hasDraft || submitting" @click="openClearConfirmation">
           清空
         </button>
-        <button class="primary-button" type="button" :disabled="submitting" @click="reviewDraft">
-          {{ submitting ? '提交中…' : '提交入库单' }}
+        <button
+          v-if="canDirectInbound"
+          class="secondary-button"
+          type="button"
+          :disabled="submitting"
+          @click="reviewDraft('pending_approval')"
+        >
+          {{ submitting ? '处理中…' : '提交审核' }}
+        </button>
+        <button class="primary-button" type="button" :disabled="submitting" @click="reviewDraft(defaultSubmissionMode)">
+          {{ submitting ? '处理中…' : canDirectInbound ? '确认入库' : '提交审核' }}
         </button>
       </div>
     </header>
@@ -235,7 +244,9 @@ import { onBeforeRouteLeave } from 'vue-router'
 import ModalDialog from '../components/ModalDialog.vue'
 import InboundLineEditor from '../components/inbound/InboundLineEditor.vue'
 import AuthenticatedImage from '../components/attributes/AuthenticatedImage.vue'
-import { createInbound, listLocations, type LocationResponse } from '../api/inbound'
+import {
+  createInbound, listLocations, type InboundSubmissionMode, type LocationResponse,
+} from '../api/inbound'
 import { getItemAttributeTemplate, type ItemAttributeTemplateResponse } from '../api/itemAttributeTemplates'
 import { getInboundTemplate, listInboundTemplates, type InboundTemplateResponse } from '../api/inboundTemplates'
 import type { ItemResponse } from '../api/items'
@@ -244,6 +255,8 @@ import { ApiError } from '../api/errors'
 import { useInboundDraftPersistence } from '../composables/useInboundDraftPersistence'
 import { useInboundItemCatalog } from '../composables/useInboundItemCatalog'
 import { notice } from '../notices/notice'
+import { authSession } from '../auth/session'
+import { hasPermission, stockPermissions } from '../auth/permissions'
 import { isImageDraftValue, uploadImageDrafts } from '../components/attributes/imageDraft'
 import {
   buildInboundRequest, createDraftLine, lineReady, lineSubtotal, positiveNumber,
@@ -291,6 +304,8 @@ const draftQuantity = computed(() => draftItems.value.reduce((total, line) => to
 const draftTotal = computed(() => draftItems.value.reduce((total, line) => total + lineSubtotal(line), 0))
 const hasDraft = computed(() => source.value.trim().length > 0 || notes.value.trim().length > 0 || draftItems.value.length > 0)
 const draftReady = computed(() => source.value.trim().length > 0 && draftItems.value.length > 0 && draftItems.value.every(lineReady))
+const canDirectInbound = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.inboundApprove))
+const defaultSubmissionMode = computed<InboundSubmissionMode>(() => canDirectInbound.value ? 'direct' : 'pending_approval')
 const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useInboundDraftPersistence(
   source, notes, notesOpen, draftItems, hasDraft,
 )
@@ -441,7 +456,7 @@ function removeLine(lineId: string): void {
 
 function selectLine(lineId: string): void { selectedLineId.value = lineId }
 
-async function reviewDraft(): Promise<void> {
+async function reviewDraft(submissionMode: InboundSubmissionMode): Promise<void> {
   validationAttempted.value = true
   if (!draftReady.value) {
     notice.warning('入库单信息尚未填写完整', { detail: draftBlockingReason() })
@@ -451,8 +466,12 @@ async function reviewDraft(): Promise<void> {
   submitting.value = true
   try {
     await uploadImageDrafts(inboundDraftImages())
-    const created = await createInbound(buildInboundRequest(source.value, notes.value, draftItems.value))
-    notice.success('入库单已提交', { detail: `单号 #${created.id} 已进入待审批状态。` })
+    const created = await createInbound(buildInboundRequest(source.value, notes.value, draftItems.value, submissionMode))
+    if (created.submission_mode === 'direct') {
+      notice.success('入库成功', { detail: `单号 #${created.id} 已完成入库，库存已更新。` })
+    } else {
+      notice.success('入库单已提交', { detail: `单号 #${created.id} 已进入待审批状态。` })
+    }
     clearLocalDraftState()
   } catch (error) {
     const failedImage = firstFailedImage()

@@ -26,7 +26,7 @@ pub(crate) use events::{list_events, EventListQuery, EventLogResponse};
 pub(crate) use inbound::{
     approve_inbound, create_inbound, get_inbound, inbound_filter_values, list_inbound,
     reject_inbound, InboundCreateRequest, InboundItemRequest, InboundItemResponse,
-    InboundListQuery, InboundResponse,
+    InboundListQuery, InboundResponse, InboundSubmissionMode,
 };
 pub(crate) use item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
 pub(crate) use items::{

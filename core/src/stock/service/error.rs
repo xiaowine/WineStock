@@ -50,6 +50,9 @@ pub(crate) enum StockApiError {
     /// 单据不是 pending 状态，不能执行审批或拒绝。
     OrderNotPending,
 
+    /// 请求直接入库，但当前用户没有入库审核权限。
+    DirectInboundApprovalForbidden,
+
     /// 当前库存不足，不能审批出库单。
     InsufficientStock,
 
@@ -218,6 +221,11 @@ impl StockApiError {
                 StatusCode::CONFLICT,
                 "order_not_pending",
                 "单据不是待审批状态",
+            ),
+            Self::DirectInboundApprovalForbidden => (
+                StatusCode::FORBIDDEN,
+                "inbound_direct_approval_forbidden",
+                "直接入库需要入库审核权限",
             ),
             Self::InsufficientStock => (StatusCode::CONFLICT, "insufficient_stock", "库存不足"),
             Self::SubstituteNotFound => (

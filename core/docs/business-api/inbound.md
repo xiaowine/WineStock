@@ -4,9 +4,18 @@
 
 ## `POST /api/inbound`
 
-创建 `pending` 入库单；创建阶段不增加库存。权限：`stock.inbound.create`。
+按 `submission_mode` 创建待审批单据或直接完成入库。两种模式都要求 `stock.inbound.create`；`direct` 还要求 `stock.inbound.approve`。
 
-请求主字段：`source`、可选 `notes` 和至少一条 `items`。每条明细包含：
+请求主字段：`submission_mode`、`source`、可选 `notes` 和至少一条 `items`。
+
+| `submission_mode` | 结果 |
+|---|---|
+| `pending_approval` | 创建 `pending` 单据，不增加库存，等待后续审批 |
+| `direct` | 在创建事务内完成审批、批次、库存流水和审计写入，返回 `approved` |
+
+创建响应顶层返回实际采用的 `submission_mode`，前端据此区分“已提交审核”和“已直接入库”，不通过权限或审批字段反推。
+
+每条明细包含：
 
 | 字段 | 说明 |
 |---|---|
@@ -23,9 +32,10 @@
 
 模板值按必填、有限数字、HTTP/HTTPS URL、select 候选项、boolean、日期和 file 引用校验。实际值逐条写入 `stock_inbound_order_item_attributes`，不保存为明细表 JSON 列。
 
-file 值必须是 `{ "file_id": id }`。文件需要由当前创建人上传、尚未绑定，且是最大 15MB 的 PNG、JPEG 或 WebP。入库单、明细、属性和文件绑定在同一事务中提交。
+file 值必须是 `{ "file_id": id }`。文件需要由当前创建人上传、尚未绑定，且是最大 15MB 的 PNG、JPEG 或 WebP。入库单、明细、属性和文件绑定在同一事务中提交；直接入库时，批次和库存流水也属于同一个事务。
 
 结构化错误包含零基 `line_index`；字段错误同时包含 `field_name` 和稳定 `reason`。
+没有 `stock.inbound.approve` 的用户请求 `direct` 时返回 `403 inbound_direct_approval_forbidden`。
 
 ## 查询与审批
 

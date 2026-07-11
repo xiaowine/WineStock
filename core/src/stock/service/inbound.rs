@@ -14,7 +14,7 @@ use crate::{
     },
     security::CurrentUser,
     state::CoreState,
-    stock::controller,
+    stock::{controller, permissions::STOCK_INBOUND_APPROVE_PERMISSION},
 };
 
 use super::{
@@ -29,10 +29,10 @@ use super::{
     StockApiError,
 };
 
-/// 创建 pending 入库单；创建阶段只保存单据和明细，不改变库存数量。
+/// 按请求模式创建待审批单据或直接完成入库。
 ///
 /// 本函数会校验物品、库位、当前模板和图片所有权，并在同一事务绑定图片引用。
-/// 库存批次与流水仍只在审批阶段写入。
+/// 直接入库额外要求审核权限，并在创建事务内同步写入批次、流水和审批审计。
 pub(crate) async fn create_inbound(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -41,6 +41,16 @@ pub(crate) async fn create_inbound(
     if request.items.is_empty() || request.items.len() > 256 {
         return Err(StockApiError::InvalidRequest);
     }
+    let submission_mode = request.submission_mode;
+    let approved_by_user_id = match submission_mode {
+        controller::InboundSubmissionMode::PendingApproval => None,
+        controller::InboundSubmissionMode::Direct => {
+            if !current_user.has_permission(STOCK_INBOUND_APPROVE_PERMISSION) {
+                return Err(StockApiError::DirectInboundApprovalForbidden);
+            }
+            Some(current_user.user_id)
+        }
+    };
     let repository = StockRepository::new(state.database());
     let mut items = Vec::with_capacity(request.items.len());
     let file_repository = FileObjectRepository::new(state.database());
@@ -112,12 +122,15 @@ pub(crate) async fn create_inbound(
             source: normalize_required_text(&request.source)?,
             notes: normalize_optional_text(request.notes)?,
             created_by_user_id: Some(current_user.user_id),
+            approved_by_user_id,
             items,
         })
         .await
         .map_err(map_stock_db_error)?;
 
-    inbound_response(detail)
+    let mut response = inbound_response(detail)?;
+    response.submission_mode = Some(submission_mode);
+    Ok(response)
 }
 
 /// 分页查询入库单；查询参数在这里统一归一化并转换为仓储查询输入。
@@ -385,7 +398,7 @@ fn request_attribute_object(value: Option<Value>) -> Result<Map<String, Value>, 
     }
 }
 
-/// 创建 pending 单据前按当前模板校验字段，并收集需要事务绑定的图片引用。
+/// 创建入库单前按当前模板校验字段，并收集需要事务绑定的图片引用。
 async fn validate_create_attributes(
     repository: &StockRepository<'_>,
     file_repository: &FileObjectRepository<'_>,

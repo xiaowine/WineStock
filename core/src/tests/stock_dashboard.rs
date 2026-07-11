@@ -164,6 +164,7 @@ async fn seed_approved_inbound(
         "/api/inbound",
         access_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "Dashboard Supplier".to_owned(),
             notes: None,
             items: vec![InboundItemRequest {
@@ -204,6 +205,7 @@ async fn seed_pending_inbound(
         "/api/inbound",
         access_token,
         &InboundCreateRequest {
+            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
             source: "Pending Supplier".to_owned(),
             notes: None,
             items: vec![InboundItemRequest {

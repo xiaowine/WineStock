@@ -1,7 +1,7 @@
 //! 入库单仓储操作。
 //!
 //! 本模块属于 `core` 持久化层，封装入库单、入库明细、审批批次、库存流水和审计写入。
-//! 创建入库单不改变库存，审批入库单才写入批次和流水。
+//! 待审批创建不改变库存；直接入库和后续审批都在单一事务内写入批次与流水。
 
 use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait, Value};
 
@@ -16,7 +16,7 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 创建 pending 入库单、明细和图片字段绑定；创建阶段不改变库存。
+    /// 创建入库单、明细和图片字段绑定；调用方提供审批人时在同一事务直接完成入库。
     pub(crate) async fn create_inbound_order(
         &self,
         input: CreateInboundOrder,
@@ -153,6 +153,17 @@ where
             )),
         )
         .await?;
+        if input.approved_by_user_id.is_some() {
+            let order_items = list_inbound_items_on_connection(&transaction, order_id).await?;
+            approve_inbound_order_on_connection(
+                &transaction,
+                order_id,
+                &order_items,
+                input.approved_by_user_id,
+                &now,
+            )
+            .await?;
+        }
         transaction.commit().await?;
 
         self.find_inbound_order_by_id(order_id)
@@ -212,90 +223,7 @@ where
         let order_items = list_inbound_items_on_connection(self.database, id).await?;
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
-        transaction
-            .execute(Statement::from_sql_and_values(
-                DatabaseBackend::Sqlite,
-                r#"
-                UPDATE stock_inbound_orders
-                SET status = 'approved',
-                    approved_by_user_id = ?,
-                    approved_at = ?,
-                    updated_at = ?
-                WHERE id = ? AND status = 'pending'
-                "#,
-                vec![
-                    user_id.into(),
-                    now.clone().into(),
-                    now.clone().into(),
-                    id.into(),
-                ],
-            ))
-            .await?;
-
-        for item in &order_items {
-            ensure_active_location_on_connection(&transaction, item.location_id).await?;
-            let batch_no = item
-                .batch_no
-                .clone()
-                .unwrap_or_else(|| format!("IN-{id}-{}", item.id));
-            let batch_result = transaction
-                .execute(Statement::from_sql_and_values(
-                    DatabaseBackend::Sqlite,
-                    r#"
-                    INSERT INTO stock_batches
-                        (item_id, inbound_order_item_id, batch_no, location_id, initial_quantity, remaining_quantity, unit_cost, received_at, expires_at, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    "#,
-                    vec![
-                        item.item_id.into(),
-                        item.id.into(),
-                        batch_no.into(),
-                        item.location_id.into(),
-                        item.quantity.into(),
-                        item.quantity.into(),
-                        item.unit_price.into(),
-                        now.clone().into(),
-                        item.expires_at.clone().into(),
-                        now.clone().into(),
-                        now.clone().into(),
-                    ],
-                ))
-                .await?;
-            let balance_after =
-                current_item_quantity_on_connection(&transaction, item.item_id).await?;
-            transaction
-                .execute(Statement::from_sql_and_values(
-                    DatabaseBackend::Sqlite,
-                    r#"
-                    INSERT INTO stock_movements
-                        (item_id, batch_id, movement_type, quantity_delta, unit_cost, balance_after, location_id, inbound_order_item_id, created_by_user_id, created_at)
-                    VALUES (?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?)
-                    "#,
-                    vec![
-                        item.item_id.into(),
-                        i64::try_from(batch_result.last_insert_id())
-                            .map_err(|_| DbErr::Custom("stock batch id overflow".to_owned()))?
-                            .into(),
-                        item.quantity.into(),
-                        item.unit_price.into(),
-                        balance_after.into(),
-                        item.location_id.into(),
-                        item.id.into(),
-                        user_id.into(),
-                        now.clone().into(),
-                    ],
-                ))
-                .await?;
-        }
-        insert_audit_event_on_connection(
-            &transaction,
-            user_id,
-            "inbound",
-            Some(id),
-            "approved",
-            Some(format!(r#"{{"item_count":{}}}"#, order_items.len())),
-        )
-        .await?;
+        approve_inbound_order_on_connection(&transaction, id, &order_items, user_id, &now).await?;
         transaction.commit().await?;
 
         self.find_inbound_order_by_id(id).await
@@ -405,6 +333,104 @@ where
 
         rows.into_iter().map(inbound_order_from_row).collect()
     }
+}
+
+/// 在现有事务中把 pending 入库单转为 approved，并写入批次、流水和审批审计。
+///
+/// 创建时直接入库和后续人工审批共用本函数，任何一步失败都会由外层事务整体回滚。
+async fn approve_inbound_order_on_connection<C>(
+    connection: &C,
+    order_id: i64,
+    order_items: &[InboundOrderItemRecord],
+    user_id: Option<i64>,
+    now: &str,
+) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
+    connection
+        .execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            r#"
+            UPDATE stock_inbound_orders
+            SET status = 'approved',
+                approved_by_user_id = ?,
+                approved_at = ?,
+                updated_at = ?
+            WHERE id = ? AND status = 'pending'
+            "#,
+            vec![
+                user_id.into(),
+                now.to_owned().into(),
+                now.to_owned().into(),
+                order_id.into(),
+            ],
+        ))
+        .await?;
+
+    for item in order_items {
+        ensure_active_location_on_connection(connection, item.location_id).await?;
+        let batch_no = item
+            .batch_no
+            .clone()
+            .unwrap_or_else(|| format!("IN-{order_id}-{}", item.id));
+        let batch_result = connection
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                INSERT INTO stock_batches
+                    (item_id, inbound_order_item_id, batch_no, location_id, initial_quantity, remaining_quantity, unit_cost, received_at, expires_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                "#,
+                vec![
+                    item.item_id.into(),
+                    item.id.into(),
+                    batch_no.into(),
+                    item.location_id.into(),
+                    item.quantity.into(),
+                    item.quantity.into(),
+                    item.unit_price.into(),
+                    now.to_owned().into(),
+                    item.expires_at.clone().into(),
+                    now.to_owned().into(),
+                    now.to_owned().into(),
+                ],
+            ))
+            .await?;
+        let balance_after = current_item_quantity_on_connection(connection, item.item_id).await?;
+        connection
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                INSERT INTO stock_movements
+                    (item_id, batch_id, movement_type, quantity_delta, unit_cost, balance_after, location_id, inbound_order_item_id, created_by_user_id, created_at)
+                VALUES (?, ?, 'inbound', ?, ?, ?, ?, ?, ?, ?)
+                "#,
+                vec![
+                    item.item_id.into(),
+                    i64::try_from(batch_result.last_insert_id())
+                        .map_err(|_| DbErr::Custom("stock batch id overflow".to_owned()))?
+                        .into(),
+                    item.quantity.into(),
+                    item.unit_price.into(),
+                    balance_after.into(),
+                    item.location_id.into(),
+                    item.id.into(),
+                    user_id.into(),
+                    now.to_owned().into(),
+                ],
+            ))
+            .await?;
+    }
+    insert_audit_event_on_connection(
+        connection,
+        user_id,
+        "inbound",
+        Some(order_id),
+        "approved",
+        Some(format!(r#"{{"item_count":{}}}"#, order_items.len())),
+    )
+    .await
 }
 
 /// 在审批事务内确认入库明细库位仍有效；库位被软删除时返回稳定业务错误。
