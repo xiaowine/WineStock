@@ -7,8 +7,8 @@
 ## 工程入口
 
 - `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用 pnpm。
-- `frontend/src/main.ts`：注册有效 token provider、跨标签页同步和自动刷新调度，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
-- `frontend/src/App.vue`：前端根 `RouterView` 和全局 Notice 挂载点，不拥有具体页面布局。
+- `frontend/src/main.ts`：注册 token 与网络失败回调，启动服务监控、跨标签页同步和自动刷新调度，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
+- `frontend/src/App.vue`：前端根 `RouterView`、服务断连全屏阻断层和全局 Notice 挂载点，不拥有具体页面布局或探测调度。
 - `frontend/src/env.d.ts`：Vite 环境变量和平台运行时注入对象类型。
 
 ## 路由与布局
@@ -18,6 +18,7 @@
 - `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
 - `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置，并按当前会话权限快照过滤可见入口。
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
+- `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
 - `frontend/src/layouts/DesktopShell.vue`：桌面品牌栏、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口；不展示未经真实数据支持的服务状态。
 - `frontend/src/layouts/MobileShell.vue`：移动顶部栏、顶部右侧用户头像、紧凑账户弹层、带统一 motion token 动画的 Drawer 和嵌套路由出口。
@@ -29,6 +30,7 @@
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点处理，以及复用统一 motion token 的打开和关闭动画。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码和启停确认表单。
 - `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。
 - `frontend/src/components/users/UserListToolbar.vue`：用户列表搜索、状态分段筛选、结果数量、刷新和创建入口；不请求 API。
@@ -50,6 +52,7 @@
   - 基于原生 `fetch` 实现统一 JSON 请求、查询参数、Bearer token 注入和 204 响应处理。
   - 只允许相对 API 路径，避免 access token 被发送到外部绝对地址。
   - 收到 `invalid_access_token` 时最多强制 refresh 并重试一次；不直接持久化 token，也不决定页面提示。
+  - 真实网络连接失败时通知全局服务监控；调用方主动取消请求不触发断连状态。
 
 - `frontend/src/api/errors.ts`
   - 定义配置、网络、响应解析和非 2xx 错误类型。
@@ -62,6 +65,13 @@
 - `frontend/src/api/users.ts`
   - 定义用户分页、用户详情、权限定义和管理请求 DTO。
   - 实现用户查询、后续用户注册、启停、权限替换、临时密码和权限定义接口。
+
+- `frontend/src/api/health.ts`
+  - 无鉴权调用 `GET /api/health` 并校验固定健康响应，用于独立于登录状态的服务可用性探测。
+
+- `frontend/src/service/availability.ts`
+  - 启动后立即探测服务；可用时每 15 秒、不可用时每 5 秒检查一次，并在窗口聚焦、页面恢复可见或网络恢复时补检。
+  - 公开服务状态、探测状态和成功序号；不启动 Axum、不管理 token，也不决定页面布局。
 
 - `frontend/src/auth/permissions.ts`
   - 定义用户管理稳定权限代码（包含 `user.delete`）和前端权限快照判断。
@@ -112,6 +122,7 @@
 - `docs/frontend/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。
 - `docs/frontend/user-management.md`：用户管理页面、权限边界、API、密码安全和验收重点。
 - `docs/frontend/visual-style.md`：当前视觉规则。
+- `docs/frontend/async-state-transitions.md`：加载、恢复、后台刷新和错误切换的防闪烁呈现规则。
 
 ## 平台边界
 

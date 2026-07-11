@@ -217,7 +217,9 @@ frontend/src/pages/*.scss
 
 当前实现位置：
 
-- `frontend/src/App.vue`：前端根路由出口，不再直接选择桌面或移动 Shell。
+- `frontend/src/App.vue`：前端根路由出口；服务不可用时由全屏阻断层替换路由内容，不直接选择桌面或移动 Shell。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务未连接时的桌面与移动共用全屏提示，提供自动恢复说明和立即重试入口。
+- `frontend/src/composables/useStablePendingIndicator.ts`：为初始服务检查和后续异步界面提供延迟显示、最短展示的防闪烁状态。
 - `frontend/src/router/`：Vue Router 路由表、路由元数据和应用壳一级导航配置。
 - `frontend/src/composables/useResponsiveShell.ts`：根据 `768px` 断点只挂载当前需要的 Shell，避免桌面和移动 Shell 同时渲染。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择入口。
@@ -240,6 +242,7 @@ frontend/src/pages/*.scss
 - `frontend/src/layouts/*.scss`、`frontend/src/components/**/*.scss`、`frontend/src/pages/*.scss`：按 Vue 所有权拆分的布局、组件和页面样式。
 
 路由与 history 策略见 `docs/frontend/routes.md`，HTTP 边界见 `docs/frontend/api-client.md`。
+异步等待、后台刷新和错误恢复的稳定切换规则见 `docs/frontend/async-state-transitions.md`。
 
 ## 后续实施顺序
 

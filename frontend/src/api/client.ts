@@ -40,13 +40,22 @@ export interface ApiRequestOptions {
 /** access token 提供函数；forceRefresh 为 true 时必须尝试 refresh token 轮换。 */
 export type AccessTokenProvider = (forceRefresh?: boolean) => string | null | Promise<string | null>
 
+/** 浏览器请求发生网络连接失败时的全局通知函数。 */
+export type NetworkErrorHandler = () => void
+
 /** 共享 HTTP API client。 */
 export class ApiClient {
   private accessTokenProvider: AccessTokenProvider = () => null
+  private networkErrorHandler: NetworkErrorHandler = () => undefined
 
   /** 注册 access token 提供函数；client 不负责持久化 token。 */
   setAccessTokenProvider(provider: AccessTokenProvider): void {
     this.accessTokenProvider = provider
+  }
+
+  /** 注册网络连接失败通知；主动取消请求不会触发。 */
+  setNetworkErrorHandler(handler: NetworkErrorHandler): void {
+    this.networkErrorHandler = handler
   }
 
   /**
@@ -97,6 +106,7 @@ export class ApiClient {
         if (error instanceof DOMException && error.name === 'AbortError') {
           throw error
         }
+        this.networkErrorHandler()
         throw new ApiNetworkError(error)
       }
 

@@ -108,6 +108,7 @@
 - 移动顶栏中用于打开临时浮层的按钮应禁用浏览器原生 Tap Highlight，使用项目自己的 hover、展开和 `focus-visible` 状态；打开时还应立即释放粘滞焦点，并由 `aria-expanded` 覆盖触屏模拟 hover，避免高亮透过渐入遮罩残留。
 - 用于关闭浮层的全屏透明遮罩按钮必须禁用浏览器原生 Tap Highlight，避免关闭动画期间出现覆盖整个视口的系统高亮；普通可见按钮仍保留项目焦点样式。
 - 系统启用 `prefers-reduced-motion: reduce` 时，将非必要动画压缩为近乎即时的状态切换。
+- 快速异步操作的防闪烁不依赖动画时长：加载提示默认延迟 `200ms` 显示，出现后至少保持 `350ms`；详细规则见 `docs/frontend/async-state-transitions.md`。
 
 当前 motion token：
 
@@ -127,5 +128,6 @@
 - `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的样式。
 - `frontend/src/pages/*.scss`：具体业务页面拥有的表格、列表、状态和分页样式。
 - `frontend/src/components/NoticeViewport.vue`：仅由 Notice 组件使用的 scoped SCSS。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务断连全屏状态层；使用克制的居中状态面板，在桌面与移动端共享同一视觉语义。
 
 当前原型中的业务文字、数字、按钮和列表都是占位内容，不属于视觉风格结论。
