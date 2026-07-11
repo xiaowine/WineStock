@@ -13,7 +13,7 @@
 
 ## 路由与布局
 
-- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、鉴权页面、用户管理路由，以及未匹配路径返回总览的 catch-all 重定向。
+- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、OpenAPI 业务域页面、鉴权页面、用户管理路由，以及未匹配路径返回总览的 catch-all 重定向。
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、`requiredPermission` 和强制改密页面放行元数据。
 - `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
 - `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置，并按当前会话权限快照过滤可见入口。
@@ -136,6 +136,7 @@
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`pages/items/model.ts`：带鉴权主图缩略图的物品列表，以及新建/编辑、必选主图、分类、可选预设、自定义属性和图片属性编排；新建时默认生成随机纯色图，保存前统一上传待处理图片。
 - `frontend/src/pages/InboundDraftPage.vue`：桌面端多明细入库工作台布局和提交/错误焦点编排；拥有审核权限时提供直接入库与提交审核两种动作，并按 API 返回模式显示结果。
+- `frontend/src/pages/PlaceholderPage.vue`：入库记录、出库、审批、库位、分类与模板、替代料和事件日志共用的无数据占位页，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。

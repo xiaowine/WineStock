@@ -20,6 +20,15 @@
 http://127.0.0.1:<vite-port>/#/dashboard
 http://127.0.0.1:<vite-port>/#/items
 http://127.0.0.1:<vite-port>/#/inbound
+http://127.0.0.1:<vite-port>/#/inbound/orders
+http://127.0.0.1:<vite-port>/#/outbound
+http://127.0.0.1:<vite-port>/#/outbound/orders
+http://127.0.0.1:<vite-port>/#/approvals/inbound
+http://127.0.0.1:<vite-port>/#/approvals/outbound
+http://127.0.0.1:<vite-port>/#/locations
+http://127.0.0.1:<vite-port>/#/templates
+http://127.0.0.1:<vite-port>/#/substitutes
+http://127.0.0.1:<vite-port>/#/events
 http://127.0.0.1:<vite-port>/#/users
 ```
 
@@ -31,8 +40,17 @@ http://127.0.0.1:<vite-port>/#/users
 | --- | --- | --- | --- | --- |
 | `/` | 无 | `AppShell` | 是 | 重定向到 `dashboard` |
 | `/dashboard` | `dashboard` | `AppShell` | 是 | 库存摘要、出入库趋势和呆滞物品总览；需要 `stock.dashboard.read` |
-| `/items` | `items` | `AppShell` | 是 | 物品列表、新建/编辑、分类、可选属性预设和自定义属性 |
+| `/items` | `items` | `AppShell` | 是 | 物品列表、新建/编辑、分类、可选属性预设和自定义属性；需要 `stock.item.read` |
 | `/inbound` | `inbound` | `AppShell` | 是 | 桌面端多明细入库工作台；创建权限可提交审核，同时拥有审核权限时可选择直接入库；成功后按 API 返回模式提示并留在当前页；需要 `stock.inbound.create`，移动导航暂不展示入口 |
+| `/inbound/orders` | `inbound-orders` | `AppShell` | 是 | 入库单列表、筛选和详情占位页；需要 `stock.inbound.read` |
+| `/outbound` | `outbound` | `AppShell` | 是 | 新建 pending 出库单占位页；需要 `stock.outbound.create`，移动导航暂不展示入口 |
+| `/outbound/orders` | `outbound-orders` | `AppShell` | 是 | 出库单列表、筛选和详情占位页；需要 `stock.outbound.read` |
+| `/approvals/inbound` | `inbound-approvals` | `AppShell` | 是 | 入库单审批与拒绝占位页；需要 `stock.inbound.approve` |
+| `/approvals/outbound` | `outbound-approvals` | `AppShell` | 是 | 出库单审批与拒绝占位页；需要 `stock.outbound.approve` |
+| `/locations` | `locations` | `AppShell` | 是 | 库位分组、库位与整批次移库占位页；需要 `stock.location.read` |
+| `/templates` | `templates` | `AppShell` | 是 | 物品分类、物品属性模板和入库模板占位页；需要 `stock.template.read` |
+| `/substitutes` | `substitutes` | `AppShell` | 是 | 替代料关系占位页；需要 `stock.substitute.read` |
+| `/events` | `events` | `AppShell` | 是 | 审计事件日志占位页；需要 `audit.read` |
 | `/users` | `users` | `AppShell` | 是 | 用户管理真实列表和管理操作；另需 `user.read` |
 | `/login` | `login` | 独立响应式页面 | 否 | 桌面和移动共用真实登录表单 |
 | `/register` | `register` | 独立响应式页面 | 否 | 桌面和移动共用首个用户注册及自动登录流程 |
@@ -44,7 +62,8 @@ http://127.0.0.1:<vite-port>/#/users
 - `App.vue` 只提供根 `RouterView`。
 - `AppShell.vue` 根据视口断点选择 `DesktopShell` 或 `MobileShell`。
 - `DesktopShell.vue` 和 `MobileShell.vue` 各自提供嵌套 `RouterView`，页面组件本身保持共享。
-- 一级导航配置集中在 `router/navigation.ts`；用户入口按当前会话的 `user.read` 权限显示。
+- 一级导航配置集中在 `router/navigation.ts`；OpenAPI 业务域路由已补充对应侧栏入口，并继续复用现有业务/管理分组和图标样式。
+- 尚未实现业务内容的路由统一渲染 `PlaceholderPage.vue`，只说明 OpenAPI 接口范围，不请求接口或展示虚构数据。
 - 登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。
 
 ## 鉴权状态
@@ -69,8 +88,6 @@ http://127.0.0.1:<vite-port>/#/users
 
 ## 尚未确认
 
-- 除总览和物品外的一级模块路由与排序。
-- 路由和具体权限代码的完整映射。
 - 用户权限变化后的导航可见性与接口 `403` 状态。
 - 页面参数、详情页层级、编辑页是独立页面还是面板。
 - Android 返回键和平台深链接行为。

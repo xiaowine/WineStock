@@ -15,8 +15,16 @@ export const userPermissions = {
 export const stockPermissions = {
   dashboardRead: 'stock.dashboard.read',
   itemRead: 'stock.item.read',
+  locationRead: 'stock.location.read',
   inboundCreate: 'stock.inbound.create',
+  inboundRead: 'stock.inbound.read',
   inboundApprove: 'stock.inbound.approve',
+  outboundCreate: 'stock.outbound.create',
+  outboundRead: 'stock.outbound.read',
+  outboundApprove: 'stock.outbound.approve',
+  templateRead: 'stock.template.read',
+  substituteRead: 'stock.substitute.read',
+  auditRead: 'audit.read',
 } as const
 
 /** 判断权限快照是否包含指定权限。 */
