@@ -41,11 +41,10 @@ export const appNavigation: readonly AppNavigationItem[] = [
   },
   {
     routeName: 'inbound',
-    label: '入库',
+    label: '新建入库',
     group: 'primary',
     icon: 'inbound',
     requiredPermission: stockPermissions.inboundCreate,
-    desktopOnly: true,
   },
   {
     routeName: 'inbound-orders',

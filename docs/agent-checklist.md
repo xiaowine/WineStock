@@ -23,6 +23,15 @@ Then identify:
 
 Do not start by copying demo structure.
 
+同时读取当前组件自己的文档入口：
+
+- `core/docs/README.md`
+- `shared/docs/README.md`
+- `server/docs/README.md`
+- `frontend/docs/README.md`
+
+只需要读取与本次改动有关的组件入口和详细文档，不要求每次把所有领域文档全部展开。
+
 ## Ownership Check
 
 If the change is API, business logic, service state, or bind behavior, it belongs in the `core axum library`.
@@ -77,6 +86,36 @@ Before adding or moving frontend files, confirm:
 The frontend framework is not fixed by this spec.
 Do not introduce one without user approval.
 
+前端页面、交互、视觉和响应式实现还必须读取 `frontend/docs/README.md` 指向的相关规范；UI 一致性验收以 `frontend/docs/ui-consistency-checklist.md` 为准，动效以 `frontend/docs/visual-style.md` 和 `frontend/docs/async-state-transitions.md` 为准。
+
+## Dependency Check
+
+引入任何新库、crate、前端包、SDK 或构建依赖前：
+
+- 从官方包注册表或上游发布源核对当前稳定版本。
+- 确认现有依赖或标准工具链不能合理解决问题。
+- 明确依赖属于哪个组件，不能为了局部功能把平台依赖引入 shared 或 core。
+- 同步更新锁文件、组件文档和代码地图中受影响的依赖方向。
+- 不添加未经核验的版本，也不因为示例代码方便而固定到过时版本。
+
+## Implementation Discipline
+
+- 配置、URL、绑定地址、启动和关闭行为变更前，分别读取配置模型、运行网络和平台生命周期文档。
+- shared 代码留在 shared crate，HTTP 与业务能力留在 core，平台生命周期留在对应 shell，前端渲染与资源留在 frontend 或平台打包层。
+- 模块保持单一职责；存在清晰边界时，不把无关行为堆入同一文件、函数、模块或 crate。
+- 删除或简化行为时，同时删除失效的函数、包装器、参数、配置键、测试和文档。
+- 除非用户明确要求兼容，不保留没有业务意义的兼容层。
+- 修改数据库 schema 或迁移策略前，必须确认是否允许破坏性数据库变更；当前任务已经明确允许时无需重复询问。
+- 发现文档、代码地图或注释与当前实现不一致时，在同一改动中修正，不能继续依赖过时描述实施。
+
+## Code Map Check
+
+- 大范围或跨模块实现前，读取 `docs/code-map.md` 总索引和相关结构子地图。
+- 新增或移动模块、crate、页面或共享组件，修改公共 API，或改变模块职责时，在同一改动中更新对应子地图。
+- 只有新增顶层组件、增加/删除地图文件或改变顶层依赖方向时，才更新 `docs/code-map.md` 根索引。
+- 代码地图缺失或明显过时时，先修正地图再继续依赖它实施。
+- 根索引和所有子地图统一使用中文，描述当前所有权和依赖，不记录即将废弃的临时结构。
+
 ## Comment Check
 
 When adding or modifying code, confirm:
@@ -88,6 +127,19 @@ When adding or modifying code, confirm:
 - comments explain intent, constraints, or ownership instead of restating syntax
 
 If code has no useful surrounding comment and the change affects API behavior, networking, lifecycle, config, persistence, FFI, or platform boundaries, add one.
+
+完整注释要求：
+
+- 每个新源码文件或模块以简短中文文件/模块注释开头，说明它拥有的职责、所属层，以及重要情况下明确不拥有的边界。
+- 公共 API 类型、跨模块 struct/enum、数据库 entity、DTO/config struct、repository input struct 和 error enum 使用中文文档注释。
+- 数据库 entity、DTO/config struct、repository input struct 和 error enum 的每个字段或枚举项都要说明含义；私有且纯机械字段可以省略。
+- 跨所有权边界，或涉及持久化、事务、网络、配置解析、迁移、启动/关闭和安全敏感行为的函数，增加中文文档注释或邻近意图注释，说明使用时机、副作用和重要失败行为。
+- 非显然参数、配置键、数据库列、运行模式、路径规则、绑定地址规则和安全敏感值，应在字段、枚举项、函数或邻近位置解释含义。
+- 修改注释不足的区域时，补足周围职责和约束，使读者无需从所有调用点反推本地边界。
+- 删除只复述语法的注释，不为局部变量和显然分支增加逐行说明。
+- 技术名称如 Axum、SQLx、SeaORM、JWT、PRAGMA 以及路径/API 标识可以保留英文，其余解释性文字使用中文。
+
+完成代码改动前，必须在变更源码中搜索 `//`、`///`、`//!` 和块注释标记，核对语言、职责说明和过时内容。
 
 ## Verification Matrix
 
@@ -135,6 +187,26 @@ cargo +stable check --workspace --all-targets
 cargo +stable test --workspace
 cargo +stable build -p winestock-server
 ```
+
+## Frontend Verification Scope
+
+前端类型与生产构建使用：
+
+```text
+cd frontend
+pnpm build
+```
+
+页面或共享组件改动不能只以构建通过作为完成标准。按 `frontend/docs/ui-consistency-checklist.md` 检查相关业务状态，并至少覆盖：
+
+- 桌面 `1440 × 900`。
+- 接近 `768px` 断点的窄桌面或平板视口。
+- 移动 `390 × 844`。
+- 实际 `getBoundingClientRect()`、计算样式和横向溢出。
+- 打开/关闭、空状态、加载、错误、未保存确认等本次受影响的交互状态。
+- 浏览器控制台中的新增 error、warning 和 issue。
+
+只改文档且没有影响生成物或源码时，不需要为了形式重复运行前端构建或 Cargo 检查；仍需执行链接、差异和格式审查。
 
 ## API 契约核对顺序
 

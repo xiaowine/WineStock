@@ -20,7 +20,7 @@ WineStock 的正式产品目标是多平台，但当前 Rust 实现范围是 ser
 
 ## 根目录
 
-- `AGENTS.md`：agent 操作指南。
+- `AGENTS.md`：全项目 agent 操作入口，导航到跨组件规范、领域文档、代码地图和完成检查清单。
 - `Cargo.toml`：Cargo 工作区成员和共享依赖版本。
 - `Cargo.lock`：Rust 依赖锁文件。
 - `docs/`：跨组件架构、网络、平台、项目结构、代理清单、跨组件实现笔记和分层代码地图。

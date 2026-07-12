@@ -4,7 +4,7 @@
 -->
 <template>
   <Teleport to="body">
-    <Transition name="modal" appear>
+    <Transition name="modal" appear @after-leave="restoreFocus">
       <div
         v-if="open"
         class="modal-layer"
@@ -79,6 +79,7 @@ const dialogId = useId()
 const titleId = `${dialogId}-title`
 const descriptionId = `${dialogId}-description`
 const panel = ref<HTMLElement | null>(null)
+let returnFocusElement: HTMLElement | null = null
 
 watch(
   () => props.open,
@@ -88,6 +89,7 @@ watch(
       return
     }
 
+    returnFocusElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
     window.addEventListener('keydown', handleKeydown)
     await nextTick()
     const target =
@@ -110,6 +112,12 @@ function requestClose(): void {
   if (!props.busy) {
     emit('close')
   }
+}
+
+/** Dialog 完成离场后再把焦点还给触发控件，避免焦点落到仍在动画中的遮罩下方。 */
+function restoreFocus(): void {
+  if (returnFocusElement?.isConnected) returnFocusElement.focus()
+  returnFocusElement = null
 }
 </script>
 

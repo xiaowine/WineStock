@@ -15,6 +15,7 @@ export const userPermissions = {
 export const stockPermissions = {
   dashboardRead: 'stock.dashboard.read',
   itemRead: 'stock.item.read',
+  itemManage: 'stock.item.manage',
   locationRead: 'stock.location.read',
   inboundCreate: 'stock.inbound.create',
   inboundRead: 'stock.inbound.read',

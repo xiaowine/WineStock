@@ -49,8 +49,91 @@ pub(super) fn normalize_template_fields(
                 .transpose()
                 .map_err(|_| StockApiError::InvalidRequest)?,
             default_value,
+            unit_mode: "none".to_owned(),
+            fixed_unit: None,
+            unit_options_json: None,
             sort_order: index as i32,
         });
+    }
+    Ok(result)
+}
+
+/// 归一化物品属性模板字段，并验证各字段显式声明的单位规则。
+pub(super) fn normalize_item_template_fields(
+    fields: Vec<controller::ItemAttributeTemplateFieldDef>,
+) -> Result<Vec<TemplateFieldInput>, StockApiError> {
+    let (common_fields, unit_rules): (Vec<_>, Vec<_>) = fields
+        .into_iter()
+        .map(controller::ItemAttributeTemplateFieldDef::into_parts)
+        .unzip();
+    let mut normalized = normalize_template_fields(common_fields)?;
+    for (field, rule) in normalized.iter_mut().zip(unit_rules) {
+        let (mode, fixed_unit, unit_options) = normalize_unit_rule(rule)?;
+        field.unit_mode = mode.as_code().to_owned();
+        field.fixed_unit = fixed_unit;
+        field.unit_options_json = unit_options
+            .map(|options| serde_json::to_string(&options))
+            .transpose()
+            .map_err(|_| StockApiError::InvalidRequest)?;
+    }
+    Ok(normalized)
+}
+
+fn normalize_unit_rule(
+    rule: Option<controller::ItemAttributeUnitRule>,
+) -> Result<
+    (
+        controller::ItemAttributeUnitMode,
+        Option<String>,
+        Option<Vec<String>>,
+    ),
+    StockApiError,
+> {
+    let Some(rule) = rule else {
+        return Ok((controller::ItemAttributeUnitMode::None, None, None));
+    };
+    match rule.mode {
+        controller::ItemAttributeUnitMode::None | controller::ItemAttributeUnitMode::Custom => {
+            if rule.value.is_some() || rule.options.is_some() {
+                return Err(StockApiError::InvalidRequest);
+            }
+            Ok((rule.mode, None, None))
+        }
+        controller::ItemAttributeUnitMode::Fixed => {
+            if rule.options.is_some() {
+                return Err(StockApiError::InvalidRequest);
+            }
+            let value = normalize_required_text(
+                rule.value.as_deref().ok_or(StockApiError::InvalidRequest)?,
+            )?;
+            if value.chars().count() > 32 {
+                return Err(StockApiError::InvalidRequest);
+            }
+            Ok((rule.mode, Some(value), None))
+        }
+        controller::ItemAttributeUnitMode::Select => {
+            if rule.value.is_some() {
+                return Err(StockApiError::InvalidRequest);
+            }
+            let options =
+                normalize_unit_options(rule.options.ok_or(StockApiError::InvalidRequest)?)?;
+            Ok((rule.mode, None, Some(options)))
+        }
+    }
+}
+
+fn normalize_unit_options(options: Vec<String>) -> Result<Vec<String>, StockApiError> {
+    if options.is_empty() || options.len() > 32 {
+        return Err(StockApiError::InvalidRequest);
+    }
+    let mut seen = HashSet::with_capacity(options.len());
+    let mut result = Vec::with_capacity(options.len());
+    for option in options {
+        let option = normalize_required_text(&option)?;
+        if option.chars().count() > 32 || !seen.insert(option.to_lowercase()) {
+            return Err(StockApiError::InvalidRequest);
+        }
+        result.push(option);
     }
     Ok(result)
 }
@@ -168,11 +251,11 @@ fn inbound_fields(
 }
 fn item_fields(
     fields: Vec<crate::persistence::entity::item_attribute_template_field::Model>,
-) -> Result<Vec<controller::TemplateFieldResponse>, StockApiError> {
+) -> Result<Vec<controller::ItemAttributeTemplateFieldResponse>, StockApiError> {
     fields
         .into_iter()
         .map(|field| {
-            field_response(
+            let base = field_response(
                 field.id,
                 field.field_name,
                 field.field_type,
@@ -181,7 +264,15 @@ fn item_fields(
                 field.options_json,
                 field.default_value,
                 field.sort_order,
-            )
+            )?;
+            Ok(controller::ItemAttributeTemplateFieldResponse {
+                field: base,
+                unit: controller::ItemAttributeUnitRule {
+                    mode: controller::ItemAttributeUnitMode::from_code(&field.unit_mode)?,
+                    value: field.fixed_unit,
+                    options: parse_options_json(field.unit_options_json)?,
+                },
+            })
         })
         .collect()
 }

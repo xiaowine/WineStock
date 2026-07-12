@@ -1,4 +1,4 @@
-// 本文件拥有物品编辑草稿中未绑定图片的清理，属于 frontend 页面协作层；它不保存物品资料。
+// 本文件拥有物品编辑草稿中未绑定图片的共享清理逻辑；它不保存物品资料。
 import { deleteImage } from '../../api/files'
 import type { FileDraftValue } from '../inbound-draft/model'
 import type { ItemAttributeDraft, ItemDraft } from './model'

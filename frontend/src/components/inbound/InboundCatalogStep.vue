@@ -5,9 +5,21 @@
       <div>
         <h2 id="inbound-catalog-step-title">选择入库物品</h2>
       </div>
-      <button class="secondary-button inbound-step-nav-button" type="button" :disabled="!canContinue" @click="$emit('continue')">
-        下一步：填写单据
-      </button>
+      <div class="inbound-step__actions">
+        <button
+          v-if="canCreateItem"
+          class="icon-button inbound-create-item-button"
+          type="button"
+          title="新建物品"
+          aria-label="新建物品"
+          @click="$emit('create-item')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+        <button class="secondary-button inbound-step-nav-button" type="button" :disabled="!canContinue" @click="$emit('continue')">
+          下一步：填写单据
+        </button>
+      </div>
     </header>
 
     <form class="inbound-catalog-step__search" role="search" @submit.prevent="$emit('search')">
@@ -93,6 +105,7 @@ defineProps<{
   itemsExhausted: boolean
   draftCounts: Map<number, number>
   canContinue: boolean
+  canCreateItem: boolean
 }>()
 
 const emit = defineEmits<{
@@ -104,6 +117,7 @@ const emit = defineEmits<{
   'scroll-items': []
   'list-element': [element: HTMLElement | null]
   'toggle-item': [item: ItemResponse]
+  'create-item': []
   continue: []
 }>()
 

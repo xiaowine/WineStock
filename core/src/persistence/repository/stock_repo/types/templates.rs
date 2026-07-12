@@ -35,6 +35,19 @@ pub(crate) struct TemplateFieldInput {
     /// 默认值。
     #[garde(length(min = 1, max = 256), custom(validate_optional_not_blank))]
     pub default_value: Option<String>,
+    /// 物品模板字段单位规则；入库模板固定使用 none。
+    #[garde(length(min = 1, max = 16), custom(validate_not_blank))]
+    pub unit_mode: String,
+    /// fixed 模式的固定单位。
+    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    pub fixed_unit: Option<String>,
+    /// select 模式的单位候选值 JSON。
+    #[garde(
+        length(min = 1, max = 2048),
+        custom(validate_optional_not_blank),
+        custom(validate_optional_json_text)
+    )]
+    pub unit_options_json: Option<String>,
     /// 字段排序，从 0 开始。
     #[garde(range(min = 0))]
     pub sort_order: i32,

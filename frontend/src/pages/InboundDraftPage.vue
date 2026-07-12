@@ -31,59 +31,73 @@
       </div>
     </header>
 
-    <InboundCatalogStep
-      v-if="currentStep === 'catalog'"
-      :items="items"
-      :search-input="searchInput"
-      :loading-items="loadingItems"
-      :item-error="itemError"
-      :items-exhausted="itemsExhausted"
-      :draft-counts="draftItemCounts"
-      :can-continue="draftItems.length > 0"
-      @update:search-input="searchInput = $event"
-      @search-input="handleSearchInput"
-      @search="submitSearch"
-      @reset-items="resetItems"
-      @load-next-items="loadNextItems"
-      @scroll-items="handleItemScroll"
-      @list-element="itemList = $event"
-      @toggle-item="toggleCatalogItem"
-      @continue="openDraftStep"
-    />
+    <div class="inbound-step-stage">
+      <Transition :name="stepTransitionName" mode="out-in" @after-enter="handleStepAfterEnter">
+        <InboundCatalogStep
+          v-if="currentStep === 'catalog'"
+          key="catalog"
+          :items="items"
+          :search-input="searchInput"
+          :loading-items="loadingItems"
+          :item-error="itemError"
+          :items-exhausted="itemsExhausted"
+          :draft-counts="draftItemCounts"
+          :can-continue="draftItems.length > 0"
+          :can-create-item="canCreateItem"
+          @update:search-input="searchInput = $event"
+          @search-input="handleSearchInput"
+          @search="submitSearch"
+          @reset-items="resetItems"
+          @load-next-items="loadNextItems"
+          @scroll-items="handleItemScroll"
+          @list-element="itemList = $event"
+          @toggle-item="toggleCatalogItem"
+          @create-item="itemCreateOpen = true"
+          @continue="openDraftStep"
+        />
 
-    <InboundDraftStep
-      v-else
-      :lines="draftItems"
-      :locations="locations"
-      :location-error="locationError"
-      :source="source"
-      :notes="notes"
-      :notes-open="notesOpen"
-      :validation-attempted="validationAttempted"
-      :selected-line-id="selectedLineId"
-      :drawer-open="selectedLine !== null"
-      @update:source="source = $event"
-      @update:notes="notes = $event"
-      @update:notes-open="notesOpen = $event"
-      @continue-adding="continueAddingItems"
-      @retry-locations="loadLocationOptions"
-      @select-line="selectLine"
-      @remove-line="removeLine"
-    >
-      <Transition name="inbound-editor">
-        <div v-if="selectedLine" class="inbound-line-editor-layer">
-          <button class="inbound-line-editor-backdrop" type="button" aria-label="关闭当前明细详情" @click="closeLineEditor"></button>
-          <InboundLineEditor
-            :line="selectedLine"
-            :templates="inboundTemplates"
-            :validation-attempted="validationAttempted"
-            @close="closeLineEditor"
-            @select-template="selectInboundTemplate"
-            @retry-template="retryLineTemplate"
-          />
-        </div>
+        <InboundDraftStep
+          v-else
+          key="draft"
+          :lines="draftItems"
+          :locations="locations"
+          :location-error="locationError"
+          :source="source"
+          :notes="notes"
+          :notes-open="notesOpen"
+          :validation-attempted="validationAttempted"
+          :selected-line-id="selectedLineId"
+          :drawer-open="selectedLine !== null"
+          @update:source="source = $event"
+          @update:notes="notes = $event"
+          @update:notes-open="notesOpen = $event"
+          @continue-adding="continueAddingItems"
+          @retry-locations="loadLocationOptions"
+          @select-line="selectLine"
+          @remove-line="removeLine"
+        >
+          <Transition name="inbound-editor">
+            <div v-if="selectedLine" class="inbound-line-editor-layer">
+              <button class="inbound-line-editor-backdrop" type="button" aria-label="关闭当前明细详情" @click="closeLineEditor"></button>
+              <InboundLineEditor
+                :line="selectedLine"
+                :templates="inboundTemplates"
+                :validation-attempted="validationAttempted"
+                @close="closeLineEditor"
+                @select-template="selectInboundTemplate"
+                @retry-template="retryLineTemplate"
+              />
+            </div>
+          </Transition>
+        </InboundDraftStep>
       </Transition>
-    </InboundDraftStep>
+    </div>
+
+    <ItemCreateDialog
+      :open="itemCreateOpen"
+      @close="itemCreateOpen = false"
+      @created="handleItemCreated"
+    />
 
     <ModalDialog
       :open="confirmationMode !== null"
@@ -132,6 +146,7 @@ import ModalDialog from '../components/ModalDialog.vue'
 import InboundCatalogStep from '../components/inbound/InboundCatalogStep.vue'
 import InboundDraftStep from '../components/inbound/InboundDraftStep.vue'
 import InboundLineEditor from '../components/inbound/InboundLineEditor.vue'
+import ItemCreateDialog from '../components/items/ItemCreateDialog.vue'
 import {
   createInbound, listLocations, type InboundSubmissionMode, type LocationResponse,
 } from '../api/inbound'
@@ -157,9 +172,11 @@ import {
 
 type ConfirmationMode = 'clear' | 'leave' | null
 type InboundDraftStepName = 'catalog' | 'draft'
+type InboundStepTransitionDirection = 'forward' | 'backward'
 const stepSessionKey = 'winestock.inbound.step'
 const restoredNoticeSessionKey = 'winestock.inbound.restored-notice'
 const currentStep = ref<InboundDraftStepName>(readSessionStep())
+const stepTransitionDirection = ref<InboundStepTransitionDirection>('forward')
 const draftItems = ref<InboundDraftLine[]>([])
 const locations = ref<LocationResponse[]>([])
 const inboundTemplates = ref<InboundTemplateResponse[]>([])
@@ -173,8 +190,10 @@ const validationAttempted = ref(false)
 const confirmationMode = ref<ConfirmationMode>(null)
 const clearingDraft = ref(false)
 const submissionConfirmationMode = ref<InboundSubmissionMode | null>(null)
+const itemCreateOpen = ref(false)
 let locationAbortController: AbortController | null = null
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
+let pendingStepTransition: { step: InboundDraftStepName; resolve: () => void } | null = null
 const templateAbortControllers = new Map<string, AbortController>()
 const templateCache = new Map<number, InboundTemplateResponse>()
 const itemTemplateCache = new Map<number, ItemAttributeTemplateResponse>()
@@ -189,6 +208,7 @@ const draftItemCounts = computed(() => {
   for (const line of draftItems.value) counts.set(line.item.id, (counts.get(line.item.id) ?? 0) + 1)
   return counts
 })
+const stepTransitionName = computed(() => `inbound-step-${stepTransitionDirection.value}`)
 const selectedLine = computed(() => draftItems.value.find((line) => line.lineId === selectedLineId.value) ?? null)
 const draftQuantity = computed(() => draftItems.value.reduce((total, line) => total + positiveNumber(line.quantity), 0))
 const draftTotal = computed(() => draftItems.value.reduce((total, line) => total + lineSubtotal(line), 0))
@@ -201,6 +221,7 @@ const quantitySummaryLabel = computed(() => quantitySummary.value === '按明细
 const hasDraft = computed(() => source.value.trim().length > 0 || notes.value.trim().length > 0 || draftItems.value.length > 0)
 const draftReady = computed(() => source.value.trim().length > 0 && draftItems.value.length > 0 && draftItems.value.every(lineReady))
 const canDirectInbound = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.inboundApprove))
+const canCreateItem = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.itemManage))
 const defaultSubmissionMode = computed<InboundSubmissionMode>(() => canDirectInbound.value ? 'direct' : 'pending_approval')
 const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useInboundDraftPersistence(
   source, notes, notesOpen, draftItems, hasDraft,
@@ -250,6 +271,8 @@ function removeRestoredDuplicateItems(): number {
 }
 
 onBeforeUnmount(() => {
+  pendingStepTransition?.resolve()
+  pendingStepTransition = null
   locationAbortController?.abort()
   templateAbortControllers.forEach((controller) => controller.abort())
   draftItems.value.forEach(revokeLinePreviews)
@@ -257,6 +280,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(() => {
+  if (itemCreateOpen.value) return true
   if (!hasDraft.value) return true
   confirmationMode.value = 'leave'
   return new Promise<boolean>((resolve) => { pendingLeaveResolution = resolve })
@@ -277,20 +301,27 @@ async function loadLocationOptions(): Promise<void> {
 }
 
 /** 选择阶段按物品去重，每个物品在当前入库单中只保留一条独立明细。 */
-function addItem(item: ItemResponse): void {
+function addItem(item: ItemResponse, showNotice = true): void {
   if (draftItems.value.some((line) => line.item.id === item.id)) return
   const line = createDraftLine(item)
   draftItems.value.push(line)
   // 添加物品只创建明细；详情编辑必须由用户通过“详情”按钮显式进入。
   selectedLineId.value = null
   void loadDefaultInboundTemplate(line)
-  notice.info(`已加入 ${item.name}`)
+  if (showNotice) notice.info(`已加入 ${item.name}`)
 }
 
 function toggleCatalogItem(item: ItemResponse): void {
   const line = draftItems.value.find((candidate) => candidate.item.id === item.id)
   if (line) removeLine(line.lineId)
   else addItem(item)
+}
+
+async function handleItemCreated(item: ItemResponse): Promise<void> {
+  itemCreateOpen.value = false
+  addItem(item, false)
+  notice.success('物品已创建并加入入库单', { detail: item.name })
+  await goToStep('draft')
 }
 
 async function loadInboundTemplateOptions(): Promise<void> {
@@ -383,13 +414,31 @@ function removeLine(lineId: string): void {
 function openDraftStep(): void {
   if (draftItems.value.length === 0) return
   selectedLineId.value = null
-  currentStep.value = 'draft'
+  void goToStep('draft')
 }
 
-function continueAddingItems(): void {
+async function continueAddingItems(): Promise<void> {
   selectedLineId.value = null
-  currentStep.value = 'catalog'
-  void nextTick(() => document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus())
+  await goToStep('catalog')
+  document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus()
+}
+
+/** 按步骤顺序设置切换方向，让前进与返回使用对称的水平动效。 */
+function goToStep(step: InboundDraftStepName): Promise<void> {
+  if (step === currentStep.value) return Promise.resolve()
+  stepTransitionDirection.value = currentStep.value === 'catalog' ? 'forward' : 'backward'
+  currentStep.value = step
+  return new Promise<void>((resolve) => {
+    pendingStepTransition = { step, resolve }
+  })
+}
+
+/** out-in 新步骤完成进入后再恢复依赖其 DOM 的聚焦和错误定位流程。 */
+function handleStepAfterEnter(element: Element): void {
+  const enteredStep = element.classList.contains('inbound-catalog-step') ? 'catalog' : 'draft'
+  if (pendingStepTransition?.step !== enteredStep) return
+  pendingStepTransition.resolve()
+  pendingStepTransition = null
 }
 
 function selectLine(lineId: string): void { selectedLineId.value = lineId }
@@ -432,7 +481,13 @@ async function submitConfirmedDraft(): Promise<void> {
       return
     }
     const message = inboundSubmitErrorMessage(error)
+    const errorLine = backendErrorLine(error)
+    if (error instanceof ApiError && error.code === 'item_not_found' && errorLine) {
+      message.title = `“${errorLine.item.name}”已失效，请从入库单移除`
+    }
     notice.error(message.title, { detail: message.detail })
+    submissionConfirmationMode.value = null
+    await nextTick()
     await focusBackendError(error)
   } finally {
     submitting.value = false
@@ -496,7 +551,7 @@ function clearLocalDraftState(): void {
   notesOpen.value = false
   draftItems.value = []
   selectedLineId.value = null
-  currentStep.value = 'catalog'
+  void goToStep('catalog')
   validationAttempted.value = false
   removePersistedDraft()
 }
@@ -510,12 +565,11 @@ async function deleteLineUploads(line: InboundDraftLine): Promise<void> {
 
 async function focusFirstError(): Promise<void> {
   if (draftItems.value.length === 0) {
-    currentStep.value = 'catalog'
-    await nextTick()
+    await goToStep('catalog')
     document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus()
     return
   }
-  currentStep.value = 'draft'
+  await goToStep('draft')
   selectedLineId.value = null
   await nextTick()
   if (!source.value.trim()) {
@@ -533,14 +587,14 @@ async function focusFirstError(): Promise<void> {
 }
 
 async function focusLineControl(line: InboundDraftLine, field: string): Promise<void> {
-  currentStep.value = 'draft'
+  await goToStep('draft')
   selectedLineId.value = null
   await nextTick()
   document.querySelector<HTMLElement>(`[data-line-id="${line.lineId}"][data-field="${field}"]`)?.focus()
 }
 
 async function focusLineTemplate(line: InboundDraftLine, fieldName?: string): Promise<void> {
-  currentStep.value = 'draft'
+  await goToStep('draft')
   selectedLineId.value = line.lineId
   await nextTick()
   if (fieldName) document.querySelector<HTMLElement>(`[data-template-field="${CSS.escape(fieldName)}"]`)?.focus()
@@ -550,17 +604,23 @@ async function focusLineTemplate(line: InboundDraftLine, fieldName?: string): Pr
 
 async function focusBackendError(error: unknown): Promise<void> {
   if (!(error instanceof ApiError) || !isRecord(error.details)) return
-  const lineIndex = typeof error.details.line_index === 'number' ? error.details.line_index : -1
-  const line = draftItems.value[lineIndex]
+  const line = backendErrorLine(error)
   if (!line) return
   validationAttempted.value = true
-  currentStep.value = 'draft'
-  if (error.code === 'location_not_found') await focusLineControl(line, 'locationId')
+  await goToStep('draft')
+  if (error.code === 'item_not_found') await focusLineControl(line, 'remove')
+  else if (error.code === 'location_not_found') await focusLineControl(line, 'locationId')
   else if (error.code === 'template_not_found') await focusLineTemplate(line)
   else if (error.code === 'invalid_inbound_field' || error.code === 'inbound_file_unavailable') {
     const fieldName = typeof error.details.field_name === 'string' ? error.details.field_name : undefined
     await focusLineTemplate(line, fieldName)
   } else { selectedLineId.value = line.lineId; await nextTick() }
+}
+
+function backendErrorLine(error: unknown): InboundDraftLine | null {
+  if (!(error instanceof ApiError) || !isRecord(error.details)) return null
+  const lineIndex = typeof error.details.line_index === 'number' ? error.details.line_index : -1
+  return draftItems.value[lineIndex] ?? null
 }
 
 function draftBlockingReason(): string {

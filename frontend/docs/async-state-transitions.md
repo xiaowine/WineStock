@@ -80,5 +80,6 @@
 - `frontend/src/App.vue`：服务首次检查使用 `200ms` 延迟和 `350ms` 最短展示；延迟窗口保持中性背景。
 - `frontend/src/service/availability.ts`：拥有真实健康检查状态和重试调度，不为视觉稳定性人为延迟请求。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：呈现稳定尺寸的连接或断连全屏状态，不决定计时策略。
+- `frontend/src/pages/ItemsPage.vue`：物品目录的初始加载和分页提示复用 `200ms` 延迟与 `350ms` 最短展示；搜索、刷新和 Dialog 保存后的重新加载保留现有列表与全宽目录骨架，只在稳定等待状态出现后显示局部弱化反馈，不能因打开或关闭编辑 Dialog 清空目录。
 
 后续页面、对话框或路由懒加载出现类似闪烁时，应优先复用稳定等待状态，而不是在各组件中散落新的 `setTimeout`。

@@ -88,6 +88,20 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         value["components"]["schemas"]["InboundSubmissionMode"]["enum"],
         serde_json::json!(["pending_approval", "direct"])
     );
+    assert_eq!(
+        value["components"]["schemas"]["ItemAttributeUnitMode"]["enum"],
+        serde_json::json!(["none", "fixed", "select", "custom"])
+    );
+    assert!(
+        value["components"]["schemas"]["ItemAttributeTemplateFieldDef"]["properties"]["unit"]
+            .is_object()
+    );
+    assert!(
+        value["components"]["schemas"]["ItemAttributeTemplateFieldResponse"]["allOf"][1]
+            ["properties"]["unit"]
+            .is_object()
+    );
+    assert!(value["components"]["schemas"]["TemplateFieldDef"]["properties"]["unit"].is_null());
     assert!(
         value["components"]["schemas"]["InboundCreateRequest"]["properties"]["submission_mode"]
             .is_object()

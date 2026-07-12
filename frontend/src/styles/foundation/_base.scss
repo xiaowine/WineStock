@@ -71,6 +71,8 @@ img {
 
 button {
   cursor: pointer;
+  /* 使用项目自己的按压与焦点反馈，避免 Chrome/WebView 触摸时闪现系统蓝色高亮。 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:focus-visible,

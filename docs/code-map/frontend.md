@@ -17,7 +17,7 @@
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、`requiredPermission` 和强制改密页面放行元数据。
 - `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
 - `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置，并按当前会话权限快照过滤可见入口。
-- `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell。
+- `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell，并提供操作时即时核对当前 Shell 的无副作用判断；冷启动和宿主 resize 同时校验布局视口、宿主窗口与可视视口宽度，避免移动 WebView 临时使用 980px 布局视口时短暂挂载桌面 Shell。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
 - `frontend/src/composables/useInboundDraftPersistence.ts`：版本化入库草稿序列化/恢复和浏览器原生关闭提示；普通字段保存在 `localStorage`，待上传图片通过独立存储模块写入 IndexedDB。
@@ -31,7 +31,7 @@
 - `frontend/src/components/RouteContentView.vue`：桌面和移动 Shell 共用的嵌套路由出口，以及复用统一 motion token 的页面切换动画。
 - `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
-- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点处理，以及复用统一 motion token 的打开和关闭动画。
+- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：只读展示物品属性，并编辑当前明细的批次、有效期、入库模板和入库属性。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
 - `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
@@ -40,7 +40,7 @@
 - `frontend/src/components/attributes/AttributeColorPicker.vue`：图片字段共用的无依赖 HSV/HEX 颜色选择器，提供饱和度与亮度平面、色相滑轨、HEX 输入、快捷色板和 Pointer Events/键盘交互；只输出颜色并通知应用，不生成图片。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL。
-- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板和任意属性编辑控件；桌面使用连续分区表单，移动端复用同一草稿进入独立编辑视图。
+- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板和任意属性编辑控件；`ItemEditor.vue` 与 `ItemEditor.scss` 共同拥有可复用表单及 Dialog 内嵌模式，把模板属性和自定义属性分组，并让基础资料、模板字段和自定义字段复用同一表单控件高度与网格间距，不为模板字段增加逐项边框或卡片；属性编辑器按模板元数据呈现必填状态、select 候选项和 none/fixed/select/custom 单位规则；`ItemEditorDialog.vue` 组合通用 `ModalDialog`，`useItemCreateSession.ts` 与 `ItemCreateDialog.vue` 统一跨业务新建草稿、元数据、上传、保存和关闭确认；物品页和入库流程不互相嵌套页面。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
@@ -137,9 +137,9 @@
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
-- `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
-- `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：带鉴权主图缩略图、可取消搜索和滚动分页的物品目录，以及新建/编辑、未保存切换确认、必选主图、分类、可选预设、自定义属性和图片属性编排；桌面使用目录与编辑器双栏，移动端在目录和编辑视图间切换，图片由统一选择浮层接收本地文件或即时生成纯色图，保存前统一上传待处理图片。
-- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、草稿恢复、物品去重、动态模板、图片上传、提交确认和后端错误定位。
+- `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
+- `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：带鉴权主图缩略图、可取消搜索和滚动分页的全宽物品目录，以及通过共享 `ItemEditorDialog` 完成的新建/编辑、未保存关闭确认、必选主图、分类、可选预设、自定义属性和图片属性编排；共享模型按 OpenAPI 部分更新语义比较基线草稿，只发送变化字段并保留显式 null 清空语义；初始加载和分页提示使用稳定 pending 呈现，搜索、刷新和保存后的重新加载保留现有列表；刷新与新建作为同级图标操作统一位于目录工具栏，关闭 Dialog 后清空编辑草稿和目录选中态。
+- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、动态模板、图片上传、提交确认和后端错误定位。
 - `frontend/src/pages/PlaceholderPage.vue`：入库记录、出库、审批、库位、分类与模板、替代料和事件日志共用的无数据占位页，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
@@ -160,7 +160,7 @@
 - `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。
 - `frontend/docs/user-management.md`：用户管理页面、权限边界、API、密码安全和验收重点。
 - `frontend/docs/visual-style.md`：当前视觉规则。
-- `frontend/docs/ui-consistency-checklist.md`：业务页面在多步骤导航、表单工具栏、列表/表格、状态反馈、抽屉和响应式布局上的一致性规则与验收清单。
+- `frontend/docs/ui-consistency-checklist.md`：业务页面在多步骤导航、表单工具栏、列表/表格、状态反馈、抽屉、Dialog 和响应式布局上的一致性规则与验收清单。
 - `frontend/docs/async-state-transitions.md`：加载、恢复、后台刷新和错误切换的防闪烁呈现规则。
 
 ## 平台边界

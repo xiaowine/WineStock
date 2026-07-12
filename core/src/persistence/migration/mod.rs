@@ -4,6 +4,7 @@
 //! 是否执行 migration 由平台传入的 `StorageConfig.auto_migrate` 决定。
 
 mod m20260706_000001_initial_schema;
+mod m20260713_000002_item_template_unit_rules;
 
 use sea_orm_migration::prelude::*;
 
@@ -13,6 +14,9 @@ pub(super) struct Migrator;
 #[sea_orm_migration::async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![Box::new(m20260706_000001_initial_schema::Migration)]
+        vec![
+            Box::new(m20260706_000001_initial_schema::Migration),
+            Box::new(m20260713_000002_item_template_unit_rules::Migration),
+        ]
     }
 }

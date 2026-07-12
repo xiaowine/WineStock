@@ -221,7 +221,7 @@ frontend/src/pages/*.scss
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务未连接时的桌面与移动共用全屏提示，提供自动恢复说明和立即重试入口。
 - `frontend/src/composables/useStablePendingIndicator.ts`：为初始服务检查和后续异步界面提供延迟显示、最短展示的防闪烁状态。
 - `frontend/src/router/`：Vue Router 路由表、路由元数据和应用壳一级导航配置。
-- `frontend/src/composables/useResponsiveShell.ts`：根据 `768px` 断点只挂载当前需要的 Shell，避免桌面和移动 Shell 同时渲染。
+- `frontend/src/composables/useResponsiveShell.ts`：根据 `768px` 断点只挂载当前需要的 Shell；冷启动和宿主 resize 同时校验布局视口、宿主窗口与可视视口宽度，避免移动 WebView 临时使用 980px 布局视口时首帧显示桌面 Shell。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择入口。
 - `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、顶部账户摘要、路由导航面板和嵌套路由内容区。
 - `frontend/src/layouts/MobileShell.vue`：移动顶部栏、头像账户弹层、嵌套路由内容区和左侧路由导航 Drawer。
@@ -237,7 +237,7 @@ frontend/src/pages/*.scss
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册、密码确认、注册后自动登录和错误映射。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的独立修改密码页面，强制改密时阻断其它前端页面。
 - `frontend/src/pages/UsersPage.vue`：桌面表格和移动列表共用数据、筛选分页和管理操作状态。
-- `frontend/src/pages/`：除鉴权页外还包含总览和物品正式页面入口；未实现的业务内容不展示假数据或开发说明。
+- `frontend/src/pages/`：除鉴权页外还包含总览和物品正式页面入口；物品页使用全宽目录和共享编辑 Dialog，未实现的业务内容不展示假数据或开发说明。
 - `frontend/src/styles/index.scss`：全局基础与共享视觉原语入口。
 - `frontend/src/layouts/*.scss`、`frontend/src/components/**/*.scss`、`frontend/src/pages/*.scss`：按 Vue 所有权拆分的布局、组件和页面样式。
 
@@ -247,5 +247,5 @@ frontend/src/pages/*.scss
 ## 后续实施顺序
 
 1. 为用户管理补自动化测试和更完整的移动账户操作。
-2. 实现物品列表真实纵向功能，并沿用用户管理建立的请求和响应式页面边界。
+2. 继续补齐物品管理的批量操作与自动化测试，并维持全宽目录和共享编辑 Dialog 的页面边界。
 3. 在实际复用出现时继续抽取表格、分页和表单原语。

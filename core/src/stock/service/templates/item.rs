@@ -6,7 +6,7 @@ use super::super::{
     validation::{normalize_optional_text, normalize_required_text},
     StockApiError,
 };
-use super::common::{item_attribute_template_response, normalize_template_fields};
+use super::common::{item_attribute_template_response, normalize_item_template_fields};
 use crate::{
     persistence::repository::{
         CreateItemAttributeTemplate, StockRepository, UpdateItemAttributeTemplate,
@@ -54,7 +54,7 @@ pub(crate) async fn create_item_attribute_template(
                     name,
                     description: normalize_optional_text(request.description)?,
                     default_inbound_template_id: request.default_inbound_template_id,
-                    fields: normalize_template_fields(request.fields)?,
+                    fields: normalize_item_template_fields(request.fields)?,
                 },
                 Some(user.user_id),
             )
@@ -117,7 +117,10 @@ pub(crate) async fn update_item_attribute_template(
                     .transpose()?
                     .map(Some),
                 default_inbound_template_id: request.default_inbound_template_id.map(Some),
-                fields: request.fields.map(normalize_template_fields).transpose()?,
+                fields: request
+                    .fields
+                    .map(normalize_item_template_fields)
+                    .transpose()?,
             },
             Some(user.user_id),
         )

@@ -69,6 +69,9 @@ fn fields(specs: &[FieldSpec]) -> Vec<TemplateFieldInput> {
             searchable: field.searchable,
             options_json: field.options_json.map(str::to_owned),
             default_value: None,
+            unit_mode: "none".to_owned(),
+            fixed_unit: None,
+            unit_options_json: None,
             sort_order: index as i32,
         })
         .collect()

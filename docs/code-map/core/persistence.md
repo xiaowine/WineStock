@@ -10,6 +10,9 @@
 - `core/src/persistence/migration/m20260706_000001_initial_schema.rs`
   - 创建 auth、storage、stock 和 audit 业务表，包括物品/入库属性及两类图片绑定关系。
   - 初始 schema 直接采用分类、物品属性模板和入库模板分离设计，不保留旧统一模板表。
+- `core/src/persistence/migration/m20260713_000002_item_template_unit_rules.rs`
+  - 非破坏性扩展物品属性模板字段，增加 `none`、`fixed`、`select`、`custom` 单位规则持久化列。
+  - 不修改入库模板字段，也不改写已有字段；已有字段自动采用 `none`。
 
 数据库表与字段边界见 `core/docs/database-schema.md`。
 
@@ -22,7 +25,7 @@
 - `entity/file_object.rs`：文件元数据；物品主图通过 `stock_items.image_file_id` 直接引用。
 - `entity/inbound_file_binding.rs`、`item_file_binding.rs`：文件对象与具体属性行的一对一绑定。
 - `entity/stock_item.rs`、`stock_item_category.rs`、`item_attribute.rs`：物品基础资料、分类和实际属性。
-- `entity/item_attribute_template*.rs`：可选物品属性预设。
+- `entity/item_attribute_template*.rs`：可选物品属性预设及字段级显式单位规则。
 - `entity/inbound_template*.rs`、`inbound_order_item_attribute.rs`：入库模板和实际入库属性。
 
 ## Repository

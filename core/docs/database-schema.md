@@ -156,6 +156,12 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 物品属性预设字段。字段类型只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
 
+- `unit_mode`：单位规则，只允许 `none`、`fixed`、`select` 或 `custom`，已有数据迁移后默认为 `none`。
+- `fixed_unit`：仅 `fixed` 模式使用的固定单位。
+- `unit_options_json`：仅 `select` 模式使用的单位候选字符串数组 JSON。
+
+字段组合由服务层校验：`none`/`custom` 不携带额外单位配置，`fixed` 只携带 `fixed_unit`，`select` 只携带非空且去重的 `unit_options_json`。入库模板字段表不包含这些列。
+
 ### `stock_inbound_templates`
 
 入库属性模板，只描述单次收货或当前批次状态。
@@ -182,7 +188,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_item_attributes`
 
-物品固有属性表。每条记录保存 `field_name`、`field_type`、合法 `value_json`、可选 `unit` 和可选模板字段来源。`template_field_id` 为空表示自定义属性，同一物品字段名唯一。
+物品固有属性表。每条记录保存 `field_name`、`field_type`、合法 `value_json`、可选 `unit` 和可选模板字段来源。`template_field_id` 为空表示自定义属性，同一物品字段名唯一。模板属性写入时由服务层按模板单位规则派生或校验 `unit`，不信任客户端覆盖固定单位。
 
 ### `stock_location_groups`
 

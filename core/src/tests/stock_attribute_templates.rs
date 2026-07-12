@@ -9,7 +9,8 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundTemplateCreateRequest, InboundTemplateResponse, ItemAttributeTemplateCreateRequest,
-        ItemAttributeTemplateResponse, ItemCategoryCreateRequest, ItemCategoryResponse,
+        ItemAttributeTemplateFieldDef, ItemAttributeTemplateResponse, ItemAttributeUnitMode,
+        ItemAttributeUnitRule, ItemCategoryCreateRequest, ItemCategoryResponse,
         TemplateCopyRequest, TemplateFieldDef, TemplateFieldType,
     },
     test_support::{error_code, json_body, login_request, seeded_app},
@@ -60,14 +61,14 @@ async fn category_and_two_template_kinds_are_independent() {
             name: "测试物品属性".to_owned(),
             description: None,
             default_inbound_template_id: Some(inbound.id),
-            fields: vec![field("型号", TemplateFieldType::Text, true)],
+            fields: vec![item_field("型号", TemplateFieldType::Text, true)],
         },
     )
     .await;
     assert_eq!(item.status(), StatusCode::CREATED);
     let item: ItemAttributeTemplateResponse = json_body(item).await;
     assert_eq!(item.default_inbound_template_id, Some(inbound.id));
-    assert_eq!(item.fields[0].field_name, "型号");
+    assert_eq!(item.fields[0].field.field_name, "型号");
 
     let categories = authorized_empty(&app, "GET", "/api/item-categories", token).await;
     let categories: Vec<ItemCategoryResponse> = json_body(categories).await;
@@ -179,6 +180,103 @@ async fn template_validation_copy_and_permissions_are_enforced() {
     assert_eq!(error_code(duplicate).await, "template_name_taken");
 }
 
+#[tokio::test]
+async fn item_template_unit_rules_are_validated_and_copied() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let created = authorized_json(
+        &app,
+        "POST",
+        "/api/item-attribute-templates",
+        &token,
+        &ItemAttributeTemplateCreateRequest {
+            name: "单位规则模板".to_owned(),
+            description: None,
+            default_inbound_template_id: None,
+            fields: vec![ItemAttributeTemplateFieldDef {
+                field_name: "长度".to_owned(),
+                field_type: TemplateFieldType::Number,
+                required: Some(true),
+                searchable: Some(true),
+                options: None,
+                default_value: None,
+                unit: Some(ItemAttributeUnitRule {
+                    mode: ItemAttributeUnitMode::Select,
+                    value: None,
+                    options: Some(vec!["mm".to_owned(), "cm".to_owned()]),
+                }),
+            }],
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let created: ItemAttributeTemplateResponse = json_body(created).await;
+    assert_eq!(created.fields[0].unit.mode, ItemAttributeUnitMode::Select);
+    assert_eq!(
+        created.fields[0].unit.options.as_deref(),
+        Some(["mm".to_owned(), "cm".to_owned()].as_slice())
+    );
+
+    let copied = authorized_json(
+        &app,
+        "POST",
+        &format!("/api/item-attribute-templates/{}/copy", created.id),
+        &token,
+        &TemplateCopyRequest {
+            name: "单位规则模板副本".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(copied.status(), StatusCode::CREATED);
+    let copied: ItemAttributeTemplateResponse = json_body(copied).await;
+    assert_eq!(copied.fields[0].unit, created.fields[0].unit);
+
+    for unit in [
+        ItemAttributeUnitRule {
+            mode: ItemAttributeUnitMode::Fixed,
+            value: None,
+            options: None,
+        },
+        ItemAttributeUnitRule {
+            mode: ItemAttributeUnitMode::Select,
+            value: None,
+            options: Some(vec!["kg".to_owned(), "KG".to_owned()]),
+        },
+        ItemAttributeUnitRule {
+            mode: ItemAttributeUnitMode::None,
+            value: Some("kg".to_owned()),
+            options: None,
+        },
+    ] {
+        let invalid = authorized_json(
+            &app,
+            "POST",
+            "/api/item-attribute-templates",
+            &token,
+            &ItemAttributeTemplateCreateRequest {
+                name: format!("无效单位规则-{:?}", unit.mode),
+                description: None,
+                default_inbound_template_id: None,
+                fields: vec![ItemAttributeTemplateFieldDef {
+                    field_name: "字段".to_owned(),
+                    field_type: TemplateFieldType::Text,
+                    required: Some(false),
+                    searchable: Some(false),
+                    options: None,
+                    default_value: None,
+                    unit: Some(unit),
+                }],
+            },
+        )
+        .await;
+        assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(error_code(invalid).await, "invalid_request");
+    }
+}
+
 fn field(name: &str, field_type: TemplateFieldType, required: bool) -> TemplateFieldDef {
     TemplateFieldDef {
         field_name: name.to_owned(),
@@ -187,6 +285,22 @@ fn field(name: &str, field_type: TemplateFieldType, required: bool) -> TemplateF
         searchable: Some(false),
         options: None,
         default_value: None,
+    }
+}
+
+fn item_field(
+    name: &str,
+    field_type: TemplateFieldType,
+    required: bool,
+) -> ItemAttributeTemplateFieldDef {
+    ItemAttributeTemplateFieldDef {
+        field_name: name.to_owned(),
+        field_type,
+        required: Some(required),
+        searchable: Some(false),
+        options: None,
+        default_value: None,
+        unit: None,
     }
 }
 

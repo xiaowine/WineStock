@@ -139,6 +139,9 @@ where
             searchable: Set(i32::from(field.searchable)),
             options_json: Set(field.options_json.clone()),
             default_value: Set(field.default_value.clone()),
+            unit_mode: Set(field.unit_mode.clone()),
+            fixed_unit: Set(field.fixed_unit.clone()),
+            unit_options_json: Set(field.unit_options_json.clone()),
             sort_order: Set(field.sort_order),
             created_at: Set(now.clone()),
             updated_at: Set(now),
@@ -235,6 +238,9 @@ fn inbound_field_input(field: &inbound_template_field::Model) -> TemplateFieldIn
         searchable: field.searchable != 0,
         options_json: field.options_json.clone(),
         default_value: field.default_value.clone(),
+        unit_mode: "none".to_owned(),
+        fixed_unit: None,
+        unit_options_json: None,
         sort_order: field.sort_order,
     }
 }
@@ -252,6 +258,9 @@ pub(super) fn item_attribute_field_inputs(
             searchable: field.searchable != 0,
             options_json: field.options_json.clone(),
             default_value: field.default_value.clone(),
+            unit_mode: field.unit_mode.clone(),
+            fixed_unit: field.fixed_unit.clone(),
+            unit_options_json: field.unit_options_json.clone(),
             sort_order: field.sort_order,
         })
         .collect()

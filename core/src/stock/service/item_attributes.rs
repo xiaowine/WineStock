@@ -74,6 +74,7 @@ pub(super) async fn normalize_item_attributes(
             &request.value,
             preset.and_then(|field| field.options_json.clone()),
         )?;
+        let unit = normalize_attribute_unit(request.unit, preset)?;
         let file_id = if request.field_type == controller::TemplateFieldType::File {
             let id = file_id(&request.value).ok_or(StockApiError::InvalidRequest)?;
             let record = file_repository
@@ -101,7 +102,7 @@ pub(super) async fn normalize_item_attributes(
             field_type: request.field_type.as_code().to_owned(),
             value_json: serde_json::to_string(&request.value)
                 .map_err(|_| StockApiError::InvalidRequest)?,
-            unit: normalize_optional_text(request.unit)?,
+            unit,
             sort_order: index as i32,
             file_object_id: file_id,
             file_owner_user_id: file_id.map(|_| user.user_id),
@@ -115,6 +116,38 @@ pub(super) async fn normalize_item_attributes(
         }
     }
     Ok(result)
+}
+
+/// 按模板字段单位规则派生或校验实际单位，自定义属性继续使用可选自由单位。
+fn normalize_attribute_unit(
+    unit: Option<String>,
+    preset: Option<&crate::persistence::entity::item_attribute_template_field::Model>,
+) -> Result<Option<String>, StockApiError> {
+    let Some(preset) = preset else {
+        return normalize_optional_text(unit);
+    };
+    match preset.unit_mode.as_str() {
+        "none" => Ok(None),
+        "fixed" => preset
+            .fixed_unit
+            .clone()
+            .map(Some)
+            .ok_or(StockApiError::InvalidRequest),
+        "select" => {
+            let unit = normalize_optional_text(unit)?.ok_or(StockApiError::InvalidRequest)?;
+            if parse_options_json(preset.unit_options_json.clone())?
+                .unwrap_or_default()
+                .iter()
+                .any(|option| option == &unit)
+            {
+                Ok(Some(unit))
+            } else {
+                Err(StockApiError::InvalidRequest)
+            }
+        }
+        "custom" => normalize_optional_text(unit),
+        _ => Err(StockApiError::InvalidRequest),
+    }
 }
 
 /// 把物品属性数据库记录恢复为类型化 HTTP 值。

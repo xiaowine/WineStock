@@ -1,12 +1,17 @@
 <!-- 本组件拥有物品基础资料、主图和任意属性的表单布局；它不发起 HTTP 请求。 -->
 <template>
-  <form class="item-editor" @submit.prevent="emit('save')">
-    <header class="item-editor__header">
+  <form
+    :id="formId"
+    class="item-editor"
+    :class="{ 'item-editor--embedded': embedded }"
+    @submit.prevent="emit('save')"
+  >
+    <header v-if="!embedded" class="item-editor__header">
       <button
         class="icon-button item-editor__back"
         type="button"
-        title="返回物品目录"
-        aria-label="返回物品目录"
+        :title="closeLabel"
+        :aria-label="closeLabel"
         @click="emit('close')"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -82,12 +87,6 @@
       <section class="item-editor__section item-editor__attributes" aria-labelledby="item-attributes-heading">
         <header class="item-editor__section-header">
           <h3 id="item-attributes-heading">物品属性</h3>
-          <button class="secondary-button item-editor__add-attribute" type="button" @click="addAttribute">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            添加属性
-          </button>
         </header>
 
         <label class="form-field item-editor__template">
@@ -98,27 +97,54 @@
           </select>
         </label>
 
-        <div v-if="!draft.attributes.length" class="item-editor__empty-attributes">
-          当前没有属性
-        </div>
-        <div v-else class="item-editor__attribute-list">
-          <ItemAttributeEditor
-            v-for="(attribute, index) in draft.attributes"
-            :key="attribute.key"
-            :attribute="attribute"
-            @remove="draft.attributes.splice(index, 1)"
-          />
-        </div>
+        <section
+          v-if="templateAttributes.length"
+          class="item-editor__attribute-group"
+          aria-labelledby="item-template-attributes-heading"
+        >
+          <header class="item-editor__attribute-group-header">
+            <h4 id="item-template-attributes-heading">模板属性</h4>
+          </header>
+          <div class="item-editor__template-attributes">
+            <ItemAttributeEditor
+              v-for="attribute in templateAttributes"
+              :key="attribute.key"
+              :attribute="attribute"
+              :template-field="templateFieldsById.get(attribute.templateFieldId ?? -1)"
+            />
+          </div>
+        </section>
+
+        <section class="item-editor__attribute-group" aria-labelledby="item-custom-attributes-heading">
+          <header class="item-editor__attribute-group-header">
+            <h4 id="item-custom-attributes-heading">自定义属性</h4>
+            <button class="secondary-button item-editor__add-attribute" type="button" @click="addAttribute">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              添加属性
+            </button>
+          </header>
+          <div v-if="customAttributes.length" class="item-editor__custom-attributes">
+            <ItemAttributeEditor
+              v-for="attribute in customAttributes"
+              :key="attribute.key"
+              :attribute="attribute"
+              @remove="removeAttribute(attribute.key)"
+            />
+          </div>
+        </section>
       </section>
     </div>
 
-    <footer class="item-editor__mobile-actions">
+    <footer v-if="!embedded" class="item-editor__mobile-actions">
       <button class="primary-button" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存物品' }}</button>
     </footer>
   </form>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ItemCategoryResponse } from '../../api/itemCategories'
 import type { ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import { applyAttributeTemplate, newCustomAttribute, type ItemDraft } from '../../pages/items/model'
@@ -128,18 +154,35 @@ import AttributeImageField from '../attributes/AttributeImageField.vue'
 import type { FileDraftValue } from '../../pages/inbound-draft/model'
 import { notice } from '../../notices/notice'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   draft: ItemDraft
   categories: ItemCategoryResponse[]
   templates: ItemAttributeTemplateResponse[]
   saving: boolean
   metadataError: string
-}>()
+  closeLabel?: string
+  embedded?: boolean
+  formId?: string
+}>(), {
+  closeLabel: '返回物品目录',
+  embedded: false,
+  formId: undefined,
+})
 
 const emit = defineEmits<{ save: []; close: [] }>()
+const templateFieldsById = computed(() => new Map(
+  props.templates.flatMap((template) => template.fields.map((field) => [field.id, field] as const)),
+))
+const templateAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.templateFieldId !== null))
+const customAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.templateFieldId === null))
 
 function addAttribute(): void {
   props.draft.attributes.push(newCustomAttribute())
+}
+
+function removeAttribute(key: string): void {
+  const index = props.draft.attributes.findIndex((attribute) => attribute.key === key)
+  if (index >= 0) props.draft.attributes.splice(index, 1)
 }
 
 function updateMainImage(value: FileDraftValue | undefined): void {
@@ -165,3 +208,5 @@ async function selectTemplate(event: Event): Promise<void> {
   applyAttributeTemplate(props.draft, template)
 }
 </script>
+
+<style lang="scss" src="./ItemEditor.scss"></style>

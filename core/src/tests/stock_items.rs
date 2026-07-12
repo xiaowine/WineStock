@@ -10,8 +10,9 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, ItemAttributeRequest,
-        ItemAttributeTemplateCreateRequest, ItemAttributeTemplateResponse, ItemCreateRequest,
-        ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateFieldDef, TemplateFieldType,
+        ItemAttributeTemplateCreateRequest, ItemAttributeTemplateFieldDef,
+        ItemAttributeTemplateResponse, ItemAttributeUnitMode, ItemAttributeUnitRule,
+        ItemCreateRequest, ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateFieldType,
     },
     test_support::{
         error_code, json_body, json_request, login_request, seed_stock_location, seeded_app,
@@ -451,6 +452,135 @@ async fn item_validation_and_authorization_fail_before_write() {
 }
 
 #[tokio::test]
+async fn item_attributes_follow_template_unit_rules() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let template = authorized_json_request(
+        &app,
+        "POST",
+        "/api/item-attribute-templates",
+        &token,
+        &ItemAttributeTemplateCreateRequest {
+            name: "物品单位规则".to_owned(),
+            description: None,
+            default_inbound_template_id: None,
+            fields: vec![
+                ItemAttributeTemplateFieldDef {
+                    field_name: "长度".to_owned(),
+                    field_type: TemplateFieldType::Number,
+                    required: Some(true),
+                    searchable: Some(true),
+                    options: None,
+                    default_value: None,
+                    unit: Some(ItemAttributeUnitRule {
+                        mode: ItemAttributeUnitMode::Fixed,
+                        value: Some("mm".to_owned()),
+                        options: None,
+                    }),
+                },
+                ItemAttributeTemplateFieldDef {
+                    field_name: "重量".to_owned(),
+                    field_type: TemplateFieldType::Number,
+                    required: Some(true),
+                    searchable: Some(true),
+                    options: None,
+                    default_value: None,
+                    unit: Some(ItemAttributeUnitRule {
+                        mode: ItemAttributeUnitMode::Select,
+                        value: None,
+                        options: Some(vec!["g".to_owned(), "kg".to_owned()]),
+                    }),
+                },
+            ],
+        },
+    )
+    .await;
+    assert_eq!(template.status(), StatusCode::CREATED);
+    let template: ItemAttributeTemplateResponse = json_body(template).await;
+    let length_field_id = template.fields[0].field.id;
+    let weight_field_id = template.fields[1].field.id;
+
+    let invalid = authorized_json_request(
+        &app,
+        "POST",
+        "/api/items",
+        &token,
+        &ItemCreateRequest {
+            name: "无效单位物品".to_owned(),
+            sku: "INVALID-UNIT-001".to_owned(),
+            category_id: None,
+            attribute_template_id: Some(template.id),
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
+            unit: "件".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: vec![
+                ItemAttributeRequest {
+                    template_field_id: Some(length_field_id),
+                    field_name: "长度".to_owned(),
+                    field_type: TemplateFieldType::Number,
+                    value: serde_json::json!(120),
+                    unit: Some("cm".to_owned()),
+                },
+                ItemAttributeRequest {
+                    template_field_id: Some(weight_field_id),
+                    field_name: "重量".to_owned(),
+                    field_type: TemplateFieldType::Number,
+                    value: serde_json::json!(2.5),
+                    unit: Some("lb".to_owned()),
+                },
+            ],
+        },
+    )
+    .await;
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(invalid).await, "invalid_request");
+
+    let created = authorized_json_request(
+        &app,
+        "POST",
+        "/api/items",
+        &token,
+        &ItemCreateRequest {
+            name: "有效单位物品".to_owned(),
+            sku: "VALID-UNIT-001".to_owned(),
+            category_id: None,
+            attribute_template_id: Some(template.id),
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
+            unit: "件".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: vec![
+                ItemAttributeRequest {
+                    template_field_id: Some(length_field_id),
+                    field_name: "长度".to_owned(),
+                    field_type: TemplateFieldType::Number,
+                    value: serde_json::json!(120),
+                    unit: None,
+                },
+                ItemAttributeRequest {
+                    template_field_id: Some(weight_field_id),
+                    field_name: "重量".to_owned(),
+                    field_type: TemplateFieldType::Number,
+                    value: serde_json::json!(2.5),
+                    unit: Some("kg".to_owned()),
+                },
+            ],
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let created: ItemResponse = json_body(created).await;
+    assert_eq!(created.attributes[0].unit.as_deref(), Some("mm"));
+    assert_eq!(created.attributes[1].unit.as_deref(), Some("kg"));
+}
+
+#[tokio::test]
 async fn item_search_uses_item_attributes_while_filter_values_use_current_inventory() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
@@ -591,21 +721,23 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
             description: Some("search metadata template".to_owned()),
             default_inbound_template_id: None,
             fields: vec![
-                TemplateFieldDef {
+                ItemAttributeTemplateFieldDef {
                     field_name: "brand".to_owned(),
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
                     searchable: Some(true),
                     options: None,
                     default_value: None,
+                    unit: None,
                 },
-                TemplateFieldDef {
+                ItemAttributeTemplateFieldDef {
                     field_name: "internal_note".to_owned(),
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
                     searchable: Some(false),
                     options: None,
                     default_value: None,
+                    unit: None,
                 },
             ],
         },

@@ -109,7 +109,6 @@
   inset: 0;
   border: 0;
   background: rgb(23 32 42 / 38%);
-  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav-drawer {
@@ -168,7 +167,6 @@
 .mobile-nav-trigger,
 .mobile-account-trigger {
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav-trigger svg,

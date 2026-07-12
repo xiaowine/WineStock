@@ -76,8 +76,18 @@
               <td data-label="操作">
                 <div class="inbound-line__actions">
                   <button class="inbound-line__edit" type="button" :data-line-action="line.lineId" @click="$emit('select-line', line.lineId)">批次与属性</button>
-                  <button class="inbound-line__remove" type="button" :aria-label="`移除 ${line.item.name}`" :title="`移除 ${line.item.name}`" @click="$emit('remove-line', line.lineId)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                  <button
+                    class="inbound-line__remove"
+                    type="button"
+                    :data-line-id="line.lineId"
+                    data-field="remove"
+                    :aria-label="`移除 ${line.item.name}`"
+                    :title="`移除 ${line.item.name}`"
+                    @click="$emit('remove-line', line.lineId)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
+                    </svg>
                   </button>
                 </div>
               </td>

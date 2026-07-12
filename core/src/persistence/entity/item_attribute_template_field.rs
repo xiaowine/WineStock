@@ -25,6 +25,12 @@ pub struct Model {
     pub options_json: Option<String>,
     /// 可选默认值。
     pub default_value: Option<String>,
+    /// 单位规则稳定代码：none、fixed、select 或 custom。
+    pub unit_mode: String,
+    /// fixed 模式使用的固定单位。
+    pub fixed_unit: Option<String>,
+    /// select 模式使用的单位候选值 JSON。
+    pub unit_options_json: Option<String>,
     /// 字段展示顺序。
     pub sort_order: i32,
     /// 创建时间，使用 SQLite UTC 字符串格式。

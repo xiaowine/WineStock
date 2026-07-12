@@ -35,7 +35,7 @@ async fn opens_sqlite_database_with_wal_pragmas() {
 }
 
 #[tokio::test]
-async fn migration_is_idempotent_and_creates_v1_tables() {
+async fn migration_is_idempotent_and_creates_current_schema() {
     let temp = tempdir().expect("temp dir should exist");
     let config = StorageConfig {
         database_path: temp
@@ -89,6 +89,21 @@ async fn migration_is_idempotent_and_creates_v1_tables() {
         );
         assert_eq!(query_i64(&storage.database, &sql, "count").await, 1);
     }
+    for column in ["unit_mode", "fixed_unit", "unit_options_json"] {
+        let sql = format!(
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attribute_template_fields') WHERE name = '{column}'"
+        );
+        assert_eq!(query_i64(&storage.database, &sql, "count").await, 1);
+    }
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_inbound_template_fields') WHERE name IN ('unit_mode', 'fixed_unit', 'unit_options_json')",
+            "count",
+        )
+        .await,
+        0
+    );
     assert_eq!(
         query_i64(
             &storage.database,

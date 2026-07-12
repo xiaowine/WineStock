@@ -1,187 +1,65 @@
 # Agent Instructions
 
-This file is the short operating guide for agents.
-Keep cross-component design in `docs/*.md` and component-specific design in the owning component's `docs/` directory.
-Do not treat the current Android demo layout as the target architecture.
+本文件是 WineStock 全项目的短操作入口。
+跨组件设计放在根 `docs/`，组件实现规则放在所属组件的 `docs/`；不要把某个领域的局部约束当成整个项目的默认架构。
 
-## Required Reading
+## 开始工作前
 
-Before changing project code or structure, read:
+所有代码或结构修改先读取：
 
-1. `docs/architecture.md`
-2. `docs/runtime-networking.md`
-3. `docs/platforms.md`
-4. `docs/project-structure.md`
-5. `docs/agent-checklist.md`
-6. `docs/code-map.md`
+1. [`docs/README.md`](docs/README.md)
+2. [`docs/architecture.md`](docs/architecture.md)
+3. [`docs/project-structure.md`](docs/project-structure.md)
+4. [`docs/agent-checklist.md`](docs/agent-checklist.md)
+5. [`docs/code-map.md`](docs/code-map.md) 及本次改动对应的子地图
 
-## Project Position
+涉及运行模式、地址、端口或服务生命周期时，再读取：
 
-The formal product includes desktop and Android client platforms.
-It may also include a pure server shell that exposes the shared API without frontend assets.
+- [`docs/runtime-networking.md`](docs/runtime-networking.md)
+- [`docs/platforms.md`](docs/platforms.md)
 
-The shared backend is one Rust/Axum service library.
-Desktop and Android must reuse the same service library.
-Do not create separate platform-specific servers.
+进入具体领域时，从对应文档入口继续：
 
-The UI is platform-owned.
-Axum does not package, own, or serve platform frontend build artifacts.
+- [`core/docs/README.md`](core/docs/README.md)：Axum HTTP、业务逻辑、持久化、权限和数据库。
+- [`shared/docs/README.md`](shared/docs/README.md)：平台无关配置、配置加载和基础规则。
+- [`server/docs/README.md`](server/docs/README.md)：无头 server shell、固定配置位置、启动与关闭。
+- [`frontend/docs/README.md`](frontend/docs/README.md)：前端路由、API client、页面、交互、视觉和响应式规则。
 
-## Current Implementation Scope
+正式 desktop Tauri shell 与 Android shell 尚未实现；相关工作必须先依据 [`docs/platforms.md`](docs/platforms.md) 和 [`docs/project-structure.md`](docs/project-structure.md) 明确所有权，不能复制当前 demo 或脚手架结构作为正式架构。
 
-The formal product is multi-platform, but the current implementation scope is server/API first.
-Use [`docs/platforms.md`](docs/platforms.md) and [`docs/project-structure.md`](docs/project-structure.md) as the source of truth for current platform status and ownership boundaries.
+## 项目所有权
 
-Unless the user explicitly requests platform-shell work, do not implement desktop, Android, WebView, Tauri, or frontend packaging behavior.
-Keep current implementation work in the server-facing `core`, `shared`, and `server` boundaries described by those docs.
+- `shared`：平台无关配置与基础规则，不依赖 Axum、平台 shell 或前端。
+- `core`：共享 Rust/Axum 服务、HTTP 契约、业务逻辑、状态和持久化，不拥有平台 UI 或资源打包。
+- `server`：无头进程生命周期、配置位置、日志、启动和优雅关闭，不复制 core 业务实现。
+- `frontend`：共享 Vue/Vite 前端源码，通过 HTTP 使用 core，不直接调用 Rust 内部业务 API。
+- `desktop`、`android`：各自的平台生命周期、WebView、权限和资源打包；正式实现必须复用同一 core 服务。
 
-## Core Components
+允许的主要依赖方向：
 
-Use these major parts:
+```text
+server -> core -> shared
+server -> shared
+frontend -> HTTP API
+desktop/android shell -> core/shared + packaged frontend assets
+```
 
-- `core axum library`
-- `desktop shell`
-- `android shell`
-- `server shell`
-- `frontend app(s)`
-- `shared rust library/config`
+禁止 core 依赖平台 shell 或前端构建产物，也禁止 Axum 打包或服务平台前端资源。
 
-The `core axum library` owns API routes, service lifecycle hooks, network bind behavior, business logic, shared state, and persistence integration.
+## 实施规则
 
-The `core axum library` does not own Tauri windows, Android activities, WebView setup, shell-specific process wrappers, platform permissions, or frontend build artifacts.
+- 先确认变更归属和公共边界，再修改代码；跨组件变更要明确每一侧的职责。
+- 优先沿用现有模块、组件、token、API 契约和局部模式，不建立重复实现。
+- 引入依赖、修改数据库、删除兼容行为、更新代码地图、编写中文注释和选择验证范围时，完整执行 [`docs/agent-checklist.md`](docs/agent-checklist.md)。
+- 判断 HTTP 接口时先核对运行服务的 `/api-docs/openapi.json`，再读 core 业务文档，最后才追踪 controller/service/repository 源码。
+- UI 改动必须读取前端视觉、动效和一致性文档，并在桌面、断点附近和移动视口检查真实尺寸、溢出、状态与控制台。
+- 不硬编码 IP 或端口；`0.0.0.0` 只能用于绑定，不能作为浏览器或 WebView 访问 URL。
+- 删除或改变行为时同步清理失效代码、测试、注释、文档和代码地图，不保留无意义兼容层。
 
-## Platform Entry Points
+## 完成门槛
 
-Desktop uses Tauri v2.
-The desktop shell starts or connects to Axum based on config.
-The Tauri WebView opens a local or remote HTTP URL.
-
-Android uses a native shell plus WebView.
-The Android shell starts or connects to Axum based on config.
-The Android WebView opens a local or remote HTTP URL.
-
-Server uses a headless process.
-The server shell starts Axum from shared config and exposes HTTP APIs without WebView or frontend packaging.
-
-UI-bearing platforms communicate with Axum over HTTP.
-Do not couple UI code directly to internal Rust business APIs.
-
-## Networking Rules
-
-The app can access itself.
-The app can access another device running the service.
-The app can expose its service to other clients.
-
-Use explicit runtime modes: `client-only`, `self-hosted`, `server-mode`, and `connect-to-remote`.
-
-For local self access, prefer `127.0.0.1:<port>`.
-For server mode, use explicit `bind_host` and `port`.
-For platforms that connect to another service, use `remote_base_url`.
-
-`0.0.0.0` is only a bind address.
-Never show `0.0.0.0` as a user-facing access URL.
-When bound to all interfaces, show a loopback URL for local access and do not present `0.0.0.0` as an openable URL.
-
-## Config Rules
-
-Do not hard-code IP addresses.
-Do not hard-code ports.
-Use shared config for all runtime network decisions.
-
-Expected config keys: `mode`, `bind_host`, `port`, `remote_base_url`, and `auto_start_server`.
-
-Do not add a separate `server.enabled` flag.
-Runtime mode decides whether a local Axum service exists.
-
-A pure server shell may only consume the server-side subset and does not need `remote_base_url` just to expose its own API.
-
-Config must state whether the platform should start local Axum, connect to local Axum, connect to remote Axum, or expose local Axum to the LAN.
-
-## Frontend Rules
-
-Do not make Axum serve platform frontend bundles.
-Package frontend resources through each platform's UI framework.
-
-Desktop frontend resources belong to Tauri packaging.
-Android frontend resources belong to Android packaging.
-
-The spec does not require a specific frontend framework.
-Do not add that constraint unless the user explicitly chooses one.
-
-## Prohibited Assumptions
-
-Do not copy the demo JNI structure as the formal architecture.
-Do not copy the demo UI structure as the formal architecture.
-Do not infer final package names from the demo.
-Do not bind the formal project to the current Gradle module layout.
-Do not make Axum directly serve Tauri build output.
-Do not make Axum directly serve Android WebView assets.
-Do not use `0.0.0.0` as a browser or WebView URL.
-Do not require LAN exposure for normal self-hosted local use.
-
-## Dependency Rules
-
-Before introducing any new library or dependency, query the current stable version from the official package registry or upstream release source.
-Do not add outdated or unverified dependency versions.
-
-## Code Map Rules
-
-Read the [`docs/code-map.md`](docs/code-map.md) index and the relevant structure-specific map under `docs/code-map/` before large or cross-module implementation work.
-When generating new code, adding or moving modules or crates, changing public API surfaces, or making broad code changes, update the relevant structure-specific map in the same change.
-Update the root index only when top-level components, map files, or dependency directions change.
-If the code map is missing or stale, regenerate it before continuing implementation.
-Write and maintain the root index and all structure-specific code maps in Chinese.
-
-## Implementation Discipline
-
-Read the config model before changing startup behavior.
-Read the networking model before changing URLs or bind addresses.
-Read the platform lifecycle rules before changing service startup or shutdown.
-
-## Verification Discipline
-
-Do not run broad Cargo verification by default after every small edit.
-Prefer the narrowest command that covers the touched crate or behavior, such as `cargo +stable check -p winestock-server`.
-Use `cargo +stable check --workspace --all-targets` only for broad or cross-crate changes, release/readiness checks, or when the user explicitly asks for full workspace validation.
-`cargo +stable fmt --all -- --check` is formatting-only and does not replace targeted compile or test checks.
-When choosing a broader command, state why the broader cache/fingerprint impact is justified.
-
-Keep shared code in shared crates.
-Keep platform code in platform shells.
-Keep frontend packaging platform-specific.
-Keep code modular and cohesive.
-Do not pile unrelated behavior into one file, function, module, or crate when a clear local boundary exists.
-When removing or simplifying behavior, also remove obsolete functions, wrappers, arguments, config keys, tests, and documentation.
-Do not keep meaningless compatibility shims unless the user explicitly requires backward compatibility.
-Before changing database schema or migration strategy, ask whether destructive database changes are acceptable unless the user has already explicitly allowed them in the current task.
-
-## Comment Rules
-
-Comments exist to help a reader quickly understand what each part of the project does, where it belongs, and what constraints it must preserve.
-Code comments must be written in Chinese.
-
-Every new source file or module must start with a short Chinese module/file comment explaining:
-
-- what this file/module owns
-- which layer it belongs to, such as `core`, `shared`, or `server shell`
-- what it must not own when there is an important boundary
-
-Public API types, cross-module structs/enums, database entities, DTO/config structs, repository input structs, and error enums must have Chinese documentation comments.
-For database entities, DTO/config structs, repository input structs, and error enums, document every field or enum variant unless the field is private and purely mechanical.
-
-For functions that cross ownership boundaries, perform persistence, transactions, networking, config parsing, migration, startup/shutdown, or security-sensitive behavior, add a Chinese doc comment or a nearby Chinese intent comment.
-Those comments should state when the function is used, what side effects it has, and what failure behavior matters.
-
-For non-obvious parameters, config keys, database columns, runtime modes, path rules, bind-address rules, or security-sensitive values, document their meaning on the struct field, enum variant, function doc comment, or nearby intent comment.
-When touching an under-commented area, improve the surrounding comments enough that the next reader can quickly understand the local responsibility without reconstructing it from every call site.
-
-Update comments that describe changed behavior.
-Do not leave stale comments behind.
-If a comment is only restating syntax, delete it instead of translating it.
-Do not document every local variable or obvious control-flow branch; prefer comments that explain ownership, invariants, data format, side effects, failure behavior, and why a boundary exists.
-
-Before finishing any code change, audit comments in changed source files.
-Use a text search for comment markers such as `//`, `///`, `//!`, and block comments.
-Technical names such as `Axum`, `SQLx`, `SeaORM`, `JWT`, `PRAGMA`, and path/API identifiers may remain as-is, but explanatory prose in code comments must be Chinese.
-
-When adding tests or checks, cover local self access, LAN access, remote access, port conflicts, server startup and shutdown, and frontend artifacts staying out of the Axum crate.
+- 使用覆盖本次变更的最窄有效检查；跨 crate、公共 API、依赖或发布检查才扩大验证范围。
+- 审核变更源码中的中文注释、所有权说明和过时内容。
+- 确认工作区现有用户改动未被回退，差异只包含本任务需要的内容。
+- 大范围实现、模块移动、公共 API 或职责变化必须同步更新相应中文代码地图。
+- 最终说明实际执行的构建、测试、浏览器或 smoke 检查，以及未能执行的验证。
