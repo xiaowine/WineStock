@@ -6,7 +6,7 @@
   <section class="route-page dashboard-page">
     <header class="content-header dashboard-page__header">
       <div class="dashboard-page__heading">
-        <h1>总览</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>查看当前库存规模、近期流转和需要关注的呆滞物品。</p>
       </div>
       <button

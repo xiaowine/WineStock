@@ -12,7 +12,7 @@
           <span :class="{ 'inbound-progress__step--active': currentStep === 'draft' }">2</span>
         </div>
         <div>
-          <h1>新建入库</h1>
+          <h1>{{ $route.meta.title }}</h1>
         </div>
       </div>
       <div v-if="currentStep === 'draft'" class="inbound-draft-summary" aria-label="当前入库草稿摘要">

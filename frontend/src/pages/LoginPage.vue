@@ -11,7 +11,7 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="login-title">登录</h1>
+          <h1 id="login-title">{{ $route.meta.title }}</h1>
           <p>使用 WineStock 账号连接当前配置的库存服务。</p>
         </div>
       </header>

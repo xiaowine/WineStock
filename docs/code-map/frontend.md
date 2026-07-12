@@ -13,10 +13,11 @@
 
 ## 路由与布局
 
-- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、OpenAPI 业务域页面、鉴权页面、用户管理路由，以及未匹配路径返回总览的 catch-all 重定向。
+- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、OpenAPI 业务域页面、鉴权页面、用户管理路由，以及未匹配路径返回库存总览的 catch-all 重定向；应用壳页面的 `meta` 从统一路由目录生成。
+- `frontend/src/router/appRouteCatalog.ts`：应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源；不创建 Router 或执行权限判断。
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、`requiredPermission` 和强制改密页面放行元数据。
 - `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
-- `frontend/src/router/navigation.ts`：应用壳一级导航名称、业务/管理分组和线性图标配置，并按当前会话权限快照过滤可见入口。
+- `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
 - `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell，并提供操作时即时核对当前 Shell 的无副作用判断；冷启动和宿主 resize 同时校验布局视口、宿主窗口与可视视口宽度，避免移动 WebView 临时使用 980px 布局视口时短暂挂载桌面 Shell。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
@@ -142,7 +143,7 @@
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：带鉴权主图缩略图、可取消搜索和滚动分页的全宽物品目录，以及通过共享 `ItemEditorDialog` 完成的新建/编辑、未保存关闭确认、必选主图、分类、可选预设、自定义属性和图片属性编排；共享模型按 OpenAPI 部分更新语义比较基线草稿，只发送变化字段并保留显式 null 清空语义；初始加载和分页提示使用稳定 pending 呈现，搜索、刷新和保存后的重新加载保留现有列表；刷新与新建作为同级图标操作统一位于目录工具栏，关闭 Dialog 后清空编辑草稿和目录选中态。
 - `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、动态模板、图片上传、提交确认和后端错误定位。
-- `frontend/src/pages/PlaceholderPage.vue`：入库记录、出库、审批、库位、分类与模板、替代料和事件日志共用的无数据占位页，只展示路由职责与对应 OpenAPI 范围。
+- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批、库位、分类与模板、替代关系和审计日志共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。

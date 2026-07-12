@@ -1,16 +1,18 @@
-// 本文件拥有应用壳主导航配置和权限快照过滤，属于 frontend 路由层；后端仍决定最终授权。
-import { hasPermission, stockPermissions } from '../auth/permissions'
+// 本文件从应用路由目录生成主导航并按权限过滤，属于 frontend 路由层；它不重复声明页面名称或权限。
+import { hasPermission } from '../auth/permissions'
+import {
+  appRouteCatalog,
+  type AppNavigationGroup,
+  type AppNavigationIcon,
+  type AppRouteName,
+} from './appRouteCatalog'
 
-/** 应用壳导航分组；管理入口与高频业务入口分开呈现。 */
-export type AppNavigationGroup = 'primary' | 'management'
-
-/** 应用壳当前使用的线性图标名称。 */
-export type AppNavigationIcon = 'dashboard' | 'items' | 'inbound' | 'users'
+export type { AppNavigationGroup, AppNavigationIcon } from './appRouteCatalog'
 
 /** 应用壳一级导航入口。 */
 export interface AppNavigationItem {
   /** Vue Router 路由名称。 */
-  routeName: string
+  routeName: AppRouteName
   /** 面向用户的入口名称。 */
   label: string
   /** 侧栏信息分组。 */
@@ -24,100 +26,26 @@ export interface AppNavigationItem {
 }
 
 /** 应用壳当前可见的一级导航入口。 */
-export const appNavigation: readonly AppNavigationItem[] = [
-  {
-    routeName: 'dashboard',
-    label: '总览',
-    group: 'primary',
-    icon: 'dashboard',
-    requiredPermission: stockPermissions.dashboardRead,
-  },
-  {
-    routeName: 'items',
-    label: '物品',
-    group: 'primary',
-    icon: 'items',
-    requiredPermission: stockPermissions.itemRead,
-  },
-  {
-    routeName: 'inbound',
-    label: '新建入库',
-    group: 'primary',
-    icon: 'inbound',
-    requiredPermission: stockPermissions.inboundCreate,
-  },
-  {
-    routeName: 'inbound-orders',
-    label: '入库记录',
-    group: 'primary',
-    icon: 'inbound',
-    requiredPermission: stockPermissions.inboundRead,
-  },
-  {
-    routeName: 'outbound',
-    label: '出库',
-    group: 'primary',
-    icon: 'inbound',
-    requiredPermission: stockPermissions.outboundCreate,
-    desktopOnly: true,
-  },
-  {
-    routeName: 'outbound-orders',
-    label: '出库记录',
-    group: 'primary',
-    icon: 'inbound',
-    requiredPermission: stockPermissions.outboundRead,
-  },
-  {
-    routeName: 'inbound-approvals',
-    label: '入库审批',
-    group: 'primary',
-    icon: 'inbound',
-    requiredPermission: stockPermissions.inboundApprove,
-  },
-  {
-    routeName: 'outbound-approvals',
-    label: '出库审批',
-    group: 'primary',
-    icon: 'inbound',
-    requiredPermission: stockPermissions.outboundApprove,
-  },
-  {
-    routeName: 'locations',
-    label: '库位',
-    group: 'management',
-    icon: 'items',
-    requiredPermission: stockPermissions.locationRead,
-  },
-  {
-    routeName: 'templates',
-    label: '分类与模板',
-    group: 'management',
-    icon: 'items',
-    requiredPermission: stockPermissions.templateRead,
-  },
-  {
-    routeName: 'substitutes',
-    label: '替代料',
-    group: 'management',
-    icon: 'items',
-    requiredPermission: stockPermissions.substituteRead,
-  },
-  {
-    routeName: 'events',
-    label: '事件日志',
-    group: 'management',
-    icon: 'users',
-    requiredPermission: stockPermissions.auditRead,
-  },
-  {
-    routeName: 'users',
-    label: '用户',
-    group: 'management',
-    icon: 'users',
-    requiredPermission: 'user.read',
-  },
-]
+export const appNavigation: readonly AppNavigationItem[] = (Object.keys(appRouteCatalog) as AppRouteName[])
+  .sort((left, right) => {
+    const leftNavigation = appRouteCatalog[left].navigation
+    const rightNavigation = appRouteCatalog[right].navigation
+    if (leftNavigation.group !== rightNavigation.group) {
+      return leftNavigation.group === 'primary' ? -1 : 1
+    }
+    return leftNavigation.order - rightNavigation.order
+  })
+  .map((routeName) => {
+    const entry = appRouteCatalog[routeName]
+    return {
+      routeName,
+      label: entry.title,
+      group: entry.navigation.group,
+      icon: entry.navigation.icon,
+      requiredPermission: entry.requiredPermission,
+      desktopOnly: 'desktopOnly' in entry.navigation ? entry.navigation.desktopOnly : undefined,
+    }
+  })
 
 /** 根据当前会话权限返回可见导航，不把前端隐藏当作安全边界。 */
 export function getVisibleAppNavigation(
@@ -130,7 +58,7 @@ export function getVisibleAppNavigation(
   )
 }
 
-/** 返回当前权限下第一个可用业务入口；无可见入口时保留总览作为错误承载页。 */
+/** 返回当前权限下第一个可用业务入口；无可见入口时保留库存总览作为错误承载页。 */
 export function getDefaultAppRouteName(permissions: readonly string[] | undefined): string {
   return getVisibleAppNavigation(permissions)[0]?.routeName ?? 'dashboard'
 }

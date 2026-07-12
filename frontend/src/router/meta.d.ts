@@ -1,5 +1,6 @@
 // 本文件扩展 Vue Router 页面元数据，属于 frontend 路由契约；它不负责执行鉴权判断。
 import 'vue-router'
+import type { AppRouteNavigation } from './appRouteCatalog'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -11,6 +12,8 @@ declare module 'vue-router' {
     allowsPasswordChangeRequired?: boolean
     /** 进入页面所需的权限代码；只用于前端入口控制，后端仍执行实时授权。 */
     requiredPermission?: string
+    /** 应用壳一级导航的分组、排序和平台可见性；未声明时不进入侧栏。 */
+    navigation?: AppRouteNavigation
   }
 }
 

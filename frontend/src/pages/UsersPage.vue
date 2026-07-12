@@ -6,7 +6,7 @@
   <section class="route-page users-page">
     <header class="content-header users-page__header">
       <div>
-        <h1>用户管理</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>查看账号状态，并按权限执行创建、启停、删除、权限分配和临时密码操作。</p>
       </div>
     </header>

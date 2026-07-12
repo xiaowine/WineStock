@@ -8,7 +8,7 @@
   >
     <header class="content-header items-page__header">
       <div>
-        <h1>物品</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>维护入库、出库和库存统计使用的物品资料。</p>
       </div>
     </header>

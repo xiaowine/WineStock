@@ -36,6 +36,8 @@ http://127.0.0.1:<vite-port>/#/users
 
 ## 当前路由
 
+应用壳一级页面的名称、权限和导航呈现集中声明在 `src/router/appRouteCatalog.ts`。路由 `meta`、桌面侧栏、移动 Drawer、移动 Header 和页面主标题均读取同一份元数据，不得在组件或导航配置中再次硬编码页面名称。
+
 | 路径 | 路由名 | 布局 | `requiresAuth` | 当前职责 |
 | --- | --- | --- | --- | --- |
 | `/` | 无 | `AppShell` | 是 | 重定向到 `dashboard` |
@@ -49,8 +51,8 @@ http://127.0.0.1:<vite-port>/#/users
 | `/approvals/outbound` | `outbound-approvals` | `AppShell` | 是 | 出库单审批与拒绝占位页；需要 `stock.outbound.approve` |
 | `/locations` | `locations` | `AppShell` | 是 | 库位分组、库位与整批次移库占位页；需要 `stock.location.read` |
 | `/templates` | `templates` | `AppShell` | 是 | 物品分类、物品属性模板和入库模板占位页；需要 `stock.template.read` |
-| `/substitutes` | `substitutes` | `AppShell` | 是 | 替代料关系占位页；需要 `stock.substitute.read` |
-| `/events` | `events` | `AppShell` | 是 | 审计事件日志占位页；需要 `audit.read` |
+| `/substitutes` | `substitutes` | `AppShell` | 是 | 物品替代关系占位页；需要 `stock.substitute.read` |
+| `/events` | `events` | `AppShell` | 是 | 审计日志占位页；需要 `audit.read` |
 | `/users` | `users` | `AppShell` | 是 | 用户管理真实列表和管理操作；另需 `user.read` |
 | `/login` | `login` | 独立响应式页面 | 否 | 桌面和移动共用真实登录表单 |
 | `/register` | `register` | 独立响应式页面 | 否 | 桌面和移动共用首个用户注册及自动登录流程 |

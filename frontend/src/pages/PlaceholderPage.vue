@@ -6,7 +6,7 @@
   <section class="route-page placeholder-page">
     <header class="content-header">
       <div>
-        <h1>{{ title }}</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>{{ description }}</p>
       </div>
     </header>
@@ -21,8 +21,6 @@
 
 <script setup lang="ts">
 defineProps<{
-  /** 页面主标题，与路由元数据保持一致。 */
-  title: string
   /** 当前页面未来承载的业务职责。 */
   description: string
   /** 从实时 OpenAPI 归纳出的接口范围。 */

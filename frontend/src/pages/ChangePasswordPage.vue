@@ -11,7 +11,7 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="change-password-title">修改密码</h1>
+          <h1 id="change-password-title">{{ $route.meta.title }}</h1>
           <p>
             {{
               passwordChangeRequired

@@ -11,7 +11,7 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="register-title">创建首个用户</h1>
+          <h1 id="register-title">{{ $route.meta.title }}</h1>
           <p>首个用户无需登录即可创建，并会自动获得全部内置权限。</p>
         </div>
       </header>
