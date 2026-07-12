@@ -75,7 +75,7 @@
           :aria-label="draftCounts.has(item.id) ? `将 ${item.name} 移出入库单` : `将 ${item.name} 加入入库单`"
           :aria-pressed="draftCounts.has(item.id)"
           :title="draftCounts.has(item.id) ? '移出入库单' : '加入入库单'"
-          @click="$emit('toggle-item', item)"
+          @click="toggleItem(item, $event)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path v-if="draftCounts.has(item.id)" d="M5 12h14" />
@@ -123,5 +123,17 @@ const emit = defineEmits<{
 
 function captureList(element: unknown): void {
   emit('list-element', element instanceof HTMLElement ? element : null)
+}
+
+/** 触屏切换后释放粘滞焦点；键盘操作继续保留全局 focus-visible 反馈。 */
+function toggleItem(item: ItemResponse, event: MouseEvent): void {
+  emit('toggle-item', item)
+
+  if (event.detail > 0 && window.matchMedia('(hover: none), (pointer: coarse)').matches) {
+    const trigger = event.currentTarget
+    if (trigger instanceof HTMLButtonElement) {
+      trigger.blur()
+    }
+  }
 }
 </script>
