@@ -12,33 +12,44 @@
       class="inbound-file-field__preview inbound-file-field__preview--interactive"
       :class="{ 'inbound-file-field__preview--empty': !value }"
     >
-      <button
-        ref="pickerTrigger"
-        class="inbound-file-field__preview-trigger"
-        type="button"
-        :aria-label="value ? `更换图片：${value.name}` : '选择图片'"
-        :aria-expanded="pickerOpen"
-        :aria-controls="pickerId"
-        @click="togglePicker"
+      <div
+        class="inbound-file-field__preview-main"
+        :class="{ 'inbound-file-field__preview-main--with-image': value?.previewUrl }"
       >
-        <img v-if="value?.previewUrl" :src="value.previewUrl" alt="上传图片缩略图" />
-        <span v-else class="inbound-file-field__image-placeholder" aria-hidden="true">
-          <svg v-if="!value" viewBox="0 0 24 24">
-            <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-            <circle cx="9" cy="10" r="1.5" />
-            <path d="m5.5 17 4.5-4 3.2 2.8 2.3-2 3 3.2" />
-          </svg>
-          <template v-else>图</template>
-        </span>
-        <span class="inbound-file-field__preview-copy">
-          <strong>{{ value?.name ?? '选择图片' }}</strong>
-          <span v-if="!value">本地图片或纯色图片</span>
-          <span v-else-if="value.status === 'pending'">将在提交时上传</span>
-          <span v-else-if="value.status === 'uploading'">上传中 {{ value.progress }}%</span>
-          <span v-else-if="value.status === 'failed'">{{ value.error }}</span>
-          <span v-else>{{ formatFileSize(value.sizeBytes) }}</span>
-        </span>
-      </button>
+        <PreviewImage
+          v-if="value?.previewUrl"
+          class="inbound-file-field__image-preview"
+          :src="value.previewUrl"
+          :alt="value.name || label"
+        />
+        <button
+          ref="pickerTrigger"
+          class="inbound-file-field__preview-trigger"
+          :class="{ 'inbound-file-field__preview-trigger--with-image': value?.previewUrl }"
+          type="button"
+          :aria-label="value ? `更换图片：${value.name}` : '选择图片'"
+          :aria-expanded="pickerOpen"
+          :aria-controls="pickerId"
+          @click="togglePicker"
+        >
+          <span v-if="!value?.previewUrl" class="inbound-file-field__image-placeholder" aria-hidden="true">
+            <svg v-if="!value" viewBox="0 0 24 24">
+              <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+              <circle cx="9" cy="10" r="1.5" />
+              <path d="m5.5 17 4.5-4 3.2 2.8 2.3-2 3 3.2" />
+            </svg>
+            <template v-else>图</template>
+          </span>
+          <span class="inbound-file-field__preview-copy">
+            <strong>{{ value?.name ?? '选择图片' }}</strong>
+            <span v-if="!value">本地图片或纯色图片</span>
+            <span v-else-if="value.status === 'pending'">将在提交时上传</span>
+            <span v-else-if="value.status === 'uploading'">上传中 {{ value.progress }}%</span>
+            <span v-else-if="value.status === 'failed'">{{ value.error }}</span>
+            <span v-else>{{ formatFileSize(value.sizeBytes) }}</span>
+          </span>
+        </button>
+      </div>
       <button
         v-if="value"
         class="icon-button inbound-file-field__remove"
@@ -123,6 +134,7 @@ import { deleteImage, readImage, validateImageFile } from '../../api/files'
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from '../../api/errors'
 import { notice } from '../../notices/notice'
 import type { FileDraftValue } from '../../pages/inbound-draft/model'
+import PreviewImage from '../PreviewImage.vue'
 import { createPendingImageDraft, createSolidColorImage, randomSolidColor, releaseImageDraft } from './imageDraft'
 import AttributeColorPicker from './AttributeColorPicker.vue'
 
@@ -394,11 +406,34 @@ function formatFileSize(bytes: number): string {
   text-align: left;
 }
 
+.inbound-file-field__preview-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.inbound-file-field__preview-main--with-image {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.inbound-file-field__image-preview {
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.inbound-file-field__preview-trigger--with-image {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .inbound-file-field__preview-trigger:focus-visible .inbound-file-field__preview-copy strong {
   color: var(--color-accent);
 }
 
-.inbound-file-field__preview img,
 .inbound-file-field__image-placeholder {
   width: 48px;
   height: 48px;
@@ -413,10 +448,6 @@ function formatFileSize(bytes: number): string {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.inbound-file-field__preview img {
-  object-fit: cover;
 }
 
 .inbound-file-field__image-placeholder {

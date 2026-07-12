@@ -14,17 +14,26 @@
       <span>{{ loading ? '数据返回后会自动更新。' : '服务暂未返回每日趋势。' }}</span>
     </div>
 
-    <div v-else class="dashboard-trend-chart__canvas" @pointerleave="hoverIndex = null">
+    <div
+      v-else
+      ref="canvasElement"
+      class="dashboard-trend-chart__canvas"
+      @pointerleave="handlePointerLeave"
+    >
       <svg
-        :viewBox="`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`"
+        :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
+        :style="{ height: `${chartHeight}px` }"
         role="img"
         :aria-label="`近 ${days} 天入库和出库数量曲线图`"
+        tabindex="0"
+        @keydown="handleKeydown"
+        @pointerdown="handlePointerDown"
         @pointermove="handlePointerMove"
       >
         <g class="dashboard-trend-chart__grid">
           <template v-for="tick in yTicks" :key="tick.value">
-            <line :x1="PADDING_LEFT" :x2="CHART_WIDTH - PADDING_RIGHT" :y1="tick.y" :y2="tick.y" />
-            <text :x="PADDING_LEFT - 10" :y="tick.y + 4" text-anchor="end">
+            <line :x1="paddingLeft" :x2="chartWidth - paddingRight" :y1="tick.y" :y2="tick.y" />
+            <text :x="paddingLeft - 8" :y="tick.y + 4" text-anchor="end">
               {{ formatCompactNumber(tick.value) }}
             </text>
           </template>
@@ -35,7 +44,7 @@
             v-for="label in xLabels"
             :key="label.index"
             :x="label.x"
-            :y="CHART_HEIGHT - 7"
+            :y="chartHeight - 7"
             :text-anchor="label.anchor"
           >
             {{ label.text }}
@@ -53,8 +62,8 @@
           <line
             :x1="hoveredPoint.x"
             :x2="hoveredPoint.x"
-            :y1="PADDING_TOP"
-            :y2="CHART_HEIGHT - PADDING_BOTTOM"
+            :y1="paddingTop"
+            :y2="chartHeight - paddingBottom"
           />
           <circle :cx="hoveredPoint.x" :cy="hoveredPoint.inboundY" r="5" class="dashboard-trend-chart__dot--inbound" />
           <circle :cx="hoveredPoint.x" :cy="hoveredPoint.outboundY" r="5" class="dashboard-trend-chart__dot--outbound" />
@@ -62,7 +71,7 @@
       </svg>
 
       <div
-        v-if="hoveredPoint"
+        v-if="hoveredPoint && !compactChart"
         class="dashboard-trend-chart__tooltip"
         :style="{ left: `${tooltipLeftPercent}%` }"
       >
@@ -70,21 +79,29 @@
         <span>入库 {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span>
         <span>出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span>
       </div>
+
+      <div
+        v-if="compactChart"
+        class="dashboard-trend-chart__touch-detail"
+        role="status"
+      >
+        <template v-if="hoveredPoint">
+          <strong>{{ formatFullDate(hoveredPoint.item.date) }}</strong>
+          <span><i class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--inbound" />入库 {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span>
+          <span><i class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--outbound" />出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span>
+        </template>
+        <span v-else class="dashboard-trend-chart__touch-hint">轻触曲线查看每日数量</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { DailyTrend } from '../../api/dashboard'
 
-const CHART_WIDTH = 820
-const CHART_HEIGHT = 260
-const PADDING_LEFT = 54
-const PADDING_RIGHT = 18
-const PADDING_TOP = 18
-const PADDING_BOTTOM = 34
-const Y_TICK_COUNT = 5
+const DEFAULT_CHART_WIDTH = 820
+const MINIMUM_CHART_WIDTH = 240
 
 interface ChartPoint {
   x: number
@@ -97,7 +114,21 @@ const props = defineProps<{
   loading: boolean
 }>()
 
+const canvasElement = ref<HTMLDivElement | null>(null)
+const chartWidth = ref(DEFAULT_CHART_WIDTH)
 const hoverIndex = ref<number | null>(null)
+const touchSelectionActive = ref(false)
+let resizeObserver: ResizeObserver | null = null
+
+const compactChart = computed(() => chartWidth.value < 720)
+const narrowChart = computed(() => chartWidth.value < 480)
+const chartHeight = computed(() => narrowChart.value ? 216 : compactChart.value ? 232 : 260)
+const paddingLeft = computed(() => narrowChart.value ? 42 : compactChart.value ? 46 : 54)
+const paddingRight = computed(() => narrowChart.value ? 10 : compactChart.value ? 12 : 18)
+const paddingTop = computed(() => compactChart.value ? 14 : 18)
+const paddingBottom = computed(() => compactChart.value ? 32 : 34)
+const yTickCount = computed(() => compactChart.value ? 4 : 5)
+const maximumXLabels = computed(() => narrowChart.value ? 3 : compactChart.value ? 4 : 6)
 const curvesCoincide = computed(() =>
   props.daily.every((item) => item.inbound_quantity === item.outbound_quantity),
 )
@@ -113,11 +144,11 @@ const outboundPoints = computed(() => createPoints('outbound_quantity'))
 const inboundPath = computed(() => createSmoothPath(inboundPoints.value))
 const outboundPath = computed(() => createSmoothPath(outboundPoints.value))
 const yTicks = computed(() =>
-  Array.from({ length: Y_TICK_COUNT + 1 }, (_, index) => {
-    const ratio = index / Y_TICK_COUNT
+  Array.from({ length: yTickCount.value + 1 }, (_, index) => {
+    const ratio = index / yTickCount.value
     return {
       value: maximumValue.value * (1 - ratio),
-      y: PADDING_TOP + ratio * (CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM),
+      y: paddingTop.value + ratio * (chartHeight.value - paddingTop.value - paddingBottom.value),
     }
   }),
 )
@@ -125,8 +156,7 @@ const xLabels = computed(() => {
   if (props.daily.length === 0) {
     return []
   }
-  const maximumLabels = 6
-  const step = Math.max(1, Math.ceil((props.daily.length - 1) / (maximumLabels - 1)))
+  const step = Math.max(1, Math.ceil((props.daily.length - 1) / (maximumXLabels.value - 1)))
   const indexes = Array.from({ length: props.daily.length }, (_, index) => index).filter(
     (index) => index % step === 0 || index === props.daily.length - 1,
   )
@@ -159,7 +189,37 @@ const tooltipLeftPercent = computed(() => {
   if (!hoveredPoint.value) {
     return 50
   }
-  return Math.min(90, Math.max(10, (hoveredPoint.value.x / CHART_WIDTH) * 100))
+  return Math.min(90, Math.max(10, (hoveredPoint.value.x / chartWidth.value) * 100))
+})
+
+onMounted(() => {
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(updateChartWidth)
+  }
+})
+
+onBeforeUnmount(() => resizeObserver?.disconnect())
+
+watch(canvasElement, (element, previousElement) => {
+  if (previousElement) {
+    resizeObserver?.unobserve(previousElement)
+  }
+  if (element) {
+    updateChartWidth()
+    resizeObserver?.observe(element)
+  }
+}, { flush: 'post' })
+
+watch(() => props.daily.length, (length) => {
+  if (length === 0 || (hoverIndex.value !== null && hoverIndex.value >= length)) {
+    hoverIndex.value = null
+    touchSelectionActive.value = false
+  }
+})
+
+watch(() => props.days, () => {
+  hoverIndex.value = null
+  touchSelectionActive.value = false
 })
 
 function createPoints(field: 'inbound_quantity' | 'outbound_quantity'): ChartPoint[] {
@@ -170,15 +230,15 @@ function createPoints(field: 'inbound_quantity' | 'outbound_quantity'): ChartPoi
 }
 
 function xForIndex(index: number): number {
-  const plotWidth = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT
+  const plotWidth = chartWidth.value - paddingLeft.value - paddingRight.value
   return props.daily.length <= 1
-    ? PADDING_LEFT + plotWidth / 2
-    : PADDING_LEFT + (index / (props.daily.length - 1)) * plotWidth
+    ? paddingLeft.value + plotWidth / 2
+    : paddingLeft.value + (index / (props.daily.length - 1)) * plotWidth
 }
 
 function yForValue(value: number): number {
-  const plotHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM
-  return PADDING_TOP + (1 - value / maximumValue.value) * plotHeight
+  const plotHeight = chartHeight.value - paddingTop.value - paddingBottom.value
+  return paddingTop.value + (1 - value / maximumValue.value) * plotHeight
 }
 
 /** 为纵轴保留约一成顶部空间，并把刻度步长归一到易读数值。 */
@@ -187,12 +247,12 @@ function calculateAxisMaximum(maximum: number): number {
     return 1
   }
 
-  const roughStep = (maximum * 1.1) / Y_TICK_COUNT
+  const roughStep = (maximum * 1.1) / yTickCount.value
   const magnitude = 10 ** Math.floor(Math.log10(roughStep))
   const normalizedStep = roughStep / magnitude
   const niceStepFactors = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]
   const niceStep = (niceStepFactors.find((factor) => factor >= normalizedStep) ?? 10) * magnitude
-  return niceStep * Y_TICK_COUNT
+  return niceStep * yTickCount.value
 }
 
 function createSmoothPath(points: readonly ChartPoint[]): string {
@@ -213,18 +273,63 @@ function createSmoothPath(points: readonly ChartPoint[]): string {
   return path
 }
 
-function handlePointerMove(event: PointerEvent): void {
+function updateChartWidth(): void {
+  const width = canvasElement.value?.getBoundingClientRect().width
+  if (width && Number.isFinite(width)) {
+    chartWidth.value = Math.max(MINIMUM_CHART_WIDTH, Math.round(width))
+  }
+}
+
+function selectPointFromPointer(event: PointerEvent): void {
   if (props.daily.length === 0) {
     return
   }
   const svg = event.currentTarget as SVGSVGElement
   const rect = svg.getBoundingClientRect()
-  const chartX = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH
+  const chartX = ((event.clientX - rect.left) / rect.width) * chartWidth.value
   const ratio = Math.min(
     1,
-    Math.max(0, (chartX - PADDING_LEFT) / (CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT)),
+    Math.max(0, (chartX - paddingLeft.value) / (chartWidth.value - paddingLeft.value - paddingRight.value)),
   )
   hoverIndex.value = Math.round(ratio * (props.daily.length - 1))
+}
+
+function handlePointerDown(event: PointerEvent): void {
+  selectPointFromPointer(event)
+  touchSelectionActive.value = event.pointerType !== 'mouse'
+}
+
+function handlePointerMove(event: PointerEvent): void {
+  if (event.pointerType === 'mouse' || event.buttons === 1) {
+    if (event.pointerType === 'mouse') {
+      touchSelectionActive.value = false
+    }
+    selectPointFromPointer(event)
+  }
+}
+
+function handlePointerLeave(event: PointerEvent): void {
+  if (event.pointerType === 'mouse' && !touchSelectionActive.value) {
+    hoverIndex.value = null
+  }
+}
+
+function handleKeydown(event: KeyboardEvent): void {
+  if (props.daily.length === 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+    return
+  }
+  event.preventDefault()
+  if (event.key === 'Home') {
+    hoverIndex.value = 0
+    return
+  }
+  if (event.key === 'End') {
+    hoverIndex.value = props.daily.length - 1
+    return
+  }
+  const currentIndex = hoverIndex.value ?? (event.key === 'ArrowLeft' ? props.daily.length : -1)
+  const offset = event.key === 'ArrowLeft' ? -1 : 1
+  hoverIndex.value = Math.min(props.daily.length - 1, Math.max(0, currentIndex + offset))
 }
 
 function formatShortDate(value: string): string {

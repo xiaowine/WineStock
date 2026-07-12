@@ -63,7 +63,7 @@
         class="inbound-catalog-step__item"
         :class="{ 'inbound-catalog-step__item--selected': draftCounts.has(item.id) }"
       >
-        <AuthenticatedImage :file-id="item.image_file_id" :alt="`${item.name} 主图`" :size="34" />
+        <AuthenticatedImage :file-id="item.image_file_id" :alt="`${item.name} 主图`" :size="34" previewable />
         <div class="inbound-catalog-step__identity">
           <strong :title="item.name">{{ item.name }}</strong>
         </div>

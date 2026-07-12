@@ -60,7 +60,7 @@
           <tbody>
             <tr v-for="(line, index) in lines" :key="line.lineId" :class="{ 'inbound-line--selected': selectedLineId === line.lineId }">
               <td data-label="物品">
-                <div class="inbound-line__identity"><AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" /><div><strong>{{ line.item.name }}</strong><span>{{ line.item.sku }} · {{ line.item.unit }} · 明细 {{ index + 1 }}</span></div></div>
+                <div class="inbound-line__identity"><AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" previewable /><div><strong>{{ line.item.name }}</strong><span>{{ line.item.sku }} · {{ line.item.unit }} · 明细 {{ index + 1 }}</span></div></div>
               </td>
               <td data-label="数量"><input v-model.number="line.quantity" :name="`quantity_${line.lineId}`" :data-line-id="line.lineId" data-field="quantity" :class="{ 'inbound-control--error': validationAttempted && !validQuantity(line.quantity) }" type="number" min="0.01" step="0.01" :aria-label="`${line.item.name} 入库数量`" /></td>
               <td data-label="单价"><input v-model.number="line.unitPrice" :name="`unit_price_${line.lineId}`" :data-line-id="line.lineId" data-field="unitPrice" :class="{ 'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice) }" type="number" min="0" step="0.01" :aria-label="`${line.item.name} 入库单价`" /></td>

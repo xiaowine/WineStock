@@ -5,18 +5,28 @@
 <template>
   <section class="route-page dashboard-page">
     <header class="content-header dashboard-page__header">
-      <div>
+      <div class="dashboard-page__heading">
         <h1>总览</h1>
         <p>查看当前库存规模、近期流转和需要关注的呆滞物品。</p>
       </div>
       <button
-        class="secondary-button"
+        class="icon-button dashboard-page__refresh"
+        :class="{ 'dashboard-page__refresh--pending': showDashboardRefreshing }"
         type="button"
+        title="刷新库存总览"
+        aria-label="刷新库存总览"
+        :aria-busy="refreshing"
         :disabled="refreshing"
         @click="refreshDashboard"
       >
-        {{ refreshing ? '刷新中…' : '刷新' }}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 7v5h-5" />
+          <path d="M18.2 16a7 7 0 1 1 .8-7l1 3" />
+        </svg>
       </button>
+      <span v-if="showDashboardRefreshing" class="visually-hidden" role="status">
+        正在刷新库存总览
+      </span>
     </header>
 
     <div v-if="showInitialLoading" class="dashboard-page__initial-state" role="status">
@@ -175,6 +185,11 @@ let trendsAbortController: AbortController | null = null
 const refreshing = computed(() => loadingOverview.value || loadingTrends.value)
 const waitingForInitialData = computed(() => overview.value === null && refreshing.value)
 const showInitialLoading = useStablePendingIndicator(waitingForInitialData, {
+  showDelayMs: 200,
+  minimumVisibleMs: 350,
+})
+const waitingForDashboardRefresh = computed(() => overview.value !== null && refreshing.value)
+const showDashboardRefreshing = useStablePendingIndicator(waitingForDashboardRefresh, {
   showDelayMs: 200,
   minimumVisibleMs: 350,
 })

@@ -1,7 +1,8 @@
-<!-- 本组件通过鉴权文件接口加载只读图片并管理 Blob URL；它不编辑、上传或绑定文件。 -->
+<!-- 本组件通过鉴权文件接口加载只读图片并管理 Blob URL；可按调用方要求组合全屏预览，但不编辑、上传或绑定文件。 -->
 <template>
   <div class="authenticated-image" :class="{ 'authenticated-image--loading': loading }" :style="sizeStyle">
-    <img v-if="previewUrl" :src="previewUrl" :alt="alt" />
+    <PreviewImage v-if="previewUrl && previewable" :src="previewUrl" :alt="alt" />
+    <img v-else-if="previewUrl" :src="previewUrl" :alt="alt" />
     <span v-else aria-hidden="true">{{ loading ? '…' : '图' }}</span>
   </div>
 </template>
@@ -9,8 +10,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { readImage } from '../../api/files'
+import PreviewImage from '../PreviewImage.vue'
 
-const props = withDefaults(defineProps<{ fileId: number; alt: string; size?: number }>(), { size: 44 })
+const props = withDefaults(defineProps<{
+  fileId: number
+  alt: string
+  size?: number
+  previewable?: boolean
+}>(), {
+  size: 44,
+  previewable: false,
+})
 const previewUrl = ref('')
 const loading = ref(false)
 const sizeStyle = computed(() => ({ width: `${props.size}px`, height: `${props.size}px` }))

@@ -65,9 +65,13 @@
 .dashboard-trend-chart svg {
   display: block;
   width: 100%;
-  min-height: 220px;
   overflow: visible;
   touch-action: pan-y;
+}
+
+.dashboard-trend-chart svg:focus-visible {
+  outline: 3px solid rgb(111 42 54 / 24%);
+  outline-offset: 2px;
 }
 
 .dashboard-trend-chart__grid line {
@@ -145,20 +149,83 @@
   color: var(--color-text);
 }
 
+.dashboard-trend-chart__touch-detail {
+  display: grid;
+  min-height: 42px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 9px 10px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-trend-chart__touch-detail strong {
+  overflow: hidden;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-trend-chart__touch-detail > span:not(.dashboard-trend-chart__touch-hint) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.dashboard-trend-chart__detail-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.dashboard-trend-chart__detail-dot--inbound {
+  background: var(--color-teal);
+}
+
+.dashboard-trend-chart__detail-dot--outbound {
+  background: var(--color-accent);
+}
+
+.dashboard-trend-chart__touch-hint {
+  grid-column: 1 / -1;
+  color: var(--color-subtle);
+  text-align: center;
+}
+
 @media (max-width: 767px) {
   .dashboard-trend-chart__legend {
     justify-content: flex-start;
+    gap: 14px;
   }
 
-  .dashboard-trend-chart svg {
-    min-width: 640px;
+  .dashboard-trend-chart__grid text,
+  .dashboard-trend-chart__axis-labels text {
+    font-size: 10px;
   }
 
-  .dashboard-trend-chart__canvas {
-    overflow-x: auto;
+  .dashboard-trend-chart__line {
+    stroke-width: 2.5;
   }
 
-  .dashboard-trend-chart__tooltip {
-    display: none;
+  .dashboard-trend-chart__touch-detail {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard-trend-chart__touch-detail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+  }
+
+  .dashboard-trend-chart__touch-detail strong {
+    grid-column: 1 / -1;
   }
 }

@@ -2,7 +2,7 @@
 <template>
   <section ref="editor" class="inbound-line-editor inbound-line-editor--drawer" role="dialog" aria-modal="true" aria-labelledby="inbound-line-editor-title" tabindex="-1">
     <header>
-      <AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" />
+      <AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" previewable />
       <div>
         <strong id="inbound-line-editor-title">批次与属性</strong>
         <span>{{ line.item.name }} · {{ line.item.sku }} · {{ line.item.unit }}</span>
