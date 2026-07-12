@@ -36,10 +36,11 @@
 - `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
 - `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
 - `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库流程的第二步，编辑来源、备注、数量、价格和分组库位，并展示逐行完整性状态。
-- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件，以“本地图片/纯色图片”互斥来源模式完成签名预检、本地预览、纯色图生成、替换和删除；不在编辑阶段上传。
+- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件；通过带视口避让和统一动效的锚定浮层选择本地文件或纯色图，预览承担更换入口并提供独立删除操作，同时完成签名预检和本地预览；不在编辑阶段上传。
+- `frontend/src/components/attributes/AttributeColorPicker.vue`：图片字段共用的无依赖 HSV/HEX 颜色选择器，提供饱和度与亮度平面、色相滑轨、HEX 输入、快捷色板和 Pointer Events/键盘交互；只输出颜色并通知应用，不生成图片。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL。
-- `frontend/src/components/items/`：物品基础资料、可选属性模板和任意属性编辑控件。
+- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板和任意属性编辑控件；桌面使用连续分区表单，移动端复用同一草稿进入独立编辑视图。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
@@ -137,7 +138,7 @@
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：原生 SVG 出入库双曲线、坐标轴和悬浮数据提示，不请求 API。
-- `frontend/src/pages/ItemsPage.vue`、`pages/items/model.ts`：带鉴权主图缩略图的物品列表，以及新建/编辑、必选主图、分类、可选预设、自定义属性和图片属性编排；新建时默认生成随机纯色图，保存前统一上传待处理图片。
+- `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：带鉴权主图缩略图、可取消搜索和滚动分页的物品目录，以及新建/编辑、未保存切换确认、必选主图、分类、可选预设、自定义属性和图片属性编排；桌面使用目录与编辑器双栏，移动端在目录和编辑视图间切换，图片由统一选择浮层接收本地文件或即时生成纯色图，保存前统一上传待处理图片。
 - `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、草稿恢复、物品去重、动态模板、图片上传、提交确认和后端错误定位。
 - `frontend/src/pages/PlaceholderPage.vue`：入库记录、出库、审批、库位、分类与模板、替代料和事件日志共用的无数据占位页，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
