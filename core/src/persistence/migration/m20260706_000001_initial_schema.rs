@@ -9,7 +9,7 @@ use sea_orm_migration::{prelude::*, sea_orm::ConnectionTrait};
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
-#[sea_orm_migration::async_trait::async_trait]
+#[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // 首版 schema 使用显式 SQL，便于保留 SQLite CHECK、局部唯一索引和时间默认值。
@@ -232,6 +232,9 @@ const INITIAL_SCHEMA: &[&str] = &[
         searchable INTEGER NOT NULL DEFAULT 0 CHECK (searchable IN (0, 1)),
         options_json TEXT,
         default_value TEXT,
+        unit_mode TEXT NOT NULL DEFAULT 'none' CHECK (unit_mode IN ('none', 'fixed', 'select', 'custom')),
+        fixed_unit TEXT,
+        unit_options_json TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

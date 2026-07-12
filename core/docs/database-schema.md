@@ -156,7 +156,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 物品属性预设字段。字段类型只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
 
-- `unit_mode`：单位规则，只允许 `none`、`fixed`、`select` 或 `custom`，已有数据迁移后默认为 `none`。
+- `unit_mode`：单位规则，只允许 `none`、`fixed`、`select` 或 `custom`，默认值为 `none`。
 - `fixed_unit`：仅 `fixed` 模式使用的固定单位。
 - `unit_options_json`：仅 `select` 模式使用的单位候选字符串数组 JSON。
 

@@ -9,10 +9,7 @@
 - `core/src/persistence/migration/mod.rs`：SeaORM `Migrator`。
 - `core/src/persistence/migration/m20260706_000001_initial_schema.rs`
   - 创建 auth、storage、stock 和 audit 业务表，包括物品/入库属性及两类图片绑定关系。
-  - 初始 schema 直接采用分类、物品属性模板和入库模板分离设计，不保留旧统一模板表。
-- `core/src/persistence/migration/m20260713_000002_item_template_unit_rules.rs`
-  - 非破坏性扩展物品属性模板字段，增加 `none`、`fixed`、`select`、`custom` 单位规则持久化列。
-  - 不修改入库模板字段，也不改写已有字段；已有字段自动采用 `none`。
+  - 初始 schema 直接采用分类、物品属性模板和入库模板分离设计，并在物品属性模板字段中保存 `none`、`fixed`、`select`、`custom` 单位规则，不保留旧统一模板表或开发阶段兼容迁移。
 
 数据库表与字段边界见 `core/docs/database-schema.md`。
 
