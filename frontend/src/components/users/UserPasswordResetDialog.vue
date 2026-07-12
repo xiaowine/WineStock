@@ -22,12 +22,12 @@
       </p>
 
       <form id="user-password-reset-form" class="dialog-form" novalidate @submit.prevent="submit">
-        <label class="form-field">
-          <span>临时密码</span>
-          <input
+        <div class="form-field">
+          <label for="user-temporary-password">临时密码</label>
+          <PasswordInput
+            id="user-temporary-password"
             v-model="password"
             name="temporary_password"
-            type="password"
             autocomplete="new-password"
             minlength="8"
             maxlength="128"
@@ -36,14 +36,14 @@
             :aria-invalid="Boolean(fieldErrors.password)"
           />
           <small v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</small>
-        </label>
+        </div>
 
-        <label class="form-field">
-          <span>确认临时密码</span>
-          <input
+        <div class="form-field">
+          <label for="user-temporary-password-confirmation">确认临时密码</label>
+          <PasswordInput
+            id="user-temporary-password-confirmation"
             v-model="confirmation"
             name="temporary_password_confirmation"
-            type="password"
             autocomplete="new-password"
             maxlength="128"
             :disabled="submitting"
@@ -52,7 +52,7 @@
           <small v-if="fieldErrors.confirmation" class="field-error">
             {{ fieldErrors.confirmation }}
           </small>
-        </label>
+        </div>
 
         <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
       </form>
@@ -78,6 +78,7 @@
 import { ref, watch } from 'vue'
 import type { UserAdminResponse } from '../../api/users'
 import ModalDialog from '../ModalDialog.vue'
+import PasswordInput from '../PasswordInput.vue'
 
 const props = defineProps<{
   user: UserAdminResponse | null

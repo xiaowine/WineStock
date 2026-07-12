@@ -26,12 +26,12 @@
         <small v-if="fieldErrors.username" class="field-error">{{ fieldErrors.username }}</small>
       </label>
 
-      <label class="form-field">
-        <span>初始密码</span>
-        <input
+      <div class="form-field">
+        <label for="user-create-password">初始密码</label>
+        <PasswordInput
+          id="user-create-password"
           v-model="password"
           name="password"
-          type="password"
           autocomplete="new-password"
           minlength="8"
           maxlength="128"
@@ -40,14 +40,14 @@
         />
         <small class="field-hint">至少 8 个字符</small>
         <small v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</small>
-      </label>
+      </div>
 
-      <label class="form-field">
-        <span>确认密码</span>
-        <input
+      <div class="form-field">
+        <label for="user-create-password-confirmation">确认密码</label>
+        <PasswordInput
+          id="user-create-password-confirmation"
           v-model="confirmation"
           name="password_confirmation"
-          type="password"
           autocomplete="new-password"
           maxlength="128"
           :disabled="submitting"
@@ -56,7 +56,7 @@
         <small v-if="fieldErrors.confirmation" class="field-error">
           {{ fieldErrors.confirmation }}
         </small>
-      </label>
+      </div>
 
       <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </form>
@@ -80,6 +80,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import ModalDialog from '../ModalDialog.vue'
+import PasswordInput from '../PasswordInput.vue'
 
 const props = defineProps<{
   open: boolean

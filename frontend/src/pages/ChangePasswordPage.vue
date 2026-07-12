@@ -38,12 +38,12 @@
           readonly
         />
 
-        <label class="form-field">
-          <span>当前密码</span>
-          <input
+        <div class="form-field">
+          <label for="change-current-password">当前密码</label>
+          <PasswordInput
+            id="change-current-password"
             v-model="currentPassword"
             name="current_password"
-            type="password"
             autocomplete="current-password"
             maxlength="256"
             autofocus
@@ -60,14 +60,14 @@
           >
             {{ currentPasswordError }}
           </small>
-        </label>
+        </div>
 
-        <label class="form-field">
-          <span>新密码</span>
-          <input
+        <div class="form-field">
+          <label for="change-new-password">新密码</label>
+          <PasswordInput
+            id="change-new-password"
             v-model="newPassword"
             name="new_password"
-            type="password"
             autocomplete="new-password"
             minlength="8"
             maxlength="128"
@@ -87,14 +87,14 @@
           >
             {{ newPasswordError }}
           </small>
-        </label>
+        </div>
 
-        <label class="form-field">
-          <span>确认新密码</span>
-          <input
+        <div class="form-field">
+          <label for="change-new-password-confirmation">确认新密码</label>
+          <PasswordInput
+            id="change-new-password-confirmation"
             v-model="newPasswordConfirmation"
             name="new_password_confirmation"
-            type="password"
             autocomplete="new-password"
             maxlength="128"
             :disabled="isSubmitting"
@@ -110,7 +110,7 @@
           >
             {{ newPasswordConfirmationError }}
           </small>
-        </label>
+        </div>
 
         <div v-if="errorMessage" class="form-error" role="alert">
           {{ errorMessage }}
@@ -162,6 +162,7 @@ import {
 import { AuthPersistenceError } from '../auth/storage'
 import { notice } from '../notices/notice'
 import { resolvePostLoginLocation } from '../router/guards'
+import PasswordInput from '../components/PasswordInput.vue'
 
 const router = useRouter()
 const route = useRoute()

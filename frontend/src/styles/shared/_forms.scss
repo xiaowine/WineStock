@@ -11,7 +11,8 @@
   gap: 7px;
 }
 
-.form-field > span {
+.form-field > span,
+.form-field > label {
   color: var(--color-text);
   font-size: 13px;
   font-weight: 650;
@@ -39,6 +40,75 @@
 .form-field input:disabled {
   background: var(--color-surface-raised);
   color: var(--color-muted);
+}
+
+.password-input {
+  position: relative;
+  min-width: 0;
+}
+
+.password-input input {
+  padding-right: 44px;
+}
+
+.password-input input::-ms-reveal,
+.password-input input::-ms-clear {
+  display: none;
+}
+
+.password-input__toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  transform: translateY(-50%);
+}
+
+.password-input__toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-input__toggle:focus-visible {
+  outline-width: 2px;
+  outline-offset: 0;
+}
+
+.password-input__toggle:disabled {
+  color: var(--color-subtle);
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .password-input__toggle:not(:disabled):hover {
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .password-input input {
+    padding-right: 46px;
+  }
+
+  .password-input__toggle {
+    right: 0;
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .field-error {

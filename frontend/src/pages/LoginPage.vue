@@ -38,12 +38,12 @@
           </small>
         </label>
 
-        <label class="form-field">
-          <span>密码</span>
-          <input
+        <div class="form-field">
+          <label for="login-password">密码</label>
+          <PasswordInput
+            id="login-password"
             v-model="password"
             name="password"
-            type="password"
             autocomplete="current-password"
             maxlength="256"
             :disabled="isSubmitting"
@@ -53,7 +53,7 @@
           <small v-if="passwordError" id="login-password-error" class="field-error">
             {{ passwordError }}
           </small>
-        </label>
+        </div>
 
         <div v-if="errorMessage" class="form-error" role="alert">
           {{ errorMessage }}
@@ -88,6 +88,7 @@ import { establishAuthSession } from '../auth/session'
 import { AuthPersistenceError } from '../auth/storage'
 import { notice } from '../notices/notice'
 import { resolvePostLoginLocation } from '../router/guards'
+import PasswordInput from '../components/PasswordInput.vue'
 
 const router = useRouter()
 const route = useRoute()

@@ -32,6 +32,7 @@
 - `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画。
+- `frontend/src/components/PasswordInput.vue`：登录、注册、改密和用户管理共用的密码输入呈现控件，统一显示/隐藏、焦点恢复和无障碍状态，不校验或持久化密码。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：只读展示物品属性，并编辑当前明细的批次、有效期、入库模板和入库属性。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
 - `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
