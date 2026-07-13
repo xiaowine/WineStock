@@ -1,7 +1,7 @@
 // 本文件拥有可跨页面复用的物品编辑草稿、请求转换与变更快照；它不发起 API 请求。
 import type { FileAttributeReference } from '../../api/inbound'
 import type { ApiError } from '../../api/errors'
-import type { ItemAttributeRequest, ItemCreateRequest, ItemResponse, ItemUpdateRequest } from '../../api/items'
+import type { ItemAttributeRequest, ItemCreateRequest, ItemEditorResponse, ItemUpdateRequest } from '../../api/items'
 import type { ItemAttributeTemplateFieldResponse, ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import type { TemplateFieldResponse, TemplateFieldType } from '../../api/templateFields'
 import type { FileDraftValue } from '../inbound-draft/model'
@@ -45,7 +45,7 @@ export function emptyItemDraft(): ItemDraft {
 }
 
 export function draftFromItem(
-  item: ItemResponse,
+  item: ItemEditorResponse,
   template: ItemAttributeTemplateResponse | null = null,
 ): ItemDraft {
   const draft: ItemDraft = {
@@ -77,20 +77,25 @@ export function applyAttributeTemplate(draft: ItemDraft, template: ItemAttribute
     const conflicts = template.fields.filter((field) => customNames.has(field.field_name.toLowerCase())).map((field) => field.field_name)
     if (conflicts.length > 0) throw new Error(`自定义属性与目标模板字段重名：${conflicts.join('、')}`)
   }
+  const sameTemplate = template !== null && draft.attributeTemplateId === template.id
+  const existingTemplateAttributes = sameTemplate
+    ? new Map(draft.attributes.filter((attribute) => !attribute.custom).map((attribute) => [attribute.definitionId, attribute]))
+    : new Map<number | null, ItemAttributeDraft>()
   draft.attributeTemplateId = template?.id ?? null
   draft.attributes = draft.attributes.filter((attribute) => attribute.custom)
   if (!template) return
-  const existing = new Map(draft.attributes.map((attribute) => [attribute.fieldName.toLowerCase(), attribute]))
   for (const field of template.fields) {
-    const current = existing.get(field.field_name.toLowerCase())
+    const current = existingTemplateAttributes.get(field.id)
     if (current) {
       current.definitionId = field.id
+      current.fieldName = field.field_name
       if (current.fieldType !== field.field_type) {
         current.fieldType = field.field_type
         current.value = initialFieldValue(field)
         current.unit = ''
       }
       applyTemplateUnit(current, field)
+      draft.attributes.push(current)
       continue
     }
     draft.attributes.push(attributeFromField(field))

@@ -5,6 +5,7 @@
 <template>
   <ItemEditorDialog
     :open="open"
+    mode="create"
     :draft="draft"
     :categories="categories"
     :templates="templates"
@@ -32,7 +33,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import type { ItemResponse } from '../../api/items'
+import type { ItemOptionResponse } from '../../api/items'
 import ModalDialog from '../ModalDialog.vue'
 import ItemEditorDialog from './ItemEditorDialog.vue'
 import { useItemCreateSession } from './useItemCreateSession'
@@ -40,7 +41,7 @@ import { useItemCreateSession } from './useItemCreateSession'
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{
   close: []
-  created: [item: ItemResponse]
+  created: [item: ItemOptionResponse]
 }>()
 
 const discardDialogOpen = ref(false)

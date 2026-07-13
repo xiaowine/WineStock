@@ -61,12 +61,17 @@
   width: min(100%, 720px);
 }
 
+.modal-panel--workspace {
+  width: min(100%, 920px);
+}
+
 .modal-panel--compact {
   width: min(100%, 440px);
   max-height: min(76vh, 640px);
 }
 
-.modal-panel--wide .modal-body {
+.modal-panel--wide .modal-body,
+.modal-panel--workspace .modal-body {
   padding-top: 0;
 }
 
@@ -132,6 +137,7 @@
 
   .modal-panel,
   .modal-panel--wide,
+  .modal-panel--workspace,
   .modal-panel--compact {
     width: 100%;
     max-height: calc(92vh - env(safe-area-inset-top));

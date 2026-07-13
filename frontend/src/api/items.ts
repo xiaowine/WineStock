@@ -1,4 +1,4 @@
-// 本文件拥有库存物品查询 DTO 和 HTTP 调用，属于 frontend API 边界；它不管理入库草稿或页面状态。
+// 本文件拥有物品命令、目录、选择器、编辑资料和库存详情 HTTP 契约；不同场景不共享万能响应。
 import { apiClient } from './client'
 import type { FileAttributeReference } from './inbound'
 import type { TemplateFieldType } from './templateFields'
@@ -30,36 +30,140 @@ export interface ItemAttributeRequest {
   unit?: string
 }
 
-/** 物品列表使用的基础资料。 */
-export interface ItemResponse {
-  /** 物品数据库 ID。 */
+/** 已有物品编辑器恢复草稿所需的完整资料。 */
+export interface ItemEditorResponse {
   id: number
-  /** 物品名称。 */
   name: string
-  /** 唯一物品编号。 */
   sku: string
-  /** 物品分类 ID。 */
   category_id: number | null
-  /** 可选物品属性模板 ID。 */
   attribute_template_id: number | null
-  /** 必选物品主图文件对象 ID。 */
   image_file_id: number
-  /** 物品主图受控读取地址。 */
   image_url: string
-  /** 计量单位。 */
   unit: string
-  /** 可选物品描述。 */
   description: string | null
-  /** 入库时可作为初始值的参考单价。 */
   default_price: number | null
-  /** 再订货点。 */
   reorder_point: number | null
-  /** 物品自身的类型化属性。 */
   attributes: ItemAttributeResponse[]
-  /** 创建时间。 */
   created_at: string
-  /** 最近更新时间。 */
   updated_at: string
+}
+
+export interface ItemMutationResponse {
+  id: number
+  updated_at: string
+}
+
+export type ItemStockState = 'out_of_stock' | 'reorder_due' | 'needs_configuration' | 'normal'
+export type ItemStockFilter = 'all' | 'needs_attention' | 'out_of_stock' | 'reorder_due' | 'needs_configuration'
+export type ItemCatalogSort = 'replenishment_priority' | 'name' | 'quantity_asc' | 'quantity_desc' | 'inventory_value_desc' | 'updated_desc'
+
+export interface CatalogAttributeResponse {
+  name: string
+  value: string | number | boolean | FileAttributeReference
+  unit: string | null
+}
+
+export interface ItemCatalogEntryResponse {
+  id: number
+  name: string
+  sku: string
+  category_id: number | null
+  category_name: string | null
+  attribute_template_id: number | null
+  image_file_id: number
+  image_url: string
+  unit: string
+  default_price: number | null
+  reorder_point: number | null
+  catalog_attributes: CatalogAttributeResponse[]
+  current_quantity: number
+  inventory_value: number
+  location_count: number
+  batch_count: number
+  stock_state: ItemStockState
+  updated_at: string
+}
+
+export interface ItemCatalogCountsResponse {
+  total: number
+  needs_attention: number
+  out_of_stock: number
+  reorder_due: number
+  needs_configuration: number
+}
+
+export interface ItemCatalogPageResponse {
+  items: ItemCatalogEntryResponse[]
+  counts: ItemCatalogCountsResponse
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+/** 入库等业务选择器使用的轻量物品资料。 */
+export interface ItemOptionResponse {
+  id: number
+  name: string
+  sku: string
+  category_id: number | null
+  category_name: string | null
+  attribute_template_id: number | null
+  image_file_id: number
+  image_url: string
+  unit: string
+}
+
+export interface ItemOptionPageResponse {
+  items: ItemOptionResponse[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface ItemLocationStockResponse {
+  location_id: number
+  location_code: string
+  location_name: string
+  quantity: number
+  value: number
+  batch_count: number
+}
+
+export interface ItemInventoryResponse {
+  id: number
+  name: string
+  sku: string
+  unit: string
+  reorder_point: number | null
+  current_quantity: number
+  inventory_value: number
+  stock_state: ItemStockState
+  batch_count: number
+  locations: ItemLocationStockResponse[]
+}
+
+export interface ItemBatchStockResponse {
+  id: number
+  batch_no: string
+  location_id: number
+  location_code: string
+  location_name: string
+  initial_quantity: number
+  remaining_quantity: number
+  unit_cost: number
+  value: number
+  received_at: string
+  expires_at: string | null
+}
+
+export interface ItemBatchPageResponse {
+  items: ItemBatchStockResponse[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 
 export interface ItemCreateRequest {
@@ -84,37 +188,67 @@ export interface ItemUpdateRequest extends Partial<Omit<ItemCreateRequest, 'attr
   attributes?: ItemAttributeRequest[]
 }
 
-/** 通用分页响应。 */
-export interface PaginatedResponse<TItem> {
-  /** 当前页数据。 */
-  items: TItem[]
-  /** 满足条件的总记录数。 */
-  total: number
-  /** 当前页码。 */
-  page: number
-  /** 每页数量。 */
-  page_size: number
-  /** 总页数。 */
-  total_pages: number
-}
-
 export function createItem(request: ItemCreateRequest) {
-  return apiClient.request<ItemResponse>('/api/items', { method: 'POST', json: request })
+  return apiClient.request<ItemMutationResponse>('/api/items', { method: 'POST', json: request })
 }
 
 export function updateItem(id: number, request: ItemUpdateRequest) {
-  return apiClient.request<ItemResponse>(`/api/items/${id}`, { method: 'PUT', json: request })
+  return apiClient.request<ItemMutationResponse>(`/api/items/${id}`, { method: 'PUT', json: request })
 }
 
-/** 查询物品列表；空搜索不发送 search 参数，避免触发服务端空搜索校验。 */
-export function listItems(search: string, page: number, pageSize: number, signal?: AbortSignal) {
-  const normalizedSearch = search.trim()
-  return apiClient.request<PaginatedResponse<ItemResponse>>('/api/items', {
+export function getItem(id: number, signal?: AbortSignal) {
+  return apiClient.request<ItemEditorResponse>(`/api/items/${id}`, { signal })
+}
+
+export function listItemCatalog(
+  search: string,
+  page: number,
+  pageSize: number,
+  stockFilter: ItemStockFilter,
+  sort: ItemCatalogSort,
+  signal?: AbortSignal,
+) {
+  return apiClient.request<ItemCatalogPageResponse>('/api/items', {
     query: {
       page,
       page_size: pageSize,
-      search: normalizedSearch || undefined,
+      search: search.trim() || undefined,
+      stock_filter: stockFilter,
+      sort,
     },
     signal,
   })
+}
+
+export function listItemOptions(search: string, page: number, pageSize: number, signal?: AbortSignal) {
+  return apiClient.request<ItemOptionPageResponse>('/api/items/options', {
+    query: { page, page_size: pageSize, search: search.trim() || undefined },
+    signal,
+  })
+}
+
+export function getItemInventory(id: number, signal?: AbortSignal) {
+  return apiClient.request<ItemInventoryResponse>(`/api/items/${id}/inventory`, { signal })
+}
+
+export function listItemBatches(id: number, page: number, pageSize = 20, signal?: AbortSignal) {
+  return apiClient.request<ItemBatchPageResponse>(`/api/items/${id}/batches`, {
+    query: { page, page_size: pageSize },
+    signal,
+  })
+}
+
+/** 把编辑器资料收敛为业务选择器允许持有的轻量快照。 */
+export function itemOptionFromEditor(item: ItemEditorResponse): ItemOptionResponse {
+  return {
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+    category_id: item.category_id,
+    category_name: null,
+    attribute_template_id: item.attribute_template_id,
+    image_file_id: item.image_file_id,
+    image_url: item.image_url,
+    unit: item.unit,
+  }
 }

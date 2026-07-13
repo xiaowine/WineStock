@@ -4,8 +4,7 @@
   gap: 12px;
 }
 
-.inbound-draft-page input,
-.inbound-draft-page select {
+.inbound-draft-page input {
   min-width: 0;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
@@ -13,8 +12,7 @@
   color: var(--color-text);
 }
 
-.inbound-draft-page input:focus,
-.inbound-draft-page select:focus {
+.inbound-draft-page input:focus {
   border-color: rgb(111 42 54 / 52%);
   outline: 3px solid rgb(111 42 54 / 12%);
   outline-offset: 0;
@@ -262,9 +260,7 @@
 
 .inbound-catalog-step__search {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px;
-  align-items: end;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
   padding: 12px 16px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-raised);
@@ -272,24 +268,6 @@
 
 .inbound-toolbar-button {
   width: 88px;
-  min-height: 38px;
-  padding: 0 10px;
-}
-
-.inbound-catalog-step__search label {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
-}
-
-.inbound-catalog-step__search label > span {
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.inbound-catalog-step__search input {
-  width: 100%;
   min-height: 38px;
   padding: 0 10px;
 }
@@ -397,7 +375,8 @@
   flex: 0 0 auto;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  /* 图标按钮跟随整行的悬浮与选中背景，边框继续表达可操作范围。 */
+  background: transparent;
   color: var(--color-accent-strong);
 }
 
@@ -599,7 +578,7 @@
 }
 
 .inbound-lines input,
-.inbound-lines select {
+.inbound-lines .select-control__trigger {
   width: 100%;
   min-height: 34px;
   padding: 0 8px;
@@ -628,7 +607,7 @@
   padding: 0 8px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-accent-strong);
   font-size: 11px;
   font-weight: 650;
@@ -647,7 +626,7 @@
   flex: 0 0 auto;
   border: 1px solid rgb(157 40 50 / 28%);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-danger);
 }
 
@@ -792,9 +771,9 @@
 }
 
 .inbound-line-editor__base-fields input,
-.inbound-template-picker select,
+.inbound-template-picker .select-control__trigger,
 .inbound-template-field > input,
-.inbound-template-field > select {
+.inbound-template-field > .select-control .select-control__trigger {
   width: 100%;
   min-height: 38px;
   padding: 0 10px;
@@ -1103,6 +1082,7 @@
     z-index: 2;
     top: 0;
     padding: 11px 12px;
+    background: var(--color-surface);
   }
 
   .inbound-catalog-step__list-header {
@@ -1116,7 +1096,7 @@
     grid-auto-rows: auto;
     gap: 10px;
     padding: 10px 12px 14px;
-    background: var(--color-surface-raised);
+    background: var(--color-surface);
   }
 
   .inbound-catalog-step__item {
@@ -1127,7 +1107,8 @@
     padding: 10px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: var(--color-surface-raised);
+    background: var(--color-surface);
+    box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
   }
 
   .inbound-catalog-step__item > .authenticated-image {
@@ -1152,7 +1133,9 @@
   .inbound-catalog-step__item--selected {
     border-color: rgb(111 42 54 / 24%);
     background: var(--color-accent-soft);
-    box-shadow: inset 3px 0 var(--color-accent);
+    box-shadow:
+      inset 3px 0 var(--color-accent),
+      0 1px 2px rgb(23 32 42 / 5%);
   }
 
   .inbound-order__body {
@@ -1163,6 +1146,7 @@
     grid-template-columns: minmax(0, 1fr) 88px;
     align-items: end;
     padding: 11px 12px;
+    background: var(--color-surface);
   }
 
   .inbound-order-meta__notes {
@@ -1176,7 +1160,7 @@
   .inbound-lines {
     overflow: visible;
     padding: 10px 10px 0;
-    background: var(--color-surface-raised);
+    background: var(--color-surface);
   }
 
   .inbound-lines table,
@@ -1211,6 +1195,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
+    box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
   }
 
   .inbound-lines tbody tr:hover,

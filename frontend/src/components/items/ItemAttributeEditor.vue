@@ -71,7 +71,7 @@
           :label="templateField?.field_name ?? (attribute.fieldName || '属性图片')"
           @update:model-value="updateFile"
         />
-        <select
+        <SelectControl
           v-else-if="attribute.fieldType === 'boolean'"
           v-model="attribute.value"
           :name="`attribute_value_${attribute.key}`"
@@ -82,8 +82,8 @@
           <option :value="undefined">请选择</option>
           <option :value="true">是</option>
           <option :value="false">否</option>
-        </select>
-        <select
+        </SelectControl>
+        <SelectControl
           v-else-if="attribute.fieldType === 'select'"
           v-model="attribute.value"
           :name="`attribute_value_${attribute.key}`"
@@ -93,7 +93,7 @@
         >
           <option value="">请选择</option>
           <option v-for="option in selectOptions" :key="option" :value="option">{{ option }}</option>
-        </select>
+        </SelectControl>
         <input
           v-else
           v-model="attribute.value"
@@ -113,7 +113,7 @@
           :error="validationErrors.unitValue"
           v-slot="{ describedBy: unitDescribedBy, invalid: unitInvalid }"
         >
-          <select
+          <SelectControl
             v-model="attribute.unit"
             :name="`attribute_unit_${attribute.key}`"
             aria-label="单位"
@@ -123,7 +123,7 @@
           >
             <option value="">选择单位</option>
             <option v-for="option in unitOptions" :key="option" :value="option">{{ option }}</option>
-          </select>
+          </SelectControl>
         </FormField>
       </div>
     </FormField>
@@ -182,6 +182,7 @@ import type { ItemAttributeUnitMode } from '../../api/itemAttributeTemplates'
 import FormField from '../forms/FormField.vue'
 import FormInput from '../forms/FormInput.vue'
 import FormSelect from '../forms/FormSelect.vue'
+import SelectControl from '../forms/SelectControl.vue'
 
 const props = withDefaults(defineProps<{
   attribute: ItemAttributeDraft

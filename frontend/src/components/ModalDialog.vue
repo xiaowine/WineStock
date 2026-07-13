@@ -18,7 +18,7 @@
         <section
           ref="panel"
           class="modal-panel"
-          :class="{ 'modal-panel--wide': wide, 'modal-panel--compact': compact }"
+          :class="{ 'modal-panel--wide': wide, 'modal-panel--workspace': workspace, 'modal-panel--compact': compact }"
         >
           <header class="modal-header" :class="{ 'modal-header--compact': !description }">
             <div>
@@ -68,6 +68,7 @@ const props = withDefaults(
     description?: string
     busy?: boolean
     wide?: boolean
+    workspace?: boolean
     compact?: boolean
     nested?: boolean
   }>(),
@@ -75,6 +76,7 @@ const props = withDefaults(
     description: undefined,
     busy: false,
     wide: false,
+    workspace: false,
     compact: false,
     nested: false,
   },

@@ -45,8 +45,7 @@
           :can-continue="draftItems.length > 0"
           :can-create-item="canCreateItem"
           @update:search-input="searchInput = $event"
-          @search-input="handleSearchInput"
-          @search="submitSearch"
+          @search="applySearch"
           @reset-items="resetItems"
           @load-next-items="loadNextItems"
           @scroll-items="handleItemScroll"
@@ -152,7 +151,7 @@ import {
 } from '../api/inbound'
 import { getItemAttributeTemplate, type ItemAttributeTemplateResponse } from '../api/itemAttributeTemplates'
 import { getInboundTemplate, listInboundTemplates, type InboundTemplateResponse } from '../api/inboundTemplates'
-import type { ItemResponse } from '../api/items'
+import type { ItemOptionResponse } from '../api/items'
 import { deleteImage } from '../api/files'
 import { ApiError } from '../api/errors'
 import { useInboundDraftPersistence } from '../composables/useInboundDraftPersistence'
@@ -200,7 +199,7 @@ const itemTemplateCache = new Map<number, ItemAttributeTemplateResponse>()
 
 const {
   items, searchInput, loadingItems, itemError, itemList, itemsExhausted,
-  resetItems, loadNextItems, submitSearch, handleSearchInput, handleItemScroll,
+  resetItems, loadNextItems, applySearch, handleItemScroll,
 } = useInboundItemCatalog((error) => itemErrorMessage(error))
 
 const draftItemCounts = computed(() => {
@@ -301,7 +300,7 @@ async function loadLocationOptions(): Promise<void> {
 }
 
 /** 选择阶段按物品去重，每个物品在当前入库单中只保留一条独立明细。 */
-function addItem(item: ItemResponse, showNotice = true): void {
+function addItem(item: ItemOptionResponse, showNotice = true): void {
   if (draftItems.value.some((line) => line.item.id === item.id)) return
   const line = createDraftLine(item)
   draftItems.value.push(line)
@@ -311,13 +310,13 @@ function addItem(item: ItemResponse, showNotice = true): void {
   if (showNotice) notice.info(`已加入 ${item.name}`)
 }
 
-function toggleCatalogItem(item: ItemResponse): void {
+function toggleCatalogItem(item: ItemOptionResponse): void {
   const line = draftItems.value.find((candidate) => candidate.item.id === item.id)
   if (line) removeLine(line.lineId)
   else addItem(item)
 }
 
-async function handleItemCreated(item: ItemResponse): Promise<void> {
+async function handleItemCreated(item: ItemOptionResponse): Promise<void> {
   itemCreateOpen.value = false
   addItem(item, false)
   notice.success('物品已创建并加入入库单', { detail: item.name })
@@ -420,7 +419,7 @@ function openDraftStep(): void {
 async function continueAddingItems(): Promise<void> {
   selectedLineId.value = null
   await goToStep('catalog')
-  document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus()
+  document.querySelector<HTMLElement>('.inbound-catalog-step__search input')?.focus()
 }
 
 /** 按步骤顺序设置切换方向，让前进与返回使用对称的水平动效。 */
@@ -566,7 +565,7 @@ async function deleteLineUploads(line: InboundDraftLine): Promise<void> {
 async function focusFirstError(): Promise<void> {
   if (draftItems.value.length === 0) {
     await goToStep('catalog')
-    document.querySelector<HTMLElement>('[data-inbound-catalog-search]')?.focus()
+    document.querySelector<HTMLElement>('.inbound-catalog-step__search input')?.focus()
     return
   }
   await goToStep('draft')

@@ -1,6 +1,6 @@
 // 本文件拥有入库草稿的 localStorage/IndexedDB 序列化、恢复和浏览器离开提示；它不提交业务 API。
 import { onBeforeUnmount, onMounted, watch, type ComputedRef, type Ref } from 'vue'
-import type { ItemResponse } from '../api/items'
+import type { ItemOptionResponse } from '../api/items'
 import { createLineId, type AttributeValue, type FileDraftValue, type InboundDraftLine } from '../pages/inbound-draft/model'
 import { clearInboundDraftImages, readInboundDraftImage, replaceInboundDraftImages } from '../storage/inboundDraftImageStore'
 import { createPendingImageDraft } from '../components/attributes/imageDraft'
@@ -24,7 +24,7 @@ interface PersistedDraft {
   notesOpen: boolean
   lines: Array<{
     lineId: string
-    item: ItemResponse
+    item: ItemOptionResponse
     quantity: number
     unitPrice: number
     locationId: number | null

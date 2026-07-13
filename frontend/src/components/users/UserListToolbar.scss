@@ -2,7 +2,7 @@
 .user-list-toolbar {
   display: flex;
   min-width: 0;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   margin-top: 14px;
@@ -10,7 +10,6 @@
 }
 
 .user-list-toolbar__filters,
-.user-list-toolbar__search,
 .user-list-toolbar__meta,
 .user-list-toolbar__actions {
   display: flex;
@@ -19,62 +18,23 @@
 
 .user-list-toolbar__filters {
   min-width: 0;
+  align-items: flex-end;
   gap: 10px;
 }
 
 .user-list-toolbar__search {
-  min-width: 0;
-  gap: 6px;
-}
-
-.user-list-toolbar__search label {
   width: min(300px, 28vw);
   min-width: 180px;
 }
 
-.user-list-toolbar__search input {
-  width: 100%;
-  min-height: 38px;
-  padding: 0 11px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.user-list-toolbar__search input:focus {
-  border-color: var(--color-accent);
-  outline: 3px solid rgb(111 42 54 / 14%);
-}
-
 .user-list-toolbar__status {
-  display: inline-flex;
-  flex: 0 0 auto;
-  padding: 2px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-}
-
-.user-list-toolbar__status button {
-  min-height: 32px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
+  display: grid;
+  width: 150px;
+  flex: 0 0 150px;
+  gap: 6px;
   color: var(--color-muted);
   font-size: 12px;
-}
-
-.user-list-toolbar__status button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.user-list-toolbar__status-option--active {
-  background: var(--color-accent-soft) !important;
-  color: var(--color-accent-strong) !important;
-  font-weight: 680;
+  font-weight: 650;
 }
 
 .user-list-toolbar__meta {
@@ -85,13 +45,110 @@
 }
 
 .user-list-toolbar__count {
+  min-width: 58px;
   color: var(--color-muted);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   white-space: nowrap;
+}
+
+.user-list-toolbar__count > span {
+  display: inline-block;
+}
+
+/* 数量变化只切换文字，避免重新触发列表区域的整体动画。 */
+.user-count-enter-active,
+.user-count-leave-active {
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.user-count-enter-from {
+  opacity: 0;
+  transform: translateY(var(--motion-distance-small));
+}
+
+.user-count-leave-to {
+  opacity: 0;
+  transform: translateY(calc(0px - var(--motion-distance-small)));
 }
 
 .user-list-toolbar__actions {
   gap: 8px;
+}
+
+.user-list-toolbar__refresh {
+  width: 40px;
+  height: 40px;
+}
+
+.user-list-toolbar__refresh svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.user-list-toolbar__refresh--pending,
+.user-list-toolbar__refresh--pending:hover {
+  border-color: rgb(111 42 54 / 24%);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.user-list-toolbar__refresh--pending svg {
+  animation: user-list-toolbar-refresh-spin 900ms linear infinite;
+}
+
+.user-list-toolbar__refresh:disabled {
+  cursor: wait;
+}
+
+.user-list-toolbar__refresh-status {
+  color: var(--color-accent);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@keyframes user-list-toolbar-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1040px) {
+  .user-list-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .user-list-toolbar__filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px;
+  }
+
+  .user-list-toolbar__search {
+    width: auto;
+    min-width: 0;
+  }
+
+  .user-list-toolbar__meta {
+    justify-content: space-between;
+    padding-top: 10px;
+    padding-left: 0;
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+
+  .user-list-toolbar__refresh-status {
+    display: none;
+  }
 }
 
 @media (max-width: 767px) {
@@ -112,18 +169,16 @@
     grid-column: 1 / -1;
   }
 
-  .user-list-toolbar__search label {
+  .user-list-toolbar__search {
     width: auto;
     min-width: 0;
     flex: 1 1 auto;
   }
 
   .user-list-toolbar__status {
+    width: 150px;
     min-width: 0;
-  }
-
-  .user-list-toolbar__status button {
-    flex: 1 1 auto;
+    flex-basis: 150px;
   }
 
   .user-list-toolbar__meta {
@@ -132,5 +187,9 @@
     padding-left: 0;
     border-top: 1px solid var(--color-border);
     border-left: 0;
+  }
+
+  .user-list-toolbar__refresh-status {
+    display: none;
   }
 }

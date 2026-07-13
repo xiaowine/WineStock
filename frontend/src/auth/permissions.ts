@@ -24,6 +24,7 @@ export const stockPermissions = {
   outboundRead: 'stock.outbound.read',
   outboundApprove: 'stock.outbound.approve',
   templateRead: 'stock.template.read',
+  templateManage: 'stock.template.manage',
   substituteRead: 'stock.substitute.read',
   auditRead: 'audit.read',
 } as const

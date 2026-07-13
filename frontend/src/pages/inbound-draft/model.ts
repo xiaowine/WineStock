@@ -2,7 +2,7 @@
 import type { FileAttributeReference, InboundCreateRequest, InboundSubmissionMode } from '../../api/inbound'
 import type { InboundTemplateResponse } from '../../api/inboundTemplates'
 import type { TemplateFieldResponse } from '../../api/templateFields'
-import type { ItemResponse } from '../../api/items'
+import type { ItemOptionResponse } from '../../api/items'
 import { isImageDraftValue, releaseImageDraft, type ImageDraftValue } from '../../components/attributes/imageDraft'
 
 export type FileDraftValue = ImageDraftValue
@@ -13,7 +13,7 @@ export type AttributeValue = string | number | boolean | FileDraftValue | undefi
 /** 独立入库明细；lineId 是同物品多批次的页面身份。 */
 export interface InboundDraftLine {
   lineId: string
-  item: ItemResponse
+  item: ItemOptionResponse
   quantity: number
   unitPrice: number
   locationId: number | null
@@ -27,9 +27,9 @@ export interface InboundDraftLine {
 }
 
 /** 从真实物品创建一条互相独立的入库明细。 */
-export function createDraftLine(item: ItemResponse): InboundDraftLine {
+export function createDraftLine(item: ItemOptionResponse): InboundDraftLine {
   return {
-    lineId: createLineId(), item, quantity: 1, unitPrice: item.default_price ?? 0,
+    lineId: createLineId(), item, quantity: 1, unitPrice: 0,
     locationId: null, batchNo: '', expiresAt: '', extAttributes: {}, template: null,
     templateLoading: false, templateId: null, templateError: '',
   }

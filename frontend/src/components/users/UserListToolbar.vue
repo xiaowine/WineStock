@@ -4,44 +4,59 @@
 -->
 <template>
   <section class="user-list-toolbar" aria-label="用户列表工具栏">
-    <form class="user-list-toolbar__filters" role="search" novalidate @submit.prevent="emit('apply')">
-      <div class="user-list-toolbar__search">
-        <label>
-          <span class="visually-hidden">搜索用户名</span>
-          <input
-            :value="search"
-            name="search"
-            type="search"
-            maxlength="64"
-            placeholder="搜索用户名"
-            @input="updateSearch"
-          />
-        </label>
-        <button class="secondary-button" type="submit" :disabled="loading">搜索</button>
-      </div>
+    <div class="user-list-toolbar__filters">
+      <SearchField
+        v-model="search"
+        class="user-list-toolbar__search"
+        label="搜索用户名"
+        name="search"
+        placeholder="搜索用户名"
+        :maxlength="64"
+        hide-label
+        @search="emit('search', $event)"
+      />
 
-      <div class="user-list-toolbar__status" role="group" aria-label="账号状态">
-        <button
-          v-for="option in statusOptions"
-          :key="option.value"
-          type="button"
-          :class="{ 'user-list-toolbar__status-option--active': status === option.value }"
-          :aria-pressed="status === option.value"
+      <label class="user-list-toolbar__status">
+        <span>账号状态</span>
+        <SelectControl
+          v-model="status"
+          name="user_status"
           :disabled="loading"
-          @click="selectStatus(option.value)"
+          @change="applyStatus"
         >
-          {{ option.label }}
-        </button>
-      </div>
-
-    </form>
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </SelectControl>
+      </label>
+    </div>
 
     <div class="user-list-toolbar__meta">
-      <span class="user-list-toolbar__count">{{ total }} 个用户</span>
+      <span class="user-list-toolbar__count">
+        <Transition name="user-count" mode="out-in">
+          <span :key="total">{{ total }} 个用户</span>
+        </Transition>
+      </span>
       <div class="user-list-toolbar__actions">
-        <button class="secondary-button" type="button" :disabled="loading" @click="emit('refresh')">
-          {{ loading ? '刷新中…' : '刷新' }}
+        <span v-if="refreshing" class="user-list-toolbar__refresh-status" aria-hidden="true">
+          正在刷新
+        </span>
+        <button
+          class="icon-button user-list-toolbar__refresh"
+          :class="{ 'user-list-toolbar__refresh--pending': refreshing }"
+          type="button"
+          title="刷新用户列表"
+          aria-label="刷新用户列表"
+          :aria-busy="loading"
+          :disabled="loading"
+          @click="emit('refresh')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 7v5h-5" />
+            <path d="M18.2 16a7 7 0 1 1 .8-7l1 3" />
+          </svg>
         </button>
+        <span v-if="refreshing" class="visually-hidden" role="status">正在刷新用户列表</span>
         <button v-if="canRegister" class="primary-button" type="button" @click="emit('create')">
           创建用户
         </button>
@@ -53,6 +68,8 @@
 <script setup lang="ts">
 import { nextTick } from 'vue'
 import type { UserStatus } from '../../api/users'
+import SearchField from '../SearchField.vue'
+import SelectControl from '../forms/SelectControl.vue'
 
 const search = defineModel<string>('search', { required: true })
 const status = defineModel<'' | UserStatus>('status', { required: true })
@@ -60,11 +77,13 @@ const status = defineModel<'' | UserStatus>('status', { required: true })
 defineProps<{
   total: number
   loading: boolean
+  refreshing: boolean
   canRegister: boolean
 }>()
 
 const emit = defineEmits<{
   apply: []
+  search: [value: string]
   refresh: []
   create: []
 }>()
@@ -75,26 +94,11 @@ const statusOptions: ReadonlyArray<{ label: string; value: '' | UserStatus }> = 
   { label: '已停用', value: 'disabled' },
 ]
 
-/** 同步搜索草稿；清空输入时立即恢复未搜索的列表。 */
-async function updateSearch(event: Event): Promise<void> {
-  const nextSearch = (event.target as HTMLInputElement).value
-  search.value = nextSearch
-
-  if (!nextSearch) {
-    await nextTick()
-    emit('apply')
-  }
-}
-
-async function selectStatus(nextStatus: '' | UserStatus): Promise<void> {
-  if (status.value === nextStatus) {
-    return
-  }
-  status.value = nextStatus
+/** 同步账号状态并立即应用筛选，使选择框行为与其它目录页一致。 */
+async function applyStatus(): Promise<void> {
   await nextTick()
   emit('apply')
 }
-
 </script>
 
 <style lang="scss" src="./UserListToolbar.scss"></style>

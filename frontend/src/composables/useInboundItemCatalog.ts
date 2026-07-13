@@ -1,12 +1,12 @@
 // 本文件拥有入库工作台物品目录的搜索、取消、分页合并和滚动触底状态；它不管理入库明细。
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { listItems, type ItemResponse } from '../api/items'
+import { listItemOptions, type ItemOptionResponse } from '../api/items'
 
 const pageSize = 50
 
 /** 服务端分页物品目录。 */
 export function useInboundItemCatalog(errorMessage: (error: unknown) => string) {
-  const items = ref<ItemResponse[]>([])
+  const items = ref<ItemOptionResponse[]>([])
   const totalItems = ref(0)
   const currentPage = ref(0)
   const totalPages = ref(0)
@@ -45,7 +45,7 @@ export function useInboundItemCatalog(errorMessage: (error: unknown) => string) 
     loadingItems.value = true
     itemError.value = ''
     try {
-      const response = await listItems(activeSearch.value, nextPage, pageSize, request.signal)
+      const response = await listItemOptions(activeSearch.value, nextPage, pageSize, request.signal)
       if (generation !== requestGeneration) return
       const merged = new Map(items.value.map((item) => [item.id, item]))
       response.items.forEach((item) => merged.set(item.id, item))
@@ -65,16 +65,10 @@ export function useInboundItemCatalog(errorMessage: (error: unknown) => string) 
     }
   }
 
-  function submitSearch(): void {
-    activeSearch.value = searchInput.value.trim()
+  function applySearch(value: string): void {
+    if (value === activeSearch.value) return
+    activeSearch.value = value
     void reset()
-  }
-
-  function handleSearchInput(): void {
-    if (searchInput.value === '' && activeSearch.value !== '') {
-      activeSearch.value = ''
-      void reset()
-    }
   }
 
   function handleScroll(): void {
@@ -85,6 +79,6 @@ export function useInboundItemCatalog(errorMessage: (error: unknown) => string) 
   return {
     items, totalItems, searchInput, loadingItems, itemError, itemList,
     itemsExhausted: exhausted, itemResultLabel: resultLabel,
-    resetItems: reset, loadNextItems: loadNext, submitSearch, handleSearchInput, handleItemScroll: handleScroll,
+    resetItems: reset, loadNextItems: loadNext, applySearch, handleItemScroll: handleScroll,
   }
 }

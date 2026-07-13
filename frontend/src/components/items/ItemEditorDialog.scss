@@ -1,0 +1,292 @@
+/* 本文件拥有物品工作区 Dialog 的多页导航、库存摘要和批次布局，不改变共享编辑器字段规则。 */
+.item-workspace__context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 13px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-surface-raised);
+}
+
+.item-workspace__context > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.item-workspace__context span {
+  color: var(--color-subtle);
+  font-size: 12px;
+}
+
+.item-workspace__context strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-workspace__identity {
+  flex: 0 1 auto;
+  justify-items: end;
+}
+
+.item-workspace {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  height: min(54vh, 520px);
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+
+.item-workspace__nav {
+  display: grid;
+  align-content: start;
+  border-right: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+}
+
+.item-workspace__nav button {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  text-align: left;
+}
+
+.item-workspace__nav button.is-active {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: inset 3px 0 var(--color-accent);
+  font-weight: 680;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .item-workspace__nav button:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .item-workspace__nav button.is-active:hover {
+    color: var(--color-accent);
+  }
+}
+
+.item-workspace__panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-surface);
+}
+
+.item-workspace__panel-header {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+}
+
+.item-workspace__panel-header > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.item-workspace__panel-header strong {
+  font-size: 14px;
+}
+
+.item-workspace__panel-header span {
+  overflow: hidden;
+  color: var(--color-subtle);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-workspace__content {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.item-workspace__content > .item-editor {
+  min-height: 100%;
+}
+
+.item-workspace__content > .item-editor .item-editor__content {
+  padding: 0 18px 24px;
+}
+
+.item-workspace__content > .item-editor .item-editor__section:first-child {
+  padding-top: 16px;
+}
+
+.item-workspace-panel-enter-active,
+.item-workspace-panel-leave-active {
+  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard), transform var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.item-workspace-panel-enter-from,
+.item-workspace-panel-leave-to {
+  opacity: 0;
+  transform: translateX(calc(0px - var(--motion-distance-small)));
+}
+
+.item-inventory {
+  min-height: 100%;
+  padding: 16px 18px 22px;
+}
+
+.item-inventory__summary span,
+.item-inventory__locations small,
+.item-inventory__batches small {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.item-workspace__panel-header svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.item-inventory__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-border);
+}
+
+.item-inventory__summary > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  background: var(--color-surface);
+}
+
+.item-inventory__summary strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-state--out_of_stock { color: var(--color-danger); }
+.stock-state--reorder_due { color: var(--color-warn); }
+.stock-state--needs_configuration { color: var(--color-muted); }
+.stock-state--normal { color: var(--color-text); }
+
+.item-inventory__section {
+  margin-top: 20px;
+}
+
+.item-inventory__section h3 {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.item-inventory__locations,
+.item-inventory__batches {
+  border-top: 1px solid var(--color-border);
+}
+
+.item-inventory__locations > div,
+.item-inventory__batches > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 14px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.item-inventory__locations span:first-child,
+.item-inventory__batches span:first-child {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+}
+
+.item-inventory__locations small,
+.item-inventory__batches small {
+  grid-column: 1 / -1;
+}
+
+.item-inventory__empty,
+.item-inventory__more,
+.item-inventory__inline-error {
+  padding: 12px 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.item-inventory__more {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.item-inventory__inline-error { color: var(--color-danger); }
+
+@media (max-width: 767px) {
+  .item-workspace__context {
+    gap: 12px;
+  }
+
+  .item-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: min(56vh, 480px);
+  }
+
+  .item-workspace__nav {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-strong);
+  }
+
+  .item-workspace__nav button {
+    flex: 1 0 130px;
+    min-height: 42px;
+    text-align: center;
+  }
+
+  .item-workspace__nav button.is-active {
+    box-shadow: inset 0 -3px var(--color-accent);
+  }
+
+  .item-workspace-panel-enter-from,
+  .item-workspace-panel-leave-to {
+    transform: translateY(calc(0px - var(--motion-distance-small)));
+  }
+}
+
+@media (max-width: 600px) {
+  .item-workspace__content > .item-editor .item-editor__content {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .item-inventory { padding: 14px; }
+  .item-inventory__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

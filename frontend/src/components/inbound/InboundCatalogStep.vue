@@ -22,22 +22,16 @@
       </div>
     </header>
 
-    <form class="inbound-catalog-step__search" role="search" novalidate @submit.prevent="$emit('search')">
-      <label>
-        <span>搜索物品</span>
-        <input
-          data-inbound-catalog-search
-          :value="searchInput"
-          type="search"
-          name="inbound_item_search"
-          placeholder="名称、SKU 或模板属性"
-          autocomplete="off"
-          @input="$emit('update:search-input', ($event.target as HTMLInputElement).value)"
-          @search="$emit('search-input')"
-        />
-      </label>
-      <button class="secondary-button inbound-toolbar-button" type="submit" :disabled="loadingItems">查询</button>
-    </form>
+    <div class="inbound-catalog-step__search" role="search">
+      <SearchField
+        :model-value="searchInput"
+        label="搜索物品"
+        name="inbound_item_search"
+        placeholder="名称、SKU 或模板属性"
+        @update:model-value="$emit('update:search-input', $event)"
+        @search="$emit('search', $event)"
+      />
+    </div>
 
     <div v-if="itemError && items.length === 0" class="inbound-panel-state inbound-panel-state--error" role="alert">
       <p>{{ itemError }}</p>
@@ -94,11 +88,12 @@
 </template>
 
 <script setup lang="ts">
-import type { ItemResponse } from '../../api/items'
+import type { ItemOptionResponse } from '../../api/items'
 import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
+import SearchField from '../SearchField.vue'
 
 defineProps<{
-  items: ItemResponse[]
+  items: ItemOptionResponse[]
   searchInput: string
   loadingItems: boolean
   itemError: string
@@ -110,13 +105,12 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:search-input': [value: string]
-  'search-input': []
-  search: []
+  search: [value: string]
   'reset-items': []
   'load-next-items': []
   'scroll-items': []
   'list-element': [element: HTMLElement | null]
-  'toggle-item': [item: ItemResponse]
+  'toggle-item': [item: ItemOptionResponse]
   'create-item': []
   continue: []
 }>()
@@ -126,7 +120,7 @@ function captureList(element: unknown): void {
 }
 
 /** 触屏切换后释放粘滞焦点；键盘操作继续保留全局 focus-visible 反馈。 */
-function toggleItem(item: ItemResponse, event: MouseEvent): void {
+function toggleItem(item: ItemOptionResponse, event: MouseEvent): void {
   emit('toggle-item', item)
 
   if (event.detail > 0 && window.matchMedia('(hover: none), (pointer: coarse)').matches) {

@@ -1,4 +1,4 @@
-<!-- 本组件组合通用字段外壳和原生 select，选项内容仍由业务组件通过插槽提供。 -->
+<!-- 本组件组合通用字段外壳和项目选择控件，选项内容仍由业务组件通过插槽提供。 -->
 <template>
   <FormField
     :class="attrs.class"
@@ -11,7 +11,7 @@
     :required="required"
     v-slot="{ describedBy, invalid }"
   >
-    <select
+    <SelectControl
       :id="selectId"
       v-model="model"
       v-bind="controlAttrs"
@@ -20,13 +20,14 @@
       :aria-describedby="mergeDescribedBy(controlAttrs['aria-describedby'], describedBy)"
     >
       <slot />
-    </select>
+    </SelectControl>
   </FormField>
 </template>
 
 <script setup lang="ts">
 import { computed, useAttrs, useId } from 'vue'
 import FormField from './FormField.vue'
+import SelectControl from './SelectControl.vue'
 
 defineOptions({ inheritAttrs: false })
 

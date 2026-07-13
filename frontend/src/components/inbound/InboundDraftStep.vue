@@ -65,12 +65,12 @@
               <td data-label="数量"><input v-model.number="line.quantity" :name="`quantity_${line.lineId}`" :data-line-id="line.lineId" data-field="quantity" :class="{ 'inbound-control--error': validationAttempted && !validQuantity(line.quantity) }" type="number" min="0.01" step="0.01" :aria-label="`${line.item.name} 入库数量`" /></td>
               <td data-label="单价"><input v-model.number="line.unitPrice" :name="`unit_price_${line.lineId}`" :data-line-id="line.lineId" data-field="unitPrice" :class="{ 'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice) }" type="number" min="0" step="0.01" :aria-label="`${line.item.name} 入库单价`" /></td>
               <td data-label="库位">
-                <select v-model="line.locationId" :name="`location_${line.lineId}`" :data-line-id="line.lineId" data-field="locationId" :class="{ 'inbound-control--error': validationAttempted && line.locationId === null }" aria-label="入库库位">
+                <SelectControl v-model="line.locationId" :name="`location_${line.lineId}`" :data-line-id="line.lineId" data-field="locationId" :aria-invalid="validationAttempted && line.locationId === null ? true : undefined" aria-label="入库库位" compact>
                   <option :value="null">请选择</option>
                   <optgroup v-for="group in locationGroups" :key="group.name" :label="group.name">
                     <option v-for="location in group.locations" :key="location.id" :value="location.id">{{ location.code }} · {{ location.name }}</option>
                   </optgroup>
-                </select>
+                </SelectControl>
               </td>
               <td data-label="小计" class="inbound-line__subtotal">¥{{ formatMoney(lineSubtotal(line)) }}</td>
               <td data-label="操作">
@@ -107,6 +107,7 @@ import type { InboundDraftLine } from '../../pages/inbound-draft/model'
 import { lineSubtotal, validQuantity, validUnitPrice } from '../../pages/inbound-draft/model'
 import { formatMoney } from '../../pages/inbound-draft/presentation'
 import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
+import SelectControl from '../forms/SelectControl.vue'
 
 const props = defineProps<{
   lines: InboundDraftLine[]

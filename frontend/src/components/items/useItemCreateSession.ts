@@ -1,6 +1,6 @@
 // 本文件拥有可跨业务页面复用的物品新建会话，负责元数据、草稿、上传、保存与临时文件清理；它不决定编辑器呈现方式。
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { createItem, type ItemResponse } from '../../api/items'
+import { createItem, getItem, itemOptionFromEditor, type ItemOptionResponse } from '../../api/items'
 import { listItemCategories, type ItemCategoryResponse } from '../../api/itemCategories'
 import { listItemAttributeTemplates, type ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import { ApiError } from '../../api/errors'
@@ -58,7 +58,7 @@ export function useItemCreateSession() {
   }
 
   /** 上传草稿图片并创建物品；成功后保留已绑定文件，返回服务端物品快照。 */
-  async function save(): Promise<ItemResponse | null> {
+  async function save(): Promise<ItemOptionResponse | null> {
     const validation = validateItemDraft(draft.value, templates.value)
     if (validation) {
       validationErrors.value = validation.errors
@@ -73,7 +73,8 @@ export function useItemCreateSession() {
         draft.value.image,
         ...draft.value.attributes.map((attribute) => attribute.value).filter(isImageDraftValue),
       ])
-      const created = await createItem(itemCreateRequest(draft.value))
+      const result = await createItem(itemCreateRequest(draft.value))
+      const created = itemOptionFromEditor(await getItem(result.id))
       draft.value.attributes.forEach((attribute) => { attribute.fileTemporary = false })
       draft.value.imageTemporary = false
       saved = true

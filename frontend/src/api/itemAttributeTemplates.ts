@@ -19,6 +19,8 @@ export interface ItemAttributeUnitRule {
 export interface ItemAttributeTemplateFieldResponse extends TemplateFieldResponse {
   /** 服务端归一化后的必需单位规则。 */
   unit: ItemAttributeUnitRule
+  /** 是否作为物品目录中的关键属性展示。 */
+  catalog_visible: boolean
 }
 
 export interface ItemAttributeTemplateResponse {
@@ -31,10 +33,36 @@ export interface ItemAttributeTemplateResponse {
   updated_at: string
 }
 
+/** 更新物品属性模板时整体提交的字段定义。 */
+export interface ItemAttributeTemplateFieldRequest {
+  definition_id: number
+  field_name: string
+  field_type: TemplateFieldResponse['field_type']
+  default_value: string | null
+  options: string[] | null
+  required: boolean
+  searchable: boolean
+  catalog_visible: boolean
+  unit: ItemAttributeUnitRule
+}
+
+/** 物品属性模板更新请求；字段数组存在时由服务端整体替换。 */
+export interface ItemAttributeTemplateUpdateRequest {
+  fields: ItemAttributeTemplateFieldRequest[]
+}
+
 export function listItemAttributeTemplates(signal?: AbortSignal) {
   return apiClient.request<ItemAttributeTemplateResponse[]>('/api/item-attribute-templates', { signal })
 }
 
 export function getItemAttributeTemplate(id: number, signal?: AbortSignal) {
   return apiClient.request<ItemAttributeTemplateResponse>(`/api/item-attribute-templates/${id}`, { signal })
+}
+
+/** 更新物品属性模板字段配置。 */
+export function updateItemAttributeTemplate(id: number, request: ItemAttributeTemplateUpdateRequest) {
+  return apiClient.request<ItemAttributeTemplateResponse>(`/api/item-attribute-templates/${id}`, {
+    method: 'PUT',
+    json: request,
+  })
 }

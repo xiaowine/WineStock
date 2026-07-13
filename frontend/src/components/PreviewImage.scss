@@ -1,8 +1,11 @@
 /* 本文件拥有普通图片触发器和全屏图片查看层样式，不拥有鉴权加载或业务页面布局。 */
 .preview-image {
+  position: relative;
   display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   border: 0;
@@ -13,9 +16,14 @@
 }
 
 .preview-image img {
+  /* 图片脱离常规布局，避免异常宽高比通过固有尺寸撑开 grid 或 flex 外框。 */
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 .preview-image:focus-visible {

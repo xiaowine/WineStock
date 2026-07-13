@@ -8,10 +8,11 @@ const DESKTOP_BREAKPOINT = 768
 function currentViewportWidth(): number {
   const widths = [
     window.innerWidth,
-    window.outerWidth,
     window.visualViewport?.width,
     document.documentElement.clientWidth,
   ].filter((width): width is number => typeof width === 'number' && width > 0)
+  // DevTools 或部分嵌入式宿主可能短暂报告小于可用移动视口的 outerWidth，不能让异常值覆盖布局视口。
+  if (window.outerWidth >= 320) widths.push(window.outerWidth)
   return Math.min(...widths)
 }
 
