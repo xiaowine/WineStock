@@ -10,7 +10,7 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
-        InboundTemplateResponse, ItemCreateRequest, ItemResponse, TemplateFieldDef,
+        InboundTemplateResponse, ItemCreateRequest, ItemMutationResponse, TemplateFieldDef,
         TemplateFieldType,
     },
     test_support::{error_code, json_body, login_request, seed_stock_location, seeded_app},
@@ -515,7 +515,7 @@ async fn seed_named_item(
     )
     .await;
     assert_eq!(item.status(), StatusCode::CREATED);
-    let item: ItemResponse = json_body(item).await;
+    let item: ItemMutationResponse = json_body(item).await;
 
     item.id
 }

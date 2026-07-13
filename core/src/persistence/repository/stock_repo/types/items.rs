@@ -83,17 +83,70 @@ pub(crate) struct UpdateStockItem {
     pub attributes: Option<Vec<ItemAttributeInput>>,
 }
 
-/// 库存物品分页查询条件。
+/// 物品目录库存状态筛选。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CatalogStockFilter {
+    /// 不限制库存状态。
+    All,
+    /// 只返回缺货或到达补货点的物品。
+    NeedsAttention,
+    /// 只返回零库存物品。
+    OutOfStock,
+    /// 只返回库存大于零且到达补货点的物品。
+    ReorderDue,
+    /// 只返回有库存但未设置补货点的物品。
+    NeedsConfiguration,
+}
+
+/// 物品目录服务端排序。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CatalogSort {
+    /// 缺货、待补货、需配置、正常的业务优先级。
+    ReplenishmentPriority,
+    /// 按名称排序。
+    Name,
+    /// 按当前库存升序。
+    QuantityAsc,
+    /// 按当前库存降序。
+    QuantityDesc,
+    /// 按库存价值降序。
+    InventoryValueDesc,
+    /// 按资料更新时间降序。
+    UpdatedDesc,
+}
+
+/// 物品目录仓储查询条件。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ListStockItems {
+pub(crate) struct ItemCatalogCriteria {
     /// 页码，从 1 开始。
     pub page: u64,
-    /// 每页数量，服务层负责限制最大值。
+    /// 每页数量。
     pub page_size: u64,
-    /// 物品基础资料和实际属性模糊搜索关键字。
+    /// 物品基础资料和属性搜索词。
     pub search: Option<String>,
-    /// 按分类 ID 筛选。
+    /// 分类 ID 筛选。
     pub category_id: Option<i64>,
+    /// 属性模板 ID 筛选。
+    pub attribute_template_id: Option<i64>,
+    /// 库存状态筛选。
+    pub stock_filter: CatalogStockFilter,
+    /// 服务端排序。
+    pub sort: CatalogSort,
+}
+
+/// 轻量物品选择仓储查询条件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ItemOptionCriteria {
+    /// 页码，从 1 开始。
+    pub page: u64,
+    /// 每页数量。
+    pub page_size: u64,
+    /// 物品基础资料和属性搜索词。
+    pub search: Option<String>,
+    /// 分类 ID 筛选。
+    pub category_id: Option<i64>,
+    /// 属性模板 ID 筛选。
+    pub attribute_template_id: Option<i64>,
 }
 
 /// 创建物品分类的仓储输入。
@@ -187,21 +240,99 @@ pub(crate) struct StockItemListRecord {
     pub attributes: Vec<ItemAttributeRecord>,
 }
 
-/// 库存物品详情读取模型，包含基础资料和当前有效批次聚合。
+/// 物品目录中单个物品的库存聚合投影。
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct StockItemDetail {
+pub(crate) struct ItemCatalogRecord {
+    /// 物品基础资料。
+    pub item: crate::persistence::entity::stock_item::Model,
+    /// 分类名称。
+    pub category_name: Option<String>,
+    /// 当前剩余库存总量。
+    pub current_quantity: f64,
+    /// 当前库存价值。
+    pub inventory_value: f64,
+    /// 当前有库存的库位数量。
+    pub location_count: u64,
+    /// 当前有余额的批次数量。
+    pub batch_count: u64,
+    /// 服务端计算的稳定库存状态代码。
+    pub stock_state: String,
+    /// 模板显式选择的目录属性。
+    pub catalog_attributes: Vec<CatalogAttributeRecord>,
+}
+
+/// 物品目录中一个模板属性的名称和值。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CatalogAttributeRecord {
+    /// 属性名称。
+    pub name: String,
+    /// JSON 编码的类型化属性值。
+    pub value_json: String,
+    /// 数字属性的实际单位。
+    pub unit: Option<String>,
+}
+
+/// 物品目录五项状态计数。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ItemCatalogCountsRecord {
+    /// 忽略库存状态筛选后的全部物品数。
+    pub total: u64,
+    /// 缺货与待补货数量之和。
+    pub needs_attention: u64,
+    /// 缺货数量。
+    pub out_of_stock: u64,
+    /// 待补货数量。
+    pub reorder_due: u64,
+    /// 需配置补货点数量。
+    pub needs_configuration: u64,
+}
+
+/// 带状态计数的物品目录分页结果。
+pub(crate) struct ItemCatalogPage {
+    /// 当前页物品。
+    pub items: Vec<ItemCatalogRecord>,
+    /// 应用当前库存状态筛选后的总数。
+    pub total: u64,
+    /// 忽略当前库存状态筛选的状态计数。
+    pub counts: ItemCatalogCountsRecord,
+}
+
+/// 业务选择器使用的轻量物品投影。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ItemOptionRecord {
+    /// 物品 ID。
+    pub id: i64,
+    /// 物品名称。
+    pub name: String,
+    /// 物品 SKU。
+    pub sku: String,
+    /// 分类 ID。
+    pub category_id: Option<i64>,
+    /// 分类名称。
+    pub category_name: Option<String>,
+    /// 物品属性模板 ID，用于选择推荐入库模板。
+    pub attribute_template_id: Option<i64>,
+    /// 主图文件 ID。
+    pub image_file_id: i64,
+    /// 计量单位。
+    pub unit: String,
+}
+
+/// 单个物品库存摘要和库位聚合。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ItemInventoryRecord {
     /// 物品基础资料。
     pub item: crate::persistence::entity::stock_item::Model,
     /// 当前剩余库存总量。
     pub current_quantity: f64,
     /// 当前库存价值。
     pub inventory_value: f64,
-    /// 当前库存按库位聚合后的分布。
+    /// 服务端计算的库存状态代码。
+    pub stock_state: String,
+    /// 当前有效批次数量。
+    pub batch_count: u64,
+    /// 按库位聚合的库存分布。
     pub locations: Vec<StockItemLocationRecord>,
-    /// 当前仍有余额的批次摘要。
-    pub batches: Vec<StockItemBatchRecord>,
-    /// 物品固有属性，按展示顺序返回。
-    pub attributes: Vec<ItemAttributeRecord>,
 }
 
 /// 物品当前库存库位聚合读取模型。

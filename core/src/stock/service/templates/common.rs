@@ -45,6 +45,7 @@ pub(super) fn normalize_template_fields(
             field_type: field.field_type.as_code().to_owned(),
             required: field.required.unwrap_or(false),
             searchable: field.searchable.unwrap_or(false),
+            catalog_visible: false,
             options_json: options
                 .map(|value| serde_json::to_string(&value))
                 .transpose()
@@ -69,11 +70,25 @@ pub(super) fn normalize_item_template_fields(
         .collect::<Vec<_>>();
     let definition_ids = parts.iter().map(|part| part.0).collect::<Vec<_>>();
     let common_fields = parts.iter().map(|part| part.1.clone()).collect::<Vec<_>>();
-    let unit_rules = parts.into_iter().map(|part| part.2).collect::<Vec<_>>();
+    let unit_rules = parts.iter().map(|part| part.2.clone()).collect::<Vec<_>>();
+    let catalog_visibility = parts.iter().map(|part| part.3).collect::<Vec<_>>();
+    if catalog_visibility
+        .iter()
+        .filter(|visible| **visible)
+        .count()
+        > 3
+    {
+        return Err(StockApiError::InvalidRequest);
+    }
     let mut normalized = normalize_template_fields(common_fields)?;
-    for ((field, definition_id), rule) in normalized.iter_mut().zip(definition_ids).zip(unit_rules)
+    for (((field, definition_id), rule), catalog_visible) in normalized
+        .iter_mut()
+        .zip(definition_ids)
+        .zip(unit_rules)
+        .zip(catalog_visibility)
     {
         field.definition_id = definition_id;
+        field.catalog_visible = catalog_visible;
         let (mode, fixed_unit, unit_options) = normalize_unit_rule(rule)?;
         field.unit_mode = mode.as_code().to_owned();
         field.fixed_unit = fixed_unit;
@@ -278,6 +293,7 @@ fn item_fields(
                     value: field.fixed_unit,
                     options: parse_options_json(field.unit_options_json)?,
                 },
+                catalog_visible: sqlite_bool(field.catalog_visible),
             })
         })
         .collect()

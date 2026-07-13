@@ -11,7 +11,7 @@ use crate::{
     stock::{
         controller::{
             InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
-            ItemDetailResponse, LocationCreateRequest, LocationGroupCreateRequest,
+            ItemInventoryResponse, LocationCreateRequest, LocationGroupCreateRequest,
             LocationGroupResponse, LocationGroupTreeNode, LocationGroupUpdateRequest,
             LocationResponse, LocationTransferCreateRequest, LocationTransferResponse,
         },
@@ -130,11 +130,11 @@ async fn locations_can_be_created_moved_and_protected_by_current_stock() {
     let detail = authorized_empty_request(
         &app,
         "GET",
-        &format!("/api/items/{item_id}"),
+        &format!("/api/items/{item_id}/inventory"),
         &login.body.access_token,
     )
     .await;
-    let detail: ItemDetailResponse = json_body(detail).await;
+    let detail: ItemInventoryResponse = json_body(detail).await;
     assert_eq!(detail.locations.len(), 1);
     assert_eq!(detail.locations[0].location_id, to_location.id);
     assert_eq!(detail.locations[0].location_code, "B-02");

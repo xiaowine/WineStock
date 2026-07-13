@@ -14,6 +14,7 @@ pub struct Model {
     pub field_type: String,
     pub required: i32,
     pub searchable: i32,
+    pub catalog_visible: i32,
     pub options_json: Option<String>,
     pub default_value: Option<String>,
     pub unit_mode: String,

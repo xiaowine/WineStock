@@ -10,7 +10,7 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
-        InboundTemplateResponse, ItemCreateRequest, ItemResponse, OutboundCreateRequest,
+        InboundTemplateResponse, ItemCreateRequest, ItemMutationResponse, OutboundCreateRequest,
         OutboundItemRequest, OutboundResponse, TemplateFieldDef, TemplateFieldType,
     },
     test_support::{
@@ -448,7 +448,7 @@ async fn seed_search_item(app: &crate::test_support::TestApp, access_token: &str
     )
     .await;
     assert_eq!(item.status(), StatusCode::CREATED);
-    let item: ItemResponse = json_body(item).await;
+    let item: ItemMutationResponse = json_body(item).await;
 
     (item.id, template.id)
 }

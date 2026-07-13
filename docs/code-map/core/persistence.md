@@ -10,6 +10,8 @@
 - `core/src/persistence/migration/m20260706_000001_initial_schema.rs`
   - 创建 auth、storage、stock 和 audit 业务表，包括物品/入库属性及两类图片绑定关系。
   - 初始 schema 使用 `stock_item_attribute_definitions` 统一保存模板与物品私有属性定义，值表只引用 `definition_id`；数字定义使用 `none`、`fixed`、`select` 单位规则，不保留开发阶段兼容迁移。
+- `core/src/persistence/migration/m20260713_000002_item_catalog_visibility.rs`
+  - 为已执行初始 schema 的数据库补充 `catalog_visible`，新数据库检测到字段已存在时跳过。
 
 数据库表与字段边界见 `core/docs/database-schema.md`。
 
@@ -40,7 +42,7 @@
 
 - `repository/stock_repo.rs`：`StockRepository` 入口和稳定重新导出。
 - `stock_repo/types/`：按物品、库位、模板、入库、出库和分析审计子域拆分仓储输入与读取模型，不执行查询。
-- `stock_repo/items.rs`：物品必选主图、任意属性、扩展文件绑定和库存快照。
+- `stock_repo/items.rs`：物品命令、编辑资料、轻量选择、目录实时库存聚合、状态筛选计数、库位摘要和批次分页。
 - `stock_repo/categories.rs`：物品分类。
 - `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储。
 - `stock_repo/locations.rs`：分组、库位和移库。

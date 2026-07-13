@@ -15,8 +15,8 @@ use crate::{
     persistence::repository::{RbacRepository, UserRepository},
     stock::controller::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
-        InboundTemplateResponse, ItemAttributeRequest, ItemCreateRequest, ItemResponse,
-        ItemUpdateRequest, TemplateFieldDef, TemplateFieldType,
+        InboundTemplateResponse, ItemAttributeRequest, ItemCreateRequest, ItemEditorResponse,
+        ItemMutationResponse, ItemUpdateRequest, TemplateFieldDef, TemplateFieldType,
     },
     test_support::{bootstrap_location_id, error_code, json_body, login_request, seeded_app},
 };
@@ -95,7 +95,8 @@ async fn item_file_attribute_binds_to_item_and_uses_item_read_permission() {
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
-    let created: ItemResponse = json_body(created).await;
+    let mutation: ItemMutationResponse = json_body(created).await;
+    let created = get_item_editor(&app, &token, mutation.id).await;
     assert_eq!(table_count(&app, "storage_item_file_bindings").await, 1);
 
     let updated = authorized_put_json(
@@ -166,7 +167,8 @@ async fn item_main_image_is_required_bound_and_replaceable() {
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
-    let created: ItemResponse = json_body(created).await;
+    let mutation: ItemMutationResponse = json_body(created).await;
+    let created = get_item_editor(&app, &token, mutation.id).await;
     assert_eq!(created.image_file_id, first_image_id);
     assert_eq!(created.image_url, format!("/api/files/{first_image_id}"));
 
@@ -199,7 +201,8 @@ async fn item_main_image_is_required_bound_and_replaceable() {
     )
     .await;
     assert_eq!(updated.status(), StatusCode::OK);
-    let updated: ItemResponse = json_body(updated).await;
+    let mutation: ItemMutationResponse = json_body(updated).await;
+    let updated = get_item_editor(&app, &token, mutation.id).await;
     assert_eq!(updated.image_file_id, second_image_id);
 
     let old_delete = authorized_empty(
@@ -546,8 +549,18 @@ async fn seed_file_item(app: &crate::test_support::TestApp, token: &str) -> (i64
         },
     )
     .await;
-    let item: ItemResponse = json_body(item).await;
+    let item: ItemMutationResponse = json_body(item).await;
     (item.id, bootstrap_location_id(app).await, template.id)
+}
+
+async fn get_item_editor(
+    app: &crate::test_support::TestApp,
+    token: &str,
+    item_id: i64,
+) -> ItemEditorResponse {
+    let response = authorized_empty(app, "GET", &format!("/api/items/{item_id}"), token).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    json_body(response).await
 }
 
 async fn seed_creator(app: &crate::test_support::TestApp, username: &str) -> String {

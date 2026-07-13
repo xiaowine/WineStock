@@ -28,6 +28,9 @@ pub(crate) struct TemplateFieldInput {
     /// 是否可用于搜索。
     #[garde(skip)]
     pub searchable: bool,
+    /// 是否在物品目录中展示；仅物品模板定义允许启用。
+    #[garde(skip)]
+    pub catalog_visible: bool,
     /// 候选值 JSON，仅 `select` 字段使用。
     #[garde(
         length(min = 1, max = 4096),

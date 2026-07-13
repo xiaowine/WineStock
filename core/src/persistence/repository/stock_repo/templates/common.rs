@@ -160,6 +160,7 @@ where
             active.field_type = Set(field.field_type.clone());
             active.required = Set(i32::from(field.required));
             active.searchable = Set(i32::from(field.searchable));
+            active.catalog_visible = Set(i32::from(field.catalog_visible));
             active.options_json = Set(field.options_json.clone());
             active.default_value = Set(field.default_value.clone());
             active.unit_mode = Set(field.unit_mode.clone());
@@ -177,6 +178,7 @@ where
             field_type: Set(field.field_type.clone()),
             required: Set(i32::from(field.required)),
             searchable: Set(i32::from(field.searchable)),
+            catalog_visible: Set(i32::from(field.catalog_visible)),
             options_json: Set(field.options_json.clone()),
             default_value: Set(field.default_value.clone()),
             unit_mode: Set(field.unit_mode.clone()),
@@ -277,6 +279,7 @@ fn inbound_field_input(field: &inbound_template_field::Model) -> TemplateFieldIn
         field_type: field.field_type.clone(),
         required: field.required != 0,
         searchable: field.searchable != 0,
+        catalog_visible: false,
         options_json: field.options_json.clone(),
         default_value: field.default_value.clone(),
         unit_mode: "none".to_owned(),
@@ -298,6 +301,7 @@ pub(super) fn item_attribute_field_inputs(
             field_type: field.field_type.clone(),
             required: field.required != 0,
             searchable: field.searchable != 0,
+            catalog_visible: field.catalog_visible != 0,
             options_json: field.options_json.clone(),
             default_value: field.default_value.clone(),
             unit_mode: field.unit_mode.clone(),

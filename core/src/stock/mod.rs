@@ -91,10 +91,22 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 auth.item_read(get(controller::item_filter_values)),
             )
             .route(
+                "/items/options",
+                auth.item_read(get(controller::list_item_options)),
+            )
+            .route(
                 "/items/{id}",
                 auth.item_read(get(controller::get_item))
                     .merge(auth.item_manage(put(controller::update_item)))
                     .merge(auth.item_manage(delete(controller::delete_item))),
+            )
+            .route(
+                "/items/{id}/inventory",
+                auth.item_read(get(controller::get_item_inventory)),
+            )
+            .route(
+                "/items/{id}/batches",
+                auth.item_read(get(controller::list_item_batches)),
             )
             .route(
                 "/location-groups/tree",

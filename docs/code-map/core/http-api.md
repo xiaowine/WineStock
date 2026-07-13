@@ -37,8 +37,11 @@
 - `/api/inbound-templates`、`/{id}`、`/{id}/copy`：入库模板 CRUD/copy。
 - `POST /api/items`
 - `GET /api/items`
+- `GET /api/items/options`
 - `GET /api/items/filter-values`
 - `GET /api/items/{id}`
+- `GET /api/items/{id}/inventory`
+- `GET /api/items/{id}/batches`
 - `PUT /api/items/{id}`
 - `DELETE /api/items/{id}`
 

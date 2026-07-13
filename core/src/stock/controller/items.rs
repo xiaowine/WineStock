@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
-use crate::stock::service::{self, PaginatedResponse, StockApiError};
+use crate::stock::service::{self, StockApiError};
 /// 创建库存物品请求。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
 #[serde(deny_unknown_fields)]
@@ -143,9 +143,70 @@ where
     Option::<T>::deserialize(deserializer).map(Some)
 }
 
-/// 库存物品分页查询参数。
+/// 物品目录库存状态筛选。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ItemStockFilter {
+    /// 不限制库存状态。
+    All,
+    /// 缺货或待补货。
+    NeedsAttention,
+    /// 零库存。
+    OutOfStock,
+    /// 到达补货点。
+    ReorderDue,
+    /// 有库存但未设置补货点。
+    NeedsConfiguration,
+}
+
+/// 物品目录排序方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ItemCatalogSort {
+    /// 按补货处理优先级。
+    ReplenishmentPriority,
+    /// 按物品名称。
+    Name,
+    /// 按库存量升序。
+    QuantityAsc,
+    /// 按库存量降序。
+    QuantityDesc,
+    /// 按库存价值降序。
+    InventoryValueDesc,
+    /// 按资料更新时间降序。
+    UpdatedDesc,
+}
+
+/// 服务端计算的物品库存状态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ItemStockState {
+    /// 当前库存为零。
+    OutOfStock,
+    /// 当前库存已到达补货点。
+    ReorderDue,
+    /// 当前有库存但未配置补货点。
+    NeedsConfiguration,
+    /// 当前库存正常。
+    Normal,
+}
+
+impl ItemStockState {
+    /// 从 service/repository 使用的稳定代码恢复公开枚举。
+    pub(crate) fn from_code(value: &str) -> Result<Self, StockApiError> {
+        match value {
+            "out_of_stock" => Ok(Self::OutOfStock),
+            "reorder_due" => Ok(Self::ReorderDue),
+            "needs_configuration" => Ok(Self::NeedsConfiguration),
+            "normal" => Ok(Self::Normal),
+            _ => Err(StockApiError::InvalidRequest),
+        }
+    }
+}
+
+/// 物品目录分页查询参数。
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, utoipa::IntoParams)]
-pub(crate) struct ItemListQuery {
+pub(crate) struct ItemCatalogQuery {
     /// 页码，从 1 开始，默认 1。
     pub page: Option<u64>,
 
@@ -155,13 +216,46 @@ pub(crate) struct ItemListQuery {
     /// 按物品基础字段、模板元数据和当前库存模板值模糊搜索。
     pub search: Option<String>,
 
-    /// 按关联模板 ID 筛选。
+    /// 按分类 ID 筛选。
     pub category_id: Option<i64>,
+
+    /// 按物品属性模板 ID 筛选。
+    pub attribute_template_id: Option<i64>,
+
+    /// 库存状态筛选，默认 all。
+    pub stock_filter: Option<ItemStockFilter>,
+
+    /// 排序方式，默认 replenishment_priority。
+    pub sort: Option<ItemCatalogSort>,
 }
 
-/// 库存物品响应。
+/// 轻量物品选择分页查询参数。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, utoipa::IntoParams)]
+pub(crate) struct ItemOptionQuery {
+    /// 页码，从 1 开始，默认 1。
+    pub page: Option<u64>,
+    /// 每页数量，默认 50，最大 200。
+    pub page_size: Option<u64>,
+    /// 名称、SKU、分类、模板或属性搜索词。
+    pub search: Option<String>,
+    /// 分类 ID。
+    pub category_id: Option<i64>,
+    /// 物品属性模板 ID。
+    pub attribute_template_id: Option<i64>,
+}
+
+/// 创建或更新物品后的轻量命令结果。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemMutationResponse {
+    /// 已创建或更新的物品 ID。
+    pub id: i64,
+    /// 服务端最终资料更新时间。
+    pub updated_at: String,
+}
+
+/// 物品编辑器资料响应。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
-pub(crate) struct ItemResponse {
+pub(crate) struct ItemEditorResponse {
     /// 物品 ID。
     #[garde(skip)]
     pub id: i64,
@@ -219,9 +313,131 @@ pub(crate) struct ItemResponse {
     pub updated_at: String,
 }
 
-/// 库存物品详情响应，包含基础资料和当前库存快照。
+/// 目录中单个模板关键属性。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct CatalogAttributeResponse {
+    /// 模板定义的属性名称。
+    pub name: String,
+    /// 类型化 JSON 属性值。
+    pub value: serde_json::Value,
+    /// 数字属性的实际单位。
+    pub unit: Option<String>,
+}
+
+/// 物品目录单行响应。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemCatalogEntryResponse {
+    /// 物品 ID。
+    pub id: i64,
+    /// 物品名称。
+    pub name: String,
+    /// 物品 SKU。
+    pub sku: String,
+    /// 分类 ID。
+    pub category_id: Option<i64>,
+    /// 分类名称。
+    pub category_name: Option<String>,
+    /// 物品属性模板 ID。
+    pub attribute_template_id: Option<i64>,
+    /// 主图文件 ID。
+    pub image_file_id: i64,
+    /// 主图受控读取地址。
+    pub image_url: String,
+    /// 计量单位。
+    pub unit: String,
+    /// 参考单价。
+    pub default_price: Option<f64>,
+    /// 再订货点。
+    pub reorder_point: Option<f64>,
+    /// 模板显式配置的目录关键属性。
+    pub catalog_attributes: Vec<CatalogAttributeResponse>,
+    /// 当前库存量。
+    pub current_quantity: f64,
+    /// 当前库存价值。
+    pub inventory_value: f64,
+    /// 当前有库存的库位数。
+    pub location_count: u64,
+    /// 当前有余额的批次数。
+    pub batch_count: u64,
+    /// 当前库存状态。
+    pub stock_state: ItemStockState,
+    /// 资料更新时间。
+    pub updated_at: String,
+}
+
+/// 物品目录五项状态计数。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemCatalogCountsResponse {
+    /// 忽略库存状态筛选的全部物品数。
+    pub total: u64,
+    /// 缺货与待补货数量之和。
+    pub needs_attention: u64,
+    /// 缺货数量。
+    pub out_of_stock: u64,
+    /// 待补货数量。
+    pub reorder_due: u64,
+    /// 需配置补货点数量。
+    pub needs_configuration: u64,
+}
+
+/// 带状态计数的物品目录分页响应。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemCatalogPageResponse {
+    /// 当前页物品。
+    pub items: Vec<ItemCatalogEntryResponse>,
+    /// 状态筛选计数。
+    pub counts: ItemCatalogCountsResponse,
+    /// 应用当前库存状态筛选后的总数。
+    pub total: u64,
+    /// 当前页码。
+    pub page: u64,
+    /// 每页数量。
+    pub page_size: u64,
+    /// 总页数。
+    pub total_pages: u64,
+}
+
+/// 业务选择器使用的轻量物品响应。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemOptionResponse {
+    /// 物品 ID。
+    pub id: i64,
+    /// 物品名称。
+    pub name: String,
+    /// 物品 SKU。
+    pub sku: String,
+    /// 分类 ID。
+    pub category_id: Option<i64>,
+    /// 分类名称。
+    pub category_name: Option<String>,
+    /// 物品属性模板 ID。
+    pub attribute_template_id: Option<i64>,
+    /// 主图文件 ID。
+    pub image_file_id: i64,
+    /// 主图受控读取地址。
+    pub image_url: String,
+    /// 计量单位。
+    pub unit: String,
+}
+
+/// 轻量物品选择分页响应。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemOptionPageResponse {
+    /// 当前页物品选项。
+    pub items: Vec<ItemOptionResponse>,
+    /// 匹配总数。
+    pub total: u64,
+    /// 当前页码。
+    pub page: u64,
+    /// 每页数量。
+    pub page_size: u64,
+    /// 总页数。
+    pub total_pages: u64,
+}
+
+/// 单个已有物品的库存详情响应。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
-pub(crate) struct ItemDetailResponse {
+pub(crate) struct ItemInventoryResponse {
     /// 物品 ID。
     #[garde(skip)]
     pub id: i64,
@@ -234,49 +450,13 @@ pub(crate) struct ItemDetailResponse {
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
-    /// 关联物品分类 ID。
-    #[garde(skip)]
-    pub category_id: Option<i64>,
-
-    /// 可选物品属性模板 ID。
-    #[garde(skip)]
-    pub attribute_template_id: Option<i64>,
-
-    /// 物品主图文件对象 ID。
-    #[garde(range(min = 1))]
-    pub image_file_id: i64,
-
-    /// 物品主图受控读取地址。
-    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
-    pub image_url: String,
-
     /// 计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
 
-    /// 物品描述。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
-    pub description: Option<String>,
-
-    /// 参考单价。
-    #[garde(skip)]
-    pub default_price: Option<f64>,
-
     /// 再订货点。
     #[garde(skip)]
     pub reorder_point: Option<f64>,
-
-    /// 物品固有属性。
-    #[garde(dive)]
-    pub attributes: Vec<ItemAttributeResponse>,
-
-    /// 创建时间，使用 SQLite UTC 字符串格式。
-    #[garde(skip)]
-    pub created_at: String,
-
-    /// 最近更新时间，使用 SQLite UTC 字符串格式。
-    #[garde(skip)]
-    pub updated_at: String,
 
     /// 当前剩余库存总量，只统计仍有余额的批次。
     #[garde(skip)]
@@ -286,13 +466,41 @@ pub(crate) struct ItemDetailResponse {
     #[garde(skip)]
     pub inventory_value: f64,
 
+    /// 当前库存状态。
+    #[garde(skip)]
+    pub stock_state: ItemStockState,
+
+    /// 当前有效批次数量。
+    #[garde(skip)]
+    pub batch_count: u64,
+
     /// 当前库存按库位聚合后的分布。
     #[garde(skip)]
     pub locations: Vec<ItemLocationStockResponse>,
+}
 
-    /// 当前仍有余额的批次摘要。
-    #[garde(skip)]
-    pub batches: Vec<ItemBatchStockResponse>,
+/// 单个物品批次分页查询参数。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, utoipa::IntoParams)]
+pub(crate) struct ItemBatchQuery {
+    /// 页码，从 1 开始，默认 1。
+    pub page: Option<u64>,
+    /// 每页数量，默认 20，最大 100。
+    pub page_size: Option<u64>,
+}
+
+/// 单个物品当前批次分页响应。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemBatchPageResponse {
+    /// 当前页批次。
+    pub items: Vec<ItemBatchStockResponse>,
+    /// 当前有效批次总数。
+    pub total: u64,
+    /// 当前页码。
+    pub page: u64,
+    /// 每页数量。
+    pub page_size: u64,
+    /// 总页数。
+    pub total_pages: u64,
 }
 
 /// 物品详情中的库位库存分布。
@@ -378,7 +586,7 @@ pub(crate) struct ItemBatchStockResponse {
     request_body = ItemCreateRequest,
     security(("bearerAuth" = [])),
     responses(
-        (status = 201, description = "Item created", body = ItemResponse),
+        (status = 201, description = "Item created", body = ItemMutationResponse),
         (status = 400, description = "Invalid item request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Item manage permission required", body = crate::http::ApiErrorResponse),
@@ -390,7 +598,7 @@ pub(crate) async fn create_item(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
     ValidatedJson(request): ValidatedJson<ItemCreateRequest>,
-) -> Result<(StatusCode, Json<ItemResponse>), StockApiError> {
+) -> Result<(StatusCode, Json<ItemMutationResponse>), StockApiError> {
     Ok((
         StatusCode::CREATED,
         Json(service::create_item(&state, &current_user, request).await?),
@@ -401,10 +609,10 @@ pub(crate) async fn create_item(
     get,
     path = "/api/items",
     tag = "items",
-    params(ItemListQuery),
+    params(ItemCatalogQuery),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Item list", body = PaginatedResponse<ItemResponse>),
+        (status = 200, description = "Item catalog", body = ItemCatalogPageResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
     )
@@ -412,9 +620,29 @@ pub(crate) async fn create_item(
 /// 分页查询库存物品。
 pub(crate) async fn list_items(
     State(state): State<CoreState>,
-    ValidatedQuery(query): ValidatedQuery<ItemListQuery>,
-) -> Result<Json<PaginatedResponse<ItemResponse>>, StockApiError> {
-    Ok(Json(service::list_items(&state, query).await?))
+    ValidatedQuery(query): ValidatedQuery<ItemCatalogQuery>,
+) -> Result<Json<ItemCatalogPageResponse>, StockApiError> {
+    Ok(Json(service::list_item_catalog(&state, query).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/items/options",
+    tag = "items",
+    params(ItemOptionQuery),
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Item options", body = ItemOptionPageResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 分页查询业务选择器使用的轻量物品选项。
+pub(crate) async fn list_item_options(
+    State(state): State<CoreState>,
+    ValidatedQuery(query): ValidatedQuery<ItemOptionQuery>,
+) -> Result<Json<ItemOptionPageResponse>, StockApiError> {
+    Ok(Json(service::list_item_options(&state, query).await?))
 }
 
 #[utoipa::path(
@@ -442,7 +670,7 @@ pub(crate) async fn item_filter_values(
     params(("id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Item detail", body = ItemDetailResponse),
+        (status = 200, description = "Item editor data", body = ItemEditorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
@@ -452,8 +680,51 @@ pub(crate) async fn item_filter_values(
 pub(crate) async fn get_item(
     State(state): State<CoreState>,
     ValidatedPath(id): ValidatedPath<i64>,
-) -> Result<Json<ItemDetailResponse>, StockApiError> {
+) -> Result<Json<ItemEditorResponse>, StockApiError> {
     Ok(Json(service::get_item(&state, id).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/items/{id}/inventory",
+    tag = "items",
+    params(("id" = i64, Path, description = "Item ID")),
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Item inventory", body = ItemInventoryResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 查询单个已有物品的库存摘要和库位分布。
+pub(crate) async fn get_item_inventory(
+    State(state): State<CoreState>,
+    ValidatedPath(id): ValidatedPath<i64>,
+) -> Result<Json<ItemInventoryResponse>, StockApiError> {
+    Ok(Json(service::get_item_inventory(&state, id).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/items/{id}/batches",
+    tag = "items",
+    params(("id" = i64, Path, description = "Item ID"), ItemBatchQuery),
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Item batches", body = ItemBatchPageResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Item not found", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 分页查询单个物品当前仍有余额的批次。
+pub(crate) async fn list_item_batches(
+    State(state): State<CoreState>,
+    ValidatedPath(id): ValidatedPath<i64>,
+    ValidatedQuery(query): ValidatedQuery<ItemBatchQuery>,
+) -> Result<Json<ItemBatchPageResponse>, StockApiError> {
+    Ok(Json(service::list_item_batches(&state, id, query).await?))
 }
 
 #[utoipa::path(
@@ -464,7 +735,7 @@ pub(crate) async fn get_item(
     params(("id" = i64, Path, description = "Item ID")),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Item updated", body = ItemResponse),
+        (status = 200, description = "Item updated", body = ItemMutationResponse),
         (status = 400, description = "Invalid item request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Item manage permission required", body = crate::http::ApiErrorResponse),
@@ -478,7 +749,7 @@ pub(crate) async fn update_item(
     Extension(current_user): Extension<CurrentUser>,
     ValidatedPath(id): ValidatedPath<i64>,
     ValidatedJson(request): ValidatedJson<ItemUpdateRequest>,
-) -> Result<Json<ItemResponse>, StockApiError> {
+) -> Result<Json<ItemMutationResponse>, StockApiError> {
     Ok(Json(
         service::update_item(&state, &current_user, id, request).await?,
     ))

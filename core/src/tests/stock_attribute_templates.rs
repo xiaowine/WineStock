@@ -203,6 +203,7 @@ async fn item_template_unit_rules_are_validated_and_copied() {
                 field_type: TemplateFieldType::Number,
                 required: Some(true),
                 searchable: Some(true),
+                catalog_visible: None,
                 options: None,
                 default_value: None,
                 unit: Some(ItemAttributeUnitRule {
@@ -238,6 +239,7 @@ async fn item_template_unit_rules_are_validated_and_copied() {
                 field_type: TemplateFieldType::Number,
                 required: Some(true),
                 searchable: Some(true),
+                catalog_visible: None,
                 options: None,
                 default_value: None,
                 unit: Some(ItemAttributeUnitRule {
@@ -301,6 +303,7 @@ async fn item_template_unit_rules_are_validated_and_copied() {
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
                     searchable: Some(false),
+                    catalog_visible: None,
                     options: None,
                     default_value: None,
                     unit: Some(unit),
@@ -324,6 +327,43 @@ fn field(name: &str, field_type: TemplateFieldType, required: bool) -> TemplateF
     }
 }
 
+#[tokio::test]
+async fn item_attribute_template_limits_catalog_visible_fields_to_three() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let fields = (0..4)
+        .map(|index| ItemAttributeTemplateFieldDef {
+            definition_id: None,
+            field_name: format!("目录字段{index}"),
+            field_type: TemplateFieldType::Text,
+            required: Some(false),
+            searchable: Some(false),
+            catalog_visible: Some(true),
+            options: None,
+            default_value: None,
+            unit: None,
+        })
+        .collect();
+    let response = authorized_json(
+        &app,
+        "POST",
+        "/api/item-attribute-templates",
+        &token,
+        &ItemAttributeTemplateCreateRequest {
+            name: "目录字段上限".to_owned(),
+            description: None,
+            default_inbound_template_id: None,
+            fields,
+        },
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(response).await, "invalid_request");
+}
+
 fn item_field(
     name: &str,
     field_type: TemplateFieldType,
@@ -335,6 +375,7 @@ fn item_field(
         field_type,
         required: Some(required),
         searchable: Some(false),
+        catalog_visible: None,
         options: None,
         default_value: None,
         unit: None,

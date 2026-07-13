@@ -3,15 +3,19 @@
 //! 本模块属于 `core` 持久化层，封装 `stock_items` 的创建、查询、更新、软删除、物品详情库存快照和物品审计写入。
 //! service 不应直接拼接库存物品表查询。
 
+use std::collections::HashMap;
+
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    QueryFilter, Set, Statement, TransactionTrait,
+    QueryFilter, QueryResult, Set, Statement, TransactionTrait, Value,
 };
 use serde_json::json;
 
 use super::{
-    common::insert_audit_event_on_connection, search, CreateStockItem, ItemAttributeInput,
-    ListStockItems, Page, StockItemBatchRecord, StockItemDetail, StockItemListRecord,
+    common::insert_audit_event_on_connection, search, CatalogAttributeRecord, CatalogSort,
+    CatalogStockFilter, CreateStockItem, ItemAttributeInput, ItemCatalogCountsRecord,
+    ItemCatalogCriteria, ItemCatalogPage, ItemCatalogRecord, ItemInventoryRecord,
+    ItemOptionCriteria, ItemOptionRecord, Page, StockItemBatchRecord, StockItemListRecord,
     StockItemLocationRecord, StockRepository, UpdateStockItem,
 };
 use crate::persistence::{
@@ -84,27 +88,29 @@ where
         find_active_item_by_id_on_connection(self.database, id).await
     }
 
-    /// 查询未软删除物品详情，并附带当前库存、库位分布和有效批次摘要。
-    pub(crate) async fn find_active_item_detail_by_id(
+    /// 查询编辑器需要的物品基础资料和全部固有属性，不加载库存数据。
+    pub(crate) async fn find_active_item_editor_by_id(
         &self,
         id: i64,
-    ) -> Result<Option<StockItemDetail>, DbErr> {
+    ) -> Result<Option<StockItemListRecord>, DbErr> {
         let Some(item) = self.find_active_item_by_id(id).await? else {
             return Ok(None);
         };
-        let (current_quantity, inventory_value) = self.query_item_stock_summary(id).await?;
-        let locations = self.query_item_stock_locations(id).await?;
-        let batches = self.query_item_stock_batches(id).await?;
         let attributes = list_item_attributes_on_connection(self.database, id).await?;
+        Ok(Some(StockItemListRecord { item, attributes }))
+    }
 
-        Ok(Some(StockItemDetail {
-            item,
-            current_quantity,
-            inventory_value,
-            locations,
-            batches,
-            attributes,
-        }))
+    /// 判断私有属性定义是否属于指定物品，供服务层在整体替换属性前校验定义归属。
+    pub(crate) async fn item_owns_attribute_definition(
+        &self,
+        item_id: i64,
+        definition_id: i64,
+    ) -> Result<bool, DbErr> {
+        Ok(item_attribute_definition::Entity::find_by_id(definition_id)
+            .filter(item_attribute_definition::Column::OwnerItemId.eq(item_id))
+            .one(self.database)
+            .await?
+            .is_some())
     }
 
     /// 查询指定 SKU 是否已有其他未软删除物品占用。
@@ -123,30 +129,194 @@ where
         Ok(query.one(self.database).await?.is_some())
     }
 
-    /// 分页查询未软删除物品，支持物品/模板/当前库存扩展属性搜索和模板筛选。
-    pub(crate) async fn list_active_items(
+    /// 查询物品目录库存视图；库存聚合、状态筛选、计数和排序均在数据库内完成。
+    pub(crate) async fn list_item_catalog(
         &self,
-        input: ListStockItems,
-    ) -> Result<Page<StockItemListRecord>, DbErr> {
-        let limit = input.page_size as i64;
-        let offset = ((input.page.saturating_sub(1)) * input.page_size) as i64;
+        input: ItemCatalogCriteria,
+    ) -> Result<ItemCatalogPage, DbErr> {
         let search_like = input
             .search
             .as_ref()
             .map(|search| format!("%{}%", search.to_lowercase()));
+        let (base_sql, base_values) = item_catalog_base_query(
+            search_like.as_deref(),
+            input.category_id,
+            input.attribute_template_id,
+        );
+        let counts = self
+            .query_item_catalog_counts(&base_sql, base_values.clone())
+            .await?;
+        let filter_sql = catalog_filter_sql(input.stock_filter);
+        let total_sql = format!("SELECT COUNT(*) AS count FROM ({base_sql}) catalog {filter_sql}");
+        let total_row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                total_sql,
+                base_values.clone(),
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("item catalog count".to_owned()))?;
+        let total = u64::try_from(total_row.try_get::<i64>("", "count")?).unwrap_or(0);
 
-        let total = self
-            .count_active_items(search_like.as_deref(), input.category_id)
+        let limit = input.page_size as i64;
+        let offset = ((input.page.saturating_sub(1)) * input.page_size) as i64;
+        let mut page_values = base_values;
+        page_values.push(limit.into());
+        page_values.push(offset.into());
+        let page_sql = format!(
+            "SELECT * FROM ({base_sql}) catalog {filter_sql} {} LIMIT ? OFFSET ?",
+            catalog_order_sql(input.sort)
+        );
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                page_sql,
+                page_values,
+            ))
             .await?;
-        let item_models = self
-            .query_active_items(search_like.as_deref(), input.category_id, limit, offset)
+        let mut items = rows
+            .into_iter()
+            .map(|row| {
+                Ok(ItemCatalogRecord {
+                    item: stock_item_from_query_row(&row)?,
+                    category_name: row.try_get("", "category_name")?,
+                    current_quantity: row.try_get("", "current_quantity")?,
+                    inventory_value: row.try_get("", "inventory_value")?,
+                    location_count: u64::try_from(row.try_get::<i64>("", "location_count")?)
+                        .unwrap_or(0),
+                    batch_count: u64::try_from(row.try_get::<i64>("", "batch_count")?).unwrap_or(0),
+                    stock_state: row.try_get("", "stock_state")?,
+                    catalog_attributes: Vec::new(),
+                })
+            })
+            .collect::<Result<Vec<_>, DbErr>>()?;
+        let attributes = self
+            .query_catalog_attributes(&items.iter().map(|item| item.item.id).collect::<Vec<_>>())
             .await?;
-        let mut items = Vec::with_capacity(item_models.len());
-        for item in item_models {
-            let attributes = list_item_attributes_on_connection(self.database, item.id).await?;
-            items.push(StockItemListRecord { item, attributes });
+        for item in &mut items {
+            item.catalog_attributes = attributes.get(&item.item.id).cloned().unwrap_or_default();
         }
 
+        Ok(ItemCatalogPage {
+            items,
+            total,
+            counts,
+        })
+    }
+
+    /// 查询业务选择器使用的轻量物品分页，不执行库存聚合。
+    pub(crate) async fn list_item_options(
+        &self,
+        input: ItemOptionCriteria,
+    ) -> Result<Page<ItemOptionRecord>, DbErr> {
+        let search_like = input
+            .search
+            .as_ref()
+            .map(|search| format!("%{}%", search.to_lowercase()));
+        let (base_sql, values) = item_option_base_query(
+            search_like.as_deref(),
+            input.category_id,
+            input.attribute_template_id,
+        );
+        let count_row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                format!("SELECT COUNT(*) AS count FROM ({base_sql}) options"),
+                values.clone(),
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("item option count".to_owned()))?;
+        let total = u64::try_from(count_row.try_get::<i64>("", "count")?).unwrap_or(0);
+        let mut page_values = values;
+        page_values.push((input.page_size as i64).into());
+        page_values.push((((input.page.saturating_sub(1)) * input.page_size) as i64).into());
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                format!(
+                    "SELECT * FROM ({base_sql}) options ORDER BY lower(name), id LIMIT ? OFFSET ?"
+                ),
+                page_values,
+            ))
+            .await?;
+        let items = rows
+            .into_iter()
+            .map(|row| {
+                Ok(ItemOptionRecord {
+                    id: row.try_get("", "id")?,
+                    name: row.try_get("", "name")?,
+                    sku: row.try_get("", "sku")?,
+                    category_id: row.try_get("", "category_id")?,
+                    category_name: row.try_get("", "category_name")?,
+                    attribute_template_id: row.try_get("", "attribute_template_id")?,
+                    image_file_id: row.try_get("", "image_file_id")?,
+                    unit: row.try_get("", "unit")?,
+                })
+            })
+            .collect::<Result<Vec<_>, DbErr>>()?;
+        Ok(Page { items, total })
+    }
+
+    /// 查询已有物品的库存摘要和库位分布，不加载批次明细。
+    pub(crate) async fn find_item_inventory_by_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<ItemInventoryRecord>, DbErr> {
+        let Some(item) = self.find_active_item_by_id(id).await? else {
+            return Ok(None);
+        };
+        let (current_quantity, inventory_value) = self.query_item_stock_summary(id).await?;
+        let batch_count = self.query_item_batch_count(id).await?;
+        let stock_state = stock_state_code(current_quantity, item.reorder_point).to_owned();
+        let locations = self.query_item_stock_locations(id).await?;
+        Ok(Some(ItemInventoryRecord {
+            item,
+            current_quantity,
+            inventory_value,
+            stock_state,
+            batch_count,
+            locations,
+        }))
+    }
+
+    /// 分页查询单个物品当前仍有余额的批次。
+    pub(crate) async fn list_item_stock_batches(
+        &self,
+        item_id: i64,
+        page: u64,
+        page_size: u64,
+    ) -> Result<Page<StockItemBatchRecord>, DbErr> {
+        let total = self.query_item_batch_count(item_id).await?;
+        let limit = page_size as i64;
+        let offset = ((page.saturating_sub(1)) * page_size) as i64;
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                r#"
+                SELECT batches.id, batches.batch_no, batches.location_id,
+                       locations.code AS location_code, locations.name AS location_name,
+                       batches.initial_quantity, batches.remaining_quantity, batches.unit_cost,
+                       batches.remaining_quantity * batches.unit_cost AS value,
+                       batches.received_at, batches.expires_at
+                FROM stock_batches batches
+                JOIN stock_locations locations ON locations.id = batches.location_id
+                WHERE batches.item_id = ? AND batches.remaining_quantity > 0
+                ORDER BY batches.expires_at IS NULL ASC, batches.expires_at ASC,
+                         batches.received_at ASC, batches.id ASC
+                LIMIT ? OFFSET ?
+                "#,
+                [item_id.into(), limit.into(), offset.into()],
+            ))
+            .await?;
+        let items = rows
+            .into_iter()
+            .map(stock_batch_from_query_row)
+            .collect::<Result<Vec<_>, DbErr>>()?;
         Ok(Page { items, total })
     }
 
@@ -273,66 +443,6 @@ where
         Ok(true)
     }
 
-    async fn count_active_items(
-        &self,
-        search_like: Option<&str>,
-        category_id: Option<i64>,
-    ) -> Result<u64, DbErr> {
-        let row = self
-            .database
-            .query_one(stock_item_query(
-                "COUNT(*) AS count",
-                search_like,
-                category_id,
-                None,
-                None,
-            ))
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("stock item count".to_owned()))?;
-        let count: i64 = row.try_get("", "count")?;
-
-        Ok(count as u64)
-    }
-
-    async fn query_active_items(
-        &self,
-        search_like: Option<&str>,
-        category_id: Option<i64>,
-        limit: i64,
-        offset: i64,
-    ) -> Result<Vec<stock_item::Model>, DbErr> {
-        let rows = self
-            .database
-            .query_all(stock_item_query(
-                "id, name, sku, category_id, attribute_template_id, image_file_id, unit, description, default_price, reorder_point, created_at, updated_at, deleted_at",
-                search_like,
-                category_id,
-                Some(limit),
-                Some(offset),
-            ))
-            .await?;
-
-        rows.into_iter()
-            .map(|row| {
-                Ok(stock_item::Model {
-                    id: row.try_get("", "id")?,
-                    name: row.try_get("", "name")?,
-                    sku: row.try_get("", "sku")?,
-                    category_id: row.try_get("", "category_id")?,
-                    attribute_template_id: row.try_get("", "attribute_template_id")?,
-                    image_file_id: row.try_get("", "image_file_id")?,
-                    unit: row.try_get("", "unit")?,
-                    description: row.try_get("", "description")?,
-                    default_price: row.try_get("", "default_price")?,
-                    reorder_point: row.try_get("", "reorder_point")?,
-                    created_at: row.try_get("", "created_at")?,
-                    updated_at: row.try_get("", "updated_at")?,
-                    deleted_at: row.try_get("", "deleted_at")?,
-                })
-            })
-            .collect()
-    }
-
     async fn query_item_stock_summary(&self, item_id: i64) -> Result<(f64, f64), DbErr> {
         let row = self
             .database
@@ -355,6 +465,94 @@ where
             row.try_get("", "current_quantity")?,
             row.try_get("", "inventory_value")?,
         ))
+    }
+
+    async fn query_item_batch_count(&self, item_id: i64) -> Result<u64, DbErr> {
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "SELECT COUNT(*) AS count FROM stock_batches WHERE item_id = ? AND remaining_quantity > 0",
+                [item_id.into()],
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("stock item batch count".to_owned()))?;
+        Ok(u64::try_from(row.try_get::<i64>("", "count")?).unwrap_or(0))
+    }
+
+    async fn query_item_catalog_counts(
+        &self,
+        base_sql: &str,
+        values: Vec<Value>,
+    ) -> Result<ItemCatalogCountsRecord, DbErr> {
+        let sql = format!(
+            r#"
+            SELECT COUNT(*) AS total,
+                   COALESCE(SUM(CASE WHEN stock_state IN ('out_of_stock', 'reorder_due') THEN 1 ELSE 0 END), 0) AS needs_attention,
+                   COALESCE(SUM(CASE WHEN stock_state = 'out_of_stock' THEN 1 ELSE 0 END), 0) AS out_of_stock,
+                   COALESCE(SUM(CASE WHEN stock_state = 'reorder_due' THEN 1 ELSE 0 END), 0) AS reorder_due,
+                   COALESCE(SUM(CASE WHEN stock_state = 'needs_configuration' THEN 1 ELSE 0 END), 0) AS needs_configuration
+            FROM ({base_sql}) catalog
+            "#
+        );
+        let row = self
+            .database
+            .query_one(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                sql,
+                values,
+            ))
+            .await?
+            .ok_or_else(|| DbErr::RecordNotFound("item catalog counts".to_owned()))?;
+        Ok(ItemCatalogCountsRecord {
+            total: sqlite_count(&row, "total")?,
+            needs_attention: sqlite_count(&row, "needs_attention")?,
+            out_of_stock: sqlite_count(&row, "out_of_stock")?,
+            reorder_due: sqlite_count(&row, "reorder_due")?,
+            needs_configuration: sqlite_count(&row, "needs_configuration")?,
+        })
+    }
+
+    async fn query_catalog_attributes(
+        &self,
+        item_ids: &[i64],
+    ) -> Result<HashMap<i64, Vec<CatalogAttributeRecord>>, DbErr> {
+        if item_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let placeholders = vec!["?"; item_ids.len()].join(", ");
+        let sql = format!(
+            r#"
+            SELECT attributes.item_id, definitions.field_name, attributes.value_json, attributes.unit
+            FROM stock_item_attributes attributes
+            JOIN stock_item_attribute_definitions definitions ON definitions.id = attributes.definition_id
+            WHERE attributes.item_id IN ({placeholders})
+              AND definitions.template_id IS NOT NULL
+              AND definitions.catalog_visible = 1
+            ORDER BY attributes.item_id, definitions.sort_order, definitions.id
+            "#
+        );
+        let rows = self
+            .database
+            .query_all(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                sql,
+                item_ids.iter().copied().map(Into::into),
+            ))
+            .await?;
+        let mut result = HashMap::new();
+        for row in rows {
+            let item_id: i64 = row.try_get("", "item_id")?;
+            result
+                .entry(item_id)
+                .or_insert_with(Vec::new)
+                .push(CatalogAttributeRecord {
+                    name: row.try_get("", "field_name")?,
+                    value_json: row.try_get("", "value_json")?,
+                    unit: row.try_get("", "unit")?,
+                });
+        }
+        Ok(result)
     }
 
     async fn query_item_stock_locations(
@@ -393,56 +591,6 @@ where
                     quantity: row.try_get("", "quantity")?,
                     value: row.try_get("", "value")?,
                     batch_count: row.try_get("", "batch_count")?,
-                })
-            })
-            .collect()
-    }
-
-    async fn query_item_stock_batches(
-        &self,
-        item_id: i64,
-    ) -> Result<Vec<StockItemBatchRecord>, DbErr> {
-        let rows = self
-            .database
-            .query_all(Statement::from_sql_and_values(
-                DatabaseBackend::Sqlite,
-                r#"
-                SELECT
-                    batches.id,
-                    batches.batch_no,
-                    batches.location_id,
-                    locations.code AS location_code,
-                    locations.name AS location_name,
-                    batches.initial_quantity,
-                    batches.remaining_quantity,
-                    batches.unit_cost,
-                    batches.remaining_quantity * batches.unit_cost AS value,
-                    batches.received_at,
-                    batches.expires_at
-                FROM stock_batches batches
-                JOIN stock_locations locations ON locations.id = batches.location_id
-                WHERE batches.item_id = ?
-                  AND batches.remaining_quantity > 0
-                ORDER BY batches.expires_at IS NULL ASC, batches.expires_at ASC, batches.received_at ASC, batches.id ASC
-                "#,
-                [item_id.into()],
-            ))
-            .await?;
-
-        rows.into_iter()
-            .map(|row| {
-                Ok(StockItemBatchRecord {
-                    id: row.try_get("", "id")?,
-                    batch_no: row.try_get("", "batch_no")?,
-                    location_id: row.try_get("", "location_id")?,
-                    location_code: row.try_get("", "location_code")?,
-                    location_name: row.try_get("", "location_name")?,
-                    initial_quantity: row.try_get("", "initial_quantity")?,
-                    remaining_quantity: row.try_get("", "remaining_quantity")?,
-                    unit_cost: row.try_get("", "unit_cost")?,
-                    value: row.try_get("", "value")?,
-                    received_at: row.try_get("", "received_at")?,
-                    expires_at: row.try_get("", "expires_at")?,
                 })
             })
             .collect()
@@ -542,30 +690,162 @@ fn item_changed_fields(
     fields
 }
 
-fn stock_item_query(
-    select_clause: &str,
+fn item_catalog_base_query(
     search_like: Option<&str>,
     category_id: Option<i64>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-) -> Statement {
-    let mut sql = format!("SELECT {select_clause} FROM stock_items WHERE deleted_at IS NULL");
+    attribute_template_id: Option<i64>,
+) -> (String, Vec<Value>) {
+    let mut sql = r#"
+        SELECT stock_items.id, stock_items.name, stock_items.sku, stock_items.category_id,
+               stock_items.attribute_template_id, stock_items.image_file_id, stock_items.unit,
+               stock_items.description, stock_items.default_price, stock_items.reorder_point,
+               stock_items.created_at, stock_items.updated_at, stock_items.deleted_at,
+               categories.name AS category_name,
+               COALESCE(inventory.current_quantity, 0.0) AS current_quantity,
+               COALESCE(inventory.inventory_value, 0.0) AS inventory_value,
+               COALESCE(inventory.location_count, 0) AS location_count,
+               COALESCE(inventory.batch_count, 0) AS batch_count,
+               CASE
+                   WHEN COALESCE(inventory.current_quantity, 0.0) <= 0 THEN 'out_of_stock'
+                   WHEN stock_items.reorder_point IS NOT NULL
+                        AND inventory.current_quantity <= stock_items.reorder_point THEN 'reorder_due'
+                   WHEN stock_items.reorder_point IS NULL THEN 'needs_configuration'
+                   ELSE 'normal'
+               END AS stock_state
+        FROM stock_items
+        LEFT JOIN stock_item_categories categories
+               ON categories.id = stock_items.category_id AND categories.deleted_at IS NULL
+        LEFT JOIN (
+            SELECT item_id,
+                   SUM(remaining_quantity) AS current_quantity,
+                   SUM(remaining_quantity * unit_cost) AS inventory_value,
+                   COUNT(DISTINCT location_id) AS location_count,
+                   COUNT(*) AS batch_count
+            FROM stock_batches
+            WHERE remaining_quantity > 0
+            GROUP BY item_id
+        ) inventory ON inventory.item_id = stock_items.id
+        WHERE stock_items.deleted_at IS NULL
+        "#
+    .to_owned();
     let mut values = Vec::new();
-
     if let Some(search_like) = search_like {
         search::append_item_search_filter(&mut sql, &mut values, search_like);
     }
     if let Some(category_id) = category_id {
-        sql.push_str(" AND category_id = ?");
+        sql.push_str(" AND stock_items.category_id = ?");
         values.push(category_id.into());
     }
-    if limit.is_some() {
-        sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
-        values.push(limit.expect("limit checked").into());
-        values.push(offset.unwrap_or(0).into());
+    if let Some(attribute_template_id) = attribute_template_id {
+        sql.push_str(" AND stock_items.attribute_template_id = ?");
+        values.push(attribute_template_id.into());
     }
+    (sql, values)
+}
 
-    Statement::from_sql_and_values(DatabaseBackend::Sqlite, sql, values)
+fn item_option_base_query(
+    search_like: Option<&str>,
+    category_id: Option<i64>,
+    attribute_template_id: Option<i64>,
+) -> (String, Vec<Value>) {
+    let mut sql = r#"
+        SELECT stock_items.id, stock_items.name, stock_items.sku, stock_items.category_id,
+               stock_items.attribute_template_id,
+               categories.name AS category_name, stock_items.image_file_id, stock_items.unit
+        FROM stock_items
+        LEFT JOIN stock_item_categories categories
+               ON categories.id = stock_items.category_id AND categories.deleted_at IS NULL
+        WHERE stock_items.deleted_at IS NULL
+        "#
+    .to_owned();
+    let mut values = Vec::new();
+    if let Some(search_like) = search_like {
+        search::append_item_search_filter(&mut sql, &mut values, search_like);
+    }
+    if let Some(category_id) = category_id {
+        sql.push_str(" AND stock_items.category_id = ?");
+        values.push(category_id.into());
+    }
+    if let Some(attribute_template_id) = attribute_template_id {
+        sql.push_str(" AND stock_items.attribute_template_id = ?");
+        values.push(attribute_template_id.into());
+    }
+    (sql, values)
+}
+
+fn catalog_filter_sql(filter: CatalogStockFilter) -> &'static str {
+    match filter {
+        CatalogStockFilter::All => "",
+        CatalogStockFilter::NeedsAttention => {
+            "WHERE stock_state IN ('out_of_stock', 'reorder_due')"
+        }
+        CatalogStockFilter::OutOfStock => "WHERE stock_state = 'out_of_stock'",
+        CatalogStockFilter::ReorderDue => "WHERE stock_state = 'reorder_due'",
+        CatalogStockFilter::NeedsConfiguration => "WHERE stock_state = 'needs_configuration'",
+    }
+}
+
+fn catalog_order_sql(sort: CatalogSort) -> &'static str {
+    match sort {
+        CatalogSort::ReplenishmentPriority => {
+            "ORDER BY CASE stock_state WHEN 'out_of_stock' THEN 0 WHEN 'reorder_due' THEN 1 WHEN 'needs_configuration' THEN 2 ELSE 3 END, lower(name), lower(sku), id"
+        }
+        CatalogSort::Name => "ORDER BY lower(name), lower(sku), id",
+        CatalogSort::QuantityAsc => "ORDER BY current_quantity ASC, id",
+        CatalogSort::QuantityDesc => "ORDER BY current_quantity DESC, id",
+        CatalogSort::InventoryValueDesc => "ORDER BY inventory_value DESC, id",
+        CatalogSort::UpdatedDesc => "ORDER BY updated_at DESC, id",
+    }
+}
+
+fn stock_item_from_query_row(row: &QueryResult) -> Result<stock_item::Model, DbErr> {
+    Ok(stock_item::Model {
+        id: row.try_get("", "id")?,
+        name: row.try_get("", "name")?,
+        sku: row.try_get("", "sku")?,
+        category_id: row.try_get("", "category_id")?,
+        attribute_template_id: row.try_get("", "attribute_template_id")?,
+        image_file_id: row.try_get("", "image_file_id")?,
+        unit: row.try_get("", "unit")?,
+        description: row.try_get("", "description")?,
+        default_price: row.try_get("", "default_price")?,
+        reorder_point: row.try_get("", "reorder_point")?,
+        created_at: row.try_get("", "created_at")?,
+        updated_at: row.try_get("", "updated_at")?,
+        deleted_at: row.try_get("", "deleted_at")?,
+    })
+}
+
+fn stock_batch_from_query_row(row: QueryResult) -> Result<StockItemBatchRecord, DbErr> {
+    Ok(StockItemBatchRecord {
+        id: row.try_get("", "id")?,
+        batch_no: row.try_get("", "batch_no")?,
+        location_id: row.try_get("", "location_id")?,
+        location_code: row.try_get("", "location_code")?,
+        location_name: row.try_get("", "location_name")?,
+        initial_quantity: row.try_get("", "initial_quantity")?,
+        remaining_quantity: row.try_get("", "remaining_quantity")?,
+        unit_cost: row.try_get("", "unit_cost")?,
+        value: row.try_get("", "value")?,
+        received_at: row.try_get("", "received_at")?,
+        expires_at: row.try_get("", "expires_at")?,
+    })
+}
+
+fn sqlite_count(row: &QueryResult, column: &str) -> Result<u64, DbErr> {
+    Ok(u64::try_from(row.try_get::<i64>("", column)?).unwrap_or(0))
+}
+
+fn stock_state_code(current_quantity: f64, reorder_point: Option<f64>) -> &'static str {
+    if current_quantity <= 0.0 {
+        "out_of_stock"
+    } else if reorder_point.is_some_and(|point| current_quantity <= point) {
+        "reorder_due"
+    } else if reorder_point.is_none() {
+        "needs_configuration"
+    } else {
+        "normal"
+    }
 }
 
 /// 整体替换物品属性；属性、文件绑定和物品基础资料共享调用方事务。
@@ -645,6 +925,7 @@ where
                 field_type: Set(attribute.field_type.clone()),
                 required: Set(1),
                 searchable: Set(0),
+                catalog_visible: Set(0),
                 options_json: Set(attribute.options_json.clone()),
                 default_value: Set(None),
                 unit_mode: Set(attribute.unit_mode.clone()),
@@ -742,7 +1023,7 @@ where
         r#"
         SELECT a.id, a.item_id, a.definition_id, a.value_json, a.unit, a.sort_order,
                a.created_at, a.updated_at, d.template_id, d.owner_item_id, d.field_name,
-               d.field_type, d.required, d.searchable, d.options_json, d.default_value,
+               d.field_type, d.required, d.searchable, d.catalog_visible, d.options_json, d.default_value,
                d.unit_mode, d.fixed_unit, d.unit_options_json, d.sort_order AS definition_sort_order,
                d.created_at AS definition_created_at, d.updated_at AS definition_updated_at
         FROM stock_item_attributes a
@@ -773,6 +1054,7 @@ where
                     field_type: row.try_get("", "field_type")?,
                     required: row.try_get("", "required")?,
                     searchable: row.try_get("", "searchable")?,
+                    catalog_visible: row.try_get("", "catalog_visible")?,
                     options_json: row.try_get("", "options_json")?,
                     default_value: row.try_get("", "default_value")?,
                     unit_mode: row.try_get("", "unit_mode")?,

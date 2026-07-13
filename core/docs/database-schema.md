@@ -159,8 +159,9 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `unit_mode`：单位规则，只允许 `none`、`fixed` 或 `select`，默认值为 `none`；`fixed` 在界面显示为“指定单位”。
 - `fixed_unit`：仅 `fixed` 模式使用的固定单位。
 - `unit_options_json`：仅 `select` 模式使用的单位候选字符串数组 JSON。
+- `catalog_visible`：仅模板定义允许启用的目录展示标记，默认 `0`；服务层限制每个模板最多三项。
 
-字段组合由服务层校验：`none` 不携带额外单位配置，`fixed` 只携带 `fixed_unit`，`select` 只携带非空且去重的 `unit_options_json`。私有定义固定不可用于结构化筛选。
+字段组合由服务层校验：`none` 不携带额外单位配置，`fixed` 只携带 `fixed_unit`，`select` 只携带非空且去重的 `unit_options_json`。私有定义固定不可用于结构化筛选或目录展示。
 
 ### `stock_inbound_templates`
 

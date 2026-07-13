@@ -68,6 +68,7 @@ fn fields(specs: &[FieldSpec]) -> Vec<TemplateFieldInput> {
             field_type: field.field_type.as_code().to_owned(),
             required: field.required,
             searchable: field.searchable,
+            catalog_visible: false,
             options_json: field.options_json.map(str::to_owned),
             default_value: None,
             unit_mode: "none".to_owned(),

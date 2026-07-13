@@ -20,18 +20,20 @@ mod types;
 
 pub(crate) use search::{StockFilterFieldRecord, StockFilterValueRecord};
 pub(crate) use types::{
-    AuditEventRecord, CreateInboundOrder, CreateInboundOrderItem, CreateInboundTemplate,
-    CreateItemAttributeTemplate, CreateItemCategory, CreateLocation, CreateLocationGroup,
-    CreateLocationTransfer, CreateOutboundOrder, CreateOutboundOrderItem, CreateStockItem,
-    DailyMovementTrendRecord, DashboardOverviewRecord, InboundAttributeInput, InboundOrderDetail,
-    InboundOrderItemRecord, InboundOrderRecord, InboundTemplateDetail, ItemAttributeInput,
-    ItemAttributeRecord, ItemAttributeTemplateDetail, ListAuditEvents, ListInboundOrders,
-    ListOutboundOrders, ListStockItems, OutboundOrderDetail, OutboundOrderItemRecord,
-    OutboundOrderRecord, Page, SlowMovingStockItemRecord, StockItemBatchRecord, StockItemDetail,
-    StockItemListRecord, StockItemLocationRecord, StockLocationGroupRecord, StockLocationRecord,
-    StockLocationTransferRecord, StockSubstituteInput, StockSubstituteRecord, TemplateFieldInput,
-    UpdateInboundTemplate, UpdateItemAttributeTemplate, UpdateItemCategory, UpdateLocation,
-    UpdateLocationGroup, UpdateStockItem,
+    AuditEventRecord, CatalogAttributeRecord, CatalogSort, CatalogStockFilter, CreateInboundOrder,
+    CreateInboundOrderItem, CreateInboundTemplate, CreateItemAttributeTemplate, CreateItemCategory,
+    CreateLocation, CreateLocationGroup, CreateLocationTransfer, CreateOutboundOrder,
+    CreateOutboundOrderItem, CreateStockItem, DailyMovementTrendRecord, DashboardOverviewRecord,
+    InboundAttributeInput, InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord,
+    InboundTemplateDetail, ItemAttributeInput, ItemAttributeRecord, ItemAttributeTemplateDetail,
+    ItemCatalogCountsRecord, ItemCatalogCriteria, ItemCatalogPage, ItemCatalogRecord,
+    ItemInventoryRecord, ItemOptionCriteria, ItemOptionRecord, ListAuditEvents, ListInboundOrders,
+    ListOutboundOrders, OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
+    SlowMovingStockItemRecord, StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord,
+    StockLocationGroupRecord, StockLocationRecord, StockLocationTransferRecord,
+    StockSubstituteInput, StockSubstituteRecord, TemplateFieldInput, UpdateInboundTemplate,
+    UpdateItemAttributeTemplate, UpdateItemCategory, UpdateLocation, UpdateLocationGroup,
+    UpdateStockItem,
 };
 
 /// stock 仓储层封装库存领域持久化语义。

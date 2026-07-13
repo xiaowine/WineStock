@@ -6,8 +6,8 @@
 use crate::{
     files::stored_image_matches_metadata,
     persistence::repository::{
-        CreateStockItem, FileObjectRepository, ListStockItems, StockItemListRecord,
-        StockRepository, UpdateStockItem,
+        CatalogSort, CatalogStockFilter, CreateStockItem, FileObjectRepository,
+        ItemCatalogCriteria, ItemOptionCriteria, StockRepository, UpdateStockItem,
     },
     security::CurrentUser,
     state::CoreState,
@@ -17,8 +17,11 @@ use crate::{
 use super::{
     error::map_stock_db_error,
     item_attributes::normalize_item_attributes,
-    pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
-    response::{filter_values_response, item_detail_response, item_response},
+    pagination::{total_pages, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
+    response::{
+        filter_values_response, item_catalog_response, item_editor_response,
+        item_inventory_response, item_option_response,
+    },
     validation::{normalize_optional_text, normalize_required_text, validate_non_negative},
     StockApiError,
 };
@@ -28,7 +31,7 @@ pub(crate) async fn create_item(
     state: &CoreState,
     current_user: &CurrentUser,
     request: controller::ItemCreateRequest,
-) -> Result<controller::ItemResponse, StockApiError> {
+) -> Result<controller::ItemMutationResponse, StockApiError> {
     let repository = StockRepository::new(state.database());
     validate_item_main_image(state, current_user, request.image_file_id).await?;
     if let Some(category_id) = request.category_id {
@@ -80,21 +83,17 @@ pub(crate) async fn create_item(
         .create_item(input, Some(current_user.user_id))
         .await
         .map_err(map_stock_db_error)?;
-    let detail = repository
-        .find_active_item_detail_by_id(item.id)
-        .await?
-        .ok_or(StockApiError::ItemNotFound)?;
-    item_response(StockItemListRecord {
-        item: detail.item,
-        attributes: detail.attributes,
+    Ok(controller::ItemMutationResponse {
+        id: item.id,
+        updated_at: item.updated_at,
     })
 }
 
-/// 分页查询库存物品；查询参数在这里统一归一化，避免 repository 暴露 HTTP 默认值。
-pub(crate) async fn list_items(
+/// 查询物品目录库存视图；HTTP 默认值在服务层归一化为仓储领域条件。
+pub(crate) async fn list_item_catalog(
     state: &CoreState,
-    query: controller::ItemListQuery,
-) -> Result<PaginatedResponse<controller::ItemResponse>, StockApiError> {
+    query: controller::ItemCatalogQuery,
+) -> Result<controller::ItemCatalogPageResponse, StockApiError> {
     let page = query.page.unwrap_or(DEFAULT_PAGE).max(1);
     let page_size = query
         .page_size
@@ -103,20 +102,64 @@ pub(crate) async fn list_items(
     let search = normalize_optional_text(query.search)?;
     let repository = StockRepository::new(state.database());
     let result = repository
-        .list_active_items(ListStockItems {
+        .list_item_catalog(ItemCatalogCriteria {
             page,
             page_size,
             search,
             category_id: query.category_id,
+            attribute_template_id: query.attribute_template_id,
+            stock_filter: match query
+                .stock_filter
+                .unwrap_or(controller::ItemStockFilter::All)
+            {
+                controller::ItemStockFilter::All => CatalogStockFilter::All,
+                controller::ItemStockFilter::NeedsAttention => CatalogStockFilter::NeedsAttention,
+                controller::ItemStockFilter::OutOfStock => CatalogStockFilter::OutOfStock,
+                controller::ItemStockFilter::ReorderDue => CatalogStockFilter::ReorderDue,
+                controller::ItemStockFilter::NeedsConfiguration => {
+                    CatalogStockFilter::NeedsConfiguration
+                }
+            },
+            sort: match query
+                .sort
+                .unwrap_or(controller::ItemCatalogSort::ReplenishmentPriority)
+            {
+                controller::ItemCatalogSort::ReplenishmentPriority => {
+                    CatalogSort::ReplenishmentPriority
+                }
+                controller::ItemCatalogSort::Name => CatalogSort::Name,
+                controller::ItemCatalogSort::QuantityAsc => CatalogSort::QuantityAsc,
+                controller::ItemCatalogSort::QuantityDesc => CatalogSort::QuantityDesc,
+                controller::ItemCatalogSort::InventoryValueDesc => CatalogSort::InventoryValueDesc,
+                controller::ItemCatalogSort::UpdatedDesc => CatalogSort::UpdatedDesc,
+            },
         })
         .await?;
+    item_catalog_response(result, page, page_size)
+}
 
-    Ok(PaginatedResponse {
-        items: result
-            .items
-            .into_iter()
-            .map(item_response)
-            .collect::<Result<Vec<_>, StockApiError>>()?,
+/// 查询入库等业务选择器使用的轻量物品分页。
+pub(crate) async fn list_item_options(
+    state: &CoreState,
+    query: controller::ItemOptionQuery,
+) -> Result<controller::ItemOptionPageResponse, StockApiError> {
+    let page = query.page.unwrap_or(DEFAULT_PAGE).max(1);
+    let page_size = query
+        .page_size
+        .unwrap_or(DEFAULT_PAGE_SIZE)
+        .clamp(1, MAX_PAGE_SIZE);
+    let repository = StockRepository::new(state.database());
+    let result = repository
+        .list_item_options(ItemOptionCriteria {
+            page,
+            page_size,
+            search: normalize_optional_text(query.search)?,
+            category_id: query.category_id,
+            attribute_template_id: query.attribute_template_id,
+        })
+        .await?;
+    Ok(controller::ItemOptionPageResponse {
+        items: result.items.into_iter().map(item_option_response).collect(),
         total: result.total,
         page,
         page_size,
@@ -136,13 +179,64 @@ pub(crate) async fn item_filter_values(
 pub(crate) async fn get_item(
     state: &CoreState,
     id: i64,
-) -> Result<controller::ItemDetailResponse, StockApiError> {
+) -> Result<controller::ItemEditorResponse, StockApiError> {
     let repository = StockRepository::new(state.database());
-    let Some(detail) = repository.find_active_item_detail_by_id(id).await? else {
+    let Some(detail) = repository.find_active_item_editor_by_id(id).await? else {
         return Err(StockApiError::ItemNotFound);
     };
+    item_editor_response(detail)
+}
 
-    item_detail_response(detail)
+/// 查询已有物品库存摘要和库位分布，不加载批次明细。
+pub(crate) async fn get_item_inventory(
+    state: &CoreState,
+    id: i64,
+) -> Result<controller::ItemInventoryResponse, StockApiError> {
+    let repository = StockRepository::new(state.database());
+    let Some(detail) = repository.find_item_inventory_by_id(id).await? else {
+        return Err(StockApiError::ItemNotFound);
+    };
+    item_inventory_response(detail)
+}
+
+/// 分页查询单个物品当前有效批次。
+pub(crate) async fn list_item_batches(
+    state: &CoreState,
+    id: i64,
+    query: controller::ItemBatchQuery,
+) -> Result<controller::ItemBatchPageResponse, StockApiError> {
+    let page = query.page.unwrap_or(DEFAULT_PAGE).max(1);
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
+    let repository = StockRepository::new(state.database());
+    if repository.find_active_item_by_id(id).await?.is_none() {
+        return Err(StockApiError::ItemNotFound);
+    }
+    let result = repository
+        .list_item_stock_batches(id, page, page_size)
+        .await?;
+    Ok(controller::ItemBatchPageResponse {
+        items: result
+            .items
+            .into_iter()
+            .map(|batch| controller::ItemBatchStockResponse {
+                id: batch.id,
+                batch_no: batch.batch_no,
+                location_id: batch.location_id,
+                location_code: batch.location_code,
+                location_name: batch.location_name,
+                initial_quantity: batch.initial_quantity,
+                remaining_quantity: batch.remaining_quantity,
+                unit_cost: batch.unit_cost,
+                value: batch.value,
+                received_at: batch.received_at,
+                expires_at: batch.expires_at,
+            })
+            .collect(),
+        total: result.total,
+        page,
+        page_size,
+        total_pages: total_pages(result.total, page_size),
+    })
 }
 
 /// 更新库存物品基础资料；字段缺失表示不修改，显式 null 可清空对应可空字段。
@@ -153,7 +247,7 @@ pub(crate) async fn update_item(
     current_user: &CurrentUser,
     id: i64,
     request: controller::ItemUpdateRequest,
-) -> Result<controller::ItemResponse, StockApiError> {
+) -> Result<controller::ItemMutationResponse, StockApiError> {
     let sku = request
         .sku
         .map(|sku| normalize_required_text(&sku))
@@ -246,13 +340,9 @@ pub(crate) async fn update_item(
         return Err(StockApiError::ItemNotFound);
     };
 
-    let detail = repository
-        .find_active_item_detail_by_id(item.id)
-        .await?
-        .ok_or(StockApiError::ItemNotFound)?;
-    item_response(StockItemListRecord {
-        item: detail.item,
-        attributes: detail.attributes,
+    Ok(controller::ItemMutationResponse {
+        id: item.id,
+        updated_at: item.updated_at,
     })
 }
 

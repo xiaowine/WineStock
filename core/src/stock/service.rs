@@ -25,7 +25,8 @@ pub(crate) use inbound::{
     reject_inbound,
 };
 pub(crate) use items::{
-    create_item, delete_item, get_item, item_filter_values, list_items, update_item,
+    create_item, delete_item, get_item, get_item_inventory, item_filter_values, list_item_batches,
+    list_item_catalog, list_item_options, update_item,
 };
 pub(crate) use locations::{
     create_location, create_location_group, create_location_transfer, delete_location,

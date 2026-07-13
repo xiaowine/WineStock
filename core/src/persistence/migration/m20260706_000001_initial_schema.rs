@@ -1,4 +1,4 @@
-//! WineStock v1 SQLite schema migration。
+//! WineStock v1 SQLite 初始数据库结构迁移。
 //!
 //! 本 migration 创建当前 server/API 阶段需要的用户、鉴权、刷新令牌、文件元数据和库存业务表。
 //! 这里保留显式 SQL，是为了直接表达 SQLite CHECK、局部唯一索引和默认时间格式。
@@ -191,6 +191,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'url', 'boolean')),
         required INTEGER NOT NULL DEFAULT 0 CHECK (required IN (0, 1)),
         searchable INTEGER NOT NULL DEFAULT 0 CHECK (searchable IN (0, 1)),
+        catalog_visible INTEGER NOT NULL DEFAULT 0 CHECK (catalog_visible IN (0, 1)),
         options_json TEXT,
         default_value TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),

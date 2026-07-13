@@ -65,8 +65,14 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert!(value["paths"]["/api/inbound-templates"].is_object());
     assert!(value["paths"]["/api/inbound-templates/{id}/copy"].is_object());
     assert!(value["paths"]["/api/items"].is_object());
+    assert!(value["paths"]["/api/items/options"].is_object());
     assert!(value["paths"]["/api/items/filter-values"].is_object());
     assert!(value["paths"]["/api/items/{id}"].is_object());
+    assert!(value["paths"]["/api/items/{id}/inventory"].is_object());
+    assert!(value["paths"]["/api/items/{id}/batches"].is_object());
+    assert!(value["components"]["schemas"]["ItemResponse"].is_null());
+    assert!(value["components"]["schemas"]["ItemCatalogPageResponse"].is_object());
+    assert!(value["components"]["schemas"]["ItemMutationResponse"].is_object());
     assert!(value["paths"]["/api/location-groups/tree"].is_object());
     assert!(value["paths"]["/api/location-groups"].is_object());
     assert!(value["paths"]["/api/location-groups/{id}"].is_object());
@@ -91,6 +97,11 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_eq!(
         value["components"]["schemas"]["ItemAttributeUnitMode"]["enum"],
         serde_json::json!(["none", "fixed", "select"])
+    );
+    assert!(
+        value["components"]["schemas"]["ItemAttributeTemplateFieldDef"]["properties"]
+            ["catalog_visible"]
+            .is_object()
     );
     for schema in ["ItemAttributeRequest", "ItemAttributeResponse"] {
         let properties = &value["components"]["schemas"][schema]["properties"];

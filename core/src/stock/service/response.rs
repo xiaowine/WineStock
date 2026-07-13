@@ -7,9 +7,10 @@ use serde_json::Value;
 
 use crate::{
     persistence::repository::{
-        AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, OutboundOrderDetail,
-        StockFilterFieldRecord, StockItemDetail, StockItemListRecord, StockLocationGroupRecord,
-        StockLocationRecord, StockLocationTransferRecord, StockSubstituteRecord,
+        AuditEventRecord, DashboardOverviewRecord, InboundOrderDetail, ItemCatalogPage,
+        ItemInventoryRecord, ItemOptionRecord, OutboundOrderDetail, StockFilterFieldRecord,
+        StockItemListRecord, StockLocationGroupRecord, StockLocationRecord,
+        StockLocationTransferRecord, StockSubstituteRecord,
     },
     stock::controller,
 };
@@ -17,11 +18,11 @@ use crate::{
 use super::{item_attributes::item_attribute_responses, StockApiError};
 
 /// 把库存物品数据库模型转换为 HTTP 响应，不暴露软删除字段。
-pub(super) fn item_response(
+pub(super) fn item_editor_response(
     record: StockItemListRecord,
-) -> Result<controller::ItemResponse, StockApiError> {
+) -> Result<controller::ItemEditorResponse, StockApiError> {
     let item = record.item;
-    Ok(controller::ItemResponse {
+    Ok(controller::ItemEditorResponse {
         id: item.id,
         name: item.name,
         sku: item.sku,
@@ -40,29 +41,20 @@ pub(super) fn item_response(
 }
 
 /// 把库存物品详情读取模型转换为 HTTP 响应，库存聚合只反映当前有效批次。
-pub(super) fn item_detail_response(
-    detail: StockItemDetail,
-) -> Result<controller::ItemDetailResponse, StockApiError> {
+pub(super) fn item_inventory_response(
+    detail: ItemInventoryRecord,
+) -> Result<controller::ItemInventoryResponse, StockApiError> {
     let item = detail.item;
-    let attributes = item_attribute_responses(detail.attributes)?;
-
-    Ok(controller::ItemDetailResponse {
+    Ok(controller::ItemInventoryResponse {
         id: item.id,
         name: item.name,
         sku: item.sku,
-        category_id: item.category_id,
-        attribute_template_id: item.attribute_template_id,
-        image_file_id: item.image_file_id,
-        image_url: format!("/api/files/{}", item.image_file_id),
         unit: item.unit,
-        description: item.description,
-        default_price: item.default_price,
         reorder_point: item.reorder_point,
-        attributes,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
         current_quantity: detail.current_quantity,
         inventory_value: detail.inventory_value,
+        stock_state: controller::ItemStockState::from_code(&detail.stock_state)?,
+        batch_count: detail.batch_count,
         locations: detail
             .locations
             .into_iter()
@@ -75,24 +67,81 @@ pub(super) fn item_detail_response(
                 batch_count: location.batch_count,
             })
             .collect(),
-        batches: detail
-            .batches
-            .into_iter()
-            .map(|batch| controller::ItemBatchStockResponse {
-                id: batch.id,
-                batch_no: batch.batch_no,
-                location_id: batch.location_id,
-                location_code: batch.location_code,
-                location_name: batch.location_name,
-                initial_quantity: batch.initial_quantity,
-                remaining_quantity: batch.remaining_quantity,
-                unit_cost: batch.unit_cost,
-                value: batch.value,
-                received_at: batch.received_at,
-                expires_at: batch.expires_at,
-            })
-            .collect(),
     })
+}
+
+/// 把物品目录仓储分页投影为公开目录响应。
+pub(super) fn item_catalog_response(
+    result: ItemCatalogPage,
+    page: u64,
+    page_size: u64,
+) -> Result<controller::ItemCatalogPageResponse, StockApiError> {
+    Ok(controller::ItemCatalogPageResponse {
+        items: result
+            .items
+            .into_iter()
+            .map(|record| {
+                let item = record.item;
+                Ok(controller::ItemCatalogEntryResponse {
+                    id: item.id,
+                    name: item.name,
+                    sku: item.sku,
+                    category_id: item.category_id,
+                    category_name: record.category_name,
+                    attribute_template_id: item.attribute_template_id,
+                    image_file_id: item.image_file_id,
+                    image_url: format!("/api/files/{}", item.image_file_id),
+                    unit: item.unit,
+                    default_price: item.default_price,
+                    reorder_point: item.reorder_point,
+                    catalog_attributes: record
+                        .catalog_attributes
+                        .into_iter()
+                        .map(|attribute| {
+                            Ok(controller::CatalogAttributeResponse {
+                                name: attribute.name,
+                                value: serde_json::from_str(&attribute.value_json)
+                                    .map_err(|_| StockApiError::InvalidRequest)?,
+                                unit: attribute.unit,
+                            })
+                        })
+                        .collect::<Result<Vec<_>, StockApiError>>()?,
+                    current_quantity: record.current_quantity,
+                    inventory_value: record.inventory_value,
+                    location_count: record.location_count,
+                    batch_count: record.batch_count,
+                    stock_state: controller::ItemStockState::from_code(&record.stock_state)?,
+                    updated_at: item.updated_at,
+                })
+            })
+            .collect::<Result<Vec<_>, StockApiError>>()?,
+        counts: controller::ItemCatalogCountsResponse {
+            total: result.counts.total,
+            needs_attention: result.counts.needs_attention,
+            out_of_stock: result.counts.out_of_stock,
+            reorder_due: result.counts.reorder_due,
+            needs_configuration: result.counts.needs_configuration,
+        },
+        total: result.total,
+        page,
+        page_size,
+        total_pages: super::pagination::total_pages(result.total, page_size),
+    })
+}
+
+/// 把轻量物品仓储记录转换为选择器响应。
+pub(super) fn item_option_response(record: ItemOptionRecord) -> controller::ItemOptionResponse {
+    controller::ItemOptionResponse {
+        id: record.id,
+        name: record.name,
+        sku: record.sku,
+        category_id: record.category_id,
+        category_name: record.category_name,
+        attribute_template_id: record.attribute_template_id,
+        image_file_id: record.image_file_id,
+        image_url: format!("/api/files/{}", record.image_file_id),
+        unit: record.unit,
+    }
 }
 
 /// 把筛选值聚合记录转换为 HTTP 响应；字段来源和类型代码必须是服务端已知值。

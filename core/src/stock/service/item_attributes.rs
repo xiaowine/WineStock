@@ -60,11 +60,20 @@ pub(super) async fn normalize_item_attributes(
             return Err(StockApiError::InvalidRequest);
         }
         let preset = template_fields.get(&field_name.to_lowercase()).copied();
-        if request
-            .definition_id
-            .is_some_and(|id| preset.is_none_or(|field| field.id != id))
-        {
-            return Err(StockApiError::InvalidRequest);
+        if let Some(definition_id) = request.definition_id {
+            if let Some(preset) = preset {
+                if preset.id != definition_id {
+                    return Err(StockApiError::InvalidRequest);
+                }
+            } else {
+                let item_id = current_item_id.ok_or(StockApiError::InvalidRequest)?;
+                if !repository
+                    .item_owns_attribute_definition(item_id, definition_id)
+                    .await?
+                {
+                    return Err(StockApiError::InvalidRequest);
+                }
+            }
         }
         if preset.is_some_and(|field| field.field_type != request.field_type.as_code()) {
             return Err(StockApiError::InvalidRequest);

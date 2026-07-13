@@ -4,12 +4,14 @@
 
 ## 权限
 
-- `stock.item.read`：列表、详情和筛选值。
+- `stock.item.read`：目录、轻量选择、编辑资料、库存详情、批次和筛选值。
 - `stock.item.manage`：创建、更新和软删除。
 
 ## 数据结构
 
-`ItemCreateRequest`、`ItemUpdateRequest` 和 `ItemResponse` 的核心字段：
+创建和更新继续使用 `ItemCreateRequest`、`ItemUpdateRequest`，成功只返回 `ItemMutationResponse { id, updated_at }`。读取契约按目录、选择器、编辑器、库存和批次拆分，不提供万能 `ItemResponse`。
+
+物品资料核心字段：
 
 | 字段 | 说明 |
 |---|---|
@@ -33,13 +35,18 @@
 
 ## 接口
 
-- `POST /api/items`：创建物品、主图、属性和文件绑定，全部处于同一数据库事务。主图必须是当前用户拥有的未绑定 PNG、JPEG 或 WebP。
-- `GET /api/items`：按页返回基础资料和实际物品属性；支持 `page`、`page_size`、`category_id` 和非空 `search`。
+- `POST /api/items`：创建物品、主图、属性和文件绑定，全部处于同一数据库事务；返回轻量命令结果。
+- `GET /api/items`：返回实时库存目录，支持分页、搜索、分类、属性模板、库存状态筛选和服务端排序，并返回五项状态计数。
+- `GET /api/items/options`：返回入库等选择器使用的轻量物品资料，不返回参考价格、完整属性或库存聚合。
 - `GET /api/items/filter-values`：只对当前仍有库存的物品聚合基础字段和模板中标记为 searchable 的物品属性。
-- `GET /api/items/{id}`：返回基础资料、物品属性、当前数量、价值、库位分布和批次摘要。
-- `PUT /api/items/{id}`：更新基础资料；传入 `attributes` 时整体替换实际属性。
+- `GET /api/items/{id}`：只返回编辑器恢复草稿需要的基础资料和全部固有属性。
+- `GET /api/items/{id}/inventory`：返回实时库存量、价值、补货状态、有效批次数和库位聚合。
+- `GET /api/items/{id}/batches`：分页返回仍有余额的批次，默认每页 20 条。
+- `PUT /api/items/{id}`：更新基础资料；传入 `attributes` 时整体替换实际属性，成功返回轻量命令结果。
 - `DELETE /api/items/{id}`：软删除物品。
 
 更新请求中，字段缺失表示保留原值；`category_id`、`attribute_template_id`、`description`、`default_price` 和 `reorder_point` 明确传 `null` 时会清空。`image_file_id` 不允许清空；更换时必须传当前用户拥有的未绑定图片。原主图在事务成功后解除占用，可通过临时文件删除接口删除或等待孤儿清理。
 
 自由搜索匹配物品基础字段、分类元数据、物品属性模板元数据和实际物品属性。物品属性属于物品自身，因此即使库存已经耗尽，仍可通过属性搜索到该物品；筛选值接口仍按当前库存范围统计。
+
+目录库存状态固定为：零库存 `out_of_stock`；库存大于零且小于等于补货点 `reorder_due`；库存大于零但未设置补货点 `needs_configuration`；其它为 `normal`。`needs_attention` 是缺货和待补货的并集。状态计数受搜索、分类和模板条件影响，但忽略当前库存状态筛选。

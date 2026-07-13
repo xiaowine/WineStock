@@ -91,6 +91,9 @@ pub(crate) struct ItemAttributeTemplateFieldDef {
     /// 是否允许参与搜索。
     #[garde(skip)]
     pub searchable: Option<bool>,
+    /// 是否作为物品目录关键属性展示。
+    #[garde(skip)]
+    pub catalog_visible: Option<bool>,
     /// select 字段候选值。
     #[garde(inner(length(min = 1, max = 128)))]
     pub options: Option<Vec<String>>,
@@ -106,7 +109,12 @@ impl ItemAttributeTemplateFieldDef {
     /// 拆分两类模板共用字段和物品模板专属单位规则。
     pub(crate) fn into_parts(
         self,
-    ) -> (Option<i64>, TemplateFieldDef, Option<ItemAttributeUnitRule>) {
+    ) -> (
+        Option<i64>,
+        TemplateFieldDef,
+        Option<ItemAttributeUnitRule>,
+        bool,
+    ) {
         (
             self.definition_id,
             TemplateFieldDef {
@@ -118,6 +126,7 @@ impl ItemAttributeTemplateFieldDef {
                 default_value: self.default_value,
             },
             self.unit,
+            self.catalog_visible.unwrap_or(false),
         )
     }
 }
@@ -134,6 +143,9 @@ pub(crate) struct ItemAttributeTemplateFieldResponse {
     /// 单位规则。
     #[garde(dive)]
     pub unit: ItemAttributeUnitRule,
+    /// 是否作为物品目录关键属性展示。
+    #[garde(skip)]
+    pub catalog_visible: bool,
 }
 
 /// 创建物品属性模板请求。

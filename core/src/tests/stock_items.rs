@@ -12,7 +12,8 @@ use crate::{
         InboundCreateRequest, InboundItemRequest, InboundResponse, ItemAttributeRequest,
         ItemAttributeTemplateCreateRequest, ItemAttributeTemplateFieldDef,
         ItemAttributeTemplateResponse, ItemAttributeUnitMode, ItemAttributeUnitRule,
-        ItemCreateRequest, ItemDetailResponse, ItemResponse, ItemUpdateRequest, TemplateFieldType,
+        ItemBatchPageResponse, ItemCreateRequest, ItemEditorResponse, ItemInventoryResponse,
+        ItemMutationResponse, ItemUpdateRequest, TemplateFieldType,
     },
     test_support::{
         error_code, json_body, json_request, login_request, seed_stock_location, seeded_app,
@@ -59,7 +60,8 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
-    let item: ItemResponse = json_body(created).await;
+    let mutation: ItemMutationResponse = json_body(created).await;
+    let item = get_item_editor(&app, &login.body.access_token, mutation.id).await;
     assert_eq!(item.name, "Cabernet Cork");
     assert_eq!(item.sku, "CORK-001");
 
@@ -120,7 +122,8 @@ async fn item_crud_uses_permissions_and_soft_delete() {
     )
     .await;
     assert_eq!(updated.status(), StatusCode::OK);
-    let updated: ItemResponse = json_body(updated).await;
+    let mutation: ItemMutationResponse = json_body(updated).await;
+    let updated = get_item_editor(&app, &login.body.access_token, mutation.id).await;
     assert_eq!(updated.name, "Reserve Cork");
     assert_eq!(updated.sku, "CORK-002");
     assert_eq!(updated.attribute_template_id, Some(attribute_template_id));
@@ -204,7 +207,7 @@ async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
     .await;
     assert_eq!(template.status(), StatusCode::CREATED);
     let template: serde_json::Value = json_body(template).await;
-    let created: ItemResponse = json_body(
+    let created: ItemMutationResponse = json_body(
         authorized_json_request(
             &app,
             "POST",
@@ -243,7 +246,8 @@ async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
     )
     .await;
     assert_eq!(cleared.status(), StatusCode::OK);
-    let cleared: ItemResponse = json_body(cleared).await;
+    let mutation: ItemMutationResponse = json_body(cleared).await;
+    let cleared = get_item_editor(&app, &token, mutation.id).await;
     assert_eq!(cleared.category_id, None);
     assert_eq!(cleared.attribute_template_id, None);
     assert_eq!(cleared.description, None);
@@ -259,10 +263,99 @@ async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
     )
     .await;
     assert_eq!(renamed.status(), StatusCode::OK);
-    let renamed: ItemResponse = json_body(renamed).await;
+    let mutation: ItemMutationResponse = json_body(renamed).await;
+    let renamed = get_item_editor(&app, &token, mutation.id).await;
     assert_eq!(renamed.name, "清空后改名");
     assert_eq!(renamed.category_id, None);
     assert_eq!(renamed.attribute_template_id, None);
+}
+
+#[tokio::test]
+async fn item_can_select_template_while_retaining_owned_custom_attributes() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let template = authorized_json_request(
+        &app,
+        "POST",
+        "/api/item-attribute-templates",
+        &token,
+        &serde_json::json!({
+            "name": "混合属性模板",
+            "description": null,
+            "default_inbound_template_id": null,
+            "fields": [{
+                "field_name": "材质",
+                "field_type": "select",
+                "required": true,
+                "searchable": true,
+                "options": ["PLA", "ASA"],
+                "default_value": null
+            }]
+        }),
+    )
+    .await;
+    assert_eq!(template.status(), StatusCode::CREATED);
+    let template: serde_json::Value = json_body(template).await;
+    let created: ItemMutationResponse = json_body(
+        authorized_json_request(
+            &app,
+            "POST",
+            "/api/items",
+            &token,
+            &serde_json::json!({
+                "name": "混合属性物品",
+                "sku": "MIXED-ATTR-001",
+                "image_file_id": crate::test_support::upload_test_image(&app, &token).await,
+                "unit": "个",
+                "attributes": [{
+                    "field_name": "内部编号",
+                    "field_type": "text",
+                    "value": "A-01"
+                }]
+            }),
+        )
+        .await,
+    )
+    .await;
+    let current = get_item_editor(&app, &token, created.id).await;
+    let custom_definition_id = current.attributes[0].definition_id;
+
+    let updated = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/items/{}", created.id),
+        &token,
+        &serde_json::json!({
+            "attribute_template_id": template["id"],
+            "attributes": [
+                {
+                    "definition_id": custom_definition_id,
+                    "field_name": "内部编号",
+                    "field_type": "text",
+                    "value": "A-01"
+                },
+                {
+                    "definition_id": template["fields"][0]["id"],
+                    "field_name": "材质",
+                    "field_type": "select",
+                    "value": "ASA"
+                }
+            ]
+        }),
+    )
+    .await;
+    assert_eq!(updated.status(), StatusCode::OK);
+    let updated = get_item_editor(&app, &token, created.id).await;
+    assert_eq!(updated.attribute_template_id, template["id"].as_i64());
+    assert_eq!(updated.attributes.len(), 2);
+    assert!(updated.attributes.iter().any(|attribute| attribute.custom));
+    assert!(updated
+        .attributes
+        .iter()
+        .any(|attribute| attribute.field_name == "材质"));
 }
 
 #[tokio::test]
@@ -284,16 +377,16 @@ async fn item_detail_returns_current_inventory_summary() {
     let empty_detail = authorized_empty_request(
         &app,
         "GET",
-        &format!("/api/items/{item_id}"),
+        &format!("/api/items/{item_id}/inventory"),
         &login.body.access_token,
     )
     .await;
     assert_eq!(empty_detail.status(), StatusCode::OK);
-    let empty_detail: ItemDetailResponse = json_body(empty_detail).await;
+    let empty_detail: ItemInventoryResponse = json_body(empty_detail).await;
     assert_eq!(empty_detail.current_quantity, 0.0);
     assert_eq!(empty_detail.inventory_value, 0.0);
     assert!(empty_detail.locations.is_empty());
-    assert!(empty_detail.batches.is_empty());
+    assert_eq!(empty_detail.batch_count, 0);
 
     create_and_approve_inbound(
         &app,
@@ -315,12 +408,12 @@ async fn item_detail_returns_current_inventory_summary() {
     let detail = authorized_empty_request(
         &app,
         "GET",
-        &format!("/api/items/{item_id}"),
+        &format!("/api/items/{item_id}/inventory"),
         &login.body.access_token,
     )
     .await;
     assert_eq!(detail.status(), StatusCode::OK);
-    let detail: ItemDetailResponse = json_body(detail).await;
+    let detail: ItemInventoryResponse = json_body(detail).await;
     assert_eq!(detail.id, item_id);
     assert_eq!(detail.current_quantity, 20.0);
     assert_eq!(detail.inventory_value, 50.0);
@@ -330,12 +423,77 @@ async fn item_detail_returns_current_inventory_summary() {
     assert_eq!(detail.locations[0].value, 25.0);
     assert_eq!(detail.locations[0].batch_count, 1);
     assert_eq!(detail.locations[1].location_code, "B-02");
-    assert_eq!(detail.batches.len(), 2);
-    assert_eq!(detail.batches[0].batch_no, "DETAIL-BATCH-001");
-    assert_eq!(detail.batches[0].remaining_quantity, 10.0);
-    assert_eq!(detail.batches[0].unit_cost, 2.5);
-    assert_eq!(detail.batches[0].value, 25.0);
-    assert_eq!(detail.batches[1].batch_no, "DETAIL-BATCH-002");
+    assert_eq!(detail.batch_count, 2);
+    let batches = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items/{item_id}/batches?page=1&page_size=20"),
+        &login.body.access_token,
+    )
+    .await;
+    let batches: ItemBatchPageResponse = json_body(batches).await;
+    assert_eq!(batches.total, 2);
+    assert_eq!(batches.items[0].batch_no, "DETAIL-BATCH-001");
+    assert_eq!(batches.items[0].remaining_quantity, 10.0);
+    assert_eq!(batches.items[0].unit_cost, 2.5);
+    assert_eq!(batches.items[0].value, 25.0);
+    assert_eq!(batches.items[1].batch_no, "DETAIL-BATCH-002");
+}
+
+#[tokio::test]
+async fn item_catalog_uses_one_stock_rule_for_counts_filtering_and_priority() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let out_of_stock = create_simple_item(&app, &token, "A 缺货", "CATALOG-OUT", Some(5.0)).await;
+    let reorder_due = create_simple_item(&app, &token, "B 待补货", "CATALOG-DUE", Some(10.0)).await;
+    let needs_configuration =
+        create_simple_item(&app, &token, "C 需配置", "CATALOG-CONFIG", None).await;
+    let normal = create_simple_item(&app, &token, "D 正常", "CATALOG-NORMAL", Some(5.0)).await;
+    create_and_approve_inbound(&app, &token, reorder_due, "CAT-A", "CAT-DUE-BATCH").await;
+    create_and_approve_inbound(
+        &app,
+        &token,
+        needs_configuration,
+        "CAT-B",
+        "CAT-CONFIG-BATCH",
+    )
+    .await;
+    create_and_approve_inbound(&app, &token, normal, "CAT-C", "CAT-NORMAL-BATCH").await;
+
+    let response = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?page=1&page_size=20&sort=replenishment_priority",
+        &token,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: serde_json::Value = json_body(response).await;
+    assert_eq!(body["counts"]["total"], 4);
+    assert_eq!(body["counts"]["needs_attention"], 2);
+    assert_eq!(body["counts"]["out_of_stock"], 1);
+    assert_eq!(body["counts"]["reorder_due"], 1);
+    assert_eq!(body["counts"]["needs_configuration"], 1);
+    assert_eq!(body["items"][0]["id"], out_of_stock);
+    assert_eq!(body["items"][0]["stock_state"], "out_of_stock");
+    assert_eq!(body["items"][1]["id"], reorder_due);
+    assert_eq!(body["items"][2]["id"], needs_configuration);
+    assert_eq!(body["items"][3]["id"], normal);
+
+    let filtered = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?page=1&page_size=20&stock_filter=needs_attention",
+        &token,
+    )
+    .await;
+    let filtered: serde_json::Value = json_body(filtered).await;
+    assert_eq!(filtered["total"], 2);
+    assert_eq!(filtered["counts"]["total"], 4);
+    assert_eq!(filtered["items"].as_array().map(Vec::len), Some(2));
 }
 
 #[tokio::test]
@@ -478,6 +636,7 @@ async fn item_attributes_follow_template_unit_rules() {
                     field_type: TemplateFieldType::Number,
                     required: Some(true),
                     searchable: Some(true),
+                    catalog_visible: None,
                     options: None,
                     default_value: None,
                     unit: Some(ItemAttributeUnitRule {
@@ -492,6 +651,7 @@ async fn item_attributes_follow_template_unit_rules() {
                     field_type: TemplateFieldType::Number,
                     required: Some(true),
                     searchable: Some(true),
+                    catalog_visible: None,
                     options: None,
                     default_value: None,
                     unit: Some(ItemAttributeUnitRule {
@@ -597,7 +757,8 @@ async fn item_attributes_follow_template_unit_rules() {
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
-    let created: ItemResponse = json_body(created).await;
+    let mutation: ItemMutationResponse = json_body(created).await;
+    let created = get_item_editor(&app, &token, mutation.id).await;
     assert_eq!(created.attributes[0].unit.as_deref(), Some("mm"));
     assert_eq!(created.attributes[1].unit.as_deref(), Some("kg"));
 }
@@ -651,6 +812,14 @@ async fn item_search_uses_item_attributes_while_filter_values_use_current_invent
     let by_template_value: serde_json::Value = json_body(by_template_value).await;
     assert_eq!(by_template_value["total"], 1);
     assert_eq!(by_template_value["items"][0]["id"], item_id);
+    assert_eq!(
+        by_template_value["items"][0]["catalog_attributes"][0]["name"],
+        "brand"
+    );
+    assert_eq!(
+        by_template_value["items"][0]["catalog_attributes"][0]["value"],
+        "CurrentNeedle"
+    );
 
     let by_non_searchable_value = authorized_empty_request(
         &app,
@@ -749,6 +918,7 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
                     searchable: Some(true),
+                    catalog_visible: Some(true),
                     options: None,
                     default_value: None,
                     unit: None,
@@ -759,6 +929,7 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
                     searchable: Some(false),
+                    catalog_visible: None,
                     options: None,
                     default_value: None,
                     unit: None,
@@ -825,9 +996,49 @@ async fn seed_item(
     )
     .await;
     assert_eq!(response.status(), StatusCode::CREATED);
-    let item: ItemResponse = json_body(response).await;
-
+    let item: ItemMutationResponse = json_body(response).await;
     item.id
+}
+
+async fn get_item_editor(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    item_id: i64,
+) -> ItemEditorResponse {
+    let response =
+        authorized_empty_request(app, "GET", &format!("/api/items/{item_id}"), access_token).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    json_body(response).await
+}
+
+async fn create_simple_item(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    name: &str,
+    sku: &str,
+    reorder_point: Option<f64>,
+) -> i64 {
+    let response = authorized_json_request(
+        app,
+        "POST",
+        "/api/items",
+        access_token,
+        &ItemCreateRequest {
+            name: name.to_owned(),
+            sku: sku.to_owned(),
+            category_id: None,
+            attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(app, access_token).await,
+            unit: "个".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point,
+            attributes: Vec::new(),
+        },
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    json_body::<ItemMutationResponse>(response).await.id
 }
 
 async fn create_and_approve_inbound(
