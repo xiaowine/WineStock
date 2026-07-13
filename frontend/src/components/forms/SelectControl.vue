@@ -55,9 +55,6 @@
               @click="choose(option)"
             >
               <span>{{ option.label }}</span>
-              <svg v-if="sameValue(option.value, model)" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="m3 8 3 3 7-7" />
-              </svg>
             </button>
           </template>
         </div>
@@ -240,24 +237,48 @@ function setOptionElement(element: Element | ComponentPublicInstance | null, ind
 }
 
 function positionPopover(): void {
-  const anchor = trigger.value?.getBoundingClientRect()
-  if (!anchor) return
+  const triggerElement = trigger.value
+  if (!triggerElement) return
+  const anchor = triggerElement.getBoundingClientRect()
+  const triggerStyle = window.getComputedStyle(triggerElement)
   const viewportHeight = window.visualViewport?.height ?? window.innerHeight
   const viewportWidth = window.visualViewport?.width ?? window.innerWidth
   const gap = 5
-  const availableBelow = viewportHeight - anchor.bottom - gap - 8
-  const availableAbove = anchor.top - gap - 8
+  const viewportPadding = 8
+  const availableBelow = viewportHeight - anchor.bottom - gap - viewportPadding
+  const availableAbove = anchor.top - gap - viewportPadding
   const estimatedHeight = Math.min(280, options.value.length * 38 + 12)
   const placeAbove = availableBelow < Math.min(180, estimatedHeight) && availableAbove > availableBelow
   const maxHeight = Math.max(120, Math.min(280, placeAbove ? availableAbove : availableBelow))
+  const popoverWidth = Math.min(
+    Math.max(anchor.width, preferredPopoverWidth(triggerStyle)),
+    320,
+    viewportWidth - viewportPadding * 2,
+  )
+  const popoverLeft = Math.min(
+    Math.max(viewportPadding, anchor.left),
+    Math.max(viewportPadding, viewportWidth - popoverWidth - viewportPadding),
+  )
   popoverStyle.value = {
-    left: `${Math.min(anchor.left, Math.max(8, viewportWidth - anchor.width - 8))}px`,
+    left: `${popoverLeft}px`,
     top: placeAbove ? 'auto' : `${anchor.bottom + gap}px`,
     bottom: placeAbove ? `${viewportHeight - anchor.top + gap}px` : 'auto',
-    width: `${anchor.width}px`,
-    maxWidth: `calc(100vw - 16px)`,
+    width: `${popoverWidth}px`,
+    maxWidth: `calc(100vw - ${viewportPadding * 2}px)`,
     maxHeight: `${maxHeight}px`,
+    fontSize: triggerStyle.fontSize,
+    lineHeight: triggerStyle.lineHeight,
   }
+}
+
+function preferredPopoverWidth(triggerStyle: CSSStyleDeclaration): number {
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  if (!context) return 0
+  context.font = `${triggerStyle.fontWeight} ${triggerStyle.fontSize} ${triggerStyle.fontFamily}`
+  const widestLabel = options.value.reduce((width, option) => Math.max(width, context.measureText(option.label).width), 0)
+  // 包含选项与浮层的水平内边距、边框，并为字体测量误差保留少量余量。
+  return Math.ceil(widestLabel + 30)
 }
 
 function handleOutsidePointer(event: PointerEvent): void {
@@ -313,8 +334,7 @@ onBeforeUnmount(removeWindowListeners)
   color: var(--color-muted);
 }
 
-.select-control__trigger svg,
-.select-control__option svg {
+.select-control__trigger svg {
   width: 14px;
   height: 14px;
   fill: none;
@@ -375,22 +395,26 @@ onBeforeUnmount(removeWindowListeners)
 }
 
 .select-control__option {
-  display: grid;
+  display: block;
   width: 100%;
   min-height: 36px;
-  grid-template-columns: minmax(0, 1fr) 14px;
-  align-items: center;
-  gap: 8px;
   padding: 7px 8px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
+  font-size: inherit;
+  line-height: inherit;
   text-align: left;
 }
 
 .select-control__option > span {
-  overflow-wrap: anywhere;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .select-control__option--selected {
