@@ -133,7 +133,7 @@ export function validateItemDraft(
 ): ItemDraftValidationResult | null {
   const errors: Record<string, string> = {}
   if (!draft.name.trim()) errors.name = '请填写物品名称。'
-  if (!draft.sku.trim()) errors.sku = '请填写 SKU。'
+  if (!draft.sku.trim()) errors.sku = '请填写编号。'
   if (!draft.unit.trim()) errors.unit = '请填写计量单位。'
   if (!draft.image) errors.image = '请选择物品主图。'
   if (draft.defaultPrice !== null && (!Number.isFinite(draft.defaultPrice) || draft.defaultPrice < 0)) {
@@ -199,13 +199,13 @@ export function itemDraftValidationFromApiError(
   draft: ItemDraft,
 ): ItemDraftValidationResult | null {
   if (error.code === 'sku_taken') {
-    return { errors: { sku: 'SKU 已存在，请更换。' }, firstMessage: 'SKU 已存在，请更换。' }
+    return { errors: { sku: '编号已存在，请更换。' }, firstMessage: '编号已存在，请更换。' }
   }
 
   const errors: Record<string, string> = {}
   const baseFields: Record<string, { key: string; message: string }> = {
     name: { key: 'name', message: '请检查物品名称。' },
-    sku: { key: 'sku', message: '请检查 SKU。' },
+    sku: { key: 'sku', message: '请检查编号。' },
     unit: { key: 'unit', message: '请检查计量单位。' },
     image_file_id: { key: 'image', message: '请重新选择物品主图。' },
     default_price: { key: 'defaultPrice', message: '请检查参考单价。' },

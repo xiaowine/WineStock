@@ -19,7 +19,7 @@
             class="items-catalog__search"
             label="搜索物品"
             name="item_search"
-            placeholder="名称、SKU 或属性"
+            placeholder="名称、编号或属性"
             @search="applySearch"
           />
           <div class="items-catalog__toolbar-actions">
@@ -47,7 +47,7 @@
               <button class="icon-button" :class="{ 'is-pending': showStableCatalogLoading }" type="button" title="刷新物品目录" aria-label="刷新物品目录" :disabled="catalogPending" @click="requestRefreshCatalog">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M18.2 16a7 7 0 1 1 .8-7l1 3"/></svg>
               </button>
-              <button v-if="canManageTemplates" class="icon-button" type="button" title="设置目录属性" aria-label="设置目录属性" :disabled="!templates.length" @click="catalogAttributeDialogOpen = true">
+              <button v-if="canManageTemplates" class="icon-button" type="button" title="设置列表展示" aria-label="设置列表展示" :disabled="!templates.length" @click="catalogAttributeDialogOpen = true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>
               </button>
               <button class="icon-button" type="button" title="新建物品" aria-label="新建物品" @click="requestStartNew">
@@ -78,15 +78,15 @@
                 :class="{ 'items-catalog__item--selected': editorOpen && selectedItemId === item.id }"
                 role="row"
                 tabindex="0"
-                @click="requestViewInventory(item)"
-                @keydown.enter="requestViewInventory(item)"
+                @click="requestOpenItem(item)"
+                @keydown.enter="requestOpenItem(item)"
               >
                 <div class="items-catalog__fixed-info" role="cell">
                   <AuthenticatedImage :file-id="item.image_file_id" :alt="`${item.name} 主图`" :size="76" previewable @click.stop />
                   <div class="items-catalog__identity-content">
-                    <dl class="items-catalog__identity-text">
-                      <div class="items-catalog__identity-name"><dt>名称</dt><dd :title="item.name">{{ item.name }}</dd></div>
-                      <div class="items-catalog__identity-sku"><dt>SKU</dt><dd :title="item.sku">{{ item.sku }}</dd></div>
+                    <strong class="items-catalog__identity-name" :title="item.name">{{ item.name }}</strong>
+                    <dl class="items-catalog__identity-meta">
+                      <div class="items-catalog__identity-sku"><dt>编号</dt><dd :title="item.sku">{{ item.sku }}</dd></div>
                       <div class="items-catalog__identity-category"><dt>分类</dt><dd :title="item.category_name ?? '未分类'">{{ item.category_name ?? '未分类' }}</dd></div>
                     </dl>
                   </div>
@@ -95,7 +95,7 @@
                   </button>
                   <dl class="items-catalog__attributes">
                     <div v-for="attribute in item.catalog_attributes" :key="attribute.name"><dt :title="attribute.name">{{ attribute.name }}</dt><dd :title="catalogAttributeText(attribute)">{{ catalogAttributeText(attribute) }}</dd></div>
-                    <div v-if="!item.catalog_attributes.length" class="is-empty"><dd>暂无目录属性</dd></div>
+                    <div v-if="!item.catalog_attributes.length" class="is-empty"><dd>未设置展示属性</dd></div>
                   </dl>
                 </div>
                 <dl class="items-catalog__details" role="cell">
@@ -305,7 +305,7 @@ async function loadNextPage(): Promise<void> { if (!catalogPending.value && hasM
 function refreshLoadMoreObservation(): void { const sentinel = loadMoreSentinel.value; if (sentinel && loadMoreObserver) { loadMoreObserver.unobserve(sentinel); loadMoreObserver.observe(sentinel) } }
 
 function requestStartNew(): void { requestDraftTransition(prepareNewDraft) }
-function requestViewInventory(item: ItemCatalogEntryResponse): void { requestDraftTransition(() => openExisting(item, 'inventory')) }
+function requestOpenItem(item: ItemCatalogEntryResponse): void { requestDraftTransition(() => openExisting(item, 'data')) }
 function requestEditItem(item: ItemCatalogEntryResponse): void { requestDraftTransition(() => openExisting(item, 'data')) }
 
 async function prepareNewDraft(): Promise<void> {

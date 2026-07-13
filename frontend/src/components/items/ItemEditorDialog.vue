@@ -18,7 +18,7 @@
           <strong :title="draft.name || itemName">{{ draft.name || itemName || '未命名物品' }}</strong>
         </div>
         <div class="item-workspace__identity">
-          <span>SKU</span>
+          <span>编号</span>
           <strong :title="draft.sku || itemSku">{{ draft.sku || itemSku || '未设置' }}</strong>
         </div>
       </div>

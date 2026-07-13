@@ -68,7 +68,7 @@
             />
             <FormInput
               v-model="draft.sku"
-              label="SKU"
+              label="编号"
               name="sku"
               maxlength="64"
               autocomplete="off"

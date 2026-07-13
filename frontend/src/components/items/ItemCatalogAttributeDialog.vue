@@ -1,10 +1,10 @@
-<!-- 本组件拥有物品模板目录展示字段的选择会话；它不编辑模板字段结构或物品属性值。 -->
+<!-- 本组件拥有物品模板列表展示字段的选择会话；它不编辑模板字段结构或物品属性值。 -->
 <template>
   <ModalDialog
     :open="open"
     :busy="saving"
-    title="目录属性设置"
-    description="选择物品目录中用于快速识别物品的模板属性。"
+    title="列表展示设置"
+    description="选择最多三个在物品列表中用于快速识别物品的模板属性。"
     @close="emit('close')"
   >
     <template v-if="activeTemplate" #context>
@@ -14,7 +14,7 @@
           <strong>{{ activeTemplate.name }}</strong>
         </div>
         <div class="catalog-attribute-dialog__count">
-          <span>已选择</span>
+          <span>已选展示字段</span>
           <strong>{{ selectedCount }} / 3</strong>
         </div>
       </div>
@@ -31,7 +31,7 @@
       <Transition name="catalog-attribute-panel" mode="out-in">
         <div v-if="activeTemplate" :key="activeTemplate.id" class="catalog-attribute-dialog__panel">
           <div class="catalog-attribute-dialog__panel-header">
-            <strong>目录展示属性</strong>
+            <strong>可选展示字段</strong>
             <span>{{ activeTemplate.fields.length }} 项</span>
           </div>
           <div class="catalog-attribute-dialog__options">
@@ -134,11 +134,11 @@ async function save(): Promise<void> {
     const updated = await updateItemAttributeTemplate(template.id, {
       fields: template.fields.map((field) => fieldRequest(field, selected.has(field.id))),
     })
-    notice.success('目录属性已更新')
+    notice.success('列表展示已更新')
     emit('saved', updated)
     emit('close')
   } catch (error) {
-    notice.error('保存目录属性失败', { detail: error instanceof ApiError ? error.message : '无法连接到 WineStock 服务' })
+    notice.error('保存列表展示失败', { detail: error instanceof ApiError ? error.message : '无法连接到 WineStock 服务' })
   } finally {
     saving.value = false
   }

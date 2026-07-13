@@ -36,7 +36,7 @@
 .items-catalog__table-head,
 .items-catalog__item {
   display: grid;
-  grid-template-columns: clamp(260px, 34vw, 350px) minmax(260px, 1fr) clamp(120px, 13vw, 145px);
+  grid-template-columns: clamp(340px, 38vw, 410px) minmax(260px, 1fr) clamp(120px, 13vw, 145px);
 }
 .items-catalog__table-head {
   position: sticky; top: 0; z-index: 8; min-height: 38px; align-items: center; border-bottom: 1px solid var(--color-border-strong);
@@ -58,30 +58,40 @@
 
 .items-catalog__fixed-info {
   position: sticky; left: 0; z-index: 3; display: grid; min-width: 0;
-  grid-template-columns: 68px minmax(0, 1fr) 30px; grid-template-rows: auto auto;
-  align-content: center; align-items: start; gap: 6px 8px;
+  grid-template-columns: 76px minmax(0, 1.1fr) minmax(0, 0.9fr) 30px;
+  align-content: center; align-items: center; gap: 10px;
   padding: 12px; background: var(--item-row-background); box-shadow: 5px 0 8px -8px rgb(23 32 42 / 35%);
 }
-.items-catalog__fixed-info .authenticated-image { width: 68px !important; height: 68px !important; grid-row: 1 / 3; align-self: center; }
-.items-catalog__identity-content { min-width: 0; grid-column: 2; grid-row: 1; }
-.items-catalog__identity-text { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 10px; margin: 0; }
-.items-catalog__identity-text > div { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 1px; }
-.items-catalog__identity-text dt { color: var(--color-subtle); font-size: 11px; white-space: nowrap; }
-.items-catalog__identity-text dd { overflow: hidden; margin: 0; font-size: 12px; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
-.items-catalog__identity-name { grid-column: 1 / -1; }
-.items-catalog__identity-name dd { font-size: 14px; font-weight: 700; }
-.items-catalog__identity-text > .items-catalog__identity-sku,
-.items-catalog__identity-text > .items-catalog__identity-category { grid-template-columns: auto minmax(0, 1fr); gap: 4px; align-items: baseline; }
+.items-catalog__fixed-info .authenticated-image { width: 76px !important; height: 76px !important; grid-column: 1; grid-row: 1; align-self: center; }
+.items-catalog__identity-content {
+  display: grid; min-width: 0; height: 84px; grid-column: 2; grid-row: 1; align-content: center; gap: 6px;
+}
+.items-catalog__identity-name {
+  display: block; overflow: hidden; min-width: 0; max-height: 2.6em;
+  font-size: 16px; font-weight: 750; line-height: 1.3; overflow-wrap: anywhere; white-space: normal;
+}
+.items-catalog__identity-meta { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 3px; margin: 0; }
+.items-catalog__identity-meta > div {
+  display: flex; min-width: 0; align-items: baseline;
+}
+.items-catalog__identity-meta dt { color: var(--color-subtle); font-size: 12px; white-space: nowrap; }
+.items-catalog__identity-meta dt::after,
+.items-catalog__fixed-info .items-catalog__attributes dt::after { content: '：'; }
+.items-catalog__identity-meta dd { overflow: hidden; min-width: 0; margin: 0; font-size: 12px; font-weight: 620; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .items-catalog__identity-sku dd { font-family: var(--font-mono); }
 /* 行内图标透出当前行的悬浮或选中底色，避免保留静态白色方块。 */
-.items-catalog__edit { width: 30px; height: 30px; grid-column: 3; grid-row: 1; background: transparent; }
+.items-catalog__edit { width: 30px; height: 30px; grid-column: 4; grid-row: 1; align-self: start; background: transparent; }
 
 .items-catalog__fixed-info .items-catalog__attributes {
-  display: grid; min-width: 0; grid-column: 2 / 4; grid-row: 2;
-  grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 8px;
+  display: grid; min-width: 0; height: 84px; grid-column: 3; grid-row: 1;
+  grid-template-columns: minmax(0, 1fr); align-content: center; gap: 3px;
 }
-.items-catalog__fixed-info .items-catalog__attributes > div { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 1px; }
-.items-catalog__fixed-info .items-catalog__attributes .is-empty { grid-column: 1 / -1; }
+.items-catalog__fixed-info .items-catalog__attributes > div {
+  display: flex; min-width: 0; align-items: baseline;
+}
+.items-catalog__fixed-info .items-catalog__attributes dd { min-width: 0; text-align: left; }
+.items-catalog__fixed-info .items-catalog__attributes .is-empty { align-self: center; }
+.items-catalog__fixed-info .items-catalog__attributes .is-empty dd { text-align: left; }
 
 .items-catalog__attributes,
 .items-catalog__details { display: grid; align-content: center; gap: 7px; margin: 0; }
@@ -146,11 +156,15 @@
   }
   .items-catalog__item > * { border: 0; }
   .items-catalog__fixed-info {
-    position: static; z-index: auto; grid-area: identity; grid-template-columns: 64px minmax(0, 1fr) 34px;
+    position: static; z-index: auto; grid-area: identity;
+    grid-template-columns: 72px minmax(0, 1.08fr) minmax(0, 0.92fr) 34px; gap: 8px;
     padding: 0 0 11px; background: transparent; box-shadow: none;
   }
-  .items-catalog__fixed-info .authenticated-image { width: 64px !important; height: 64px !important; }
-  .items-catalog__identity-text { gap: 4px 8px; }
+  .items-catalog__fixed-info .authenticated-image { width: 72px !important; height: 72px !important; }
+  .items-catalog__identity-content { gap: 5px; }
+  .items-catalog__identity-name { font-size: 15px; }
+  .items-catalog__identity-content,
+  .items-catalog__fixed-info .items-catalog__attributes { height: 80px; }
   .items-catalog__stock {
     position: static; z-index: auto; grid-area: stock; grid-template-columns: minmax(0, 1fr) auto;
     align-items: center; gap: 3px 8px; padding: 9px 10px; border-left: 0;
@@ -166,7 +180,6 @@
   }
   .items-catalog__attributes > div,
   .items-catalog__details > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .items-catalog__fixed-info .items-catalog__attributes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .items-catalog__details > div:nth-child(n + 2) { display: none; }
   .items-catalog__load-more { min-width: 0; min-height: 58px; margin: 0 -12px; background: var(--color-surface-subtle); }
 }

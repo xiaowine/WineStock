@@ -144,8 +144,8 @@
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
-- `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。筛选计数、排序和分页来自服务端；点击行进入库存页，编辑图标按需加载资料页，新建保持单页会话。
-- `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个目录展示字段，不编辑模板字段结构。
+- `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。筛选计数、排序和分页来自服务端；点击目录行或编辑图标默认进入资料页，已有物品可在 Dialog 内切换库存页，新建保持单页会话。
+- `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
 - `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、动态模板、图片上传、提交确认和后端错误定位。
 - `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批、库位、分类与模板、替代关系和审计日志共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。

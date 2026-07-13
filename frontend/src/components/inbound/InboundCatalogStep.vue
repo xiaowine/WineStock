@@ -27,7 +27,7 @@
         :model-value="searchInput"
         label="搜索物品"
         name="inbound_item_search"
-        placeholder="名称、SKU 或模板属性"
+        placeholder="名称、编号或模板属性"
         @update:model-value="$emit('update:search-input', $event)"
         @search="$emit('search', $event)"
       />
