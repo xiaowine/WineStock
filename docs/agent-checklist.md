@@ -86,7 +86,7 @@ Before adding or moving frontend files, confirm:
 The frontend framework is not fixed by this spec.
 Do not introduce one without user approval.
 
-前端页面、交互、视觉和响应式实现还必须读取 `frontend/docs/README.md` 指向的相关规范；UI 一致性验收以 `frontend/docs/ui-consistency-checklist.md` 为准，动效以 `frontend/docs/visual-style.md` 和 `frontend/docs/async-state-transitions.md` 为准。
+前端页面、交互、视觉和响应式实现还必须读取 `frontend/docs/README.md` 指向的相关规范；视觉语言以 `frontend/docs/visual-style.md` 为准，页面和交互模式以 `frontend/docs/ui-design-guidelines.md` 为准，UI 一致性验收以 `frontend/docs/ui-consistency-checklist.md` 为准，异步动效以 `frontend/docs/async-state-transitions.md` 为准。
 
 ## Dependency Check
 

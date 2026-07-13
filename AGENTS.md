@@ -52,7 +52,7 @@ desktop/android shell -> core/shared + packaged frontend assets
 - 优先沿用现有模块、组件、token、API 契约和局部模式，不建立重复实现。
 - 引入依赖、修改数据库、删除兼容行为、更新代码地图、编写中文注释和选择验证范围时，完整执行 [`docs/agent-checklist.md`](docs/agent-checklist.md)。
 - 判断 HTTP 接口时先核对运行服务的 `/api-docs/openapi.json`，再读 core 业务文档，最后才追踪 controller/service/repository 源码。
-- UI 改动必须读取前端视觉、动效和一致性文档，并在桌面、断点附近和移动视口检查真实尺寸、溢出、状态与控制台。
+- UI 改动必须依次读取前端视觉规范、`frontend/docs/ui-design-guidelines.md`、一致性清单和异步动效文档，并在桌面、断点附近和移动视口检查真实尺寸、溢出、状态与控制台。
 - 不硬编码 IP 或端口；`0.0.0.0` 只能用于绑定，不能作为浏览器或 WebView 访问 URL。
 - 删除或改变行为时同步清理失效代码、测试、注释、文档和代码地图，不保留无意义兼容层。
 

@@ -15,9 +15,21 @@ Axum 不服务前端构建产物。
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。
 - `user-management.md`：用户列表、创建、启停、权限、临时密码和前后端授权边界。
 - `visual-style.md`：当前视觉风格方向、颜色/圆角/阴影/密度规则和避免事项。
-- `ui-consistency-checklist.md`：多步骤流程、表单、列表、表格、抽屉、Dialog 和响应式页面的一致性实现与量化验收清单。
+- `ui-design-guidelines.md`：后续业务页面必须遵守的页面骨架、三段式列表、工具栏、表单、浮层、响应式和例外规则。
+- `ui-consistency-checklist.md`：按业务状态、目标视口和真实尺寸验证 UI 规范是否落实的实施与量化验收清单。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
+
+## UI 文档使用顺序
+
+所有新增或重构 UI 依次读取：
+
+1. `visual-style.md`：确认视觉语言和 token。
+2. `ui-design-guidelines.md`：选择已有页面与交互模式。
+3. `ui-consistency-checklist.md`：确定需要覆盖的状态和量化验收。
+4. `async-state-transitions.md`：涉及异步变化时确认稳定呈现边界。
+
+页面专属文档只补充业务字段、权限和流程，不得静默建立另一套通用视觉规则。
 
 ## 后续建议拆分
 
