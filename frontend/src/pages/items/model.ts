@@ -1,5 +1,6 @@
 // 本文件拥有可跨页面复用的物品编辑草稿、请求转换与变更快照；它不发起 API 请求。
 import type { FileAttributeReference } from '../../api/inbound'
+import type { ApiError } from '../../api/errors'
 import type { ItemAttributeRequest, ItemCreateRequest, ItemResponse, ItemUpdateRequest } from '../../api/items'
 import type { ItemAttributeTemplateFieldResponse, ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import type { TemplateFieldResponse, TemplateFieldType } from '../../api/templateFields'
@@ -7,9 +8,14 @@ import type { FileDraftValue } from '../inbound-draft/model'
 
 export interface ItemAttributeDraft {
   key: string
-  templateFieldId: number | null
+  definitionId: number | null
+  custom: boolean
   fieldName: string
   fieldType: TemplateFieldType
+  options: string[]
+  unitMode: 'none' | 'fixed' | 'select'
+  fixedUnit: string
+  unitOptions: string[]
   value: string | number | boolean | FileDraftValue | undefined
   unit: string
   fileTemporary: boolean
@@ -51,8 +57,10 @@ export function draftFromItem(
     description: item.description ?? '', defaultPrice: item.default_price,
     reorderPoint: item.reorder_point,
     attributes: item.attributes.map((attribute) => ({
-      key: crypto.randomUUID(), templateFieldId: attribute.template_field_id,
+      key: crypto.randomUUID(), definitionId: attribute.definition_id, custom: attribute.custom,
       fieldName: attribute.field_name, fieldType: attribute.field_type,
+      options: attribute.options ?? [], unitMode: attribute.unit_mode,
+      fixedUnit: attribute.fixed_unit ?? '', unitOptions: attribute.unit_options ?? [],
       value: attribute.field_type === 'file'
         ? { kind: 'file', fileId: (attribute.value as FileAttributeReference).file_id, name: `图片 #${(attribute.value as FileAttributeReference).file_id}`, mimeType: 'image/*', sizeBytes: 0, status: 'uploaded', progress: 100, error: '' }
         : attribute.value as string | number | boolean,
@@ -64,16 +72,19 @@ export function draftFromItem(
 }
 
 export function applyAttributeTemplate(draft: ItemDraft, template: ItemAttributeTemplateResponse | null): void {
+  if (template) {
+    const customNames = new Set(draft.attributes.filter((attribute) => attribute.custom).map((attribute) => attribute.fieldName.trim().toLowerCase()))
+    const conflicts = template.fields.filter((field) => customNames.has(field.field_name.toLowerCase())).map((field) => field.field_name)
+    if (conflicts.length > 0) throw new Error(`自定义属性与目标模板字段重名：${conflicts.join('、')}`)
+  }
   draft.attributeTemplateId = template?.id ?? null
-  draft.attributes = draft.attributes.filter((attribute) =>
-    attribute.templateFieldId === null || hasAttributeValue(attribute))
-  draft.attributes.forEach((attribute) => { attribute.templateFieldId = null })
+  draft.attributes = draft.attributes.filter((attribute) => attribute.custom)
   if (!template) return
   const existing = new Map(draft.attributes.map((attribute) => [attribute.fieldName.toLowerCase(), attribute]))
   for (const field of template.fields) {
     const current = existing.get(field.field_name.toLowerCase())
     if (current) {
-      current.templateFieldId = field.id
+      current.definitionId = field.id
       if (current.fieldType !== field.field_type) {
         current.fieldType = field.field_type
         current.value = initialFieldValue(field)
@@ -87,18 +98,151 @@ export function applyAttributeTemplate(draft: ItemDraft, template: ItemAttribute
 }
 
 export function newCustomAttribute(): ItemAttributeDraft {
-  return { key: crypto.randomUUID(), templateFieldId: null, fieldName: '', fieldType: 'text', value: '', unit: '', fileTemporary: true }
+  return { key: crypto.randomUUID(), definitionId: null, custom: true, fieldName: '', fieldType: 'text', options: [], unitMode: 'none', fixedUnit: '', unitOptions: [], value: '', unit: '', fileTemporary: true }
 }
 
 export function itemAttributeRequests(draft: ItemDraft): ItemAttributeRequest[] {
   return draft.attributes.filter((attribute) => attribute.fieldName.trim() && attribute.value !== undefined && attribute.value !== '').map((attribute) => ({
-    template_field_id: attribute.templateFieldId ?? undefined,
+    definition_id: attribute.definitionId ?? undefined,
     field_name: attribute.fieldName.trim(), field_type: attribute.fieldType,
+    options: attribute.custom && attribute.fieldType === 'select' ? attribute.options.map((value) => value.trim()) : undefined,
+    unit_mode: attribute.custom && attribute.fieldType === 'number' ? attribute.unitMode : undefined,
+    fixed_unit: attribute.custom && attribute.unitMode === 'fixed' ? attribute.fixedUnit.trim() : undefined,
+    unit_options: attribute.custom && attribute.unitMode === 'select' ? attribute.unitOptions.map((value) => value.trim()) : undefined,
     value: attribute.fieldType === 'file'
       ? { file_id: (attribute.value as FileDraftValue).fileId as number }
       : attribute.fieldType === 'number' ? Number(attribute.value) : attribute.value as string | boolean,
     unit: attribute.unit.trim() || undefined,
   }))
+}
+
+export interface ItemDraftValidationResult {
+  errors: Record<string, string>
+  firstMessage: string
+}
+
+/** 提交前生成字段级错误，替代浏览器原生约束气泡。 */
+export function validateItemDraft(
+  draft: ItemDraft,
+  templates: ItemAttributeTemplateResponse[],
+): ItemDraftValidationResult | null {
+  const errors: Record<string, string> = {}
+  if (!draft.name.trim()) errors.name = '请填写物品名称。'
+  if (!draft.sku.trim()) errors.sku = '请填写 SKU。'
+  if (!draft.unit.trim()) errors.unit = '请填写计量单位。'
+  if (!draft.image) errors.image = '请选择物品主图。'
+  if (draft.defaultPrice !== null && (!Number.isFinite(draft.defaultPrice) || draft.defaultPrice < 0)) {
+    errors.defaultPrice = '参考单价必须是大于或等于 0 的有效数字。'
+  }
+  if (draft.reorderPoint !== null && (!Number.isFinite(draft.reorderPoint) || draft.reorderPoint < 0)) {
+    errors.reorderPoint = '再订货点必须是大于或等于 0 的有效数字。'
+  }
+
+  const template = templates.find((candidate) => candidate.id === draft.attributeTemplateId)
+  const templateFields = new Map(template?.fields.map((field) => [field.id, field]) ?? [])
+  const names = new Set<string>()
+  for (const attribute of draft.attributes) {
+    const name = attribute.fieldName.trim()
+    const normalizedName = name.toLowerCase()
+    const prefix = `attribute.${attribute.key}`
+    if (attribute.custom && !name) errors[`${prefix}.name`] = '请填写属性名称。'
+    if (name && !names.add(normalizedName)) errors[`${prefix}.name`] = `属性名称“${name}”重复。`
+
+    const field = attribute.definitionId === null ? undefined : templateFields.get(attribute.definitionId)
+    if ((attribute.custom || field?.required) && !hasAttributeValue(attribute.value)) {
+      errors[`${prefix}.value`] = `请填写“${name || field?.field_name || '未命名属性'}”的值。`
+    }
+    if (attribute.fieldType === 'number' && attribute.value !== '' && attribute.value !== undefined) {
+      const value = Number(attribute.value)
+      if (!Number.isFinite(value)) errors[`${prefix}.value`] = '请输入有效数字。'
+    }
+    if (attribute.fieldType === 'url' && typeof attribute.value === 'string' && attribute.value.trim()) {
+      try {
+        const url = new URL(attribute.value)
+        if (!['http:', 'https:'].includes(url.protocol)) errors[`${prefix}.value`] = '请输入 HTTP 或 HTTPS 地址。'
+      } catch {
+        errors[`${prefix}.value`] = '请输入有效网址。'
+      }
+    }
+    if (attribute.custom && attribute.fieldType === 'select') {
+      const optionsError = validateOptionList(attribute.options)
+      if (optionsError) errors[`${prefix}.options`] = optionsError
+      if (typeof attribute.value === 'string' && !attribute.options.map((option) => option.trim()).includes(attribute.value)) {
+        errors[`${prefix}.value`] = '属性值必须来自候选项。'
+      }
+    }
+    if (attribute.custom && attribute.fieldType === 'number') {
+      if (attribute.unitMode === 'fixed' && !attribute.fixedUnit.trim()) {
+        errors[`${prefix}.unitSettings`] = '请设置指定单位。'
+      }
+      if (attribute.unitMode === 'select') {
+        const optionsError = validateOptionList(attribute.unitOptions)
+        if (optionsError) errors[`${prefix}.unitSettings`] = optionsError
+        if (!attribute.unit || !attribute.unitOptions.includes(attribute.unit)) {
+          errors[`${prefix}.unitValue`] = '请选择实际单位。'
+        }
+      }
+    }
+  }
+  const firstMessage = Object.values(errors)[0]
+  return firstMessage ? { errors, firstMessage } : null
+}
+
+/** 将物品接口返回的结构化错误映射回当前草稿字段，Notice 只保留为提交总提示。 */
+export function itemDraftValidationFromApiError(
+  error: ApiError,
+  draft: ItemDraft,
+): ItemDraftValidationResult | null {
+  if (error.code === 'sku_taken') {
+    return { errors: { sku: 'SKU 已存在，请更换。' }, firstMessage: 'SKU 已存在，请更换。' }
+  }
+
+  const errors: Record<string, string> = {}
+  const baseFields: Record<string, { key: string; message: string }> = {
+    name: { key: 'name', message: '请检查物品名称。' },
+    sku: { key: 'sku', message: '请检查 SKU。' },
+    unit: { key: 'unit', message: '请检查计量单位。' },
+    image_file_id: { key: 'image', message: '请重新选择物品主图。' },
+    default_price: { key: 'defaultPrice', message: '请检查参考单价。' },
+    reorder_point: { key: 'reorderPoint', message: '请检查再订货点。' },
+  }
+  for (const path of Object.keys(error.fieldErrors)) {
+    const baseField = baseFields[path]
+    if (baseField) {
+      errors[baseField.key] = baseField.message
+      continue
+    }
+
+    const attributePath = /^attributes(?:\[(\d+)\]|\.(\d+))\.(field_name|value|unit)$/.exec(path)
+    if (!attributePath) continue
+    const attribute = draft.attributes[Number(attributePath[1] ?? attributePath[2])]
+    if (!attribute) continue
+    const field = attributePath[3] === 'field_name'
+      ? 'name'
+      : attributePath[3] === 'unit' ? 'unitValue' : 'value'
+    errors[`attribute.${attribute.key}.${field}`] = attributePath[3] === 'field_name'
+      ? '请检查属性名称。'
+      : attributePath[3] === 'unit' ? '请检查属性单位。' : '请检查属性值。'
+  }
+
+  const firstMessage = Object.values(errors)[0]
+  return firstMessage ? { errors, firstMessage } : null
+}
+
+function hasAttributeValue(value: ItemAttributeDraft['value']): boolean {
+  if (typeof value === 'string') return value.trim().length > 0
+  return value !== undefined && value !== null
+}
+
+function validateOptionList(options: string[]): string | null {
+  if (options.length === 0) return '至少添加一个候选项。'
+  const names = new Set<string>()
+  for (const option of options) {
+    const normalized = option.trim().toLowerCase()
+    if (!normalized) return '候选项不能为空。'
+    if (!names.add(normalized)) return '候选项忽略大小写后不能重复。'
+  }
+  return null
 }
 
 /** 把共享物品草稿转换为创建请求，供物品页和其它业务入口复用。 */
@@ -154,9 +298,14 @@ export function itemDraftFingerprint(draft: ItemDraft): string {
     defaultPrice: draft.defaultPrice,
     reorderPoint: draft.reorderPoint,
     attributes: draft.attributes.map((attribute) => ({
-      templateFieldId: attribute.templateFieldId,
+      definitionId: attribute.definitionId,
+      custom: attribute.custom,
       fieldName: attribute.fieldName,
       fieldType: attribute.fieldType,
+      options: attribute.options,
+      unitMode: attribute.unitMode,
+      fixedUnit: attribute.fixedUnit,
+      unitOptions: attribute.unitOptions,
       value: typeof attribute.value === 'object' && attribute.value?.kind === 'file'
         ? [attribute.value.fileId, attribute.value.name, attribute.value.sizeBytes]
         : attribute.value,
@@ -166,7 +315,7 @@ export function itemDraftFingerprint(draft: ItemDraft): string {
 }
 
 function attributeFromField(field: ItemAttributeTemplateFieldResponse): ItemAttributeDraft {
-  const attribute = { key: crypto.randomUUID(), templateFieldId: field.id, fieldName: field.field_name, fieldType: field.field_type, value: initialFieldValue(field), unit: '', fileTemporary: true }
+  const attribute: ItemAttributeDraft = { key: crypto.randomUUID(), definitionId: field.id, custom: false, fieldName: field.field_name, fieldType: field.field_type, options: field.options ?? [], unitMode: field.unit.mode, fixedUnit: field.unit.value ?? '', unitOptions: field.unit.options ?? [], value: initialFieldValue(field), unit: '', fileTemporary: true }
   applyTemplateUnit(attribute, field)
   return attribute
 }
@@ -185,9 +334,4 @@ function applyTemplateUnit(
   if (rule.mode === 'fixed') attribute.unit = rule.value ?? ''
   else if (rule.mode === 'none') attribute.unit = ''
   else if (rule.mode === 'select' && !rule.options?.includes(attribute.unit)) attribute.unit = ''
-}
-
-function hasAttributeValue(attribute: ItemAttributeDraft): boolean {
-  if (typeof attribute.value === 'string') return attribute.value.trim().length > 0
-  return attribute.value !== undefined && attribute.value !== null
 }

@@ -45,7 +45,6 @@ pub(crate) enum StockApiError {
     CategoryNameTaken,
 
     /// 模板仍被未软删除物品引用，不能删除。
-    TemplateInUse,
 
     /// 单据不是 pending 状态，不能执行审批或拒绝。
     OrderNotPending,
@@ -216,7 +215,6 @@ impl StockApiError {
                 "category_name_taken",
                 "物品分类名称已存在",
             ),
-            Self::TemplateInUse => (StatusCode::CONFLICT, "template_in_use", "模板正在使用中"),
             Self::OrderNotPending => (
                 StatusCode::CONFLICT,
                 "order_not_pending",

@@ -4,6 +4,7 @@
     :id="formId"
     class="item-editor"
     :class="{ 'item-editor--embedded': embedded }"
+    novalidate
     @submit.prevent="emit('save')"
   >
     <header v-if="!embedded" class="item-editor__header">
@@ -38,48 +39,87 @@
         </header>
 
         <div class="item-editor__base-layout">
-          <div class="item-editor__image form-field">
-            <span>物品主图 *</span>
+          <FormField
+            class="item-editor__image"
+            label="物品主图"
+            validation-key="image"
+            :error="validationErrors.image"
+            required
+          >
             <AttributeImageField
               :model-value="draft.image ?? undefined"
               :delete-on-remove="draft.imageTemporary"
+              :invalid="Boolean(validationErrors.image)"
               label="物品主图"
               @update:model-value="updateMainImage"
             />
-          </div>
+          </FormField>
 
           <div class="item-editor__fields">
-            <label class="form-field">
-              <span>名称 *</span>
-              <input v-model="draft.name" name="name" maxlength="128" required autocomplete="off" />
-            </label>
-            <label class="form-field">
-              <span>SKU *</span>
-              <input v-model="draft.sku" name="sku" maxlength="64" required autocomplete="off" />
-            </label>
-            <label class="form-field">
-              <span>分类</span>
-              <select v-model="draft.categoryId" name="category">
+            <FormInput
+              v-model="draft.name"
+              label="名称"
+              name="name"
+              maxlength="128"
+              autocomplete="off"
+              validation-key="name"
+              :error="validationErrors.name"
+              required
+            />
+            <FormInput
+              v-model="draft.sku"
+              label="SKU"
+              name="sku"
+              maxlength="64"
+              autocomplete="off"
+              validation-key="sku"
+              :error="validationErrors.sku"
+              required
+            />
+            <FormSelect v-model="draft.categoryId" label="分类" name="category">
                 <option :value="null">未分类</option>
                 <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
-              </select>
-            </label>
-            <label class="form-field">
-              <span>计量单位 *</span>
-              <input v-model="draft.unit" name="unit" maxlength="32" required autocomplete="off" />
-            </label>
-            <label class="form-field">
-              <span>参考单价</span>
-              <input v-model.number="draft.defaultPrice" name="default_price" type="number" min="0" step="0.01" inputmode="decimal" />
-            </label>
-            <label class="form-field">
-              <span>再订货点</span>
-              <input v-model.number="draft.reorderPoint" name="reorder_point" type="number" min="0" step="0.01" inputmode="decimal" />
-            </label>
-            <label class="form-field item-editor__description">
-              <span>描述</span>
-              <textarea v-model="draft.description" name="description" maxlength="1024" rows="3" />
-            </label>
+            </FormSelect>
+            <FormInput
+              v-model="draft.unit"
+              label="计量单位"
+              name="unit"
+              maxlength="32"
+              autocomplete="off"
+              validation-key="unit"
+              :error="validationErrors.unit"
+              required
+            />
+            <FormInput
+              v-model="draft.defaultPrice"
+              label="参考单价"
+              name="default_price"
+              type="number"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              validation-key="defaultPrice"
+              :error="validationErrors.defaultPrice"
+            />
+            <FormInput
+              v-model="draft.reorderPoint"
+              label="再订货点"
+              name="reorder_point"
+              type="number"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              validation-key="reorderPoint"
+              :error="validationErrors.reorderPoint"
+            />
+            <FormTextarea
+              v-model="draft.description"
+              class="item-editor__description"
+              label="描述"
+              name="description"
+              maxlength="1024"
+              rows="3"
+            />
           </div>
         </div>
       </section>
@@ -89,13 +129,16 @@
           <h3 id="item-attributes-heading">物品属性</h3>
         </header>
 
-        <label class="form-field item-editor__template">
-          <span>属性模板</span>
-          <select :value="draft.attributeTemplateId ?? ''" name="attribute_template" @change="selectTemplate">
+        <FormSelect
+          class="item-editor__template"
+          label="属性模板"
+          name="attribute_template"
+          :model-value="draft.attributeTemplateId ?? ''"
+          @update:model-value="selectTemplate"
+        >
             <option value="">不使用模板</option>
             <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.name }}</option>
-          </select>
-        </label>
+        </FormSelect>
 
         <section
           v-if="templateAttributes.length"
@@ -110,7 +153,8 @@
               v-for="attribute in templateAttributes"
               :key="attribute.key"
               :attribute="attribute"
-              :template-field="templateFieldsById.get(attribute.templateFieldId ?? -1)"
+              :template-field="templateFieldsById.get(attribute.definitionId ?? -1)"
+              :validation-errors="attributeValidationErrors(attribute.key)"
             />
           </div>
         </section>
@@ -130,6 +174,7 @@
               v-for="attribute in customAttributes"
               :key="attribute.key"
               :attribute="attribute"
+              :validation-errors="attributeValidationErrors(attribute.key)"
               @remove="removeAttribute(attribute.key)"
             />
           </div>
@@ -153,6 +198,10 @@ import ItemAttributeEditor from './ItemAttributeEditor.vue'
 import AttributeImageField from '../attributes/AttributeImageField.vue'
 import type { FileDraftValue } from '../../pages/inbound-draft/model'
 import { notice } from '../../notices/notice'
+import FormField from '../forms/FormField.vue'
+import FormInput from '../forms/FormInput.vue'
+import FormSelect from '../forms/FormSelect.vue'
+import FormTextarea from '../forms/FormTextarea.vue'
 
 const props = withDefaults(defineProps<{
   draft: ItemDraft
@@ -160,6 +209,7 @@ const props = withDefaults(defineProps<{
   templates: ItemAttributeTemplateResponse[]
   saving: boolean
   metadataError: string
+  validationErrors: Record<string, string>
   closeLabel?: string
   embedded?: boolean
   formId?: string
@@ -173,8 +223,17 @@ const emit = defineEmits<{ save: []; close: [] }>()
 const templateFieldsById = computed(() => new Map(
   props.templates.flatMap((template) => template.fields.map((field) => [field.id, field] as const)),
 ))
-const templateAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.templateFieldId !== null))
-const customAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.templateFieldId === null))
+const templateAttributes = computed(() => props.draft.attributes.filter((attribute) => !attribute.custom))
+const customAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.custom))
+
+function attributeValidationErrors(key: string): Record<string, string> {
+  const prefix = `attribute.${key}.`
+  return Object.fromEntries(
+    Object.entries(props.validationErrors)
+      .filter(([field]) => field.startsWith(prefix))
+      .map(([field, message]) => [field.slice(prefix.length), message]),
+  )
+}
 
 function addAttribute(): void {
   props.draft.attributes.push(newCustomAttribute())
@@ -193,13 +252,17 @@ function updateMainImage(value: FileDraftValue | undefined): void {
   props.draft.imageTemporary = true
 }
 
-async function selectTemplate(event: Event): Promise<void> {
-  const id = Number((event.target as HTMLSelectElement).value)
+async function selectTemplate(value: string | number | boolean | null | undefined): Promise<void> {
+  const id = Number(value)
   const template = props.templates.find((candidate) => candidate.id === id) ?? null
-  const nextFields = new Map(template?.fields.map((field) => [field.field_name.toLowerCase(), field.field_type]) ?? [])
+  const customNames = new Set(customAttributes.value.map((attribute) => attribute.fieldName.trim().toLowerCase()))
+  const conflicts = template?.fields.filter((field) => customNames.has(field.field_name.toLowerCase())).map((field) => field.field_name) ?? []
+  if (conflicts.length > 0) {
+    notice.warning('无法切换属性模板', { detail: `自定义属性与目标模板字段重名：${conflicts.join('、')}` })
+    return
+  }
   const changingFiles = props.draft.attributes.filter((attribute) =>
-    attribute.fieldType === 'file' && nextFields.has(attribute.fieldName.toLowerCase()) &&
-    nextFields.get(attribute.fieldName.toLowerCase()) !== 'file')
+    !attribute.custom && attribute.fieldType === 'file')
   try {
     await Promise.all(changingFiles.map(discardTemporaryAttributeFile))
   } catch {

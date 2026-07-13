@@ -63,6 +63,7 @@ fn fields(specs: &[FieldSpec]) -> Vec<TemplateFieldInput> {
         .iter()
         .enumerate()
         .map(|(index, field)| TemplateFieldInput {
+            definition_id: None,
             field_name: field.name.to_owned(),
             field_type: field.field_type.as_code().to_owned(),
             required: field.required,

@@ -21,25 +21,19 @@
           {{ logoutWarning }}
         </div>
 
-        <label class="form-field">
-          <span>用户名</span>
-          <input
-            v-model="username"
-            name="username"
-            type="text"
-            autocomplete="username"
-            maxlength="64"
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(usernameError)"
-            :aria-describedby="usernameError ? 'login-username-error' : undefined"
-          />
-          <small v-if="usernameError" id="login-username-error" class="field-error">
-            {{ usernameError }}
-          </small>
-        </label>
+        <FormInput
+          v-model="username"
+          label="用户名"
+          validation-key="username"
+          :error="usernameError"
+          name="username"
+          type="text"
+          autocomplete="username"
+          maxlength="64"
+          :disabled="isSubmitting"
+        />
 
-        <div class="form-field">
-          <label for="login-password">密码</label>
+        <FormField label="密码" control-id="login-password" validation-key="password" :error="passwordError" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="login-password"
             v-model="password"
@@ -47,13 +41,10 @@
             autocomplete="current-password"
             maxlength="256"
             :disabled="isSubmitting"
-            :aria-invalid="Boolean(passwordError)"
-            :aria-describedby="passwordError ? 'login-password-error' : undefined"
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small v-if="passwordError" id="login-password-error" class="field-error">
-            {{ passwordError }}
-          </small>
-        </div>
+        </FormField>
 
         <div v-if="errorMessage" class="form-error" role="alert">
           {{ errorMessage }}
@@ -89,6 +80,9 @@ import { AuthPersistenceError } from '../auth/storage'
 import { notice } from '../notices/notice'
 import { resolvePostLoginLocation } from '../router/guards'
 import PasswordInput from '../components/PasswordInput.vue'
+import FormField from '../components/forms/FormField.vue'
+import FormInput from '../components/forms/FormInput.vue'
+import { useFormValidation } from '../composables/useFormValidation'
 
 const router = useRouter()
 const route = useRoute()
@@ -97,6 +91,7 @@ const password = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({})
+useFormValidation(fieldErrors)
 
 const usernameError = computed(() => fieldErrors.value.username?.[0])
 const passwordError = computed(() => fieldErrors.value.password?.[0])

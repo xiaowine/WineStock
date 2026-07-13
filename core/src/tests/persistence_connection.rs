@@ -67,7 +67,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         "storage_file_objects",
         "stock_item_categories",
         "stock_item_attribute_templates",
-        "stock_item_attribute_template_fields",
+        "stock_item_attribute_definitions",
         "stock_inbound_templates",
         "stock_inbound_template_fields",
         "stock_items",
@@ -89,12 +89,45 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         );
         assert_eq!(query_i64(&storage.database, &sql, "count").await, 1);
     }
-    for column in ["unit_mode", "fixed_unit", "unit_options_json"] {
+    for column in [
+        "template_id",
+        "owner_item_id",
+        "unit_mode",
+        "fixed_unit",
+        "unit_options_json",
+    ] {
         let sql = format!(
-            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attribute_template_fields') WHERE name = '{column}'"
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attribute_definitions') WHERE name = '{column}'"
         );
         assert_eq!(query_i64(&storage.database, &sql, "count").await, 1);
     }
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'stock_item_attribute_template_fields'",
+            "count",
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attributes') WHERE name IN ('template_field_id', 'field_name', 'field_type')",
+            "count",
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attributes') WHERE name = 'definition_id' AND [notnull] = 1",
+            "count",
+        )
+        .await,
+        1
+    );
     assert_eq!(
         query_i64(
             &storage.database,

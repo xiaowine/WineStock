@@ -8,8 +8,8 @@
 - 模板字段数为 1 至 64，同一模板字段名忽略大小写后唯一。
 - `select` 必须提供非空且去重的候选项；其它类型不能提供候选项。
 - number、boolean、URL 和 select 默认值必须能被对应类型解释。
-- 物品模板字段显式使用 `none`、`fixed`、`select` 或 `custom` 单位规则；省略时按 `none` 处理。
-- `fixed` 必须且只能提供固定单位；`select` 必须且只能提供 1 至 32 个不区分大小写去重的单位候选项；`none` 和 `custom` 不能携带固定值或候选项。
+- 物品属性定义显式使用 `none`、`fixed` 或 `select` 单位规则；省略时按 `none` 处理。
+- `fixed` 必须且只能提供指定单位；`select` 必须且只能提供 1 至 32 个不区分大小写去重的单位候选项；`none` 不能携带固定值或候选项。
 - 入库模板不接受物品模板专属单位规则。
 
 ## 物品
@@ -18,7 +18,7 @@
 - `attributes` 允许模板字段和自定义字段共存，同一物品字段名唯一。
 - 属性值按 text、number、select、date、file、url、boolean 执行类型校验。
 - file 值必须是 `{ "file_id": positive_integer }`。
-- 模板属性的单位按模板字段规则处理：none 清空、fixed 派生、select 校验候选项、custom 接受可选自由文本。
+- 属性单位按定义规则处理：none 清空、fixed 派生指定单位、select 校验候选项。
 
 ## 入库
 

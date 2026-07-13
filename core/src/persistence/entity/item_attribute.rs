@@ -13,12 +13,8 @@ pub struct Model {
     pub id: i64,
     /// 所属物品 ID。
     pub item_id: i64,
-    /// 可选模板字段来源；自定义属性为空。
-    pub template_field_id: Option<i64>,
-    /// 属性名称，同一物品内唯一。
-    pub field_name: String,
-    /// 稳定属性类型代码。
-    pub field_type: String,
+    /// 统一属性定义 ID。
+    pub definition_id: i64,
     /// JSON 编码后的属性值。
     pub value_json: String,
     /// 可选计量单位。

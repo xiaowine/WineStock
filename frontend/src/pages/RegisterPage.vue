@@ -17,26 +17,20 @@
       </header>
 
       <form class="auth-form" novalidate @submit.prevent="submitRegistration">
-        <label class="form-field">
-          <span>用户名</span>
-          <input
-            v-model="username"
-            name="username"
-            type="text"
-            autocomplete="username"
-            maxlength="64"
-            autofocus
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(usernameError)"
-            :aria-describedby="usernameError ? 'register-username-error' : undefined"
-          />
-          <small v-if="usernameError" id="register-username-error" class="field-error">
-            {{ usernameError }}
-          </small>
-        </label>
+        <FormInput
+          v-model="username"
+          label="用户名"
+          validation-key="username"
+          :error="usernameError"
+          name="username"
+          type="text"
+          autocomplete="username"
+          maxlength="64"
+          autofocus
+          :disabled="isSubmitting"
+        />
 
-        <div class="form-field">
-          <label for="register-password">密码</label>
+        <FormField label="密码" control-id="register-password" validation-key="password" :error="passwordError" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="register-password"
             v-model="password"
@@ -44,16 +38,12 @@
             autocomplete="new-password"
             maxlength="256"
             :disabled="isSubmitting"
-            :aria-invalid="Boolean(passwordError)"
-            :aria-describedby="passwordError ? 'register-password-error' : undefined"
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small v-if="passwordError" id="register-password-error" class="field-error">
-            {{ passwordError }}
-          </small>
-        </div>
+        </FormField>
 
-        <div class="form-field">
-          <label for="register-password-confirmation">确认密码</label>
+        <FormField label="确认密码" control-id="register-password-confirmation" validation-key="password_confirmation" :error="passwordConfirmationError" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="register-password-confirmation"
             v-model="passwordConfirmation"
@@ -61,19 +51,10 @@
             autocomplete="new-password"
             maxlength="256"
             :disabled="isSubmitting"
-            :aria-invalid="Boolean(passwordConfirmationError)"
-            :aria-describedby="
-              passwordConfirmationError ? 'register-password-confirmation-error' : undefined
-            "
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small
-            v-if="passwordConfirmationError"
-            id="register-password-confirmation-error"
-            class="field-error"
-          >
-            {{ passwordConfirmationError }}
-          </small>
-        </div>
+        </FormField>
 
         <div v-if="errorMessage" class="form-error" role="alert">
           {{ errorMessage }}
@@ -111,6 +92,9 @@ import { establishAuthSession } from '../auth/session'
 import { AuthPersistenceError } from '../auth/storage'
 import { notice } from '../notices/notice'
 import PasswordInput from '../components/PasswordInput.vue'
+import FormField from '../components/forms/FormField.vue'
+import FormInput from '../components/forms/FormInput.vue'
+import { useFormValidation } from '../composables/useFormValidation'
 
 const router = useRouter()
 const username = ref('')
@@ -119,6 +103,7 @@ const passwordConfirmation = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({})
+useFormValidation(fieldErrors)
 
 const usernameError = computed(() => fieldErrors.value.username?.[0])
 const passwordError = computed(() => fieldErrors.value.password?.[0])

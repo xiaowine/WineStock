@@ -11,23 +11,20 @@
     @close="emit('close')"
   >
     <form id="user-create-form" class="dialog-form" novalidate @submit.prevent="submit">
-      <label class="form-field">
-        <span>用户名</span>
-        <input
-          v-model="username"
-          name="username"
-          type="text"
-          autocomplete="off"
-          maxlength="64"
-          autofocus
-          :disabled="submitting"
-          :aria-invalid="Boolean(fieldErrors.username)"
-        />
-        <small v-if="fieldErrors.username" class="field-error">{{ fieldErrors.username }}</small>
-      </label>
+      <FormInput
+        v-model="username"
+        label="用户名"
+        validation-key="username"
+        :error="fieldErrors.username"
+        name="username"
+        type="text"
+        autocomplete="off"
+        maxlength="64"
+        autofocus
+        :disabled="submitting"
+      />
 
-      <div class="form-field">
-        <label for="user-create-password">初始密码</label>
+      <FormField label="初始密码" control-id="user-create-password" validation-key="password" :error="fieldErrors.password" hint="至少 8 个字符" v-slot="{ describedBy, invalid }">
         <PasswordInput
           id="user-create-password"
           v-model="password"
@@ -36,14 +33,12 @@
           minlength="8"
           maxlength="128"
           :disabled="submitting"
-          :aria-invalid="Boolean(fieldErrors.password)"
+          :aria-invalid="invalid || undefined"
+          :aria-describedby="describedBy"
         />
-        <small class="field-hint">至少 8 个字符</small>
-        <small v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</small>
-      </div>
+      </FormField>
 
-      <div class="form-field">
-        <label for="user-create-password-confirmation">确认密码</label>
+      <FormField label="确认密码" control-id="user-create-password-confirmation" validation-key="confirmation" :error="fieldErrors.confirmation" v-slot="{ describedBy, invalid }">
         <PasswordInput
           id="user-create-password-confirmation"
           v-model="confirmation"
@@ -51,12 +46,10 @@
           autocomplete="new-password"
           maxlength="128"
           :disabled="submitting"
-          :aria-invalid="Boolean(fieldErrors.confirmation)"
+          :aria-invalid="invalid || undefined"
+          :aria-describedby="describedBy"
         />
-        <small v-if="fieldErrors.confirmation" class="field-error">
-          {{ fieldErrors.confirmation }}
-        </small>
-      </div>
+      </FormField>
 
       <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </form>
@@ -81,6 +74,9 @@
 import { ref, watch } from 'vue'
 import ModalDialog from '../ModalDialog.vue'
 import PasswordInput from '../PasswordInput.vue'
+import FormField from '../forms/FormField.vue'
+import FormInput from '../forms/FormInput.vue'
+import { useFormValidation } from '../../composables/useFormValidation'
 
 const props = defineProps<{
   open: boolean
@@ -97,6 +93,7 @@ const username = ref('')
 const password = ref('')
 const confirmation = ref('')
 const fieldErrors = ref<Record<string, string>>({})
+useFormValidation(fieldErrors)
 
 watch(
   () => props.open,

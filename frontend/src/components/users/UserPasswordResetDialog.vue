@@ -22,8 +22,7 @@
       </p>
 
       <form id="user-password-reset-form" class="dialog-form" novalidate @submit.prevent="submit">
-        <div class="form-field">
-          <label for="user-temporary-password">临时密码</label>
+        <FormField label="临时密码" control-id="user-temporary-password" validation-key="password" :error="fieldErrors.password" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="user-temporary-password"
             v-model="password"
@@ -33,13 +32,12 @@
             maxlength="128"
             autofocus
             :disabled="submitting"
-            :aria-invalid="Boolean(fieldErrors.password)"
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</small>
-        </div>
+        </FormField>
 
-        <div class="form-field">
-          <label for="user-temporary-password-confirmation">确认临时密码</label>
+        <FormField label="确认临时密码" control-id="user-temporary-password-confirmation" validation-key="confirmation" :error="fieldErrors.confirmation" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="user-temporary-password-confirmation"
             v-model="confirmation"
@@ -47,12 +45,10 @@
             autocomplete="new-password"
             maxlength="128"
             :disabled="submitting"
-            :aria-invalid="Boolean(fieldErrors.confirmation)"
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small v-if="fieldErrors.confirmation" class="field-error">
-            {{ fieldErrors.confirmation }}
-          </small>
-        </div>
+        </FormField>
 
         <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
       </form>
@@ -79,6 +75,8 @@ import { ref, watch } from 'vue'
 import type { UserAdminResponse } from '../../api/users'
 import ModalDialog from '../ModalDialog.vue'
 import PasswordInput from '../PasswordInput.vue'
+import FormField from '../forms/FormField.vue'
+import { useFormValidation } from '../../composables/useFormValidation'
 
 const props = defineProps<{
   user: UserAdminResponse | null
@@ -94,6 +92,7 @@ const emit = defineEmits<{
 const password = ref('')
 const confirmation = ref('')
 const fieldErrors = ref<Record<string, string>>({})
+useFormValidation(fieldErrors)
 
 watch(
   () => props.user,

@@ -4,7 +4,7 @@
 -->
 <template>
   <section class="user-list-toolbar" aria-label="用户列表工具栏">
-    <form class="user-list-toolbar__filters" role="search" @submit.prevent="emit('apply')">
+    <form class="user-list-toolbar__filters" role="search" novalidate @submit.prevent="emit('apply')">
       <div class="user-list-toolbar__search">
         <label>
           <span class="visually-hidden">搜索用户名</span>

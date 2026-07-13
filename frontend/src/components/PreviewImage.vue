@@ -2,6 +2,7 @@
 <template>
   <button
     ref="trigger"
+    v-bind="attrs"
     class="preview-image"
     type="button"
     :aria-label="`全屏查看：${alt}`"
@@ -51,7 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, type CSSProperties } from 'vue'
+import { nextTick, onBeforeUnmount, ref, useAttrs, type CSSProperties } from 'vue'
+
+defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<{
   src: string
@@ -65,6 +68,7 @@ const props = withDefaults(defineProps<{
   decoding: 'async',
 })
 
+const attrs = useAttrs()
 const trigger = ref<HTMLButtonElement | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const viewerOpen = ref(false)

@@ -159,6 +159,7 @@
       :templates="templates"
       :saving="saving"
       :metadata-error="metadataError"
+      :validation-errors="validationErrors"
       @save="save"
       @close="requestCloseEditor"
     />
@@ -190,12 +191,14 @@ import ModalDialog from '../components/ModalDialog.vue'
 import { ApiError } from '../api/errors'
 import { notice } from '../notices/notice'
 import {
-  draftFromItem, emptyItemDraft, itemCreateRequest, itemDraftFingerprint, itemUpdateRequest, type ItemDraft,
+  draftFromItem, emptyItemDraft, itemCreateRequest, itemDraftFingerprint, itemUpdateRequest,
+  itemDraftValidationFromApiError, validateItemDraft, type ItemDraft,
 } from './items/model'
 import { discardTemporaryItemFiles } from './items/fileCleanup'
 import { isImageDraftValue, uploadImageDrafts } from '../components/attributes/imageDraft'
 import { deleteImage } from '../api/files'
 import { useStablePendingIndicator } from '../composables/useStablePendingIndicator'
+import { useFormValidation } from '../composables/useFormValidation'
 import './ItemsPage.scss'
 
 const PAGE_SIZE = 50
@@ -220,6 +223,8 @@ const discardDialogOpen = ref(false)
 const loadMoreSentinel = ref<HTMLElement | null>(null)
 const baselineFingerprint = ref('')
 const baselineDraft = ref<ItemDraft>(emptyItemDraft())
+const validationErrors = ref<Record<string, string>>({})
+useFormValidation(validationErrors)
 const emptyCatalogLoadingGate = ref(true)
 
 let searchTimer: number | undefined
@@ -255,6 +260,10 @@ watch(loadMoreSentinel, (element, previousElement) => {
 
 watch([loading, showStableCatalogLoading], ([pending, visible]) => {
   if (!pending && !visible) emptyCatalogLoadingGate.value = false
+})
+
+watch(() => itemDraftFingerprint(draft.value), () => {
+  if (Object.keys(validationErrors.value).length > 0) validationErrors.value = {}
 })
 
 onMounted(() => {
@@ -449,6 +458,7 @@ async function prepareNewDraft(openEditor: boolean): Promise<void> {
   draft.value = next
   baselineDraft.value = emptyItemDraft()
   baselineFingerprint.value = itemDraftFingerprint(next)
+  validationErrors.value = {}
   editorOpen.value = openEditor
 }
 
@@ -457,22 +467,24 @@ async function editItem(item: ItemResponse): Promise<void> {
   draft.value = editorDraftFromItem(item)
   baselineDraft.value = editorDraftFromItem(item)
   baselineFingerprint.value = itemDraftFingerprint(draft.value)
+  validationErrors.value = {}
   editorOpen.value = true
 }
 
 async function save(): Promise<void> {
-  if (!draft.value.name.trim() || !draft.value.sku.trim() || !draft.value.unit.trim()) {
-    notice.warning('请填写名称、SKU 和计量单位')
+  const validation = validateItemDraft(draft.value, templates.value)
+  if (validation) {
+    validationErrors.value = validation.errors
+    notice.warning('请检查物品信息', { detail: validation.firstMessage })
     return
   }
-  if (!draft.value.image) {
-    notice.warning('请选择物品主图')
-    return
-  }
+  validationErrors.value = {}
+  const mainImage = draft.value.image
+  if (!mainImage) return
   saving.value = true
   try {
     await uploadImageDrafts([
-      draft.value.image,
+      mainImage,
       ...draft.value.attributes.map((attribute) => attribute.value).filter(isImageDraftValue),
     ])
     const wasEditing = Boolean(draft.value.id)
@@ -504,6 +516,14 @@ async function save(): Promise<void> {
     editorOpen.value = false
     await reloadCatalog()
   } catch (error) {
+    if (error instanceof ApiError) {
+      const apiValidation = itemDraftValidationFromApiError(error, draft.value)
+      if (apiValidation) {
+        validationErrors.value = apiValidation.errors
+        notice.warning('请检查物品信息', { detail: apiValidation.firstMessage })
+        return
+      }
+    }
     const imageError = [draft.value.image, ...draft.value.attributes.map((attribute) => attribute.value)]
       .find((value) => isImageDraftValue(value) && value.status === 'failed')
     notice.error(imageError ? '物品图片上传失败' : '保存物品失败', {

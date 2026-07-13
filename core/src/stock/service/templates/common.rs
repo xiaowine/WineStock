@@ -40,6 +40,7 @@ pub(super) fn normalize_template_fields(
             options.as_deref(),
         )?;
         result.push(TemplateFieldInput {
+            definition_id: None,
             field_name: name,
             field_type: field.field_type.as_code().to_owned(),
             required: field.required.unwrap_or(false),
@@ -62,12 +63,17 @@ pub(super) fn normalize_template_fields(
 pub(super) fn normalize_item_template_fields(
     fields: Vec<controller::ItemAttributeTemplateFieldDef>,
 ) -> Result<Vec<TemplateFieldInput>, StockApiError> {
-    let (common_fields, unit_rules): (Vec<_>, Vec<_>) = fields
+    let parts = fields
         .into_iter()
         .map(controller::ItemAttributeTemplateFieldDef::into_parts)
-        .unzip();
+        .collect::<Vec<_>>();
+    let definition_ids = parts.iter().map(|part| part.0).collect::<Vec<_>>();
+    let common_fields = parts.iter().map(|part| part.1.clone()).collect::<Vec<_>>();
+    let unit_rules = parts.into_iter().map(|part| part.2).collect::<Vec<_>>();
     let mut normalized = normalize_template_fields(common_fields)?;
-    for (field, rule) in normalized.iter_mut().zip(unit_rules) {
+    for ((field, definition_id), rule) in normalized.iter_mut().zip(definition_ids).zip(unit_rules)
+    {
+        field.definition_id = definition_id;
         let (mode, fixed_unit, unit_options) = normalize_unit_rule(rule)?;
         field.unit_mode = mode.as_code().to_owned();
         field.fixed_unit = fixed_unit;
@@ -93,7 +99,7 @@ fn normalize_unit_rule(
         return Ok((controller::ItemAttributeUnitMode::None, None, None));
     };
     match rule.mode {
-        controller::ItemAttributeUnitMode::None | controller::ItemAttributeUnitMode::Custom => {
+        controller::ItemAttributeUnitMode::None => {
             if rule.value.is_some() || rule.options.is_some() {
                 return Err(StockApiError::InvalidRequest);
             }
@@ -250,7 +256,7 @@ fn inbound_fields(
         .collect()
 }
 fn item_fields(
-    fields: Vec<crate::persistence::entity::item_attribute_template_field::Model>,
+    fields: Vec<crate::persistence::entity::item_attribute_definition::Model>,
 ) -> Result<Vec<controller::ItemAttributeTemplateFieldResponse>, StockApiError> {
     fields
         .into_iter()

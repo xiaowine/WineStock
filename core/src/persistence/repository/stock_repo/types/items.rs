@@ -3,7 +3,7 @@
 //! 本模块属于 `core` 持久化层，只描述物品子域的仓储边界数据。
 
 use crate::{
-    persistence::entity::item_attribute,
+    persistence::entity::{item_attribute, item_attribute_definition},
     validation::{validate_json_text, validate_not_blank, validate_optional_not_blank},
 };
 
@@ -127,15 +127,27 @@ pub(crate) struct UpdateItemCategory {
 /// 创建或整体替换物品属性时使用的仓储输入。
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct ItemAttributeInput {
-    /// 可选模板字段来源；自定义属性为空。
+    /// 已有定义 ID；新私有定义为空。
     #[garde(skip)]
-    pub template_field_id: Option<i64>,
+    pub definition_id: Option<i64>,
     /// 属性名称，同一物品内唯一。
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 稳定属性类型代码。
     #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
     pub field_type: String,
+    /// 自定义 select 候选值 JSON。
+    #[garde(skip)]
+    pub options_json: Option<String>,
+    /// 单位规则。
+    #[garde(skip)]
+    pub unit_mode: String,
+    /// 固定单位。
+    #[garde(skip)]
+    pub fixed_unit: Option<String>,
+    /// 可选单位 JSON。
+    #[garde(skip)]
+    pub unit_options_json: Option<String>,
     /// JSON 编码后的属性值。
     #[garde(
         length(min = 1, max = 8192),
@@ -158,7 +170,13 @@ pub(crate) struct ItemAttributeInput {
 }
 
 /// 物品属性及其稳定数据库身份。
-pub(crate) type ItemAttributeRecord = item_attribute::Model;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ItemAttributeRecord {
+    /// 属性值记录。
+    pub attribute: item_attribute::Model,
+    /// 属性的统一定义。
+    pub definition: item_attribute_definition::Model,
+}
 
 /// 物品列表读取模型，包含基础资料和固有属性。
 #[derive(Debug, Clone, PartialEq)]

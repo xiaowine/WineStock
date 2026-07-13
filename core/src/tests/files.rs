@@ -81,7 +81,11 @@ async fn item_file_attribute_binds_to_item_and_uses_item_read_permission() {
             default_price: None,
             reorder_point: None,
             attributes: vec![ItemAttributeRequest {
-                template_field_id: None,
+                definition_id: None,
+                options: None,
+                unit_mode: None,
+                fixed_unit: None,
+                unit_options: None,
                 field_name: "产品图片".to_owned(),
                 field_type: TemplateFieldType::File,
                 value: json!({ "file_id": file_id }),
@@ -109,7 +113,11 @@ async fn item_file_attribute_binds_to_item_and_uses_item_read_permission() {
             default_price: None,
             reorder_point: None,
             attributes: Some(vec![ItemAttributeRequest {
-                template_field_id: None,
+                definition_id: None,
+                options: None,
+                unit_mode: None,
+                fixed_unit: None,
+                unit_options: None,
                 field_name: "产品图片".to_owned(),
                 field_type: TemplateFieldType::File,
                 value: json!({ "file_id": file_id }),
@@ -232,7 +240,11 @@ async fn item_rejects_reusing_one_temporary_file_for_multiple_attributes() {
             default_price: None,
             reorder_point: None,
             attributes: vec![ItemAttributeRequest {
-                template_field_id: None,
+                definition_id: None,
+                options: None,
+                unit_mode: None,
+                fixed_unit: None,
+                unit_options: None,
                 field_name: "图片".to_owned(),
                 field_type: TemplateFieldType::File,
                 value: json!({ "file_id": file_id, "path": "legacy.png" }),
@@ -261,7 +273,11 @@ async fn item_rejects_reusing_one_temporary_file_for_multiple_attributes() {
             attributes: ["正面图", "背面图"]
                 .into_iter()
                 .map(|field_name| ItemAttributeRequest {
-                    template_field_id: None,
+                    definition_id: None,
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: field_name.to_owned(),
                     field_type: TemplateFieldType::File,
                     value: json!({ "file_id": file_id }),

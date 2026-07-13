@@ -399,7 +399,11 @@ async fn item_validation_and_authorization_fail_before_write() {
             default_price: None,
             reorder_point: None,
             attributes: vec![ItemAttributeRequest {
-                template_field_id: None,
+                definition_id: None,
+                options: None,
+                unit_mode: None,
+                fixed_unit: None,
+                unit_options: None,
                 field_name: "生产日期".to_owned(),
                 field_type: TemplateFieldType::Date,
                 value: serde_json::json!("2026-02-31"),
@@ -469,6 +473,7 @@ async fn item_attributes_follow_template_unit_rules() {
             default_inbound_template_id: None,
             fields: vec![
                 ItemAttributeTemplateFieldDef {
+                    definition_id: None,
                     field_name: "长度".to_owned(),
                     field_type: TemplateFieldType::Number,
                     required: Some(true),
@@ -482,6 +487,7 @@ async fn item_attributes_follow_template_unit_rules() {
                     }),
                 },
                 ItemAttributeTemplateFieldDef {
+                    definition_id: None,
                     field_name: "重量".to_owned(),
                     field_type: TemplateFieldType::Number,
                     required: Some(true),
@@ -520,14 +526,22 @@ async fn item_attributes_follow_template_unit_rules() {
             reorder_point: None,
             attributes: vec![
                 ItemAttributeRequest {
-                    template_field_id: Some(length_field_id),
+                    definition_id: Some(length_field_id),
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: "长度".to_owned(),
                     field_type: TemplateFieldType::Number,
                     value: serde_json::json!(120),
                     unit: Some("cm".to_owned()),
                 },
                 ItemAttributeRequest {
-                    template_field_id: Some(weight_field_id),
+                    definition_id: Some(weight_field_id),
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: "重量".to_owned(),
                     field_type: TemplateFieldType::Number,
                     value: serde_json::json!(2.5),
@@ -557,14 +571,22 @@ async fn item_attributes_follow_template_unit_rules() {
             reorder_point: None,
             attributes: vec![
                 ItemAttributeRequest {
-                    template_field_id: Some(length_field_id),
+                    definition_id: Some(length_field_id),
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: "长度".to_owned(),
                     field_type: TemplateFieldType::Number,
                     value: serde_json::json!(120),
                     unit: None,
                 },
                 ItemAttributeRequest {
-                    template_field_id: Some(weight_field_id),
+                    definition_id: Some(weight_field_id),
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: "重量".to_owned(),
                     field_type: TemplateFieldType::Number,
                     value: serde_json::json!(2.5),
@@ -722,6 +744,7 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
             default_inbound_template_id: None,
             fields: vec![
                 ItemAttributeTemplateFieldDef {
+                    definition_id: None,
                     field_name: "brand".to_owned(),
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
@@ -731,6 +754,7 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
                     unit: None,
                 },
                 ItemAttributeTemplateFieldDef {
+                    definition_id: None,
                     field_name: "internal_note".to_owned(),
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
@@ -775,14 +799,22 @@ async fn seed_item(
             reorder_point: None,
             attributes: vec![
                 ItemAttributeRequest {
-                    template_field_id: None,
+                    definition_id: None,
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: "brand".to_owned(),
                     field_type: TemplateFieldType::Text,
                     value: serde_json::json!(brand),
                     unit: None,
                 },
                 ItemAttributeRequest {
-                    template_field_id: None,
+                    definition_id: None,
+                    options: None,
+                    unit_mode: None,
+                    fixed_unit: None,
+                    unit_options: None,
                     field_name: "internal_note".to_owned(),
                     field_type: TemplateFieldType::Text,
                     value: serde_json::json!(internal_note),

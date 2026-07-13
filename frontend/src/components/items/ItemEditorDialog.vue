@@ -17,6 +17,7 @@
       :templates="templates"
       :saving="saving"
       :metadata-error="metadataError"
+      :validation-errors="validationErrors"
       :form-id="formId"
       embedded
       @save="emit('save')"
@@ -46,6 +47,7 @@ const props = defineProps<{
   templates: ItemAttributeTemplateResponse[]
   saving: boolean
   metadataError: string
+  validationErrors: Record<string, string>
 }>()
 
 const emit = defineEmits<{ save: []; close: [] }>()

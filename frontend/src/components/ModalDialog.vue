@@ -8,13 +8,18 @@
       <div
         v-if="open"
         class="modal-layer"
+        :class="{ 'modal-layer--nested': nested }"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"
         :aria-describedby="description ? descriptionId : undefined"
         @mousedown.self="requestClose"
       >
-        <section ref="panel" class="modal-panel" :class="{ 'modal-panel--wide': wide }">
+        <section
+          ref="panel"
+          class="modal-panel"
+          :class="{ 'modal-panel--wide': wide, 'modal-panel--compact': compact }"
+        >
           <header class="modal-header" :class="{ 'modal-header--compact': !description }">
             <div>
               <h2 :id="titleId">{{ title }}</h2>
@@ -63,11 +68,15 @@ const props = withDefaults(
     description?: string
     busy?: boolean
     wide?: boolean
+    compact?: boolean
+    nested?: boolean
   }>(),
   {
     description: undefined,
     busy: false,
     wide: false,
+    compact: false,
+    nested: false,
   },
 )
 

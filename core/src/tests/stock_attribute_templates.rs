@@ -9,9 +9,10 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundTemplateCreateRequest, InboundTemplateResponse, ItemAttributeTemplateCreateRequest,
-        ItemAttributeTemplateFieldDef, ItemAttributeTemplateResponse, ItemAttributeUnitMode,
-        ItemAttributeUnitRule, ItemCategoryCreateRequest, ItemCategoryResponse,
-        TemplateCopyRequest, TemplateFieldDef, TemplateFieldType,
+        ItemAttributeTemplateFieldDef, ItemAttributeTemplateResponse,
+        ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode, ItemAttributeUnitRule,
+        ItemCategoryCreateRequest, ItemCategoryResponse, TemplateCopyRequest, TemplateFieldDef,
+        TemplateFieldType,
     },
     test_support::{error_code, json_body, login_request, seeded_app},
 };
@@ -197,6 +198,7 @@ async fn item_template_unit_rules_are_validated_and_copied() {
             description: None,
             default_inbound_template_id: None,
             fields: vec![ItemAttributeTemplateFieldDef {
+                definition_id: None,
                 field_name: "长度".to_owned(),
                 field_type: TemplateFieldType::Number,
                 required: Some(true),
@@ -220,6 +222,38 @@ async fn item_template_unit_rules_are_validated_and_copied() {
         Some(["mm".to_owned(), "cm".to_owned()].as_slice())
     );
 
+    let original_definition_id = created.fields[0].field.id;
+    let updated = authorized_json(
+        &app,
+        "PUT",
+        &format!("/api/item-attribute-templates/{}", created.id),
+        &token,
+        &ItemAttributeTemplateUpdateRequest {
+            name: None,
+            description: None,
+            default_inbound_template_id: None,
+            fields: Some(vec![ItemAttributeTemplateFieldDef {
+                definition_id: Some(original_definition_id),
+                field_name: "长度规格".to_owned(),
+                field_type: TemplateFieldType::Number,
+                required: Some(true),
+                searchable: Some(true),
+                options: None,
+                default_value: None,
+                unit: Some(ItemAttributeUnitRule {
+                    mode: ItemAttributeUnitMode::Select,
+                    value: None,
+                    options: Some(vec!["mm".to_owned(), "cm".to_owned()]),
+                }),
+            }]),
+        },
+    )
+    .await;
+    assert_eq!(updated.status(), StatusCode::OK);
+    let updated: ItemAttributeTemplateResponse = json_body(updated).await;
+    assert_eq!(updated.fields[0].field.id, original_definition_id);
+    assert_eq!(updated.fields[0].field.field_name, "长度规格");
+
     let copied = authorized_json(
         &app,
         "POST",
@@ -232,7 +266,8 @@ async fn item_template_unit_rules_are_validated_and_copied() {
     .await;
     assert_eq!(copied.status(), StatusCode::CREATED);
     let copied: ItemAttributeTemplateResponse = json_body(copied).await;
-    assert_eq!(copied.fields[0].unit, created.fields[0].unit);
+    assert_eq!(copied.fields[0].unit, updated.fields[0].unit);
+    assert_ne!(copied.fields[0].field.id, original_definition_id);
 
     for unit in [
         ItemAttributeUnitRule {
@@ -261,6 +296,7 @@ async fn item_template_unit_rules_are_validated_and_copied() {
                 description: None,
                 default_inbound_template_id: None,
                 fields: vec![ItemAttributeTemplateFieldDef {
+                    definition_id: None,
                     field_name: "字段".to_owned(),
                     field_type: TemplateFieldType::Text,
                     required: Some(false),
@@ -294,6 +330,7 @@ fn item_field(
     required: bool,
 ) -> ItemAttributeTemplateFieldDef {
     ItemAttributeTemplateFieldDef {
+        definition_id: None,
         field_name: name.to_owned(),
         field_type,
         required: Some(required),

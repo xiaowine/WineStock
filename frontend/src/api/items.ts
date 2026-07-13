@@ -5,18 +5,27 @@ import type { TemplateFieldType } from './templateFields'
 
 export interface ItemAttributeResponse {
   id: number
-  template_field_id: number | null
+  definition_id: number
+  custom: boolean
   field_name: string
   field_type: TemplateFieldType
+  options: string[] | null
+  unit_mode: 'none' | 'fixed' | 'select'
+  fixed_unit: string | null
+  unit_options: string[] | null
   value: string | number | boolean | FileAttributeReference
   unit: string | null
   sort_order: number
 }
 
 export interface ItemAttributeRequest {
-  template_field_id?: number
+  definition_id?: number
   field_name: string
   field_type: TemplateFieldType
+  options?: string[]
+  unit_mode?: 'none' | 'fixed' | 'select'
+  fixed_unit?: string
+  unit_options?: string[]
   value: string | number | boolean | FileAttributeReference
   unit?: string
 }

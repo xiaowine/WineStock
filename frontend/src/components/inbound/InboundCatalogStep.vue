@@ -22,7 +22,7 @@
       </div>
     </header>
 
-    <form class="inbound-catalog-step__search" role="search" @submit.prevent="$emit('search')">
+    <form class="inbound-catalog-step__search" role="search" novalidate @submit.prevent="$emit('search')">
       <label>
         <span>搜索物品</span>
         <input

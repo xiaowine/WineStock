@@ -190,17 +190,7 @@ where
         ))
     }
 
-    /// 判断物品属性模板是否仍被有效物品引用。
-    pub(crate) async fn active_items_reference_item_attribute_template(
-        &self,
-        template_id: i64,
-    ) -> Result<bool, DbErr> {
-        let row = self.database.query_one(Statement::from_sql_and_values(DatabaseBackend::Sqlite, "SELECT COUNT(*) AS count FROM stock_items WHERE attribute_template_id = ? AND deleted_at IS NULL", [template_id.into()])).await?.ok_or_else(|| DbErr::RecordNotFound("item attribute template reference count".to_owned()))?;
-        let count: i64 = row.try_get("", "count")?;
-        Ok(count > 0)
-    }
-
-    /// 软删除未被有效物品引用的物品属性模板。
+    /// 删除模板时清空物品引用，并删除模板定义及其属性值。
     pub(crate) async fn soft_delete_item_attribute_template(
         &self,
         id: i64,
@@ -219,11 +209,23 @@ where
             return Ok(false);
         };
         let now = sqlite_now(&transaction).await?;
+        let count = list_item_attribute_fields(&transaction, id).await?.len();
+        transaction.execute(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "UPDATE stock_items SET attribute_template_id = NULL, updated_at = ? WHERE attribute_template_id = ?",
+            vec![now.clone().into(), id.into()],
+        )).await?;
+        transaction
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "DELETE FROM stock_item_attribute_definitions WHERE template_id = ?",
+                [id.into()],
+            ))
+            .await?;
         let mut active: item_attribute_template::ActiveModel = template.into();
         active.updated_at = Set(now.clone());
         active.deleted_at = Set(Some(now));
         let deleted = active.update(&transaction).await?;
-        let count = list_item_attribute_fields(&transaction, id).await?.len();
         audit_template_change(
             &transaction,
             audit_user_id,

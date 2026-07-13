@@ -3,7 +3,7 @@ import { apiClient } from './client'
 import type { TemplateFieldResponse } from './templateFields'
 
 /** 物品模板字段支持的单位交互模式。 */
-export type ItemAttributeUnitMode = 'none' | 'fixed' | 'select' | 'custom'
+export type ItemAttributeUnitMode = 'none' | 'fixed' | 'select'
 
 /** 由物品属性模板显式定义的单位规则。 */
 export interface ItemAttributeUnitRule {

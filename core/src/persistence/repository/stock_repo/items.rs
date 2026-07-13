@@ -5,7 +5,7 @@
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
+    QueryFilter, Set, Statement, TransactionTrait,
 };
 use serde_json::json;
 
@@ -15,7 +15,7 @@ use super::{
     StockItemLocationRecord, StockRepository, UpdateStockItem,
 };
 use crate::persistence::{
-    entity::{item_attribute, stock_item},
+    entity::{item_attribute, item_attribute_definition, stock_item},
     repository::{time::sqlite_now, validation::validate_repository_input},
 };
 
@@ -243,6 +243,20 @@ where
         active_model.updated_at = Set(now.clone());
         active_model.deleted_at = Set(Some(now));
         let deleted = active_model.update(&transaction).await?;
+        transaction
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "DELETE FROM stock_item_attributes WHERE item_id = ?",
+                [id.into()],
+            ))
+            .await?;
+        transaction
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "DELETE FROM stock_item_attribute_definitions WHERE owner_item_id = ?",
+                [id.into()],
+            ))
+            .await?;
         if let Some(user_id) = audit_user_id {
             insert_audit_event_on_connection(
                 &transaction,
@@ -570,14 +584,84 @@ where
             [item_id.into()],
         ))
         .await?;
+    let retained_private_ids = attributes
+        .iter()
+        .filter_map(|attribute| attribute.definition_id)
+        .collect::<Vec<_>>();
+    if retained_private_ids.is_empty() {
+        connection
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                "DELETE FROM stock_item_attribute_definitions WHERE owner_item_id = ?",
+                [item_id.into()],
+            ))
+            .await?;
+    } else {
+        let placeholders = vec!["?"; retained_private_ids.len()].join(", ");
+        let sql = format!(
+            "DELETE FROM stock_item_attribute_definitions WHERE owner_item_id = ? AND id NOT IN ({placeholders})"
+        );
+        let mut values = vec![item_id.into()];
+        values.extend(retained_private_ids.iter().copied().map(Into::into));
+        connection
+            .execute(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                sql,
+                values,
+            ))
+            .await?;
+    }
     for attribute in attributes {
         validate_repository_input(attribute)?;
         let now = sqlite_now(connection).await?;
+        let definition_id = if let Some(definition_id) = attribute.definition_id {
+            let definition = item_attribute_definition::Entity::find_by_id(definition_id)
+                .one(connection)
+                .await?
+                .ok_or_else(|| DbErr::Custom("item attribute definition missing".to_owned()))?;
+            if definition.template_id.is_none() && definition.owner_item_id != Some(item_id) {
+                return Err(DbErr::Custom(
+                    "item attribute definition ownership mismatch".to_owned(),
+                ));
+            }
+            if definition.owner_item_id == Some(item_id) {
+                let mut active: item_attribute_definition::ActiveModel = definition.into();
+                active.field_name = Set(attribute.field_name.clone());
+                active.field_type = Set(attribute.field_type.clone());
+                active.options_json = Set(attribute.options_json.clone());
+                active.unit_mode = Set(attribute.unit_mode.clone());
+                active.fixed_unit = Set(attribute.fixed_unit.clone());
+                active.unit_options_json = Set(attribute.unit_options_json.clone());
+                active.sort_order = Set(attribute.sort_order);
+                active.updated_at = Set(now.clone());
+                active.update(connection).await?;
+            }
+            definition_id
+        } else {
+            item_attribute_definition::Entity::insert(item_attribute_definition::ActiveModel {
+                template_id: Set(None),
+                owner_item_id: Set(Some(item_id)),
+                field_name: Set(attribute.field_name.clone()),
+                field_type: Set(attribute.field_type.clone()),
+                required: Set(1),
+                searchable: Set(0),
+                options_json: Set(attribute.options_json.clone()),
+                default_value: Set(None),
+                unit_mode: Set(attribute.unit_mode.clone()),
+                fixed_unit: Set(attribute.fixed_unit.clone()),
+                unit_options_json: Set(attribute.unit_options_json.clone()),
+                sort_order: Set(attribute.sort_order),
+                created_at: Set(now.clone()),
+                updated_at: Set(now.clone()),
+                ..Default::default()
+            })
+            .exec(connection)
+            .await?
+            .last_insert_id
+        };
         let result = item_attribute::Entity::insert(item_attribute::ActiveModel {
             item_id: Set(item_id),
-            template_field_id: Set(attribute.template_field_id),
-            field_name: Set(attribute.field_name.clone()),
-            field_type: Set(attribute.field_type.clone()),
+            definition_id: Set(definition_id),
             value_json: Set(attribute.value_json.clone()),
             unit: Set(attribute.unit.clone()),
             sort_order: Set(attribute.sort_order),
@@ -649,14 +733,56 @@ where
 async fn list_item_attributes_on_connection<C>(
     connection: &C,
     item_id: i64,
-) -> Result<Vec<item_attribute::Model>, DbErr>
+) -> Result<Vec<super::ItemAttributeRecord>, DbErr>
 where
     C: ConnectionTrait,
 {
-    item_attribute::Entity::find()
-        .filter(item_attribute::Column::ItemId.eq(item_id))
-        .order_by_asc(item_attribute::Column::SortOrder)
-        .order_by_asc(item_attribute::Column::Id)
-        .all(connection)
-        .await
+    let rows = connection.query_all(Statement::from_sql_and_values(
+        DatabaseBackend::Sqlite,
+        r#"
+        SELECT a.id, a.item_id, a.definition_id, a.value_json, a.unit, a.sort_order,
+               a.created_at, a.updated_at, d.template_id, d.owner_item_id, d.field_name,
+               d.field_type, d.required, d.searchable, d.options_json, d.default_value,
+               d.unit_mode, d.fixed_unit, d.unit_options_json, d.sort_order AS definition_sort_order,
+               d.created_at AS definition_created_at, d.updated_at AS definition_updated_at
+        FROM stock_item_attributes a
+        JOIN stock_item_attribute_definitions d ON d.id = a.definition_id
+        WHERE a.item_id = ?
+        ORDER BY a.sort_order, a.id
+        "#,
+        [item_id.into()],
+    )).await?;
+    rows.into_iter()
+        .map(|row| {
+            Ok(super::ItemAttributeRecord {
+                attribute: item_attribute::Model {
+                    id: row.try_get("", "id")?,
+                    item_id: row.try_get("", "item_id")?,
+                    definition_id: row.try_get("", "definition_id")?,
+                    value_json: row.try_get("", "value_json")?,
+                    unit: row.try_get("", "unit")?,
+                    sort_order: row.try_get("", "sort_order")?,
+                    created_at: row.try_get("", "created_at")?,
+                    updated_at: row.try_get("", "updated_at")?,
+                },
+                definition: item_attribute_definition::Model {
+                    id: row.try_get("", "definition_id")?,
+                    template_id: row.try_get("", "template_id")?,
+                    owner_item_id: row.try_get("", "owner_item_id")?,
+                    field_name: row.try_get("", "field_name")?,
+                    field_type: row.try_get("", "field_type")?,
+                    required: row.try_get("", "required")?,
+                    searchable: row.try_get("", "searchable")?,
+                    options_json: row.try_get("", "options_json")?,
+                    default_value: row.try_get("", "default_value")?,
+                    unit_mode: row.try_get("", "unit_mode")?,
+                    fixed_unit: row.try_get("", "fixed_unit")?,
+                    unit_options_json: row.try_get("", "unit_options_json")?,
+                    sort_order: row.try_get("", "definition_sort_order")?,
+                    created_at: row.try_get("", "definition_created_at")?,
+                    updated_at: row.try_get("", "definition_updated_at")?,
+                },
+            })
+        })
+        .collect()
 }

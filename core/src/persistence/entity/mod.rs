@@ -15,8 +15,8 @@ pub(crate) mod inbound_order_item_attribute;
 pub(crate) mod inbound_template;
 pub(crate) mod inbound_template_field;
 pub(crate) mod item_attribute;
+pub(crate) mod item_attribute_definition;
 pub(crate) mod item_attribute_template;
-pub(crate) mod item_attribute_template_field;
 #[allow(dead_code)]
 pub(crate) mod item_file_binding;
 pub(crate) mod refresh_token;

@@ -32,8 +32,10 @@
 - `frontend/src/components/RouteContentView.vue`：桌面和移动 Shell 共用的嵌套路由出口，以及复用统一 motion token 的页面切换动画。
 - `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
-- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画。
+- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画；支持业务 Dialog 内二级设置窗口使用独立嵌套层级、较浅遮罩和紧凑尺寸。
 - `frontend/src/components/PasswordInput.vue`：登录、注册、改密和用户管理共用的密码输入呈现控件，统一显示/隐藏、焦点恢复和无障碍状态，不校验或持久化密码。
+- `frontend/src/components/forms/`：通用 `FormField`、`FormInput`、`FormSelect` 和 `FormTextarea` 字段组件，统一标题、必填标记、提示、错误状态和无障碍关联；只负责字段呈现，不包含业务校验规则。
+- `frontend/src/composables/useFormValidation.ts`：为当前表单组件子树注册字段位置、清理单字段错误并自动滚动聚焦首个错误；校验结果仍由页面、会话或业务模型产生。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：只读展示物品属性，并编辑当前明细的批次、有效期、入库模板和入库属性。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
 - `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
@@ -43,7 +45,7 @@
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
 - `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件，拥有遮罩、关闭、焦点返回和背景滚动锁定，不请求文件或编辑图片。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL，可按调用方要求组合通用全屏预览。
-- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板和任意属性编辑控件；`ItemEditor.vue` 与 `ItemEditor.scss` 共同拥有可复用表单及 Dialog 内嵌模式，把模板属性和自定义属性分组，并让基础资料、模板字段和自定义字段复用同一表单控件高度与网格间距，不为模板字段增加逐项边框或卡片；属性编辑器按模板元数据呈现必填状态、select 候选项和 none/fixed/select/custom 单位规则；`ItemEditorDialog.vue` 组合通用 `ModalDialog`，`useItemCreateSession.ts` 与 `ItemCreateDialog.vue` 统一跨业务新建草稿、元数据、上传、保存和关闭确认；物品页和入库流程不互相嵌套页面。
+- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板和任意属性编辑控件；模板属性和自定义属性共用统一定义投影。`ItemUnitSettingsDialog.vue` 在独立 Dialog 中编辑数字属性的 none/fixed/select 单位规则和候选项，主表单只显示固定高度摘要，实际单位选择器与属性值同行。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。

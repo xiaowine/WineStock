@@ -187,6 +187,12 @@ pub(crate) async fn update_item(
     let effective_template_id = request
         .attribute_template_id
         .unwrap_or(current.attribute_template_id);
+    if request.attribute_template_id.is_some()
+        && effective_template_id != current.attribute_template_id
+        && request.attributes.is_none()
+    {
+        return Err(StockApiError::InvalidRequest);
+    }
     let attributes = match request.attributes {
         Some(attributes) => Some(
             normalize_item_attributes(

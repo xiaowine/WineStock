@@ -30,8 +30,6 @@ pub(crate) enum ItemAttributeUnitMode {
     Fixed,
     /// 模板提供单位候选项，物品录入时必须选择其中之一。
     Select,
-    /// 物品录入时允许自由填写单位。
-    Custom,
 }
 
 impl ItemAttributeUnitMode {
@@ -41,7 +39,6 @@ impl ItemAttributeUnitMode {
             Self::None => "none",
             Self::Fixed => "fixed",
             Self::Select => "select",
-            Self::Custom => "custom",
         }
     }
 
@@ -51,7 +48,6 @@ impl ItemAttributeUnitMode {
             "none" => Ok(Self::None),
             "fixed" => Ok(Self::Fixed),
             "select" => Ok(Self::Select),
-            "custom" => Ok(Self::Custom),
             _ => Err(StockApiError::InvalidRequest),
         }
     }
@@ -80,6 +76,9 @@ pub(crate) struct ItemAttributeUnitRule {
 )]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemAttributeTemplateFieldDef {
+    /// 已有定义 ID；新字段为空。
+    #[garde(skip)]
+    pub definition_id: Option<i64>,
     /// 字段名称，同一模板内唯一。
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
@@ -105,8 +104,11 @@ pub(crate) struct ItemAttributeTemplateFieldDef {
 
 impl ItemAttributeTemplateFieldDef {
     /// 拆分两类模板共用字段和物品模板专属单位规则。
-    pub(crate) fn into_parts(self) -> (TemplateFieldDef, Option<ItemAttributeUnitRule>) {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (Option<i64>, TemplateFieldDef, Option<ItemAttributeUnitRule>) {
         (
+            self.definition_id,
             TemplateFieldDef {
                 field_name: self.field_name,
                 field_type: self.field_type,
@@ -243,7 +245,7 @@ pub(crate) async fn update_item_attribute_template(
         service::update_item_attribute_template(&state, &user, id, request).await?,
     ))
 }
-/// 软删除未被有效物品引用的属性模板。
+/// 删除属性模板；使用中的物品会清空模板引用并保留自定义属性。
 #[utoipa::path(delete, path = "/api/item-attribute-templates/{id}", tag = "item-attribute-templates", params(("id" = i64, Path)), security(("bearerAuth" = [])), responses((status = 204)))]
 pub(crate) async fn delete_item_attribute_template(
     State(state): State<CoreState>,

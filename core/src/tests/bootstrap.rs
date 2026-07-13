@@ -135,7 +135,7 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
     assert_eq!(
         query_i64(
             &second.storage.database,
-            "SELECT COUNT(*) AS count FROM stock_item_attribute_template_fields",
+            "SELECT COUNT(*) AS count FROM stock_item_attribute_definitions",
             "count",
         )
         .await,
@@ -144,7 +144,7 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
     assert_eq!(
         query_i64(
             &second.storage.database,
-            "SELECT COUNT(*) AS count FROM stock_item_attribute_template_fields WHERE field_type = 'url'",
+            "SELECT COUNT(*) AS count FROM stock_item_attribute_definitions WHERE field_type = 'url'",
             "count",
         )
         .await,
@@ -506,7 +506,7 @@ async fn item_template_field_names(
             DatabaseBackend::Sqlite,
             r#"
             SELECT field.field_name
-            FROM stock_item_attribute_template_fields field
+            FROM stock_item_attribute_definitions field
             INNER JOIN stock_item_attribute_templates template ON template.id = field.template_id
             WHERE template.name = ?
             ORDER BY field.sort_order, field.id

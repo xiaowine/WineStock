@@ -353,8 +353,8 @@ fn item_template_filter_values_sql() -> String {
         FROM stock_batches batches
         JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
         JOIN stock_item_attributes attributes ON attributes.item_id = items.id
-        JOIN stock_item_attribute_template_fields fields
-          ON fields.id = attributes.template_field_id AND fields.searchable = 1
+        JOIN stock_item_attribute_definitions fields
+          ON fields.id = attributes.definition_id AND fields.searchable = 1
         "#,
         "batches.remaining_quantity > 0",
         "attributes",

@@ -130,19 +130,13 @@ pub(crate) async fn update_item_attribute_template(
     };
     item_attribute_template_response(detail)
 }
-/// 软删除未被有效物品引用的属性模板。
+/// 删除属性模板并清空使用物品的模板引用。
 pub(crate) async fn delete_item_attribute_template(
     state: &CoreState,
     user: &CurrentUser,
     id: i64,
 ) -> Result<(), StockApiError> {
     let repository = StockRepository::new(state.database());
-    if repository
-        .active_items_reference_item_attribute_template(id)
-        .await?
-    {
-        return Err(StockApiError::TemplateInUse);
-    }
     if repository
         .soft_delete_item_attribute_template(id, Some(user.user_id))
         .await?

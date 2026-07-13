@@ -90,8 +90,13 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     );
     assert_eq!(
         value["components"]["schemas"]["ItemAttributeUnitMode"]["enum"],
-        serde_json::json!(["none", "fixed", "select", "custom"])
+        serde_json::json!(["none", "fixed", "select"])
     );
+    for schema in ["ItemAttributeRequest", "ItemAttributeResponse"] {
+        let properties = &value["components"]["schemas"][schema]["properties"];
+        assert!(properties["definition_id"].is_object());
+        assert!(properties["template_field_id"].is_null());
+    }
     assert!(
         value["components"]["schemas"]["ItemAttributeTemplateFieldDef"]["properties"]["unit"]
             .is_object()

@@ -25,11 +25,11 @@
 | `reorder_point` | 非负再订货点 |
 | `attributes` | 类型化物品固有属性数组 |
 
-单条属性包含可选 `template_field_id`、`field_name`、`field_type`、类型化 `value` 和可选 `unit`。字段名在同一物品内唯一。自定义属性的 `template_field_id` 为空。
+单条属性包含 `definition_id`、完整定义投影、类型化 `value` 和可选 `unit`。模板属性与自定义属性共用定义实体，自定义定义只属于当前物品。
 
 类型规则：数字必须有限；URL 只允许 HTTP/HTTPS；日期使用有效 `YYYY-MM-DD`；布尔值必须是 JSON boolean；模板 select 值必须属于候选项；file 值必须是 `{ "file_id": id }`。
 
-模板属性的单位由对应模板字段显式控制：`none` 不保存单位，`fixed` 由服务端写入模板固定值，`select` 只接受模板候选单位，`custom` 才接受自由单位。客户端不能通过提交其它单位覆盖固定规则。自定义属性仍可携带可选自由单位。
+数字属性单位由定义显式控制：`none` 不保存单位，`fixed` 由服务端写入定义中的指定值，`select` 只接受定义候选单位。客户端不能覆盖指定单位。
 
 ## 接口
 

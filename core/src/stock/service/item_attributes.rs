@@ -61,7 +61,7 @@ pub(super) async fn normalize_item_attributes(
         }
         let preset = template_fields.get(&field_name.to_lowercase()).copied();
         if request
-            .template_field_id
+            .definition_id
             .is_some_and(|id| preset.is_none_or(|field| field.id != id))
         {
             return Err(StockApiError::InvalidRequest);
@@ -69,12 +69,35 @@ pub(super) async fn normalize_item_attributes(
         if preset.is_some_and(|field| field.field_type != request.field_type.as_code()) {
             return Err(StockApiError::InvalidRequest);
         }
-        validate_value(
-            request.field_type,
-            &request.value,
-            preset.and_then(|field| field.options_json.clone()),
+        let options_json = if preset.is_none() {
+            normalize_options(
+                request.options,
+                request.field_type == controller::TemplateFieldType::Select,
+            )?
+        } else {
+            preset.and_then(|field| field.options_json.clone())
+        };
+        validate_value(request.field_type, &request.value, options_json.clone())?;
+        let (unit_mode, fixed_unit, unit_options_json) = if let Some(preset) = preset {
+            (
+                preset.unit_mode.clone(),
+                preset.fixed_unit.clone(),
+                preset.unit_options_json.clone(),
+            )
+        } else {
+            normalize_custom_unit_rule(
+                request.field_type,
+                request.unit_mode,
+                request.fixed_unit,
+                request.unit_options,
+            )?
+        };
+        let unit = normalize_attribute_unit(
+            request.unit,
+            &unit_mode,
+            fixed_unit.as_deref(),
+            unit_options_json.clone(),
         )?;
-        let unit = normalize_attribute_unit(request.unit, preset)?;
         let file_id = if request.field_type == controller::TemplateFieldType::File {
             let id = file_id(&request.value).ok_or(StockApiError::InvalidRequest)?;
             let record = file_repository
@@ -97,9 +120,15 @@ pub(super) async fn normalize_item_attributes(
             None
         };
         result.push(ItemAttributeInput {
-            template_field_id: preset.map(|field| field.id),
+            definition_id: request
+                .definition_id
+                .or_else(|| preset.map(|field| field.id)),
             field_name,
             field_type: request.field_type.as_code().to_owned(),
+            options_json,
+            unit_mode,
+            fixed_unit,
+            unit_options_json,
             value_json: serde_json::to_string(&request.value)
                 .map_err(|_| StockApiError::InvalidRequest)?,
             unit,
@@ -118,24 +147,22 @@ pub(super) async fn normalize_item_attributes(
     Ok(result)
 }
 
-/// 按模板字段单位规则派生或校验实际单位，自定义属性继续使用可选自由单位。
+/// 按统一定义的 none、fixed 或 select 规则派生并校验实际单位。
 fn normalize_attribute_unit(
     unit: Option<String>,
-    preset: Option<&crate::persistence::entity::item_attribute_template_field::Model>,
+    unit_mode: &str,
+    fixed_unit: Option<&str>,
+    unit_options_json: Option<String>,
 ) -> Result<Option<String>, StockApiError> {
-    let Some(preset) = preset else {
-        return normalize_optional_text(unit);
-    };
-    match preset.unit_mode.as_str() {
+    match unit_mode {
         "none" => Ok(None),
-        "fixed" => preset
-            .fixed_unit
-            .clone()
+        "fixed" => fixed_unit
+            .map(str::to_owned)
             .map(Some)
             .ok_or(StockApiError::InvalidRequest),
         "select" => {
             let unit = normalize_optional_text(unit)?.ok_or(StockApiError::InvalidRequest)?;
-            if parse_options_json(preset.unit_options_json.clone())?
+            if parse_options_json(unit_options_json)?
                 .unwrap_or_default()
                 .iter()
                 .any(|option| option == &unit)
@@ -145,7 +172,6 @@ fn normalize_attribute_unit(
                 Err(StockApiError::InvalidRequest)
             }
         }
-        "custom" => normalize_optional_text(unit),
         _ => Err(StockApiError::InvalidRequest),
     }
 }
@@ -156,12 +182,19 @@ pub(super) fn item_attribute_responses(
 ) -> Result<Vec<controller::ItemAttributeResponse>, StockApiError> {
     attributes
         .into_iter()
-        .map(|attribute| {
+        .map(|record| {
+            let attribute = record.attribute;
+            let definition = record.definition;
             Ok(controller::ItemAttributeResponse {
                 id: attribute.id,
-                template_field_id: attribute.template_field_id,
-                field_name: attribute.field_name,
-                field_type: controller::TemplateFieldType::from_code(&attribute.field_type)?,
+                definition_id: definition.id,
+                custom: definition.owner_item_id.is_some(),
+                field_name: definition.field_name,
+                field_type: controller::TemplateFieldType::from_code(&definition.field_type)?,
+                options: parse_options_json(definition.options_json)?,
+                unit_mode: definition.unit_mode,
+                fixed_unit: definition.fixed_unit,
+                unit_options: parse_options_json(definition.unit_options_json)?,
                 value: serde_json::from_str(&attribute.value_json)
                     .map_err(|_| StockApiError::InvalidRequest)?,
                 unit: attribute.unit,
@@ -169,6 +202,58 @@ pub(super) fn item_attribute_responses(
             })
         })
         .collect()
+}
+
+fn normalize_options(
+    options: Option<Vec<String>>,
+    required: bool,
+) -> Result<Option<String>, StockApiError> {
+    let Some(options) = options else {
+        return if required {
+            Err(StockApiError::InvalidRequest)
+        } else {
+            Ok(None)
+        };
+    };
+    let mut seen = HashSet::new();
+    let normalized = options
+        .into_iter()
+        .map(|value| value.trim().to_owned())
+        .collect::<Vec<_>>();
+    if normalized.is_empty()
+        || normalized
+            .iter()
+            .any(|value| value.is_empty() || !seen.insert(value.to_lowercase()))
+    {
+        return Err(StockApiError::InvalidRequest);
+    }
+    serde_json::to_string(&normalized)
+        .map(Some)
+        .map_err(|_| StockApiError::InvalidRequest)
+}
+
+fn normalize_custom_unit_rule(
+    field_type: controller::TemplateFieldType,
+    mode: Option<String>,
+    fixed_unit: Option<String>,
+    unit_options: Option<Vec<String>>,
+) -> Result<(String, Option<String>, Option<String>), StockApiError> {
+    if field_type != controller::TemplateFieldType::Number {
+        return Ok(("none".to_owned(), None, None));
+    }
+    let mode = mode.unwrap_or_else(|| "none".to_owned());
+    match mode.as_str() {
+        "none" => Ok((mode, None, None)),
+        "fixed" => Ok((
+            mode,
+            Some(normalize_required_text(
+                &fixed_unit.ok_or(StockApiError::InvalidRequest)?,
+            )?),
+            None,
+        )),
+        "select" => Ok((mode, None, normalize_options(unit_options, true)?)),
+        _ => Err(StockApiError::InvalidRequest),
+    }
 }
 
 fn validate_value(

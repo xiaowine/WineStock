@@ -1,13 +1,17 @@
 // 本文件拥有可跨业务页面复用的物品新建会话，负责元数据、草稿、上传、保存与临时文件清理；它不决定编辑器呈现方式。
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { createItem, type ItemResponse } from '../../api/items'
 import { listItemCategories, type ItemCategoryResponse } from '../../api/itemCategories'
 import { listItemAttributeTemplates, type ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import { ApiError } from '../../api/errors'
 import { notice } from '../../notices/notice'
-import { emptyItemDraft, itemCreateRequest, itemDraftFingerprint } from '../../pages/items/model'
+import {
+  emptyItemDraft, itemCreateRequest, itemDraftFingerprint, itemDraftValidationFromApiError,
+  validateItemDraft,
+} from '../../pages/items/model'
 import { discardTemporaryItemFiles } from '../../pages/items/fileCleanup'
 import { isImageDraftValue, uploadImageDrafts } from '../attributes/imageDraft'
+import { useFormValidation } from '../../composables/useFormValidation'
 
 /** 创建独立物品新建会话；调用方只处理打开、关闭和创建成功后的业务动作。 */
 export function useItemCreateSession() {
@@ -16,11 +20,17 @@ export function useItemCreateSession() {
   const templates = ref<ItemAttributeTemplateResponse[]>([])
   const saving = ref(false)
   const metadataError = ref('')
+  const validationErrors = ref<Record<string, string>>({})
+  useFormValidation(validationErrors)
   const baselineFingerprint = ref(itemDraftFingerprint(draft.value))
   let metadataController: AbortController | null = null
   let saved = false
 
   const hasUnsavedChanges = computed(() => itemDraftFingerprint(draft.value) !== baselineFingerprint.value)
+
+  watch(() => itemDraftFingerprint(draft.value), () => {
+    if (Object.keys(validationErrors.value).length > 0) validationErrors.value = {}
+  })
 
   onBeforeUnmount(() => metadataController?.abort())
 
@@ -49,14 +59,14 @@ export function useItemCreateSession() {
 
   /** 上传草稿图片并创建物品；成功后保留已绑定文件，返回服务端物品快照。 */
   async function save(): Promise<ItemResponse | null> {
-    if (!draft.value.name.trim() || !draft.value.sku.trim() || !draft.value.unit.trim()) {
-      notice.warning('请填写名称、SKU 和计量单位')
+    const validation = validateItemDraft(draft.value, templates.value)
+    if (validation) {
+      validationErrors.value = validation.errors
+      notice.warning('请检查物品信息', { detail: validation.firstMessage })
       return null
     }
-    if (!draft.value.image) {
-      notice.warning('请选择物品主图')
-      return null
-    }
+    validationErrors.value = {}
+    if (!draft.value.image) return null
     saving.value = true
     try {
       await uploadImageDrafts([
@@ -69,6 +79,14 @@ export function useItemCreateSession() {
       saved = true
       return created
     } catch (error) {
+      if (error instanceof ApiError) {
+        const apiValidation = itemDraftValidationFromApiError(error, draft.value)
+        if (apiValidation) {
+          validationErrors.value = apiValidation.errors
+          notice.warning('请检查物品信息', { detail: apiValidation.firstMessage })
+          return null
+        }
+      }
       const imageError = [draft.value.image, ...draft.value.attributes.map((attribute) => attribute.value)]
         .find((value) => isImageDraftValue(value) && value.status === 'failed')
       notice.error(imageError ? '物品图片上传失败' : '保存物品失败', {
@@ -90,6 +108,7 @@ export function useItemCreateSession() {
       }
     }
     draft.value = emptyItemDraft()
+    validationErrors.value = {}
     baselineFingerprint.value = itemDraftFingerprint(draft.value)
     saved = false
   }
@@ -100,6 +119,7 @@ export function useItemCreateSession() {
     templates,
     saving,
     metadataError,
+    validationErrors,
     hasUnsavedChanges,
     loadMetadata,
     save,

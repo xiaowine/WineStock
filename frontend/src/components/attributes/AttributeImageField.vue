@@ -6,6 +6,7 @@
     :class="{ 'inbound-control--error': invalid }"
     :title="title"
     :aria-label="label"
+    :aria-invalid="invalid || undefined"
     tabindex="-1"
   >
     <div
@@ -517,7 +518,7 @@ function formatFileSize(bytes: number): string {
 
 .image-picker-popover {
   position: fixed;
-  z-index: calc(var(--z-dialog) - 1);
+  z-index: var(--z-dialog-popover);
   display: grid;
   max-height: calc(100vh - 24px);
   overflow-y: auto;

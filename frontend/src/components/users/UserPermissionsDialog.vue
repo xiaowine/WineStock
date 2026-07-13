@@ -32,6 +32,7 @@
       v-else
       id="user-permissions-form"
       class="permission-picker"
+      novalidate
       @submit.prevent="submitPermissions"
     >
       <nav class="permission-picker__groups" aria-label="权限分类">

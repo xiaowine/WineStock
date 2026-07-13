@@ -3,8 +3,8 @@
 //! 本模块属于 core 持久化层，只复用两类模板相同的机械流程，不决定模板业务语义。
 
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, QueryFilter, QueryOrder,
-    Set, Statement,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
+    QueryFilter, QueryOrder, Set, Statement,
 };
 use serde_json::json;
 
@@ -14,8 +14,8 @@ use super::super::{
 };
 use crate::persistence::{
     entity::{
-        inbound_template, inbound_template_field, item_attribute_template,
-        item_attribute_template_field,
+        inbound_template, inbound_template_field, item_attribute_definition,
+        item_attribute_template,
     },
     repository::{time::sqlite_now, validation::validate_repository_input},
 };
@@ -121,18 +121,58 @@ pub(super) async fn replace_item_attribute_fields<C>(
 where
     C: ConnectionTrait,
 {
+    let retained_ids = fields
+        .iter()
+        .filter_map(|field| field.definition_id)
+        .collect::<Vec<_>>();
+    let mut delete_values = vec![template_id.into()];
+    let delete_sql = if retained_ids.is_empty() {
+        "DELETE FROM stock_item_attribute_definitions WHERE template_id = ?".to_owned()
+    } else {
+        delete_values.extend(retained_ids.iter().copied().map(Into::into));
+        format!(
+            "DELETE FROM stock_item_attribute_definitions WHERE template_id = ? AND id NOT IN ({})",
+            vec!["?"; retained_ids.len()].join(", ")
+        )
+    };
     connection
         .execute(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            "DELETE FROM stock_item_attribute_template_fields WHERE template_id = ?",
-            [template_id.into()],
+            delete_sql,
+            delete_values,
         ))
         .await?;
     for field in fields {
         validate_repository_input(field)?;
         let now = sqlite_now(connection).await?;
-        item_attribute_template_field::Entity::insert(item_attribute_template_field::ActiveModel {
-            template_id: Set(template_id),
+        if let Some(definition_id) = field.definition_id {
+            let definition = item_attribute_definition::Entity::find_by_id(definition_id)
+                .one(connection)
+                .await?
+                .ok_or_else(|| DbErr::Custom("item template definition missing".to_owned()))?;
+            if definition.template_id != Some(template_id) || definition.owner_item_id.is_some() {
+                return Err(DbErr::Custom(
+                    "item template definition ownership mismatch".to_owned(),
+                ));
+            }
+            let mut active: item_attribute_definition::ActiveModel = definition.into();
+            active.field_name = Set(field.field_name.clone());
+            active.field_type = Set(field.field_type.clone());
+            active.required = Set(i32::from(field.required));
+            active.searchable = Set(i32::from(field.searchable));
+            active.options_json = Set(field.options_json.clone());
+            active.default_value = Set(field.default_value.clone());
+            active.unit_mode = Set(field.unit_mode.clone());
+            active.fixed_unit = Set(field.fixed_unit.clone());
+            active.unit_options_json = Set(field.unit_options_json.clone());
+            active.sort_order = Set(field.sort_order);
+            active.updated_at = Set(now);
+            active.update(connection).await?;
+            continue;
+        }
+        item_attribute_definition::Entity::insert(item_attribute_definition::ActiveModel {
+            template_id: Set(Some(template_id)),
+            owner_item_id: Set(None),
             field_name: Set(field.field_name.clone()),
             field_type: Set(field.field_type.clone()),
             required: Set(i32::from(field.required)),
@@ -211,14 +251,14 @@ where
 pub(super) async fn list_item_attribute_fields<C>(
     connection: &C,
     template_id: i64,
-) -> Result<Vec<item_attribute_template_field::Model>, DbErr>
+) -> Result<Vec<item_attribute_definition::Model>, DbErr>
 where
     C: ConnectionTrait,
 {
-    item_attribute_template_field::Entity::find()
-        .filter(item_attribute_template_field::Column::TemplateId.eq(template_id))
-        .order_by_asc(item_attribute_template_field::Column::SortOrder)
-        .order_by_asc(item_attribute_template_field::Column::Id)
+    item_attribute_definition::Entity::find()
+        .filter(item_attribute_definition::Column::TemplateId.eq(template_id))
+        .order_by_asc(item_attribute_definition::Column::SortOrder)
+        .order_by_asc(item_attribute_definition::Column::Id)
         .all(connection)
         .await
 }
@@ -232,6 +272,7 @@ pub(super) fn inbound_field_inputs(
 
 fn inbound_field_input(field: &inbound_template_field::Model) -> TemplateFieldInput {
     TemplateFieldInput {
+        definition_id: None,
         field_name: field.field_name.clone(),
         field_type: field.field_type.clone(),
         required: field.required != 0,
@@ -247,11 +288,12 @@ fn inbound_field_input(field: &inbound_template_field::Model) -> TemplateFieldIn
 
 /// 将物品属性模板实体字段投影为可复制的仓储输入。
 pub(super) fn item_attribute_field_inputs(
-    fields: &[item_attribute_template_field::Model],
+    fields: &[item_attribute_definition::Model],
 ) -> Vec<TemplateFieldInput> {
     fields
         .iter()
         .map(|field| TemplateFieldInput {
+            definition_id: None,
             field_name: field.field_name.clone(),
             field_type: field.field_type.clone(),
             required: field.required != 0,

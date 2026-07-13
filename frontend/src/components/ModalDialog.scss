@@ -9,6 +9,11 @@
   background: rgb(23 32 42 / 42%);
 }
 
+.modal-layer--nested {
+  z-index: var(--z-dialog-nested);
+  background: rgb(23 32 42 / 20%);
+}
+
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
@@ -54,6 +59,11 @@
 
 .modal-panel--wide {
   width: min(100%, 720px);
+}
+
+.modal-panel--compact {
+  width: min(100%, 440px);
+  max-height: min(76vh, 640px);
 }
 
 .modal-panel--wide .modal-body {
@@ -121,13 +131,18 @@
   }
 
   .modal-panel,
-  .modal-panel--wide {
+  .modal-panel--wide,
+  .modal-panel--compact {
     width: 100%;
     max-height: calc(92vh - env(safe-area-inset-top));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .modal-panel--compact {
+    max-height: calc(88vh - env(safe-area-inset-top));
   }
 
   .modal-enter-from .modal-panel,

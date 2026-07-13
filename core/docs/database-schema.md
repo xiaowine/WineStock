@@ -152,15 +152,15 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 可选物品属性预设。`default_inbound_template_id` 可推荐一套入库模板，但物品可以不使用模板，也可以增加自定义属性。
 
-### `stock_item_attribute_template_fields`
+### `stock_item_attribute_definitions`
 
-物品属性预设字段。字段类型只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
+模板属性与物品私有自定义属性共用的定义表。`template_id` 与 `owner_item_id` 必须且只能有一个非空；同一模板或同一物品内的字段名忽略大小写唯一。字段类型只允许 `text`、`number`、`select`、`date`、`file`、`url` 或 `boolean`。
 
-- `unit_mode`：单位规则，只允许 `none`、`fixed`、`select` 或 `custom`，默认值为 `none`。
+- `unit_mode`：单位规则，只允许 `none`、`fixed` 或 `select`，默认值为 `none`；`fixed` 在界面显示为“指定单位”。
 - `fixed_unit`：仅 `fixed` 模式使用的固定单位。
 - `unit_options_json`：仅 `select` 模式使用的单位候选字符串数组 JSON。
 
-字段组合由服务层校验：`none`/`custom` 不携带额外单位配置，`fixed` 只携带 `fixed_unit`，`select` 只携带非空且去重的 `unit_options_json`。入库模板字段表不包含这些列。
+字段组合由服务层校验：`none` 不携带额外单位配置，`fixed` 只携带 `fixed_unit`，`select` 只携带非空且去重的 `unit_options_json`。私有定义固定不可用于结构化筛选。
 
 ### `stock_inbound_templates`
 
@@ -188,7 +188,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_item_attributes`
 
-物品固有属性表。每条记录保存 `field_name`、`field_type`、合法 `value_json`、可选 `unit` 和可选模板字段来源。`template_field_id` 为空表示自定义属性，同一物品字段名唯一。模板属性写入时由服务层按模板单位规则派生或校验 `unit`，不信任客户端覆盖固定单位。
+物品固有属性值表。每条记录只保存 `item_id`、必需的 `definition_id`、合法 `value_json`、可选实际 `unit` 和排序；字段名称、类型、候选项和单位规则统一从定义表读取。`(item_id, definition_id)` 唯一，删除定义时级联删除对应值和图片绑定。
 
 ### `stock_location_groups`
 

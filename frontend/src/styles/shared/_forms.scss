@@ -18,7 +18,9 @@
   font-weight: 650;
 }
 
-.form-field input {
+.form-field input,
+.form-field select,
+.form-field textarea {
   width: 100%;
   min-height: 40px;
   padding: 0 11px;
@@ -28,18 +30,30 @@
   color: var(--color-text);
 }
 
-.form-field input:focus {
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
   border-color: var(--color-accent);
   outline: 3px solid rgb(111 42 54 / 14%);
 }
 
-.form-field input[aria-invalid='true'] {
+.form-field input[aria-invalid='true'],
+.form-field select[aria-invalid='true'],
+.form-field textarea[aria-invalid='true'] {
   border-color: var(--color-danger);
 }
 
-.form-field input:disabled {
+.form-field input:disabled,
+.form-field select:disabled,
+.form-field textarea:disabled {
   background: var(--color-surface-raised);
   color: var(--color-muted);
+}
+
+.form-field textarea {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  resize: none;
 }
 
 .password-input {

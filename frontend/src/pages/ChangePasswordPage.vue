@@ -38,8 +38,7 @@
           readonly
         />
 
-        <div class="form-field">
-          <label for="change-current-password">当前密码</label>
+        <FormField label="当前密码" control-id="change-current-password" validation-key="current_password" :error="currentPasswordError" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="change-current-password"
             v-model="currentPassword"
@@ -48,22 +47,12 @@
             maxlength="256"
             autofocus
             :disabled="isSubmitting"
-            :aria-invalid="Boolean(currentPasswordError)"
-            :aria-describedby="
-              currentPasswordError ? 'change-current-password-error' : undefined
-            "
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small
-            v-if="currentPasswordError"
-            id="change-current-password-error"
-            class="field-error"
-          >
-            {{ currentPasswordError }}
-          </small>
-        </div>
+        </FormField>
 
-        <div class="form-field">
-          <label for="change-new-password">新密码</label>
+        <FormField label="新密码" control-id="change-new-password" validation-key="new_password" :error="newPasswordError" hint="至少 8 个字符" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="change-new-password"
             v-model="newPassword"
@@ -72,25 +61,12 @@
             minlength="8"
             maxlength="128"
             :disabled="isSubmitting"
-            :aria-invalid="Boolean(newPasswordError)"
-            :aria-describedby="
-              newPasswordError
-                ? 'change-new-password-hint change-new-password-error'
-                : 'change-new-password-hint'
-            "
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small id="change-new-password-hint" class="field-hint">至少 8 个字符</small>
-          <small
-            v-if="newPasswordError"
-            id="change-new-password-error"
-            class="field-error"
-          >
-            {{ newPasswordError }}
-          </small>
-        </div>
+        </FormField>
 
-        <div class="form-field">
-          <label for="change-new-password-confirmation">确认新密码</label>
+        <FormField label="确认新密码" control-id="change-new-password-confirmation" validation-key="new_password_confirmation" :error="newPasswordConfirmationError" v-slot="{ describedBy, invalid }">
           <PasswordInput
             id="change-new-password-confirmation"
             v-model="newPasswordConfirmation"
@@ -98,19 +74,10 @@
             autocomplete="new-password"
             maxlength="128"
             :disabled="isSubmitting"
-            :aria-invalid="Boolean(newPasswordConfirmationError)"
-            :aria-describedby="
-              newPasswordConfirmationError ? 'change-password-confirmation-error' : undefined
-            "
+            :aria-invalid="invalid || undefined"
+            :aria-describedby="describedBy"
           />
-          <small
-            v-if="newPasswordConfirmationError"
-            id="change-password-confirmation-error"
-            class="field-error"
-          >
-            {{ newPasswordConfirmationError }}
-          </small>
-        </div>
+        </FormField>
 
         <div v-if="errorMessage" class="form-error" role="alert">
           {{ errorMessage }}
@@ -163,6 +130,8 @@ import { AuthPersistenceError } from '../auth/storage'
 import { notice } from '../notices/notice'
 import { resolvePostLoginLocation } from '../router/guards'
 import PasswordInput from '../components/PasswordInput.vue'
+import FormField from '../components/forms/FormField.vue'
+import { useFormValidation } from '../composables/useFormValidation'
 
 const router = useRouter()
 const route = useRoute()
@@ -172,6 +141,7 @@ const newPasswordConfirmation = ref('')
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({})
+useFormValidation(fieldErrors)
 
 const username = computed(() => authSession.value?.user.username ?? '当前用户')
 const passwordChangeRequired = computed(

@@ -10,6 +10,7 @@
     :templates="templates"
     :saving="saving"
     :metadata-error="metadataError"
+    :validation-errors="validationErrors"
     @save="saveItem"
     @close="requestClose"
   />
@@ -45,7 +46,8 @@ const emit = defineEmits<{
 const discardDialogOpen = ref(false)
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
 const {
-  draft, categories, templates, saving, metadataError, hasUnsavedChanges, loadMetadata, save, discard,
+  draft, categories, templates, saving, metadataError, validationErrors, hasUnsavedChanges,
+  loadMetadata, save, discard,
 } = useItemCreateSession()
 
 watch(() => props.open, (open) => {

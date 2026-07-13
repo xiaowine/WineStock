@@ -147,7 +147,7 @@ impl<'db> FileObjectRepository<'db> {
                        f.original_name, f.created_at, f.owner_user_id,
                        ia.inbound_order_item_id, i.order_id AS inbound_order_id,
                        COALESCE(main_item.id, item_attr.item_id) AS item_id,
-                       COALESCE(ia.field_name, item_attr.field_name,
+                       COALESCE(ia.field_name, item_definition.field_name,
                          CASE WHEN main_item.id IS NOT NULL THEN '物品主图' END) AS field_name
                 FROM storage_file_objects f
                 LEFT JOIN storage_inbound_file_bindings inbound_binding ON inbound_binding.file_object_id = f.id
@@ -155,6 +155,7 @@ impl<'db> FileObjectRepository<'db> {
                 LEFT JOIN stock_inbound_order_items i ON i.id = ia.inbound_order_item_id
                 LEFT JOIN storage_item_file_bindings item_binding ON item_binding.file_object_id = f.id
                 LEFT JOIN stock_item_attributes item_attr ON item_attr.id = item_binding.item_attribute_id
+                LEFT JOIN stock_item_attribute_definitions item_definition ON item_definition.id = item_attr.definition_id
                 LEFT JOIN stock_items main_item ON main_item.image_file_id = f.id
                 WHERE f.id = ?
                 "#,

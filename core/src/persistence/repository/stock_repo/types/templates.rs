@@ -4,8 +4,8 @@
 
 use crate::{
     persistence::entity::{
-        inbound_template, inbound_template_field, item_attribute_template,
-        item_attribute_template_field,
+        inbound_template, inbound_template_field, item_attribute_definition,
+        item_attribute_template,
     },
     validation::{validate_not_blank, validate_optional_json_text, validate_optional_not_blank},
 };
@@ -13,6 +13,9 @@ use crate::{
 /// 创建模板字段定义的仓储输入。
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct TemplateFieldInput {
+    /// 已有物品属性定义 ID；新字段和入库模板字段为空。
+    #[garde(skip)]
+    pub definition_id: Option<i64>,
     /// 字段名称，同一模板内不能重复。
     #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
@@ -130,5 +133,5 @@ pub(crate) struct ItemAttributeTemplateDetail {
     /// 物品属性模板基础资料。
     pub template: item_attribute_template::Model,
     /// 预设字段定义，按展示顺序返回。
-    pub fields: Vec<item_attribute_template_field::Model>,
+    pub fields: Vec<item_attribute_definition::Model>,
 }
