@@ -95,11 +95,16 @@
 
 .item-editor__content {
   min-height: 0;
+  min-inline-size: 0;
   flex: 1 1 auto;
+  margin: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  border: 0;
   padding: 0 18px 24px;
 }
+
+.item-editor--readonly :disabled { cursor: default; }
 
 .item-editor__metadata-error {
   margin-top: 14px;

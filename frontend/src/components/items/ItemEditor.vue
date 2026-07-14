@@ -3,9 +3,9 @@
   <form
     :id="formId"
     class="item-editor"
-    :class="{ 'item-editor--embedded': embedded }"
+    :class="{ 'item-editor--embedded': embedded, 'item-editor--readonly': readOnly }"
     novalidate
-    @submit.prevent="emit('save')"
+    @submit.prevent="submit"
   >
     <header v-if="!embedded" class="item-editor__header">
       <button
@@ -23,12 +23,12 @@
         <h2>{{ draft.id ? draft.name || '编辑物品' : '新建物品' }}</h2>
         <p v-if="draft.id">{{ draft.sku }} · {{ draft.unit }}</p>
       </div>
-      <button class="primary-button item-editor__desktop-save" type="submit" :disabled="saving">
+      <button v-if="!readOnly" class="primary-button item-editor__desktop-save" type="submit" :disabled="saving">
         {{ saving ? '保存中…' : '保存物品' }}
       </button>
     </header>
 
-    <div class="item-editor__content">
+    <fieldset class="item-editor__content" :disabled="readOnly">
       <div v-if="metadataError" class="item-editor__metadata-error" role="alert">
         分类和属性模板暂不可用，仍可编辑其它字段。
       </div>
@@ -180,10 +180,10 @@
           </div>
         </section>
       </section>
-    </div>
+    </fieldset>
 
     <footer v-if="!embedded" class="item-editor__mobile-actions">
-      <button class="primary-button" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存物品' }}</button>
+      <button v-if="!readOnly" class="primary-button" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存物品' }}</button>
     </footer>
   </form>
 </template>
@@ -213,10 +213,13 @@ const props = withDefaults(defineProps<{
   closeLabel?: string
   embedded?: boolean
   formId?: string
+  /** 没有物品管理权限时只展示资料，不允许修改草稿或提交。 */
+  readOnly?: boolean
 }>(), {
   closeLabel: '返回物品目录',
   embedded: false,
   formId: undefined,
+  readOnly: false,
 })
 
 const emit = defineEmits<{ save: []; close: [] }>()
@@ -225,6 +228,10 @@ const templateFieldsById = computed(() => new Map(
 ))
 const templateAttributes = computed(() => props.draft.attributes.filter((attribute) => !attribute.custom))
 const customAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.custom))
+
+function submit(): void {
+  if (!props.readOnly) emit('save')
+}
 
 function attributeValidationErrors(key: string): Record<string, string> {
   const prefix = `attribute.${key}.`

@@ -6,6 +6,7 @@
   <ModalDialog
     :open="open"
     :title="title"
+    :description="readOnly ? '你拥有查看权限，物品资料不可修改。' : undefined"
     :busy="saving"
     :wide="mode === 'create'"
     :workspace="mode === 'existing'"
@@ -84,6 +85,7 @@
               :metadata-error="metadataError"
               :validation-errors="validationErrors"
               :form-id="formId"
+              :read-only="readOnly"
               embedded
               @save="emit('save')"
             />
@@ -149,15 +151,16 @@
       :metadata-error="metadataError"
       :validation-errors="validationErrors"
       :form-id="formId"
+      :read-only="readOnly"
       embedded
       @save="emit('save')"
     />
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">
-        {{ activePage === 'inventory' ? '关闭' : '取消' }}
+        {{ activePage === 'inventory' || readOnly ? '关闭' : '取消' }}
       </button>
-      <button v-if="activePage === 'data'" class="primary-button" type="submit" :form="formId" :disabled="saving || dataLoading">
+      <button v-if="activePage === 'data' && !readOnly" class="primary-button" type="submit" :form="formId" :disabled="saving || dataLoading">
         {{ saving ? '保存中…' : '保存物品' }}
       </button>
     </template>
@@ -195,6 +198,8 @@ const props = withDefaults(defineProps<{
   dataError?: string
   metadataError: string
   validationErrors: Record<string, string>
+  /** 当前会话是否只能查看已有物品资料。 */
+  readOnly?: boolean
 }>(), {
   itemId: null,
   itemName: '',
@@ -203,6 +208,7 @@ const props = withDefaults(defineProps<{
   dataLoading: false,
   dataReady: true,
   dataError: '',
+  readOnly: false,
 })
 
 const emit = defineEmits<{ save: []; close: []; 'request-data': [] }>()

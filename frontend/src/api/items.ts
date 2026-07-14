@@ -219,6 +219,11 @@ export function updateItem(id: number, request: ItemUpdateRequest) {
   return apiClient.request<ItemMutationResponse>(`/api/items/${id}`, { method: 'PUT', json: request })
 }
 
+/** 软删除物品；历史库存与业务记录仍由服务端保留。 */
+export function deleteItem(id: number) {
+  return apiClient.request<void>(`/api/items/${id}`, { method: 'DELETE' })
+}
+
 export function getItem(id: number, signal?: AbortSignal) {
   return apiClient.request<ItemEditorResponse>(`/api/items/${id}`, { signal })
 }

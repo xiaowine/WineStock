@@ -86,7 +86,11 @@
 .items-catalog__identity-meta dd { overflow: hidden; min-width: 0; margin: 0; font-size: 12px; font-weight: 620; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .items-catalog__identity-sku dd { font-family: var(--font-mono); }
 /* 行内图标透出当前行的悬浮或选中底色，避免保留静态白色方块。 */
-.items-catalog__edit { width: 30px; height: 30px; grid-column: 4; grid-row: 1; align-self: start; background: transparent; }
+.items-catalog__row-actions {
+  display: grid; grid-column: 4; grid-row: 1; align-self: start; gap: 4px;
+}
+.items-catalog__row-actions .icon-button { width: 30px; height: 30px; background: transparent; }
+.items-catalog__delete { color: var(--color-danger); }
 
 .items-catalog__fixed-info .items-catalog__attributes {
   display: grid; min-width: 0; height: 84px; grid-column: 3; grid-row: 1;

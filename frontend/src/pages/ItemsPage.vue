@@ -54,7 +54,7 @@
               <button v-if="canManageTemplates" class="icon-button" type="button" title="设置列表展示" aria-label="设置列表展示" :disabled="!templates.length" @click="catalogAttributeDialogOpen = true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>
               </button>
-              <button class="icon-button" type="button" title="新建物品" aria-label="新建物品" @click="requestStartNew">
+              <button v-if="canManageItems" class="icon-button" type="button" title="新建物品" aria-label="新建物品" @click="requestStartNew">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               </button>
             </div>
@@ -94,9 +94,21 @@
                       <div class="items-catalog__identity-category"><dt>分类</dt><dd :title="item.category_name ?? '未分类'">{{ item.category_name ?? '未分类' }}</dd></div>
                     </dl>
                   </div>
-                  <button class="icon-button items-catalog__edit" type="button" title="编辑物品资料" :aria-label="`编辑物品：${item.name}`" @click.stop="requestEditItem(item)">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>
-                  </button>
+                  <div class="items-catalog__row-actions">
+                    <button class="icon-button" type="button" title="查看物品详情" :aria-label="`查看物品详情：${item.name}`" @click.stop="requestOpenItem(item)">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/></svg>
+                    </button>
+                    <button
+                      v-if="canManageItems"
+                      class="icon-button items-catalog__delete"
+                      type="button"
+                      title="删除物品"
+                      :aria-label="`删除物品：${item.name}`"
+                      @click.stop="requestDeleteItem(item)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v5M14 11v5M9 7l1-2h4l1 2M7 7l1 13h8l1-13"/></svg>
+                    </button>
+                  </div>
                   <dl class="items-catalog__attributes">
                     <div v-for="attribute in item.catalog_attributes" :key="attribute.name"><dt :title="attribute.name">{{ attribute.name }}</dt><dd :title="catalogAttributeText(attribute)">{{ catalogAttributeText(attribute) }}</dd></div>
                     <div v-if="!item.catalog_attributes.length" class="is-empty"><dd>未设置展示属性</dd></div>
@@ -142,6 +154,7 @@
       :data-error="editorDataError"
       :metadata-error="metadataError"
       :validation-errors="validationErrors"
+      :read-only="!canManageItems"
       @request-data="loadSelectedEditor"
       @save="save"
       @close="requestCloseEditor"
@@ -171,6 +184,17 @@
       <p>确认后将继续刚才的操作。</p>
       <template #actions><button class="secondary-button" type="button" @click="cancelPendingTransition">继续编辑</button><button class="danger-button" type="button" @click="confirmPendingTransition">放弃修改</button></template>
     </ModalDialog>
+
+    <ModalDialog :open="deleteItemTarget !== null" title="删除物品" :busy="deletingItem" @close="cancelDeleteItem">
+      <p>删除后，物品将不再出现在目录中，也不能继续用于新入库；历史业务记录会保留。</p>
+      <p v-if="deleteItemError" class="form-error" role="alert">{{ deleteItemError }}</p>
+      <template #actions>
+        <button class="secondary-button" type="button" :disabled="deletingItem" @click="cancelDeleteItem">取消</button>
+        <button class="danger-button" type="button" :disabled="deletingItem" @click="confirmDeleteItem">
+          {{ deletingItem ? '正在删除…' : '确认删除' }}
+        </button>
+      </template>
+    </ModalDialog>
   </section>
 </template>
 
@@ -178,7 +202,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import {
-  cloneItemCatalogFilters, createItem, emptyItemCatalogFilters, getItem, getItemFilterValues,
+  cloneItemCatalogFilters, createItem, deleteItem, emptyItemCatalogFilters, getItem, getItemFilterValues,
   listItemCatalog, updateItem, type CatalogAttributeResponse, type ItemCatalogFilters,
   type ItemCatalogCountsResponse, type ItemCatalogEntryResponse, type ItemCatalogSort,
   type ItemFilterFieldResponse, type ItemStockFilter, type ItemStockState,
@@ -235,6 +259,9 @@ const editorDataError = ref('')
 const loadError = ref('')
 const loadMoreError = ref('')
 const metadataError = ref('')
+const deleteItemTarget = ref<ItemCatalogEntryResponse | null>(null)
+const deletingItem = ref(false)
+const deleteItemError = ref('')
 const editorOpen = ref(false)
 const dialogMode = ref<'create' | 'existing'>('create')
 const dialogInitialPage = ref<'data' | 'inventory'>('data')
@@ -255,6 +282,7 @@ let pendingTransition: (() => Promise<void>) | null = null
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
 
 const hasMoreItems = computed(() => page.value < totalPages.value)
+const canManageItems = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.itemManage))
 const canManageTemplates = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.templateManage))
 const catalogPending = computed(() => loading.value || loadingMore.value)
 const activeAdvancedFilterCount = computed(() => Number(appliedCatalogFilters.value.categoryId !== null)
@@ -362,9 +390,46 @@ async function refreshCatalog(): Promise<void> { await clearEditor(); await relo
 async function loadNextPage(): Promise<void> { if (!catalogPending.value && hasMoreItems.value) await loadCatalog(page.value + 1, true) }
 function refreshLoadMoreObservation(): void { const sentinel = loadMoreSentinel.value; if (sentinel && loadMoreObserver) { loadMoreObserver.unobserve(sentinel); loadMoreObserver.observe(sentinel) } }
 
-function requestStartNew(): void { requestDraftTransition(prepareNewDraft) }
+function requestStartNew(): void {
+  if (canManageItems.value) requestDraftTransition(prepareNewDraft)
+}
 function requestOpenItem(item: ItemCatalogEntryResponse): void { requestDraftTransition(() => openExisting(item, 'data')) }
-function requestEditItem(item: ItemCatalogEntryResponse): void { requestDraftTransition(() => openExisting(item, 'data')) }
+function requestDeleteItem(item: ItemCatalogEntryResponse): void {
+  if (canManageItems.value) requestDraftTransition(() => openDeleteItemDialog(item))
+}
+
+/** 删除前先处理可能仍在编辑的草稿，避免高风险操作静默丢弃修改。 */
+async function openDeleteItemDialog(item: ItemCatalogEntryResponse): Promise<void> {
+  await clearEditor()
+  deleteItemError.value = ''
+  deleteItemTarget.value = item
+}
+
+function cancelDeleteItem(): void {
+  if (deletingItem.value) return
+  deleteItemTarget.value = null
+  deleteItemError.value = ''
+}
+
+/** 服务端执行物品软删除；成功后重建目录分页并关闭可能打开的对应编辑会话。 */
+async function confirmDeleteItem(): Promise<void> {
+  const target = deleteItemTarget.value
+  if (!target || deletingItem.value) return
+  deletingItem.value = true
+  deleteItemError.value = ''
+  try {
+    await deleteItem(target.id)
+    deleteItemTarget.value = null
+    await clearEditor()
+    await reloadCatalog()
+    notice.success('物品已删除', { detail: target.name })
+  } catch (error) {
+    deleteItemError.value = errorMessage(error)
+    notice.error('删除物品失败', { detail: deleteItemError.value })
+  } finally {
+    deletingItem.value = false
+  }
+}
 
 async function prepareNewDraft(): Promise<void> {
   await clearEditor(); dialogMode.value = 'create'; dialogInitialPage.value = 'data'; editorDataReady.value = true; draft.value = emptyItemDraft(); baselineDraft.value = emptyItemDraft(); baselineFingerprint.value = itemDraftFingerprint(draft.value); editorOpen.value = true
@@ -398,6 +463,7 @@ function cancelPendingTransition(): void { discardDialogOpen.value = false; pend
 async function confirmPendingTransition(): Promise<void> { const action = pendingTransition; const resolve = pendingLeaveResolution; discardDialogOpen.value = false; pendingTransition = null; pendingLeaveResolution = null; if (resolve) { await clearEditor(); resolve(true) } else if (action) await action() }
 
 async function save(): Promise<void> {
+  if (!canManageItems.value) return
   const validation = validateItemDraft(draft.value, templates.value)
   if (validation) { validationErrors.value = validation.errors; notice.warning('请检查物品信息', { detail: validation.firstMessage }); return }
   if (!draft.value.image) return
