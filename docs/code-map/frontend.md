@@ -35,7 +35,7 @@
 - `frontend/src/components/PasswordInput.vue`：登录、注册、改密和用户管理共用的密码输入呈现控件，统一显示/隐藏、焦点恢复和无障碍状态，不校验或持久化密码。
 - `frontend/src/components/SearchField.vue`：目录页面共用的自动搜索输入，统一搜索图标、输入草稿、防抖触发和清空恢复；不请求数据或管理分页。
 - `frontend/src/components/forms/SelectControl.vue`：项目级底层选择控件，使用 Teleport listbox 统一触发器、展开浮层、键盘操作、焦点、错误和禁用状态，并保留数字、布尔值与空值的绑定类型；不拥有字段标题或业务选项。
-- `frontend/src/components/forms/`：通用 `FormField`、`FormInput`、`FormSelect` 和 `FormTextarea` 字段组件；`FormSelect` 组合 `SelectControl`，统一标题、必填标记、提示、错误状态和无障碍关联，不包含业务校验规则。
+- `frontend/src/components/forms/`：通用 `FormField`、`FormInput`、`FormSelect` 和 `FormTextarea` 字段组件；`FormSelect` 组合 `SelectControl`，统一标题、必填标记、提示、红框错误状态和不占布局的无障碍错误说明，不包含业务校验规则。
 - `frontend/src/composables/useFormValidation.ts`：为当前表单组件子树注册字段位置、清理单字段错误并自动滚动聚焦首个错误；校验结果仍由页面、会话或业务模型产生。
 - `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
 - `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
@@ -57,7 +57,7 @@
 ## 全局操作反馈
 
 - `frontend/src/notices/notice.ts`：全局响应式 Notice 状态和调用 API，提供成功、提示、警告、错误四种类型以及可选详情和点击回调，负责限量、自动消失、暂停和恢复倒计时。
-- 登录、注册、修改密码、退出和用户管理操作统一调用 Notice；字段级校验仍保留在对应表单附近。
+- 登录、注册、修改密码、退出和用户管理操作统一调用 Notice；提交校验由 Notice 显示首个错误原因，字段附近保留红框、隐藏错误说明和自动聚焦，不插入可见错误行改变表单尺寸。
 - 页面级加载失败可以保留持续错误状态，同时调用 Notice 告知本次请求失败。
 
 ## API client 与鉴权状态

@@ -363,19 +363,20 @@ function formatFileSize(bytes: number): string {
   min-width: 0;
 }
 
-.inbound-file-field.inbound-control--error {
-  padding: 6px;
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius-sm);
-  background: var(--color-danger-soft);
-}
-
 .inbound-file-field__preview {
   min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.inbound-file-field.inbound-control--error .inbound-file-field__preview {
+  border-color: var(--color-danger);
+}
+
+.inbound-file-field.inbound-control--error:focus-within .inbound-file-field__preview {
+  box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
 }
 
 .inbound-file-field__preview {

@@ -363,6 +363,11 @@ onBeforeUnmount(removeWindowListeners)
   border-color: var(--color-danger);
 }
 
+.select-control__trigger[aria-invalid='true']:focus-visible,
+.select-control--open .select-control__trigger[aria-invalid='true'] {
+  box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
+}
+
 .select-control__trigger:disabled {
   background: var(--color-surface-raised);
   color: var(--color-muted);

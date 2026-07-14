@@ -48,6 +48,7 @@
             :label="field.field_name"
             :invalid="fieldInvalid(field)"
             :title="fieldTitle(field)"
+            :aria-describedby="fieldInvalid(field) ? fieldErrorId(field) : undefined"
             :data-template-field="field.field_name"
             @update:model-value="line.extAttributes[field.field_name] = $event"
           />
@@ -58,6 +59,7 @@
             :aria-label="field.field_name"
             :data-template-field="field.field_name"
             :aria-invalid="fieldInvalid(field) || undefined"
+            :aria-describedby="fieldInvalid(field) ? fieldErrorId(field) : undefined"
             :title="fieldTitle(field)"
           >
             <option value="">请选择</option><option v-for="option in field.options ?? []" :key="option" :value="option">{{ option }}</option>
@@ -69,6 +71,7 @@
             :aria-label="field.field_name"
             :data-template-field="field.field_name"
             :aria-invalid="fieldInvalid(field) || undefined"
+            :aria-describedby="fieldInvalid(field) ? fieldErrorId(field) : undefined"
             :title="fieldTitle(field)"
           >
             <option :value="undefined">请选择</option><option :value="true">是</option><option :value="false">否</option>
@@ -80,11 +83,13 @@
             :aria-label="field.field_name"
             :data-template-field="field.field_name"
             :class="{ 'inbound-control--error': fieldInvalid(field) }"
+            :aria-invalid="fieldInvalid(field) || undefined"
+            :aria-describedby="fieldInvalid(field) ? fieldErrorId(field) : undefined"
             :type="inputType(field.field_type)"
             :placeholder="field.default_value ?? undefined"
             :title="fieldTitle(field)"
           />
-          <small v-if="fieldInvalid(field)" class="inbound-field-error">{{ fieldTitle(field) }}</small>
+          <small v-if="fieldInvalid(field)" :id="fieldErrorId(field)" class="visually-hidden" role="alert">{{ fieldTitle(field) }}</small>
         </div>
       </div>
     </section>
@@ -128,6 +133,10 @@ function fieldTitle(field: TemplateFieldResponse): string | undefined {
 
 function fieldControlName(fieldName: string): string {
   return `attribute_${props.line.lineId}_${fieldName.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+}
+
+function fieldErrorId(field: TemplateFieldResponse): string {
+  return `inbound-field-${props.line.lineId}-${field.id}-error`
 }
 
 function inputType(type: TemplateFieldType): string {

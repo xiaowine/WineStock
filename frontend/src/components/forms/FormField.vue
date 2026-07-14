@@ -1,4 +1,4 @@
-<!-- 本组件统一字段标题、提示、错误呈现、无障碍关联和校验定位；不包含业务校验规则。 -->
+<!-- 本组件统一字段标题、提示、红框错误状态、无障碍错误说明和校验定位；不包含业务校验规则。 -->
 <template>
   <div
     ref="root"
@@ -15,7 +15,7 @@
       :invalid="Boolean(error)"
     />
     <small v-if="hint" :id="hintId" class="field-hint">{{ hint }}</small>
-    <small v-if="error" :id="errorId" class="field-error" role="alert">{{ error }}</small>
+    <small v-if="error" :id="errorId" class="visually-hidden" role="alert">{{ error }}</small>
   </div>
 </template>
 

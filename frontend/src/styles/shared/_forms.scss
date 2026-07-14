@@ -40,6 +40,11 @@
   border-color: var(--color-danger);
 }
 
+.form-field input[aria-invalid='true']:focus,
+.form-field textarea[aria-invalid='true']:focus {
+  outline-color: rgb(157 40 50 / 16%);
+}
+
 .form-field input:disabled,
 .form-field textarea:disabled {
   background: var(--color-surface-raised);
@@ -119,11 +124,6 @@
     width: 40px;
     height: 40px;
   }
-}
-
-.field-error {
-  color: var(--color-danger);
-  font-size: 12px;
 }
 
 .field-hint {

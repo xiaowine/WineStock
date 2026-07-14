@@ -84,10 +84,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { ItemAttributeUnitMode } from '../../api/itemAttributeTemplates'
+import { useFormValidation } from '../../composables/useFormValidation'
+import { notice } from '../../notices/notice'
 import ModalDialog from '../ModalDialog.vue'
 import FormField from '../forms/FormField.vue'
 import FormInput from '../forms/FormInput.vue'
-import { useFormValidation } from '../../composables/useFormValidation'
 
 const props = defineProps<{
   open: boolean
@@ -159,6 +160,7 @@ function save(): void {
   }
   if (Object.keys(errors).length > 0) {
     fieldErrors.value = errors
+    notice.warning('请检查单位设置', { detail: Object.values(errors)[0] })
     return
   }
   emit('save', {
@@ -285,6 +287,11 @@ function save(): void {
 .item-unit-settings__option input:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
+}
+
+.item-unit-settings__option input[aria-invalid='true']:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
 }
 
 .item-unit-settings__option .icon-button {

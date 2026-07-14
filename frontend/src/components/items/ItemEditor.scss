@@ -43,6 +43,10 @@
 .item-editor input[aria-invalid='true'],
 .item-attribute-editor__unit-settings.is-invalid {
   border-color: var(--color-danger);
+}
+
+.item-editor input[aria-invalid='true']:focus,
+.item-attribute-editor__unit-settings.is-invalid:focus-visible {
   box-shadow: 0 0 0 3px rgb(157 40 50 / 10%);
 }
 

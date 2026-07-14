@@ -73,10 +73,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { UserAdminResponse } from '../../api/users'
+import { useFormValidation } from '../../composables/useFormValidation'
+import { notice } from '../../notices/notice'
 import ModalDialog from '../ModalDialog.vue'
 import PasswordInput from '../PasswordInput.vue'
 import FormField from '../forms/FormField.vue'
-import { useFormValidation } from '../../composables/useFormValidation'
 
 const props = defineProps<{
   user: UserAdminResponse | null
@@ -118,8 +119,10 @@ function submit(): void {
     errors.confirmation = '两次输入的密码不一致'
   }
   fieldErrors.value = errors
-  if (Object.keys(errors).length === 0) {
-    emit('submit', password.value)
+  if (Object.keys(errors).length > 0) {
+    notice.warning('请检查临时密码', { detail: Object.values(errors)[0] })
+    return
   }
+  emit('submit', password.value)
 }
 </script>
