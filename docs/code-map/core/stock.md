@@ -20,7 +20,7 @@
 - `controller/inbound.rs`：入库提交模式、单据响应、分页、筛选值、详情和 handler。
 - `controller/outbound.rs`：出库单、搜索、筛选值、详情和 handler。
 - `controller/dashboard.rs`：库存总览和趋势。
-- `controller/substitutes.rs`：替代料整体替换、查询和删除。
+- `controller/substitutes.rs`：替代料整体替换、查询和删除；指定物品查询响应包含替代物品第一层资料与库存摘要。
 - `controller/events.rs`：审计事件分页查询。
 
 ## Service

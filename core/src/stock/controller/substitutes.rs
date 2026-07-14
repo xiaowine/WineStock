@@ -17,6 +17,7 @@ use crate::{
     state::CoreState,
 };
 
+use super::items::ItemStockState;
 use crate::stock::service::{self, StockApiError};
 /// 替代料替换条目。
 #[derive(
@@ -62,9 +63,37 @@ pub(crate) struct ItemSubstituteResponse {
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub substitute_item_name: String,
 
+    /// 替代料物品 SKU。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub substitute_item_sku: String,
+
+    /// 替代料分类名称。
+    #[garde(skip)]
+    pub substitute_item_category_name: Option<String>,
+
+    /// 替代料主图文件对象 ID。
+    #[garde(range(min = 1))]
+    pub substitute_item_image_file_id: i64,
+
+    /// 替代料主图受控读取地址。
+    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    pub substitute_item_image_url: String,
+
+    /// 替代料计量单位。
+    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    pub substitute_item_unit: String,
+
+    /// 替代料再订货点。
+    #[garde(skip)]
+    pub substitute_item_reorder_point: Option<f64>,
+
     /// 替代料当前库存量。
     #[garde(skip)]
     pub quantity: f64,
+
+    /// 替代料当前库存状态。
+    #[garde(skip)]
+    pub substitute_item_stock_state: ItemStockState,
 
     /// 替代优先级。
     #[garde(range(min = 1))]

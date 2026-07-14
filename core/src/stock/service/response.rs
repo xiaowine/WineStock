@@ -319,20 +319,29 @@ pub(super) fn dashboard_overview_response(
     }
 }
 
-/// 把替代料记录转换为 HTTP 响应，并保留替代物品当前库存量。
+/// 把替代料记录转换为 HTTP 响应，并保留替代物品的第一层资料和库存摘要。
 pub(super) fn substitute_response(
     record: StockSubstituteRecord,
-) -> controller::ItemSubstituteResponse {
-    controller::ItemSubstituteResponse {
+) -> Result<controller::ItemSubstituteResponse, StockApiError> {
+    Ok(controller::ItemSubstituteResponse {
         item_id: record.item_id,
         substitute_item_id: record.substitute_item_id,
         substitute_item_name: record.substitute_item_name,
+        substitute_item_sku: record.substitute_item_sku,
+        substitute_item_category_name: record.substitute_item_category_name,
+        substitute_item_image_file_id: record.substitute_item_image_file_id,
+        substitute_item_image_url: format!("/api/files/{}", record.substitute_item_image_file_id),
+        substitute_item_unit: record.substitute_item_unit,
+        substitute_item_reorder_point: record.substitute_item_reorder_point,
         quantity: record.quantity,
+        substitute_item_stock_state: controller::ItemStockState::from_code(
+            &record.substitute_item_stock_state,
+        )?,
         priority: record.priority,
         notes: record.notes,
         created_by_user_id: record.created_by_user_id,
         created_at: record.created_at,
-    }
+    })
 }
 
 /// 把替代料关系记录转换为全量列表响应，包含主物品和替代物品展示字段。

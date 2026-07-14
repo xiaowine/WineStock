@@ -119,7 +119,18 @@ where
                     substitutes.substitute_item_id,
                     substitute_items.name AS substitute_item_name,
                     substitute_items.sku AS substitute_item_sku,
+                    substitute_categories.name AS substitute_item_category_name,
+                    substitute_items.image_file_id AS substitute_item_image_file_id,
+                    substitute_items.unit AS substitute_item_unit,
+                    substitute_items.reorder_point AS substitute_item_reorder_point,
                     COALESCE(SUM(batches.remaining_quantity), 0.0) AS quantity,
+                    CASE
+                        WHEN COALESCE(SUM(batches.remaining_quantity), 0.0) <= 0 THEN 'out_of_stock'
+                        WHEN substitute_items.reorder_point IS NOT NULL
+                             AND COALESCE(SUM(batches.remaining_quantity), 0.0) <= substitute_items.reorder_point THEN 'reorder_due'
+                        WHEN substitute_items.reorder_point IS NULL THEN 'needs_configuration'
+                        ELSE 'normal'
+                    END AS substitute_item_stock_state,
                     substitutes.priority,
                     substitutes.notes,
                     substitutes.created_by_user_id,
@@ -131,8 +142,12 @@ where
                 JOIN stock_items substitute_items
                     ON substitute_items.id = substitutes.substitute_item_id
                    AND substitute_items.deleted_at IS NULL
+                LEFT JOIN stock_item_categories substitute_categories
+                    ON substitute_categories.id = substitute_items.category_id
+                   AND substitute_categories.deleted_at IS NULL
                 LEFT JOIN stock_batches batches
                     ON batches.item_id = substitute_items.id
+                   AND batches.remaining_quantity > 0
                 WHERE substitutes.item_id = ?
                 GROUP BY
                     substitutes.item_id,
@@ -141,6 +156,10 @@ where
                     substitutes.substitute_item_id,
                     substitute_items.name,
                     substitute_items.sku,
+                    substitute_categories.name,
+                    substitute_items.image_file_id,
+                    substitute_items.unit,
+                    substitute_items.reorder_point,
                     substitutes.priority,
                     substitutes.notes,
                     substitutes.created_by_user_id,
@@ -170,7 +189,18 @@ where
                     substitutes.substitute_item_id,
                     substitute_items.name AS substitute_item_name,
                     substitute_items.sku AS substitute_item_sku,
+                    substitute_categories.name AS substitute_item_category_name,
+                    substitute_items.image_file_id AS substitute_item_image_file_id,
+                    substitute_items.unit AS substitute_item_unit,
+                    substitute_items.reorder_point AS substitute_item_reorder_point,
                     COALESCE(SUM(batches.remaining_quantity), 0.0) AS quantity,
+                    CASE
+                        WHEN COALESCE(SUM(batches.remaining_quantity), 0.0) <= 0 THEN 'out_of_stock'
+                        WHEN substitute_items.reorder_point IS NOT NULL
+                             AND COALESCE(SUM(batches.remaining_quantity), 0.0) <= substitute_items.reorder_point THEN 'reorder_due'
+                        WHEN substitute_items.reorder_point IS NULL THEN 'needs_configuration'
+                        ELSE 'normal'
+                    END AS substitute_item_stock_state,
                     substitutes.priority,
                     substitutes.notes,
                     substitutes.created_by_user_id,
@@ -182,8 +212,12 @@ where
                 JOIN stock_items substitute_items
                     ON substitute_items.id = substitutes.substitute_item_id
                    AND substitute_items.deleted_at IS NULL
+                LEFT JOIN stock_item_categories substitute_categories
+                    ON substitute_categories.id = substitute_items.category_id
+                   AND substitute_categories.deleted_at IS NULL
                 LEFT JOIN stock_batches batches
                     ON batches.item_id = substitute_items.id
+                   AND batches.remaining_quantity > 0
                 GROUP BY
                     substitutes.item_id,
                     items.name,
@@ -191,6 +225,10 @@ where
                     substitutes.substitute_item_id,
                     substitute_items.name,
                     substitute_items.sku,
+                    substitute_categories.name,
+                    substitute_items.image_file_id,
+                    substitute_items.unit,
+                    substitute_items.reorder_point,
                     substitutes.priority,
                     substitutes.notes,
                     substitutes.created_by_user_id,
@@ -359,7 +397,12 @@ fn substitute_from_row(row: sea_orm::QueryResult) -> Result<StockSubstituteRecor
         substitute_item_id: row.try_get("", "substitute_item_id")?,
         substitute_item_name: row.try_get("", "substitute_item_name")?,
         substitute_item_sku: row.try_get("", "substitute_item_sku")?,
+        substitute_item_category_name: row.try_get("", "substitute_item_category_name")?,
+        substitute_item_image_file_id: row.try_get("", "substitute_item_image_file_id")?,
+        substitute_item_unit: row.try_get("", "substitute_item_unit")?,
+        substitute_item_reorder_point: row.try_get("", "substitute_item_reorder_point")?,
         quantity: row.try_get("", "quantity")?,
+        substitute_item_stock_state: row.try_get("", "substitute_item_stock_state")?,
         priority: row.try_get("", "priority")?,
         notes: row.try_get("", "notes")?,
         created_by_user_id: row.try_get("", "created_by_user_id")?,

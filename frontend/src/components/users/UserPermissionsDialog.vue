@@ -35,7 +35,12 @@
       novalidate
       @submit.prevent="submitPermissions"
     >
-      <nav class="permission-picker__groups" aria-label="权限分类">
+      <nav
+        ref="groupsViewport"
+        class="permission-picker__groups"
+        :class="{ 'permission-picker__groups--scrollable': permissionGroups.length > 4 }"
+        aria-label="权限分类"
+      >
         <button
           v-for="group in permissionGroups"
           :key="group.name"
@@ -46,7 +51,6 @@
           @click="activeGroupName = group.name"
         >
           <span>{{ group.name }}</span>
-          <small>{{ selectedCount(group.permissions) }}/{{ group.permissions.length }}</small>
         </button>
       </nav>
 
@@ -124,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { PermissionResponse, UserAdminResponse } from '../../api/users'
 import { userPermissions } from '../../auth/permissions'
 import ModalDialog from '../ModalDialog.vue'
@@ -154,6 +158,7 @@ const emit = defineEmits<{
 
 const selectedPermissions = ref<string[]>([])
 const activeGroupName = ref('')
+const groupsViewport = ref<HTMLElement | null>(null)
 const optionsViewport = ref<HTMLElement | null>(null)
 const selfProtectedPermissions = new Set<string>([
   userPermissions.updatePermissions,
@@ -199,6 +204,20 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  [activeGroupName, permissionGroups],
+  async () => {
+    if (permissionGroups.value.length <= 4) return
+    await nextTick()
+    groupsViewport.value?.querySelector<HTMLElement>('.permission-picker__group--active')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  },
+  { flush: 'post' },
 )
 
 function resetOptionsScroll(): void {

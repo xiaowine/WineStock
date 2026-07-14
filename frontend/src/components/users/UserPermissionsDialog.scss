@@ -75,12 +75,6 @@
   font-weight: 680;
 }
 
-.permission-picker__group small {
-  flex: 0 0 auto;
-  color: var(--color-subtle);
-  font-size: 11px;
-}
-
 .permission-picker__panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -211,17 +205,30 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    display: flex;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--color-border-strong);
   }
 
+  .permission-picker__groups--scrollable {
+    display: flex;
+    overflow-x: auto;
+  }
+
   .permission-picker__group {
-    flex: 0 0 auto;
+    min-width: 0;
     min-height: 42px;
-    gap: 6px;
+    gap: 4px;
+    padding: 0 8px;
     border-right: 1px solid var(--color-border);
+  }
+
+  .permission-picker__groups--scrollable .permission-picker__group {
+    flex: 0 0 auto;
+    min-width: 88px;
+    padding: 0 12px;
     border-bottom: 0;
   }
 

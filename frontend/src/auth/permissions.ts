@@ -26,6 +26,7 @@ export const stockPermissions = {
   templateRead: 'stock.template.read',
   templateManage: 'stock.template.manage',
   substituteRead: 'stock.substitute.read',
+  substituteManage: 'stock.substitute.manage',
   auditRead: 'audit.read',
 } as const
 

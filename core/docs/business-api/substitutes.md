@@ -21,7 +21,7 @@
 查看指定物品的替代品列表。
 
 - 权限：`stock.substitute.read`
-- 响应：`200` + `Vec<ItemSubstituteResponse>`（含替代品的名称、库存量、优先级、备注和创建时间）
+- 响应：`200` + `Vec<ItemSubstituteResponse>`；每条记录除关系字段外还包含替代物品第一层摘要：名称、SKU、分类、主图文件 ID/读取地址、单位、当前库存、库存状态、再订货点、优先级、备注和创建时间。库存状态由服务端根据当前有效批次和再订货点计算，代码为 `out_of_stock`、`reorder_due`、`needs_configuration` 或 `normal`。
 - 错误：`404` 物品不存在
 
 ### `PUT /api/substitutes/{item_id}`
@@ -44,7 +44,7 @@
 | `priority` | integer | 是 | 优先级（1=首选，2=次选，以此类推） |
 | `notes` | string | 否 | 兼容性备注 |
 
-- 响应：`200` + `Vec<ItemSubstituteResponse>`
+- 响应：`200` + `Vec<ItemSubstituteResponse>`，字段与查询接口一致，返回保存后的替代物品第一层资料和库存摘要。
 - 错误：`400` 自引用、重复替代品、重复优先级或循环绑定（A→B→A）检测到 / `404` 物品不存在
 
 ### `DELETE /api/substitutes/{item_id}/{substitute_item_id}`

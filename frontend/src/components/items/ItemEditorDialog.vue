@@ -6,7 +6,7 @@
   <ModalDialog
     :open="open"
     :title="title"
-    :description="readOnly ? '你拥有查看权限，物品资料不可修改。' : undefined"
+    :description="readOnly && activePage === 'data' ? '你拥有查看权限，物品资料不可修改。' : undefined"
     :busy="saving"
     :wide="mode === 'create'"
     :workspace="mode === 'existing'"
@@ -26,7 +26,15 @@
     </template>
 
     <div v-if="mode === 'existing'" class="item-workspace">
-      <nav class="item-workspace__nav" aria-label="物品页面">
+      <nav
+        ref="workspaceNav"
+        class="item-workspace__nav"
+        :class="{
+          'item-workspace__nav--two': itemPageCount === 2,
+          'item-workspace__nav--scrollable': itemPageCount > 4,
+        }"
+        aria-label="物品页面"
+      >
         <button
           type="button"
           :class="{ 'is-active': activePage === 'data' }"
@@ -43,6 +51,15 @@
         >
           <span>库存详情</span>
         </button>
+        <button
+          v-if="canViewSubstitutes"
+          type="button"
+          :class="{ 'is-active': activePage === 'substitutes' }"
+          :aria-pressed="activePage === 'substitutes'"
+          @click="selectPage('substitutes')"
+        >
+          <span>替代关系</span>
+        </button>
       </nav>
 
       <Transition name="item-workspace-panel" mode="out-in">
@@ -52,7 +69,7 @@
               <strong>物品资料</strong>
               <span>基础资料与物品属性</span>
             </div>
-            <template v-else>
+            <template v-else-if="activePage === 'inventory'">
               <div>
                 <strong>库存详情</strong>
                 <span v-if="inventory">{{ inventory.locations.length }} 个库位 · {{ inventory.batch_count }} 个批次</span>
@@ -69,6 +86,10 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M18.2 16a7 7 0 1 1 .8-7l1 3"/></svg>
               </button>
             </template>
+            <div v-else>
+              <strong>替代关系</strong>
+              <span>按优先级使用可替代物品</span>
+            </div>
           </header>
 
           <div class="item-workspace__content">
@@ -89,6 +110,13 @@
               embedded
               @save="emit('save')"
             />
+            <KeepAlive v-else-if="activePage === 'substitutes'">
+              <ItemSubstitutesPanel
+                :item-id="itemId ?? 0"
+                :can-manage="canManageSubstitutes"
+                @dirty-change="handleSubstitutesDirty"
+              />
+            </KeepAlive>
             <div v-else class="item-inventory" :aria-busy="inventoryPending">
 
               <div v-if="inventoryError && !inventory" class="dialog-state dialog-state--error" role="alert">
@@ -158,9 +186,9 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">
-        {{ activePage === 'inventory' || readOnly ? '关闭' : '取消' }}
+        {{ activePage !== 'data' || readOnly ? '关闭' : '取消' }}
       </button>
-      <button v-if="activePage === 'data' && !readOnly" class="primary-button" type="submit" :form="formId" :disabled="saving || dataLoading">
+      <button v-if="activePage === 'data' && !readOnly" class="primary-button" type="submit" :form="formId" :disabled="saving || dataLoading || substitutesDirty" :title="substitutesDirty ? '请先保存替代关系' : undefined">
         {{ saving ? '保存中…' : '保存物品' }}
       </button>
     </template>
@@ -168,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import type { ItemCategoryResponse } from '../../api/itemCategories'
 import type { ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import {
@@ -179,8 +207,9 @@ import type { ItemDraft } from '../../pages/items/model'
 import { ApiError } from '../../api/errors'
 import ModalDialog from '../ModalDialog.vue'
 import ItemEditor from './ItemEditor.vue'
+import ItemSubstitutesPanel from './ItemSubstitutesPanel.vue'
 
-type ItemDialogPage = 'data' | 'inventory'
+type ItemDialogPage = 'data' | 'inventory' | 'substitutes'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -200,6 +229,10 @@ const props = withDefaults(defineProps<{
   validationErrors: Record<string, string>
   /** 当前会话是否只能查看已有物品资料。 */
   readOnly?: boolean
+  /** 当前用户是否可以查看替代关系。 */
+  canViewSubstitutes?: boolean
+  /** 当前用户是否可以修改替代关系。 */
+  canManageSubstitutes?: boolean
 }>(), {
   itemId: null,
   itemName: '',
@@ -209,19 +242,29 @@ const props = withDefaults(defineProps<{
   dataReady: true,
   dataError: '',
   readOnly: false,
+  canViewSubstitutes: false,
+  canManageSubstitutes: false,
 })
 
-const emit = defineEmits<{ save: []; close: []; 'request-data': [] }>()
+const emit = defineEmits<{
+  save: []
+  close: []
+  'request-data': []
+  'substitutes-dirty': [dirty: boolean]
+}>()
 const formId = `item-editor-${useId()}`
 const activePage = ref<ItemDialogPage>('data')
+const workspaceNav = ref<HTMLElement | null>(null)
 const inventory = ref<ItemInventoryResponse | null>(null)
 const batches = ref<ItemBatchStockResponse[]>([])
 const inventoryPending = ref(false)
 const batchesPending = ref(false)
 const inventoryError = ref('')
 const batchesError = ref('')
+const substitutesDirty = ref(false)
 const batchPage = ref(0)
 const batchTotalPages = ref(0)
+const itemPageCount = computed(() => 2 + (props.canViewSubstitutes ? 1 : 0))
 let inventoryController: AbortController | null = null
 let batchController: AbortController | null = null
 
@@ -230,6 +273,8 @@ const title = computed(() => props.mode === 'create' ? '新建物品' : '物品�
 watch(() => props.open, (open) => {
   if (!open) {
     abortRequests()
+    substitutesDirty.value = false
+    emit('substitutes-dirty', false)
     return
   }
   activePage.value = props.mode === 'existing' ? props.initialPage : 'data'
@@ -242,6 +287,16 @@ watch(() => props.open, (open) => {
   if (activePage.value === 'inventory') void loadInventory()
 })
 
+watch([activePage, itemPageCount], async () => {
+  if (itemPageCount.value <= 4) return
+  await nextTick()
+  workspaceNav.value?.querySelector<HTMLElement>('.is-active')?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'nearest',
+    inline: 'nearest',
+  })
+}, { flush: 'post' })
+
 onBeforeUnmount(abortRequests)
 
 function selectPage(page: ItemDialogPage): void {
@@ -249,6 +304,11 @@ function selectPage(page: ItemDialogPage): void {
   activePage.value = page
   if (page === 'data' && !props.dataReady && !props.dataLoading) emit('request-data')
   if (page === 'inventory' && !inventory.value) void loadInventory()
+}
+
+function handleSubstitutesDirty(value: boolean): void {
+  substitutesDirty.value = value
+  emit('substitutes-dirty', value)
 }
 
 async function loadInventory(force = false): Promise<void> {

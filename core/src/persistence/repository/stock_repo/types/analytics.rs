@@ -76,8 +76,18 @@ pub(crate) struct StockSubstituteRecord {
     pub substitute_item_name: String,
     /// 替代料物品 SKU。
     pub substitute_item_sku: String,
+    /// 替代料分类名称。
+    pub substitute_item_category_name: Option<String>,
+    /// 替代料主图文件 ID。
+    pub substitute_item_image_file_id: i64,
+    /// 替代料计量单位。
+    pub substitute_item_unit: String,
+    /// 替代料再订货点。
+    pub substitute_item_reorder_point: Option<f64>,
     /// 替代料当前库存量。
     pub quantity: f64,
+    /// 替代料服务端计算的库存状态代码。
+    pub substitute_item_stock_state: String,
     /// 替代优先级。
     pub priority: i32,
     /// 兼容性备注。

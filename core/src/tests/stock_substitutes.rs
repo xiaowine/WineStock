@@ -61,7 +61,15 @@ async fn substitutes_can_be_replaced_listed_and_deleted_with_permissions() {
     assert_eq!(bound[0].substitute_item_id, substitute_a);
     assert_eq!(bound[0].priority, 1);
     assert_eq!(bound[0].notes.as_deref(), Some("preferred"));
+    assert_eq!(bound[0].substitute_item_sku, "SUB-SUB-A");
+    assert_eq!(bound[0].substitute_item_category_name, None);
+    assert!(bound[0].substitute_item_image_file_id > 0);
+    assert_eq!(bound[0].substitute_item_unit, "pcs");
     assert_close(bound[0].quantity, 6.0);
+    assert_eq!(
+        bound[0].substitute_item_stock_state,
+        crate::stock::controller::ItemStockState::NeedsConfiguration
+    );
     assert_eq!(bound[1].substitute_item_id, substitute_b);
 
     let listed = authorized_empty_request(

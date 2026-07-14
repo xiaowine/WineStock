@@ -155,9 +155,12 @@
       :metadata-error="metadataError"
       :validation-errors="validationErrors"
       :read-only="!canManageItems"
+      :can-view-substitutes="canViewSubstitutes"
+      :can-manage-substitutes="canManageSubstitutes"
       @request-data="loadSelectedEditor"
       @save="save"
       @close="requestCloseEditor"
+      @substitutes-dirty="substituteDirty = $event"
     />
 
     <ItemCatalogAttributeDialog
@@ -262,6 +265,7 @@ const metadataError = ref('')
 const deleteItemTarget = ref<ItemCatalogEntryResponse | null>(null)
 const deletingItem = ref(false)
 const deleteItemError = ref('')
+const substituteDirty = ref(false)
 const editorOpen = ref(false)
 const dialogMode = ref<'create' | 'existing'>('create')
 const dialogInitialPage = ref<'data' | 'inventory'>('data')
@@ -283,6 +287,8 @@ let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
 
 const hasMoreItems = computed(() => page.value < totalPages.value)
 const canManageItems = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.itemManage))
+const canViewSubstitutes = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.substituteRead))
+const canManageSubstitutes = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.substituteManage))
 const canManageTemplates = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.templateManage))
 const catalogPending = computed(() => loading.value || loadingMore.value)
 const activeAdvancedFilterCount = computed(() => Number(appliedCatalogFilters.value.categoryId !== null)
@@ -297,9 +303,9 @@ const advancedFilterLabel = computed(() => activeAdvancedFilterCount.value
 const showStableCatalogLoading = useStablePendingIndicator(loading, { showDelayMs: 200, minimumVisibleMs: 350 })
 const showStableLoadingMore = useStablePendingIndicator(loadingMore, { showDelayMs: 200, minimumVisibleMs: 350 })
 const showCatalogLoadingState = computed(() => emptyCatalogLoadingGate.value || (showStableCatalogLoading.value && !items.value.length))
-const hasUnsavedChanges = computed(() => dialogMode.value === 'create' || Boolean(draft.value.id)
+const hasUnsavedChanges = computed(() => (dialogMode.value === 'create' || Boolean(draft.value.id)
   ? itemDraftFingerprint(draft.value) !== baselineFingerprint.value
-  : false)
+  : false) || substituteDirty.value)
 const stockFilters = computed(() => [
   { value: 'all' as const, label: '全部', count: counts.value.total },
   { value: 'needs_attention' as const, label: '需要处理', count: counts.value.needs_attention },
@@ -454,7 +460,7 @@ async function loadSelectedEditor(): Promise<void> {
 
 function requestCloseEditor(): void { requestDraftTransition(clearEditor) }
 async function clearEditor(): Promise<void> {
-  editorAbortController?.abort(); editorAbortController = null; await discardCurrentTemporaryFiles(); editorOpen.value = false; selectedItemId.value = null; selectedCatalogItem.value = null
+  editorAbortController?.abort(); editorAbortController = null; await discardCurrentTemporaryFiles(); substituteDirty.value = false; editorOpen.value = false; selectedItemId.value = null; selectedCatalogItem.value = null
   draft.value = emptyItemDraft(); baselineDraft.value = emptyItemDraft(); baselineFingerprint.value = itemDraftFingerprint(draft.value); validationErrors.value = {}; editorDataLoading.value = false; editorDataReady.value = true; editorDataError.value = ''
 }
 
@@ -463,7 +469,7 @@ function cancelPendingTransition(): void { discardDialogOpen.value = false; pend
 async function confirmPendingTransition(): Promise<void> { const action = pendingTransition; const resolve = pendingLeaveResolution; discardDialogOpen.value = false; pendingTransition = null; pendingLeaveResolution = null; if (resolve) { await clearEditor(); resolve(true) } else if (action) await action() }
 
 async function save(): Promise<void> {
-  if (!canManageItems.value) return
+  if (!canManageItems.value || substituteDirty.value) return
   const validation = validateItemDraft(draft.value, templates.value)
   if (validation) { validationErrors.value = validation.errors; notice.warning('请检查物品信息', { detail: validation.firstMessage }); return }
   if (!draft.value.image) return

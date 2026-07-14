@@ -46,7 +46,7 @@
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
 - `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件，拥有遮罩、关闭、焦点返回和背景滚动锁定，不请求文件或编辑图片。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL，可按调用方要求组合通用全屏预览。
-- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板和任意属性编辑控件；已有物品工作区使用资料/库存双页 Dialog，库存按需加载并分页读取批次，新建会话只挂载资料编辑器。
+- `frontend/src/components/items/`：物品基础资料、主图、可选属性模板、任意属性编辑控件和替代关系；已有物品工作区使用资料/库存/替代关系多页 Dialog，库存和替代关系均按需加载，新建会话只挂载资料编辑器。
 - `frontend/src/components/items/ItemCatalogFilterDialog.vue`：物品目录分类、属性模板和动态字段多选筛选草稿；负责取消、清除、折叠候选和应用事件，不请求目录或管理分页。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
@@ -89,6 +89,9 @@
 
 - `frontend/src/api/items.ts`
   - 分别定义物品创建、更新和软删除命令、库存目录、结构化筛选与筛选值、轻量选择、编辑资料、库存详情和批次分页契约；入库工作台只持有轻量选择响应。
+
+- `frontend/src/api/substitutes.ts`
+  - 定义指定物品替代关系查询和整体替换请求；替代关系的循环、重复和自引用校验由 core 服务负责。
 
 - `frontend/src/api/templateFields.ts`
 - `frontend/src/api/itemCategories.ts`

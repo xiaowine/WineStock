@@ -44,7 +44,7 @@ pub(crate) async fn replace_substitutes(
         .map_err(map_stock_db_error)?
         .ok_or(StockApiError::ItemNotFound)?;
 
-    Ok(records.into_iter().map(substitute_response).collect())
+    records.into_iter().map(substitute_response).collect()
 }
 
 /// 查询指定物品的替代料列表；主物品不存在或已软删除时返回 `ItemNotFound`。
@@ -57,12 +57,12 @@ pub(crate) async fn list_item_substitutes(
         return Err(StockApiError::ItemNotFound);
     }
 
-    Ok(repository
+    repository
         .list_item_substitutes(item_id)
         .await?
         .into_iter()
         .map(substitute_response)
-        .collect())
+        .collect()
 }
 
 /// 查询全部替代料关系；只返回未软删除的主物品和替代物品。
