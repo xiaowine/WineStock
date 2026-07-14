@@ -14,9 +14,9 @@ use serde_json::json;
 use super::{
     common::insert_audit_event_on_connection, search, CatalogAttributeRecord, CatalogSort,
     CatalogStockFilter, CreateStockItem, ItemAttributeInput, ItemCatalogCountsRecord,
-    ItemCatalogCriteria, ItemCatalogPage, ItemCatalogRecord, ItemInventoryRecord,
-    ItemOptionCriteria, ItemOptionRecord, Page, StockItemBatchRecord, StockItemListRecord,
-    StockItemLocationRecord, StockRepository, UpdateStockItem,
+    ItemCatalogCriteria, ItemCatalogFieldFilter, ItemCatalogPage, ItemCatalogRecord,
+    ItemInventoryRecord, ItemOptionCriteria, ItemOptionRecord, Page, StockItemBatchRecord,
+    StockItemListRecord, StockItemLocationRecord, StockRepository, UpdateStockItem,
 };
 use crate::persistence::{
     entity::{item_attribute, item_attribute_definition, stock_item},
@@ -113,6 +113,25 @@ where
             .is_some())
     }
 
+    /// 查询可用于结构化筛选的共享物品属性定义 ID。
+    pub(crate) async fn searchable_item_attribute_definition_ids(
+        &self,
+        definition_ids: &[i64],
+    ) -> Result<Vec<i64>, DbErr> {
+        if definition_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(item_attribute_definition::Entity::find()
+            .filter(item_attribute_definition::Column::Id.is_in(definition_ids.iter().copied()))
+            .filter(item_attribute_definition::Column::OwnerItemId.is_null())
+            .filter(item_attribute_definition::Column::Searchable.eq(1))
+            .all(self.database)
+            .await?
+            .into_iter()
+            .map(|definition| definition.id)
+            .collect())
+    }
+
     /// 查询指定 SKU 是否已有其他未软删除物品占用。
     pub(crate) async fn active_sku_exists_except(
         &self,
@@ -142,6 +161,7 @@ where
             search_like.as_deref(),
             input.category_id,
             input.attribute_template_id,
+            &input.field_filters,
         );
         let counts = self
             .query_item_catalog_counts(&base_sql, base_values.clone())
@@ -690,10 +710,11 @@ fn item_changed_fields(
     fields
 }
 
-fn item_catalog_base_query(
+pub(super) fn item_catalog_base_query(
     search_like: Option<&str>,
     category_id: Option<i64>,
     attribute_template_id: Option<i64>,
+    field_filters: &[ItemCatalogFieldFilter],
 ) -> (String, Vec<Value>) {
     let mut sql = r#"
         SELECT stock_items.id, stock_items.name, stock_items.sku, stock_items.category_id,
@@ -740,7 +761,75 @@ fn item_catalog_base_query(
         sql.push_str(" AND stock_items.attribute_template_id = ?");
         values.push(attribute_template_id.into());
     }
+    append_item_catalog_field_filters(&mut sql, &mut values, field_filters);
     (sql, values)
+}
+
+fn append_item_catalog_field_filters(
+    sql: &mut String,
+    values: &mut Vec<Value>,
+    field_filters: &[ItemCatalogFieldFilter],
+) {
+    for filter in field_filters {
+        match filter {
+            ItemCatalogFieldFilter::Unit(filter_values) => {
+                sql.push_str(" AND stock_items.unit IN (");
+                append_bound_values(sql, values, filter_values);
+                sql.push(')');
+            }
+            ItemCatalogFieldFilter::Location(filter_values) => {
+                sql.push_str(
+                    r#"
+                    AND EXISTS (
+                        SELECT 1
+                        FROM stock_batches filter_batches
+                        JOIN stock_locations filter_locations
+                          ON filter_locations.id = filter_batches.location_id
+                        WHERE filter_batches.item_id = stock_items.id
+                          AND filter_batches.remaining_quantity > 0
+                          AND filter_locations.code IN ("#,
+                );
+                append_bound_values(sql, values, filter_values);
+                sql.push_str(") )");
+            }
+            ItemCatalogFieldFilter::Template {
+                definition_id,
+                values: filter_values,
+            } => {
+                sql.push_str(
+                    r#"
+                    AND EXISTS (
+                        SELECT 1
+                        FROM stock_item_attributes filter_attributes
+                        JOIN stock_item_attribute_definitions filter_definitions
+                          ON filter_definitions.id = filter_attributes.definition_id
+                        WHERE filter_attributes.item_id = stock_items.id
+                          AND filter_definitions.id = ?
+                          AND filter_definitions.owner_item_id IS NULL
+                          AND filter_definitions.searchable = 1
+                          AND json_valid(filter_attributes.value_json)
+                          AND CASE json_type(filter_attributes.value_json)
+                              WHEN 'true' THEN 'true'
+                              WHEN 'false' THEN 'false'
+                              ELSE CAST(json_extract(filter_attributes.value_json, '$') AS TEXT)
+                          END IN ("#,
+                );
+                values.push((*definition_id).into());
+                append_bound_values(sql, values, filter_values);
+                sql.push_str(") )");
+            }
+        }
+    }
+}
+
+fn append_bound_values(sql: &mut String, values: &mut Vec<Value>, filter_values: &[String]) {
+    for (index, value) in filter_values.iter().enumerate() {
+        if index > 0 {
+            sql.push_str(", ");
+        }
+        sql.push('?');
+        values.push(value.clone().into());
+    }
 }
 
 fn item_option_base_query(
@@ -773,7 +862,7 @@ fn item_option_base_query(
     (sql, values)
 }
 
-fn catalog_filter_sql(filter: CatalogStockFilter) -> &'static str {
+pub(super) fn catalog_filter_sql(filter: CatalogStockFilter) -> &'static str {
     match filter {
         CatalogStockFilter::All => "",
         CatalogStockFilter::NeedsAttention => {

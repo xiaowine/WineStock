@@ -67,6 +67,18 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert!(value["paths"]["/api/items"].is_object());
     assert!(value["paths"]["/api/items/options"].is_object());
     assert!(value["paths"]["/api/items/filter-values"].is_object());
+    assert!(value["paths"]["/api/items"]["get"]["parameters"]
+        .as_array()
+        .is_some_and(|parameters| parameters
+            .iter()
+            .any(|parameter| parameter["name"] == "filters")));
+    assert!(
+        value["paths"]["/api/items/filter-values"]["get"]["parameters"]
+            .as_array()
+            .is_some_and(|parameters| parameters
+                .iter()
+                .any(|parameter| parameter["name"] == "filters"))
+    );
     assert!(value["paths"]["/api/items/{id}"].is_object());
     assert!(value["paths"]["/api/items/{id}/inventory"].is_object());
     assert!(value["paths"]["/api/items/{id}/batches"].is_object());

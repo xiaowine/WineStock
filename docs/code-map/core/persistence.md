@@ -42,7 +42,7 @@
 
 - `repository/stock_repo.rs`：`StockRepository` 入口和稳定重新导出。
 - `stock_repo/types/`：按物品、库位、模板、入库、出库和分析审计子域拆分仓储输入与读取模型，不执行查询。
-- `stock_repo/items.rs`：物品命令、编辑资料、轻量选择、目录实时库存聚合、状态筛选计数、库位摘要和批次分页。
+- `stock_repo/items.rs`：物品命令、编辑资料、轻量选择、目录实时库存聚合、单位/库位/模板属性参数化筛选、状态筛选计数、库位摘要和批次分页。
 - `stock_repo/categories.rs`：物品分类。
 - `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储。
 - `stock_repo/locations.rs`：分组、库位和移库。
@@ -51,7 +51,7 @@
 - `stock_repo/dashboard.rs`：看板聚合。
 - `stock_repo/substitutes.rs`：替代料关系。
 - `stock_repo/events.rs`：审计事件查询。
-- `stock_repo/search.rs`：物品属性、入库属性和出库历史追溯搜索及筛选值聚合。
+- `stock_repo/search.rs`：物品属性、入库属性和出库历史追溯搜索，以及物品目录上下文分面筛选值和历史筛选值聚合。
 - `stock_repo/common.rs`：库存余额、审计写入和 JSON 编码共享逻辑。
 
 字段约束来源见 `core/docs/validation/core-src-persistence-*.md`。

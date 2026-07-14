@@ -101,6 +101,29 @@ export interface ItemCatalogPageResponse {
   total_pages: number
 }
 
+export interface ItemFilterValueResponse {
+  value: string
+  count: number
+}
+
+export interface ItemFilterFieldResponse {
+  key: string
+  label: string
+  source: 'base' | 'template'
+  value_type: TemplateFieldType | 'mixed'
+  values: ItemFilterValueResponse[]
+}
+
+export interface ItemFilterValuesResponse {
+  fields: ItemFilterFieldResponse[]
+}
+
+export interface ItemCatalogFilters {
+  categoryId: number | null
+  attributeTemplateId: number | null
+  fields: Record<string, string[]>
+}
+
 /** 入库等业务选择器使用的轻量物品资料。 */
 export interface ItemOptionResponse {
   id: number
@@ -206,6 +229,7 @@ export function listItemCatalog(
   pageSize: number,
   stockFilter: ItemStockFilter,
   sort: ItemCatalogSort,
+  filters: ItemCatalogFilters,
   signal?: AbortSignal,
 ) {
   return apiClient.request<ItemCatalogPageResponse>('/api/items', {
@@ -213,11 +237,52 @@ export function listItemCatalog(
       page,
       page_size: pageSize,
       search: search.trim() || undefined,
+      category_id: filters.categoryId ?? undefined,
+      attribute_template_id: filters.attributeTemplateId ?? undefined,
       stock_filter: stockFilter,
       sort,
+      filters: serializeItemCatalogFilters(filters),
     },
     signal,
   })
+}
+
+export function getItemFilterValues(
+  search: string,
+  stockFilter: ItemStockFilter,
+  filters: ItemCatalogFilters,
+  signal?: AbortSignal,
+) {
+  return apiClient.request<ItemFilterValuesResponse>('/api/items/filter-values', {
+    query: {
+      search: search.trim() || undefined,
+      category_id: filters.categoryId ?? undefined,
+      attribute_template_id: filters.attributeTemplateId ?? undefined,
+      stock_filter: stockFilter,
+      filters: serializeItemCatalogFilters(filters),
+    },
+    signal,
+  })
+}
+
+export function emptyItemCatalogFilters(): ItemCatalogFilters {
+  return { categoryId: null, attributeTemplateId: null, fields: {} }
+}
+
+export function cloneItemCatalogFilters(filters: ItemCatalogFilters): ItemCatalogFilters {
+  return {
+    categoryId: filters.categoryId,
+    attributeTemplateId: filters.attributeTemplateId,
+    fields: Object.fromEntries(Object.entries(filters.fields).map(([key, values]) => [key, [...values]])),
+  }
+}
+
+export function serializeItemCatalogFilters(filters: ItemCatalogFilters): string | undefined {
+  const serialized = Object.entries(filters.fields)
+    .map(([key, values]) => ({ key, values: [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort() }))
+    .filter((filter) => filter.values.length)
+    .sort((left, right) => left.key.localeCompare(right.key))
+  return serialized.length ? JSON.stringify(serialized) : undefined
 }
 
 export function listItemOptions(search: string, page: number, pageSize: number, signal?: AbortSignal) {

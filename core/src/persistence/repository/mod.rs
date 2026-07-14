@@ -29,14 +29,14 @@ pub(crate) use stock_repo::{
     CreateStockItem, DailyMovementTrendRecord, DashboardOverviewRecord, InboundAttributeInput,
     InboundOrderDetail, InboundOrderItemRecord, InboundOrderRecord, InboundTemplateDetail,
     ItemAttributeInput, ItemAttributeRecord, ItemAttributeTemplateDetail, ItemCatalogCriteria,
-    ItemCatalogPage, ItemInventoryRecord, ItemOptionCriteria, ItemOptionRecord, ListAuditEvents,
-    ListInboundOrders, ListOutboundOrders, OutboundOrderDetail, OutboundOrderItemRecord,
-    OutboundOrderRecord, Page, SlowMovingStockItemRecord, StockFilterFieldRecord,
-    StockFilterValueRecord, StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord,
-    StockLocationGroupRecord, StockLocationRecord, StockLocationTransferRecord, StockRepository,
-    StockSubstituteInput, StockSubstituteRecord, TemplateFieldInput, UpdateInboundTemplate,
-    UpdateItemAttributeTemplate, UpdateItemCategory, UpdateLocation, UpdateLocationGroup,
-    UpdateStockItem,
+    ItemCatalogFieldFilter, ItemCatalogPage, ItemFilterValuesCriteria, ItemInventoryRecord,
+    ItemOptionCriteria, ItemOptionRecord, ListAuditEvents, ListInboundOrders, ListOutboundOrders,
+    OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
+    SlowMovingStockItemRecord, StockFilterFieldRecord, StockFilterValueRecord,
+    StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord, StockLocationGroupRecord,
+    StockLocationRecord, StockLocationTransferRecord, StockRepository, StockSubstituteInput,
+    StockSubstituteRecord, TemplateFieldInput, UpdateInboundTemplate, UpdateItemAttributeTemplate,
+    UpdateItemCategory, UpdateLocation, UpdateLocationGroup, UpdateStockItem,
 };
 pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
 #[allow(unused_imports)]

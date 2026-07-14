@@ -88,7 +88,7 @@ pub(crate) struct FilterValueResponse {
 /// 单个筛选字段及其可选值。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 pub(crate) struct FilterFieldResponse {
-    /// 前端使用的稳定字段 key，例如 `base:unit` 或 `template:品牌`。
+    /// 前端使用的稳定字段 key，例如 `base:unit` 或 `template:42`。
     pub key: String,
 
     /// 字段展示名称。

@@ -44,6 +44,10 @@
             </label>
             <div class="items-catalog__commands">
               <span v-if="showStableCatalogLoading && items.length" class="items-catalog__refresh-status" role="status">正在刷新</span>
+              <button class="icon-button items-catalog__advanced-filter" type="button" :title="advancedFilterLabel" :aria-label="advancedFilterLabel" @click="openCatalogFilters">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                <span v-if="activeAdvancedFilterCount" aria-hidden="true">{{ activeAdvancedFilterCount }}</span>
+              </button>
               <button class="icon-button" :class="{ 'is-pending': showStableCatalogLoading }" type="button" title="刷新物品目录" aria-label="刷新物品目录" :disabled="catalogPending" @click="requestRefreshCatalog">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M18.2 16a7 7 0 1 1 .8-7l1 3"/></svg>
               </button>
@@ -63,8 +67,8 @@
           </div>
           <div v-else-if="showCatalogLoadingState" class="items-catalog__state" role="status">正在加载物品…</div>
           <div v-else-if="!items.length" class="items-catalog__state">
-            <strong>{{ activeSearch || activeFilter !== 'all' ? '没有符合条件的物品' : '还没有物品' }}</strong>
-            <button v-if="activeSearch || activeFilter !== 'all'" class="text-button" type="button" @click="clearFilters">清除筛选</button>
+            <strong>{{ hasActiveCatalogConditions ? '没有符合条件的物品' : '还没有物品' }}</strong>
+            <button v-if="hasActiveCatalogConditions" class="text-button" type="button" @click="clearFilters">清除筛选</button>
           </div>
           <template v-else>
             <div class="items-catalog__table" role="table" aria-label="物品库存目录">
@@ -150,6 +154,19 @@
       @saved="handleCatalogAttributeSaved"
     />
 
+    <ItemCatalogFilterDialog
+      :open="filterDialogOpen"
+      :applied="appliedCatalogFilters"
+      :fields="filterFields"
+      :categories="categories"
+      :templates="templates"
+      :loading="filterValuesLoading"
+      :error="filterValuesError"
+      @close="filterDialogOpen = false"
+      @retry="loadFilterValues"
+      @apply="requestApplyCatalogFilters"
+    />
+
     <ModalDialog :open="discardDialogOpen" title="放弃未保存的修改？" description="当前物品草稿中的修改不会保留。" @close="cancelPendingTransition">
       <p>确认后将继续刚才的操作。</p>
       <template #actions><button class="secondary-button" type="button" @click="cancelPendingTransition">继续编辑</button><button class="danger-button" type="button" @click="confirmPendingTransition">放弃修改</button></template>
@@ -161,14 +178,16 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import {
-  createItem, getItem, listItemCatalog, updateItem, type CatalogAttributeResponse,
+  cloneItemCatalogFilters, createItem, emptyItemCatalogFilters, getItem, getItemFilterValues,
+  listItemCatalog, updateItem, type CatalogAttributeResponse, type ItemCatalogFilters,
   type ItemCatalogCountsResponse, type ItemCatalogEntryResponse, type ItemCatalogSort,
-  type ItemStockFilter, type ItemStockState,
+  type ItemFilterFieldResponse, type ItemStockFilter, type ItemStockState,
 } from '../api/items'
 import { listItemCategories, type ItemCategoryResponse } from '../api/itemCategories'
 import { listItemAttributeTemplates, type ItemAttributeTemplateResponse } from '../api/itemAttributeTemplates'
 import ItemEditorDialog from '../components/items/ItemEditorDialog.vue'
 import ItemCatalogAttributeDialog from '../components/items/ItemCatalogAttributeDialog.vue'
+import ItemCatalogFilterDialog from '../components/items/ItemCatalogFilterDialog.vue'
 import AuthenticatedImage from '../components/attributes/AuthenticatedImage.vue'
 import ModalDialog from '../components/ModalDialog.vue'
 import { ApiError } from '../api/errors'
@@ -199,6 +218,11 @@ const searchInput = ref('')
 const activeSearch = ref('')
 const activeFilter = ref<ItemStockFilter>('all')
 const activeSort = ref<ItemCatalogSort>('replenishment_priority')
+const appliedCatalogFilters = ref<ItemCatalogFilters>(emptyItemCatalogFilters())
+const filterFields = ref<ItemFilterFieldResponse[]>([])
+const filterDialogOpen = ref(false)
+const filterValuesLoading = ref(false)
+const filterValuesError = ref('')
 const total = ref(0)
 const page = ref(1)
 const totalPages = ref(0)
@@ -225,6 +249,7 @@ const emptyCatalogLoadingGate = ref(true)
 
 let catalogAbortController: AbortController | null = null
 let editorAbortController: AbortController | null = null
+let filterValuesAbortController: AbortController | null = null
 let loadMoreObserver: IntersectionObserver | null = null
 let pendingTransition: (() => Promise<void>) | null = null
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
@@ -232,6 +257,15 @@ let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
 const hasMoreItems = computed(() => page.value < totalPages.value)
 const canManageTemplates = computed(() => hasPermission(authSession.value?.user.permissions, stockPermissions.templateManage))
 const catalogPending = computed(() => loading.value || loadingMore.value)
+const activeAdvancedFilterCount = computed(() => Number(appliedCatalogFilters.value.categoryId !== null)
+  + Number(appliedCatalogFilters.value.attributeTemplateId !== null)
+  + Object.values(appliedCatalogFilters.value.fields).filter((values) => values.length).length)
+const hasActiveCatalogConditions = computed(() => Boolean(activeSearch.value)
+  || activeFilter.value !== 'all'
+  || activeAdvancedFilterCount.value > 0)
+const advancedFilterLabel = computed(() => activeAdvancedFilterCount.value
+  ? `高级筛选，已启用 ${activeAdvancedFilterCount.value} 项`
+  : '高级筛选')
 const showStableCatalogLoading = useStablePendingIndicator(loading, { showDelayMs: 200, minimumVisibleMs: 350 })
 const showStableLoadingMore = useStablePendingIndicator(loadingMore, { showDelayMs: 200, minimumVisibleMs: 350 })
 const showCatalogLoadingState = computed(() => emptyCatalogLoadingGate.value || (showStableCatalogLoading.value && !items.value.length))
@@ -257,7 +291,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  catalogAbortController?.abort(); editorAbortController?.abort(); loadMoreObserver?.disconnect()
+  catalogAbortController?.abort(); editorAbortController?.abort(); filterValuesAbortController?.abort(); loadMoreObserver?.disconnect()
   window.removeEventListener('beforeunload', handleBeforeUnload); pendingLeaveResolution?.(false); void discardCurrentTemporaryFiles()
 })
 
@@ -280,7 +314,7 @@ async function loadCatalog(targetPage: number, append = false): Promise<void> {
   if (!shouldAppend && !items.value.length) emptyCatalogLoadingGate.value = true
   loading.value = !shouldAppend; loadingMore.value = shouldAppend; loadMoreError.value = ''; if (!shouldAppend) loadError.value = ''
   try {
-    const response = await listItemCatalog(activeSearch.value, targetPage, PAGE_SIZE, activeFilter.value, activeSort.value, controller.signal)
+    const response = await listItemCatalog(activeSearch.value, targetPage, PAGE_SIZE, activeFilter.value, activeSort.value, appliedCatalogFilters.value, controller.signal)
     items.value = shouldAppend ? mergeItems(items.value, response.items) : response.items
     counts.value = response.counts; total.value = response.total; page.value = response.page; totalPages.value = response.total_pages
     await nextTick(); refreshLoadMoreObservation()
@@ -298,7 +332,31 @@ async function handleCatalogAttributeSaved(updated: ItemAttributeTemplateRespons
   await reloadCatalog()
 }
 function applySearch(value: string): void { if (value !== activeSearch.value) { activeSearch.value = value; void reloadCatalog() } }
-function clearFilters(): void { searchInput.value = ''; activeSearch.value = ''; activeFilter.value = 'all'; void reloadCatalog() }
+function clearFilters(): void {
+  searchInput.value = ''; activeSearch.value = ''; activeFilter.value = 'all'; appliedCatalogFilters.value = emptyItemCatalogFilters(); void reloadCatalog()
+}
+function openCatalogFilters(): void { filterDialogOpen.value = true; void loadFilterValues() }
+async function loadFilterValues(): Promise<void> {
+  filterValuesAbortController?.abort()
+  const controller = new AbortController(); filterValuesAbortController = controller
+  filterValuesLoading.value = true; filterValuesError.value = ''
+  try {
+    const response = await getItemFilterValues(activeSearch.value, activeFilter.value, appliedCatalogFilters.value, controller.signal)
+    filterFields.value = response.fields
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return
+    filterValuesError.value = errorMessage(error)
+  } finally {
+    if (filterValuesAbortController === controller) { filterValuesAbortController = null; filterValuesLoading.value = false }
+  }
+}
+function requestApplyCatalogFilters(filters: ItemCatalogFilters): void {
+  filterDialogOpen.value = false
+  requestDraftTransition(() => applyCatalogFilters(filters))
+}
+async function applyCatalogFilters(filters: ItemCatalogFilters): Promise<void> {
+  appliedCatalogFilters.value = cloneItemCatalogFilters(filters); filterDialogOpen.value = false; await clearEditor(); await reloadCatalog()
+}
 function requestRefreshCatalog(): void { requestDraftTransition(refreshCatalog) }
 async function refreshCatalog(): Promise<void> { await clearEditor(); await reloadCatalog(); if (!loadError.value) notice.success('物品目录已刷新') }
 async function loadNextPage(): Promise<void> { if (!catalogPending.value && hasMoreItems.value) await loadCatalog(page.value + 1, true) }

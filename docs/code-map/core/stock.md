@@ -14,7 +14,7 @@
 
 - `controller.rs`：库存 HTTP 控制器入口和子模块重新导出。
 - `controller/common.rs`：单据状态、筛选值 DTO 和共享正数校验。
-- `controller/items.rs`、`item_attributes.rs`：物品命令、目录查询、轻量选择、编辑资料、库存详情、批次分页和任意类型化属性。
+- `controller/items.rs`、`item_attributes.rs`：物品命令、目录查询、结构化筛选参数、轻量选择、编辑资料、库存详情、批次分页和任意类型化属性。
 - `controller/templates/`：分类、物品属性模板、入库模板和共享字段 DTO/handler；物品模板字段额外公开显式单位规则 DTO。
 - `controller/locations.rs`：库位分组树、库位、整批次移库 DTO 和 handler。
 - `controller/inbound.rs`：入库提交模式、单据响应、分页、筛选值、详情和 handler。
@@ -26,7 +26,7 @@
 ## Service
 
 - `service.rs`：库存服务入口和子模块重新导出。
-- `service/items.rs`、`item_attributes.rs`：物品必选主图、命令与查询分离、库存状态规则、任意属性校验、模板单位派生/候选校验和文件所有权。
+- `service/items.rs`、`item_attributes.rs`：物品必选主图、命令与查询分离、库存状态规则、结构化筛选解析与定义校验、任意属性校验、模板单位派生/候选校验和文件所有权。
 - `service/templates/`：分类与两类模板的独立 CRUD/copy、共享字段规则，以及物品模板专属单位规则归一化。
 - `service/locations.rs`：分组树、库位 CRUD、移库、循环和占用校验。
 - `service/inbound.rs`：独立入库模板推导/选择、实际入库属性校验、图片引用、直接入库权限判断、审批和错误定位。

@@ -33,10 +33,10 @@ pub(crate) use items::{
     create_item, delete_item, get_item, get_item_inventory, item_filter_values, list_item_batches,
     list_item_options, list_items, update_item, CatalogAttributeResponse, ItemBatchPageResponse,
     ItemBatchQuery, ItemBatchStockResponse, ItemCatalogCountsResponse, ItemCatalogEntryResponse,
-    ItemCatalogPageResponse, ItemCatalogQuery, ItemCatalogSort, ItemCreateRequest,
-    ItemEditorResponse, ItemInventoryResponse, ItemLocationStockResponse, ItemMutationResponse,
-    ItemOptionPageResponse, ItemOptionQuery, ItemOptionResponse, ItemStockFilter, ItemStockState,
-    ItemUpdateRequest,
+    ItemCatalogFieldFilterQuery, ItemCatalogPageResponse, ItemCatalogQuery, ItemCatalogSort,
+    ItemCreateRequest, ItemEditorResponse, ItemFilterValuesQuery, ItemInventoryResponse,
+    ItemLocationStockResponse, ItemMutationResponse, ItemOptionPageResponse, ItemOptionQuery,
+    ItemOptionResponse, ItemStockFilter, ItemStockState, ItemUpdateRequest,
 };
 pub(crate) use locations::{
     create_location, create_location_group, create_location_transfer, delete_location,

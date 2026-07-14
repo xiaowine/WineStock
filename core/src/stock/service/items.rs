@@ -3,11 +3,14 @@
 //! 本模块属于 `stock` 业务服务层，负责物品创建、分页、筛选值、详情、更新、软删除、SKU 冲突检查和审计操作者传递。
 //! 它不处理 HTTP 路由、权限中间件或数据库表细节。
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::{
     files::stored_image_matches_metadata,
     persistence::repository::{
         CatalogSort, CatalogStockFilter, CreateStockItem, FileObjectRepository,
-        ItemCatalogCriteria, ItemOptionCriteria, StockRepository, UpdateStockItem,
+        ItemCatalogCriteria, ItemCatalogFieldFilter, ItemFilterValuesCriteria, ItemOptionCriteria,
+        StockRepository, UpdateStockItem,
     },
     security::CurrentUser,
     state::CoreState,
@@ -101,6 +104,8 @@ pub(crate) async fn list_item_catalog(
         .clamp(1, MAX_PAGE_SIZE);
     let search = normalize_optional_text(query.search)?;
     let repository = StockRepository::new(state.database());
+    let field_filters = parse_item_catalog_filters(query.filters)?;
+    validate_template_filter_definitions(&repository, &field_filters).await?;
     let result = repository
         .list_item_catalog(ItemCatalogCriteria {
             page,
@@ -108,18 +113,8 @@ pub(crate) async fn list_item_catalog(
             search,
             category_id: query.category_id,
             attribute_template_id: query.attribute_template_id,
-            stock_filter: match query
-                .stock_filter
-                .unwrap_or(controller::ItemStockFilter::All)
-            {
-                controller::ItemStockFilter::All => CatalogStockFilter::All,
-                controller::ItemStockFilter::NeedsAttention => CatalogStockFilter::NeedsAttention,
-                controller::ItemStockFilter::OutOfStock => CatalogStockFilter::OutOfStock,
-                controller::ItemStockFilter::ReorderDue => CatalogStockFilter::ReorderDue,
-                controller::ItemStockFilter::NeedsConfiguration => {
-                    CatalogStockFilter::NeedsConfiguration
-                }
-            },
+            field_filters,
+            stock_filter: catalog_stock_filter(query.stock_filter),
             sort: match query
                 .sort
                 .unwrap_or(controller::ItemCatalogSort::ReplenishmentPriority)
@@ -136,6 +131,153 @@ pub(crate) async fn list_item_catalog(
         })
         .await?;
     item_catalog_response(result, page, page_size)
+}
+
+const MAX_FILTERS_JSON_BYTES: usize = 4096;
+const MAX_FILTER_FIELDS: usize = 12;
+const MAX_FILTER_VALUES: usize = 20;
+const MAX_FILTER_VALUE_CHARS: usize = 256;
+
+fn parse_item_catalog_filters(
+    filters: Option<String>,
+) -> Result<Vec<ItemCatalogFieldFilter>, StockApiError> {
+    let Some(filters) = filters else {
+        return Ok(Vec::new());
+    };
+    if filters.len() > MAX_FILTERS_JSON_BYTES {
+        return Err(StockApiError::InvalidRequest);
+    }
+    let raw = serde_json::from_str::<Vec<controller::ItemCatalogFieldFilterQuery>>(&filters)
+        .map_err(|_| StockApiError::InvalidRequest)?;
+    if raw.len() > MAX_FILTER_FIELDS {
+        return Err(StockApiError::InvalidRequest);
+    }
+
+    let mut merged = BTreeMap::<String, BTreeSet<String>>::new();
+    for filter in raw {
+        let key = filter.key.trim();
+        if key.is_empty() || filter.values.len() > MAX_FILTER_VALUES {
+            return Err(StockApiError::InvalidRequest);
+        }
+        let values = merged.entry(key.to_owned()).or_default();
+        for value in filter.values {
+            let value = value.trim();
+            if value.is_empty() || value.chars().count() > MAX_FILTER_VALUE_CHARS {
+                return Err(StockApiError::InvalidRequest);
+            }
+            values.insert(value.to_owned());
+        }
+        if values.len() > MAX_FILTER_VALUES {
+            return Err(StockApiError::InvalidRequest);
+        }
+    }
+
+    merged
+        .into_iter()
+        .filter(|(_, values)| !values.is_empty())
+        .map(|(key, values)| {
+            let values = values.into_iter().collect::<Vec<_>>();
+            match key.as_str() {
+                "base:unit" => Ok(ItemCatalogFieldFilter::Unit(values)),
+                "base:location" => Ok(ItemCatalogFieldFilter::Location(values)),
+                _ => {
+                    let definition_id = key
+                        .strip_prefix("template:")
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .filter(|value| *value > 0)
+                        .ok_or(StockApiError::InvalidRequest)?;
+                    Ok(ItemCatalogFieldFilter::Template {
+                        definition_id,
+                        values,
+                    })
+                }
+            }
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod item_catalog_filter_tests {
+    use super::*;
+
+    #[test]
+    fn structured_filter_parser_merges_duplicate_fields_and_values() {
+        let filters = serde_json::json!([
+            {"key": "base:unit", "values": [" pcs ", "box"]},
+            {"key": "base:unit", "values": ["pcs"]}
+        ]);
+        let parsed =
+            parse_item_catalog_filters(Some(filters.to_string())).expect("重复字段和值应被合并");
+        assert!(matches!(
+            parsed.as_slice(),
+            [ItemCatalogFieldFilter::Unit(values)] if values == &vec!["box".to_owned(), "pcs".to_owned()]
+        ));
+    }
+
+    #[test]
+    fn structured_filter_parser_enforces_request_limits() {
+        let too_many_fields = (0..=MAX_FILTER_FIELDS)
+            .map(|index| serde_json::json!({"key": format!("template:{}", index + 1), "values": ["x"]}))
+            .collect::<Vec<_>>();
+        let too_many_values = serde_json::json!([{
+            "key": "base:unit",
+            "values": (0..=MAX_FILTER_VALUES).map(|index| index.to_string()).collect::<Vec<_>>()
+        }]);
+        let too_long_value = "x".repeat(MAX_FILTER_VALUE_CHARS + 1);
+
+        for filters in [
+            serde_json::Value::Array(too_many_fields).to_string(),
+            too_many_values.to_string(),
+            serde_json::json!([{"key": "base:unit", "values": [too_long_value]}]).to_string(),
+            "x".repeat(MAX_FILTERS_JSON_BYTES + 1),
+        ] {
+            assert!(matches!(
+                parse_item_catalog_filters(Some(filters)),
+                Err(StockApiError::InvalidRequest)
+            ));
+        }
+    }
+
+    #[test]
+    fn structured_filter_parser_rejects_empty_and_unknown_keys() {
+        for filters in [
+            r#"[{"key":"","values":["x"]}]"#,
+            r#"[{"key":"base:unknown","values":["x"]}]"#,
+            r#"[{"key":"base:unit","values":[""]}]"#,
+            "not-json",
+        ] {
+            assert!(matches!(
+                parse_item_catalog_filters(Some(filters.to_owned())),
+                Err(StockApiError::InvalidRequest)
+            ));
+        }
+    }
+}
+
+async fn validate_template_filter_definitions<C>(
+    repository: &StockRepository<'_, C>,
+    filters: &[ItemCatalogFieldFilter],
+) -> Result<(), StockApiError>
+where
+    C: sea_orm::ConnectionTrait,
+{
+    let expected = filters
+        .iter()
+        .filter_map(|filter| match filter {
+            ItemCatalogFieldFilter::Template { definition_id, .. } => Some(*definition_id),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let actual = repository
+        .searchable_item_attribute_definition_ids(&expected.iter().copied().collect::<Vec<_>>())
+        .await?
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    if actual == expected {
+        Ok(())
+    } else {
+        Err(StockApiError::InvalidRequest)
+    }
 }
 
 /// 查询入库等业务选择器使用的轻量物品分页。
@@ -170,9 +312,32 @@ pub(crate) async fn list_item_options(
 /// 查询当前库存视角下的物品筛选值；只返回有库存批次贡献出的值。
 pub(crate) async fn item_filter_values(
     state: &CoreState,
+    query: controller::ItemFilterValuesQuery,
 ) -> Result<controller::FilterValuesResponse, StockApiError> {
     let repository = StockRepository::new(state.database());
-    filter_values_response(repository.list_item_filter_values().await?)
+    let field_filters = parse_item_catalog_filters(query.filters)?;
+    validate_template_filter_definitions(&repository, &field_filters).await?;
+    filter_values_response(
+        repository
+            .list_item_filter_values(ItemFilterValuesCriteria {
+                search: normalize_optional_text(query.search)?,
+                category_id: query.category_id,
+                attribute_template_id: query.attribute_template_id,
+                stock_filter: catalog_stock_filter(query.stock_filter),
+                field_filters,
+            })
+            .await?,
+    )
+}
+
+fn catalog_stock_filter(filter: Option<controller::ItemStockFilter>) -> CatalogStockFilter {
+    match filter.unwrap_or(controller::ItemStockFilter::All) {
+        controller::ItemStockFilter::All => CatalogStockFilter::All,
+        controller::ItemStockFilter::NeedsAttention => CatalogStockFilter::NeedsAttention,
+        controller::ItemStockFilter::OutOfStock => CatalogStockFilter::OutOfStock,
+        controller::ItemStockFilter::ReorderDue => CatalogStockFilter::ReorderDue,
+        controller::ItemStockFilter::NeedsConfiguration => CatalogStockFilter::NeedsConfiguration,
+    }
 }
 
 /// 查询单个库存物品详情；返回未软删除物品的基础资料和当前库存快照。

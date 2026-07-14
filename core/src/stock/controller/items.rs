@@ -222,11 +222,39 @@ pub(crate) struct ItemCatalogQuery {
     /// 按物品属性模板 ID 筛选。
     pub attribute_template_id: Option<i64>,
 
+    /// URL 编码的 JSON 结构化筛选条件。
+    pub filters: Option<String>,
+
     /// 库存状态筛选，默认 all。
     pub stock_filter: Option<ItemStockFilter>,
 
     /// 排序方式，默认 replenishment_priority。
     pub sort: Option<ItemCatalogSort>,
+}
+
+/// 单个结构化筛选字段的查询输入。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, utoipa::ToSchema)]
+pub(crate) struct ItemCatalogFieldFilterQuery {
+    /// 稳定字段 key，例如 `base:unit` 或 `template:42`。
+    pub key: String,
+
+    /// 同一字段内按 OR 匹配的值。
+    pub values: Vec<String>,
+}
+
+/// 物品目录筛选值查询上下文。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, utoipa::IntoParams)]
+pub(crate) struct ItemFilterValuesQuery {
+    /// 按物品基础字段、模板元数据和物品属性模糊搜索。
+    pub search: Option<String>,
+    /// 按分类 ID 筛选。
+    pub category_id: Option<i64>,
+    /// 按物品属性模板 ID 筛选。
+    pub attribute_template_id: Option<i64>,
+    /// 库存状态筛选，默认 all。
+    pub stock_filter: Option<ItemStockFilter>,
+    /// URL 编码的 JSON 结构化筛选条件。
+    pub filters: Option<String>,
 }
 
 /// 轻量物品选择分页查询参数。
@@ -613,6 +641,7 @@ pub(crate) async fn create_item(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Item catalog", body = ItemCatalogPageResponse),
+        (status = 400, description = "Invalid item catalog filters", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
     )
@@ -649,18 +678,21 @@ pub(crate) async fn list_item_options(
     get,
     path = "/api/items/filter-values",
     tag = "items",
+    params(ItemFilterValuesQuery),
     security(("bearerAuth" = [])),
     responses(
-        (status = 200, description = "Current inventory item filter values", body = super::FilterValuesResponse),
+        (status = 200, description = "Item catalog filter values", body = super::FilterValuesResponse),
+        (status = 400, description = "Invalid item catalog filters", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 查询当前库存视角下的物品筛选值。
+/// 查询物品目录当前上下文下的分面筛选值。
 pub(crate) async fn item_filter_values(
     State(state): State<CoreState>,
+    ValidatedQuery(query): ValidatedQuery<ItemFilterValuesQuery>,
 ) -> Result<Json<super::FilterValuesResponse>, StockApiError> {
-    Ok(Json(service::item_filter_values(&state).await?))
+    Ok(Json(service::item_filter_values(&state, query).await?))
 }
 
 #[utoipa::path(

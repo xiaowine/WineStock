@@ -3,14 +3,21 @@
 //! 本模块属于 `stock` repository 的查询子模块，负责库存物品、入库历史和出库历史的自由搜索 SQL、
 //! 筛选值聚合 SQL。它不拥有 HTTP DTO，也不直接处理权限或分页默认值。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, Value};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, QueryFilter, Statement,
+    Value,
+};
 
-use super::StockRepository;
+use super::{
+    items::{catalog_filter_sql, item_catalog_base_query},
+    ItemCatalogFieldFilter, ItemFilterValuesCriteria, StockRepository,
+};
+use crate::persistence::entity::item_attribute_definition;
 
 /// 筛选字段聚合记录，供 stock 服务层投影为 HTTP 响应。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct StockFilterFieldRecord {
-    /// 前端使用的稳定字段 key，例如 `base:unit` 或 `template:品牌`。
+    /// 前端使用的稳定字段 key，例如 `base:unit` 或 `template:42`。
     pub key: String,
 
     /// 字段展示名称。
@@ -50,15 +57,116 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 查询当前库存视角下的物品列表筛选值；只统计仍有余额的批次。
+    /// 查询物品目录当前筛选上下文下的分面筛选值。
     pub(crate) async fn list_item_filter_values(
         &self,
+        criteria: ItemFilterValuesCriteria,
     ) -> Result<Vec<StockFilterFieldRecord>, DbErr> {
-        let mut rows =
-            query_filter_value_rows(self.database, item_base_filter_values_sql()).await?;
+        let mut rows = Vec::new();
+        let (unit_candidates, unit_values) = item_filter_candidates(&criteria, Some("base:unit"));
         rows.extend(
-            query_filter_value_rows(self.database, item_template_filter_values_sql()).await?,
+            query_filter_value_rows_with_values(
+                self.database,
+                format!(
+                    r#"
+                    SELECT 'base:unit' AS field_key,
+                           '计量单位' AS field_label,
+                           'base' AS field_source,
+                           'text' AS field_value_type,
+                           candidates.unit AS field_value,
+                           COUNT(DISTINCT candidates.id) AS value_count,
+                           20 AS field_order
+                    FROM ({unit_candidates}) candidates
+                    WHERE trim(candidates.unit) <> ''
+                    GROUP BY candidates.unit
+                    ORDER BY field_order, value_count DESC, field_value ASC
+                    "#
+                ),
+                unit_values,
+            )
+            .await?,
         );
+
+        let (location_candidates, location_values) =
+            item_filter_candidates(&criteria, Some("base:location"));
+        rows.extend(
+            query_filter_value_rows_with_values(
+                self.database,
+                format!(
+                    r#"
+                    SELECT 'base:location' AS field_key,
+                           '库位' AS field_label,
+                           'base' AS field_source,
+                           'text' AS field_value_type,
+                           locations.code AS field_value,
+                           COUNT(DISTINCT candidates.id) AS value_count,
+                           30 AS field_order
+                    FROM ({location_candidates}) candidates
+                    JOIN stock_batches batches
+                      ON batches.item_id = candidates.id AND batches.remaining_quantity > 0
+                    JOIN stock_locations locations ON locations.id = batches.location_id
+                    WHERE trim(locations.code) <> ''
+                    GROUP BY locations.code
+                    ORDER BY field_order, value_count DESC, field_value ASC
+                    "#
+                ),
+                location_values,
+            )
+            .await?,
+        );
+
+        let definitions = item_attribute_definition::Entity::find()
+            .filter(item_attribute_definition::Column::OwnerItemId.is_null())
+            .filter(item_attribute_definition::Column::Searchable.eq(1))
+            .all(self.database)
+            .await?;
+        for definition in definitions {
+            if definition.field_type == "file" {
+                continue;
+            }
+            let field_key = format!("template:{}", definition.id);
+            let (candidates, mut values) = item_filter_candidates(&criteria, Some(&field_key));
+            values.push(definition.id.into());
+            rows.extend(
+                query_filter_value_rows_with_values(
+                    self.database,
+                    format!(
+                        r#"
+                        SELECT ? AS field_key,
+                               ? AS field_label,
+                               'template' AS field_source,
+                               ? AS field_value_type,
+                               CASE json_type(attributes.value_json)
+                                   WHEN 'true' THEN 'true'
+                                   WHEN 'false' THEN 'false'
+                                   ELSE CAST(json_extract(attributes.value_json, '$') AS TEXT)
+                               END AS field_value,
+                               COUNT(DISTINCT candidates.id) AS value_count,
+                               1000 AS field_order
+                        FROM ({candidates}) candidates
+                        JOIN stock_item_attributes attributes ON attributes.item_id = candidates.id
+                        WHERE attributes.definition_id = ?
+                          AND json_valid(attributes.value_json)
+                          AND json_type(attributes.value_json) IN ('text', 'integer', 'real', 'true', 'false')
+                          AND (json_type(attributes.value_json) <> 'text'
+                               OR trim(CAST(json_extract(attributes.value_json, '$') AS TEXT)) <> '')
+                        GROUP BY field_value
+                        ORDER BY field_order, value_count DESC, field_value ASC
+                        "#
+                    ),
+                    {
+                        let mut query_values = vec![
+                            field_key.into(),
+                            definition.field_name.into(),
+                            definition.field_type.into(),
+                        ];
+                        query_values.extend(values);
+                        query_values
+                    },
+                )
+                .await?,
+            );
+        }
 
         Ok(group_filter_rows(rows))
     }
@@ -251,8 +359,23 @@ async fn query_filter_value_rows<C>(
 where
     C: ConnectionTrait,
 {
+    query_filter_value_rows_with_values(database, sql, Vec::new()).await
+}
+
+async fn query_filter_value_rows_with_values<C>(
+    database: &C,
+    sql: String,
+    values: Vec<Value>,
+) -> Result<Vec<RawFilterValueRow>, DbErr>
+where
+    C: ConnectionTrait,
+{
     let rows = database
-        .query_all(Statement::from_string(DatabaseBackend::Sqlite, sql))
+        .query_all(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            sql,
+            values,
+        ))
         .await?;
 
     rows.into_iter()
@@ -268,6 +391,48 @@ where
             })
         })
         .collect()
+}
+
+fn item_filter_candidates(
+    criteria: &ItemFilterValuesCriteria,
+    excluded_key: Option<&str>,
+) -> (String, Vec<Value>) {
+    let search_like = criteria
+        .search
+        .as_ref()
+        .map(|search| format!("%{}%", search.to_lowercase()));
+    let field_filters = criteria
+        .field_filters
+        .iter()
+        .filter(|filter| !item_filter_matches_key(filter, excluded_key))
+        .cloned()
+        .collect::<Vec<_>>();
+    let (base_sql, values) = item_catalog_base_query(
+        search_like.as_deref(),
+        criteria.category_id,
+        criteria.attribute_template_id,
+        &field_filters,
+    );
+    (
+        format!(
+            "SELECT * FROM ({base_sql}) catalog {}",
+            catalog_filter_sql(criteria.stock_filter)
+        ),
+        values,
+    )
+}
+
+fn item_filter_matches_key(filter: &ItemCatalogFieldFilter, key: Option<&str>) -> bool {
+    match (filter, key) {
+        (ItemCatalogFieldFilter::Unit(_), Some("base:unit"))
+        | (ItemCatalogFieldFilter::Location(_), Some("base:location")) => true,
+        (ItemCatalogFieldFilter::Template { definition_id, .. }, Some(key)) => {
+            key.strip_prefix("template:")
+                .and_then(|value| value.parse::<i64>().ok())
+                == Some(*definition_id)
+        }
+        _ => false,
+    }
 }
 
 fn group_filter_rows(rows: Vec<RawFilterValueRow>) -> Vec<StockFilterFieldRecord> {
@@ -292,73 +457,6 @@ fn group_filter_rows(rows: Vec<RawFilterValueRow>) -> Vec<StockFilterFieldRecord
     }
 
     fields
-}
-
-fn item_base_filter_values_sql() -> String {
-    r#"
-    SELECT 'base:category' AS field_key,
-           '物品分类' AS field_label,
-           'base' AS field_source,
-           'text' AS field_value_type,
-           categories.name AS field_value,
-           COUNT(DISTINCT items.id) AS value_count,
-           10 AS field_order
-    FROM stock_batches batches
-    JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-    JOIN stock_item_categories categories ON categories.id = items.category_id AND categories.deleted_at IS NULL
-    WHERE batches.remaining_quantity > 0
-      AND trim(categories.name) <> ''
-    GROUP BY categories.name
-
-    UNION ALL
-
-    SELECT 'base:unit' AS field_key,
-           '计量单位' AS field_label,
-           'base' AS field_source,
-           'text' AS field_value_type,
-           items.unit AS field_value,
-           COUNT(DISTINCT items.id) AS value_count,
-           20 AS field_order
-    FROM stock_batches batches
-    JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-    WHERE batches.remaining_quantity > 0
-      AND trim(items.unit) <> ''
-    GROUP BY items.unit
-
-    UNION ALL
-
-    SELECT 'base:location' AS field_key,
-           '库位' AS field_label,
-           'base' AS field_source,
-           'text' AS field_value_type,
-           locations.code AS field_value,
-           COUNT(DISTINCT items.id) AS value_count,
-           30 AS field_order
-    FROM stock_batches batches
-    JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-    JOIN stock_locations locations ON locations.id = batches.location_id
-    WHERE batches.remaining_quantity > 0
-      AND trim(locations.code) <> ''
-    GROUP BY locations.code
-
-    ORDER BY field_order ASC, field_label ASC, value_count DESC, field_value ASC
-    "#
-    .to_owned()
-}
-
-fn item_template_filter_values_sql() -> String {
-    attribute_filter_values_sql(
-        "items.id",
-        r#"
-        FROM stock_batches batches
-        JOIN stock_items items ON items.id = batches.item_id AND items.deleted_at IS NULL
-        JOIN stock_item_attributes attributes ON attributes.item_id = items.id
-        JOIN stock_item_attribute_definitions fields
-          ON fields.id = attributes.definition_id AND fields.searchable = 1
-        "#,
-        "batches.remaining_quantity > 0",
-        "attributes",
-    )
 }
 
 fn inbound_base_filter_values_sql() -> String {
@@ -454,6 +552,7 @@ fn inbound_base_filter_values_sql() -> String {
 
 fn inbound_template_filter_values_sql() -> String {
     attribute_filter_values_sql(
+        "'template:' || fields.field_name",
         "orders.id",
         r#"
         FROM stock_inbound_orders orders
@@ -564,6 +663,7 @@ fn outbound_base_filter_values_sql() -> String {
 
 fn outbound_template_filter_values_sql() -> String {
     attribute_filter_values_sql(
+        "'template:' || fields.field_name",
         "orders.id",
         &format!(
             r#"
@@ -602,6 +702,7 @@ fn outbound_batch_join_sql() -> &'static str {
 }
 
 fn attribute_filter_values_sql(
+    field_key_expr: &str,
     entity_id_expr: &str,
     from_clause: &str,
     where_clause: &str,
@@ -612,7 +713,7 @@ fn attribute_filter_values_sql(
     format!(
         r#"
         WITH template_values AS (
-            SELECT 'template:' || fields.field_name AS field_key,
+            SELECT {field_key_expr} AS field_key,
                    fields.field_name AS field_label,
                    'template' AS field_source,
                    fields.field_type AS raw_field_type,

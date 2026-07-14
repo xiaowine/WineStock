@@ -25,7 +25,7 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `key` | string | 稳定筛选字段 key，内置字段使用 `base:*`，模板字段使用 `template:*` |
+| `key` | string | 稳定筛选字段 key，内置字段使用 `base:*`，物品模板属性使用 `template:<definition_id>` |
 | `label` | string | 字段展示名称 |
 | `source` | string enum | `base` 或 `template` |
 | `value_type` | string enum | `text`、`number`、`select`、`date`、`file`、`url`、`boolean` 或 `mixed` |

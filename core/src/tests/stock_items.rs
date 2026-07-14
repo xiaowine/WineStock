@@ -764,7 +764,7 @@ async fn item_attributes_follow_template_unit_rules() {
 }
 
 #[tokio::test]
-async fn item_search_uses_item_attributes_while_filter_values_use_current_inventory() {
+async fn item_search_and_structured_filters_share_catalog_scope() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let template_id = seed_item_search_template(&app, &login.body.access_token).await;
@@ -882,23 +882,135 @@ async fn item_search_uses_item_attributes_while_filter_values_use_current_invent
     .await;
     assert_eq!(filter_values.status(), StatusCode::OK);
     let filter_values: serde_json::Value = json_body(filter_values).await;
+    let brand_key = filter_field_key_by_label(&filter_values, "brand")
+        .expect("searchable template field should expose stable key");
+    assert!(brand_key.starts_with("template:"));
     assert_eq!(
-        filter_value_count(&filter_values, "template:brand", "CurrentNeedle"),
+        filter_value_count(&filter_values, &brand_key, "CurrentNeedle"),
         Some(1)
     );
     assert_eq!(
-        filter_value_count(&filter_values, "template:brand", "GoneNeedle"),
-        None
+        filter_value_count(&filter_values, &brand_key, "GoneNeedle"),
+        Some(1)
     );
     assert_eq!(
         filter_value_count(&filter_values, "base:unit", "pcs"),
-        Some(1)
+        Some(2)
     );
     assert_eq!(
         filter_value_count(&filter_values, "base:location", "A-01"),
         Some(1)
     );
-    assert!(!has_filter_field(&filter_values, "template:internal_note"));
+    assert!(filter_field_key_by_label(&filter_values, "internal_note").is_none());
+
+    let brand_filters = percent_encode_query_value(
+        &serde_json::json!([{"key": brand_key, "values": ["CurrentNeedle"]}]).to_string(),
+    );
+    let filtered = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items?page=1&page_size=20&filters={brand_filters}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(filtered.status(), StatusCode::OK);
+    let filtered: serde_json::Value = json_body(filtered).await;
+    assert_eq!(filtered["total"], 1);
+    assert_eq!(filtered["counts"]["total"], 1);
+    assert_eq!(filtered["items"][0]["id"], item_id);
+
+    let or_filters = percent_encode_query_value(
+        &serde_json::json!([
+            {"key": brand_key, "values": ["CurrentNeedle"]},
+            {"key": brand_key, "values": ["GoneNeedle"]}
+        ])
+        .to_string(),
+    );
+    let or_filtered = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items?page=1&page_size=20&filters={or_filters}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(or_filtered.status(), StatusCode::OK);
+    let or_filtered: serde_json::Value = json_body(or_filtered).await;
+    assert_eq!(or_filtered["total"], 2);
+
+    let unit_filters = percent_encode_query_value(
+        &serde_json::json!([{"key": "base:unit", "values": ["pcs"]}]).to_string(),
+    );
+    let unit_filtered = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items?page=1&page_size=20&filters={unit_filters}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(unit_filtered.status(), StatusCode::OK);
+    let unit_filtered: serde_json::Value = json_body(unit_filtered).await;
+    assert_eq!(unit_filtered["total"], 2);
+
+    let faceted_values = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items/filter-values?filters={brand_filters}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(faceted_values.status(), StatusCode::OK);
+    let faceted_values: serde_json::Value = json_body(faceted_values).await;
+    assert_eq!(
+        filter_value_count(&faceted_values, &brand_key, "GoneNeedle"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&faceted_values, "base:location", "A-01"),
+        Some(1)
+    );
+    assert_eq!(
+        filter_value_count(&faceted_values, "base:location", "Z-99"),
+        None
+    );
+
+    let combined_filters = percent_encode_query_value(
+        &serde_json::json!([
+            {"key": "base:location", "values": ["A-01"]},
+            {"key": brand_key, "values": ["GoneNeedle"]}
+        ])
+        .to_string(),
+    );
+    let combined = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items?page=1&page_size=20&filters={combined_filters}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(combined.status(), StatusCode::OK);
+    let combined: serde_json::Value = json_body(combined).await;
+    assert_eq!(combined["total"], 0);
+
+    let invalid_filters = percent_encode_query_value(
+        &serde_json::json!([{"key": "template:999999", "values": ["x"]}]).to_string(),
+    );
+    let invalid = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/items?filters={invalid_filters}"),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+
+    let malformed = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/items?filters=not-json",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(malformed.status(), StatusCode::BAD_REQUEST);
 }
 
 async fn seed_item_search_template(app: &crate::test_support::TestApp, access_token: &str) -> i64 {
@@ -1147,12 +1259,26 @@ fn filter_value_count(payload: &serde_json::Value, key: &str, value: &str) -> Op
         .as_u64()
 }
 
-fn has_filter_field(payload: &serde_json::Value, key: &str) -> bool {
-    payload["fields"].as_array().is_some_and(|fields| {
-        fields
-            .iter()
-            .any(|field| field.get("key").and_then(serde_json::Value::as_str) == Some(key))
-    })
+fn filter_field_key_by_label(payload: &serde_json::Value, label: &str) -> Option<String> {
+    payload["fields"]
+        .as_array()?
+        .iter()
+        .find(|field| field.get("label").and_then(serde_json::Value::as_str) == Some(label))?
+        .get("key")?
+        .as_str()
+        .map(str::to_owned)
+}
+
+fn percent_encode_query_value(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                char::from(byte).to_string()
+            }
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
 }
 
 async fn seed_user_with_permissions_and_login(

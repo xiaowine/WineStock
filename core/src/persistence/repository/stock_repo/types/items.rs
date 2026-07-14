@@ -115,6 +115,22 @@ pub(crate) enum CatalogSort {
     UpdatedDesc,
 }
 
+/// 已校验的物品目录结构化字段筛选。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ItemCatalogFieldFilter {
+    /// 按计量单位精确匹配。
+    Unit(Vec<String>),
+    /// 按仍有余额批次所在库位代码精确匹配。
+    Location(Vec<String>),
+    /// 按可搜索模板属性定义和值精确匹配。
+    Template {
+        /// 模板属性定义 ID。
+        definition_id: i64,
+        /// 同一字段内按 OR 匹配的规范化字符串值。
+        values: Vec<String>,
+    },
+}
+
 /// 物品目录仓储查询条件。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ItemCatalogCriteria {
@@ -128,10 +144,27 @@ pub(crate) struct ItemCatalogCriteria {
     pub category_id: Option<i64>,
     /// 属性模板 ID 筛选。
     pub attribute_template_id: Option<i64>,
+    /// 结构化字段筛选。
+    pub field_filters: Vec<ItemCatalogFieldFilter>,
     /// 库存状态筛选。
     pub stock_filter: CatalogStockFilter,
     /// 服务端排序。
     pub sort: CatalogSort,
+}
+
+/// 物品目录筛选值查询条件。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ItemFilterValuesCriteria {
+    /// 物品基础资料和属性搜索词。
+    pub search: Option<String>,
+    /// 分类 ID 筛选。
+    pub category_id: Option<i64>,
+    /// 属性模板 ID 筛选。
+    pub attribute_template_id: Option<i64>,
+    /// 库存状态筛选。
+    pub stock_filter: CatalogStockFilter,
+    /// 结构化字段筛选。
+    pub field_filters: Vec<ItemCatalogFieldFilter>,
 }
 
 /// 轻量物品选择仓储查询条件。
