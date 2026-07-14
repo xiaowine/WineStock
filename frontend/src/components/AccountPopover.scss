@@ -4,6 +4,10 @@
   opacity: 0.68;
 }
 
+.account-popover__summary {
+  display: none;
+}
+
 .account-popover-backdrop {
   position: fixed;
   inset: 0;
@@ -42,7 +46,7 @@
   transform: translateY(calc(0px - var(--motion-distance-small))) scale(0.98);
 }
 
-.desktop-account .account-popover {
+.app-account .account-popover {
   width: 176px;
 }
 
@@ -59,4 +63,14 @@
   color: var(--color-danger);
   font-size: 12px;
   line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  .account-popover__summary {
+    display: grid;
+  }
+
+  .app-account .account-popover {
+    width: min(260px, calc(100vw - 20px));
+  }
 }

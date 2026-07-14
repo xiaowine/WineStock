@@ -45,7 +45,7 @@ UI 通过 HTTP API 访问 `core` 暴露的服务。
 - 使用一套前端业务代码。
 - 维护桌面和移动两种主要布局体验，而不是两套独立应用。
 - 暂时只实现浅色主题。
-- 桌面和移动端 Shell DOM 可以分开，业务页面、状态、API 调用和表单逻辑尽量复用。
+- 桌面和移动端使用同一棵应用框架 DOM；只有真实业务语义不同的列表呈现才允许拆分视图，业务页面、状态、API 调用和表单逻辑必须复用。
 - 页面框架优先服务后台工具型工作流，但具体业务页面内容另行确认。
 - 避免展示页式大边距、厚重卡片堆叠和营销化视觉。
 
@@ -54,11 +54,11 @@ UI 通过 HTTP API 访问 `core` 暴露的服务。
 桌面端采用类似 WinUI3 NavigationView 的结构：
 
 ```text
-DesktopShell
-  DesktopTopNav
-  MainViewport
-    DesktopNavigationPane
-    DesktopContentPane
+AppShell
+  AppTopBar
+  AppWorkspace
+    AppNavigationPane
+    AppContentPane
 ```
 
 ### 顶部栏
@@ -113,10 +113,11 @@ DataRegion
 移动端采用单内容区加左侧临时导航 Drawer：
 
 ```text
-MobileShell
-  MobileTopBar
-  MainViewport
-  MobileNavigationDrawer
+AppShell
+  AppTopBar
+  AppWorkspace
+    AppContentPane
+  AppNavigationPane  # 同一导航节点在移动端变为临时 Drawer
   MobileActionSheet
 ```
 
@@ -140,7 +141,7 @@ MobileShell
 Drawer 打开时：
 
 - 页面右侧压暗。
-- 导航层整体淡入，Drawer 使用统一 motion token 从左侧滑入；关闭时等待面板原路退出后再移除导航层。
+- 同一导航面板使用统一 motion token 从左侧滑入；关闭时等待面板原路退出后再恢复隐藏状态。
 - 选择模块后关闭 Drawer。
 - 不改变主内容滚动位置。
 
@@ -217,19 +218,17 @@ frontend/src/pages/*.scss
 
 当前实现位置：
 
-- `frontend/src/App.vue`：前端根路由出口；服务不可用时由全屏阻断层替换路由内容，不直接选择桌面或移动 Shell。
-- `frontend/src/components/ServiceUnavailableScreen.vue`：服务未连接时的桌面与移动共用全屏提示，提供自动恢复说明和立即重试入口。
+- `frontend/src/App.vue`：前端根路由出口；首次成功连接后始终保持路由树挂载，服务不可用时显示覆盖层，不销毁当前页面。
+- `frontend/src/bootstrap/viewport.ts`：Vue 挂载后等待首帧布局，纠正移动 WebView 可能暂时使用的 980px 布局视口，并在业务路由挂载前完成媒体查询更新。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务未连接时的桌面与移动共用全屏覆盖提示，提供自动恢复说明和立即重试入口。
 - `frontend/src/composables/useStablePendingIndicator.ts`：为初始服务检查和后续异步界面提供延迟显示、最短展示的防闪烁状态。
 - `frontend/src/router/`：Vue Router 路由表、路由元数据和应用壳一级导航配置。
-- `frontend/src/composables/useResponsiveShell.ts`：根据 `768px` 断点只挂载当前需要的 Shell；冷启动和宿主 resize 同时校验布局视口、宿主窗口与可视视口宽度，避免移动 WebView 临时使用 980px 布局视口时首帧显示桌面 Shell。
-- `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择入口。
-- `frontend/src/layouts/DesktopShell.vue`：桌面顶部栏、顶部账户摘要、路由导航面板和嵌套路由内容区。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、头像账户弹层、嵌套路由内容区和左侧路由导航 Drawer。
+- `frontend/src/layouts/AppShell.vue`：已登录应用区域唯一的稳定应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排，移动端导航面板转为临时 Drawer。
 - `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航列表和线性图标。
-- `frontend/src/components/RouteContentView.vue`：桌面和移动共用的嵌套路由出口与页面切换动画，不重挂载应用壳。
-- `frontend/src/components/AccountUserSummary.vue`：桌面顶部和移动账户弹层复用的当前用户头像与名称展示。
-- `frontend/src/components/AccountPopover.vue`：桌面和移动共用的紧凑账户信息与退出入口弹层。
-- `frontend/src/composables/useShellLogout.ts`：桌面与移动应用壳共用的退出操作和反馈编排。
+- `frontend/src/components/RouteContentView.vue`：应用框架唯一的嵌套路由出口与页面切换动画；按路由身份重建页面，查询参数变化不强制销毁页面实例。
+- `frontend/src/components/AccountUserSummary.vue`：应用框架顶部账户触发区与账户弹层复用的当前用户头像和名称展示。
+- `frontend/src/components/AccountPopover.vue`：应用框架共用的紧凑账户信息与退出入口弹层。
+- `frontend/src/composables/useShellLogout.ts`：应用框架共用的退出操作和反馈编排。
 - `frontend/src/api/`：运行时服务地址、通用 HTTP 请求、统一错误和注册/登录接口契约。
 - `frontend/src/auth/session.ts`：当前登录 token、用户摘要、启动恢复和串行 refresh 轮换。
 - `frontend/src/auth/storage.ts`：纯 Web、Tauri WebView2 和 Android WebView 共用的版本化 localStorage refresh token 存储。
@@ -239,7 +238,7 @@ frontend/src/pages/*.scss
 - `frontend/src/pages/UsersPage.vue`：桌面表格和移动列表共用数据、筛选分页和管理操作状态。
 - `frontend/src/pages/`：除鉴权页外还包含总览和物品正式页面入口；物品页使用全宽目录和共享编辑 Dialog，未实现的业务内容不展示假数据或开发说明。
 - `frontend/src/styles/index.scss`：全局基础与共享视觉原语入口。
-- `frontend/src/layouts/*.scss`、`frontend/src/components/**/*.scss`、`frontend/src/pages/*.scss`：按 Vue 所有权拆分的布局、组件和页面样式。
+- `frontend/src/layouts/AppShell.scss`、`frontend/src/components/**/*.scss`、`frontend/src/pages/*.scss`：按 Vue 所有权拆分的稳定应用框架、组件和页面样式；桌面/移动断点规则归属实际拥有节点的样式文件。
 
 路由与 history 策略见 `frontend/docs/routes.md`，HTTP 边界见 `frontend/docs/api-client.md`。
 异步等待、后台刷新和错误恢复的稳定切换规则见 `frontend/docs/async-state-transitions.md`。

@@ -62,8 +62,8 @@ http://127.0.0.1:<vite-port>/#/users
 ## 布局和页面边界
 
 - `App.vue` 只提供根 `RouterView`。
-- `AppShell.vue` 根据视口断点选择 `DesktopShell` 或 `MobileShell`。
-- `DesktopShell.vue` 和 `MobileShell.vue` 各自提供嵌套 `RouterView`，页面组件本身保持共享。
+- `AppShell.vue` 始终保持同一棵应用框架 DOM，通过 CSS 在桌面和移动端重排，并只提供一个嵌套 `RouterView`。
+- 移动导航 Drawer 只覆盖导航节点，不包含也不销毁当前路由页面；页面组件和业务状态在断点变化时保持不变。
 - 一级导航配置集中在 `router/navigation.ts`；OpenAPI 业务域路由已补充对应侧栏入口，并继续复用现有业务/管理分组和图标样式。
 - 尚未实现业务内容的路由统一渲染 `PlaceholderPage.vue`，只说明 OpenAPI 接口范围，不请求接口或展示虚构数据。
 - 登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。

@@ -16,6 +16,7 @@
         :key="item.routeName"
         :to="{ name: item.routeName }"
         class="menu-item"
+        :class="{ 'menu-item--desktop-only': item.desktopOnly }"
         active-class="menu-item--active"
         @click="emit('navigate')"
       >

@@ -34,6 +34,11 @@
   --radius-lg: 8px;
   --shadow-menu: 0 16px 40px rgb(23 32 42 / 16%);
 
+  --scrollbar-size: 8px;
+  --scrollbar-thumb: rgb(89 99 111 / 42%);
+  --scrollbar-thumb-hover: rgb(89 99 111 / 62%);
+  --scrollbar-thumb-active: rgb(111 42 54 / 68%);
+
   --motion-duration-fast: 120ms;
   --motion-duration-standard: 160ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);

@@ -2,13 +2,15 @@
 
 `frontend` 是 Vue/Vite 共享前端源码和 pnpm 工程。
 它通过 HTTP 调用 core，不拥有平台 WebView 生命周期，Axum 也不能服务其构建产物。
-未明确要求移动端时，当前界面改动默认只作用于桌面端。
+桌面和移动端共享应用框架与业务状态；布局改动必须同时检查桌面、断点附近和移动视口。
 
 ## 工程入口
 
 - `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用 pnpm。
-- `frontend/src/main.ts`：注册 token 与网络失败回调，启动服务监控、跨标签页同步和自动刷新调度，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
-- `frontend/src/App.vue`：前端根 `RouterView`、服务断连全屏阻断层和全局 Notice 挂载点，不拥有具体页面布局或探测调度。
+- `frontend/src/main.ts`：注册 token 与网络失败回调，启动服务监控、跨标签页同步、自动刷新和全局浮层滚动条，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
+- `frontend/src/bootstrap/overlayScrollbars.ts`：在移动与触控视口隐藏经典滚动槽后，为当前真实滚动宿主绘制可见且可拖动的浮层滑块；响应滚动、尺寸、DOM 和 Teleport 变化，不改变业务滚动容器所有权。
+- `frontend/src/bootstrap/viewport.ts`：在 Vue 挂载后等待首帧布局，检测移动 WebView 的临时宽布局视口并在业务路由挂载前纠正 viewport meta；不选择 Shell 或重挂载应用组件。
+- `frontend/src/App.vue`：前端根 `RouterView`、服务断连全屏覆盖层和全局 Notice 挂载点，不拥有具体页面布局或探测调度；首次连接完成后不销毁路由树。
 - `frontend/src/env.d.ts`：Vite 环境变量和平台运行时注入对象类型。
 
 ## 路由与布局
@@ -18,20 +20,17 @@
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、`requiredPermission` 和强制改密页面放行元数据。
 - `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
 - `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
-- `frontend/src/composables/useResponsiveShell.ts`：按 `768px` 断点只挂载当前桌面或移动 Shell，并提供操作时即时核对当前 Shell 的无副作用判断；冷启动和宿主 resize 同时校验布局视口、有效宿主窗口与可视视口宽度，忽略小于 `320px` 的异常 `outerWidth`。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
 - `frontend/src/composables/useInboundDraftPersistence.ts`：版本化入库草稿序列化/恢复和浏览器原生关闭提示；普通字段保存在 `localStorage`，待上传图片通过独立存储模块写入 IndexedDB。
 - `frontend/src/storage/inboundDraftImageStore.ts`：入库草稿本地图片 Blob 的 IndexedDB 存取，不保存普通字段或执行上传。
-- `frontend/src/layouts/AppShell.vue`：已登录应用区域的响应式 Shell 选择。
-- `frontend/src/layouts/DesktopShell.vue`：桌面品牌栏、左侧导航、顶部右侧账户摘要、紧凑账户弹层和嵌套路由出口；不展示未经真实数据支持的服务状态。
-- `frontend/src/layouts/MobileShell.vue`：移动顶部栏、顶部右侧用户头像、紧凑账户弹层、带统一 motion token 动画的 Drawer 和嵌套路由出口。
-- `frontend/src/components/AccountUserSummary.vue`：桌面顶部与移动账户弹层复用的只读用户头像和名称摘要。
-- `frontend/src/components/AccountPopover.vue`：桌面和移动共用的账户操作弹层；移动端可补充用户摘要，组件不直接读取或清理会话。
-- `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航、线性图标和选中态渲染。
-- `frontend/src/components/RouteContentView.vue`：桌面和移动 Shell 共用的嵌套路由出口，以及复用统一 motion token 的页面切换动画。
-- `frontend/src/composables/useAccountPopover.ts`：桌面和移动共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
-- `frontend/src/composables/useShellLogout.ts`：桌面和移动应用壳共用的退出编排、错误反馈和登录页跳转。
+- `frontend/src/layouts/AppShell.vue`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
+- `frontend/src/components/AccountUserSummary.vue`：应用框架顶部账户触发区和账户弹层复用的只读用户头像和名称摘要。
+- `frontend/src/components/AccountPopover.vue`：应用框架共用的账户操作弹层；移动端通过响应式样式补充用户摘要，组件不直接读取或清理会话。
+- `frontend/src/components/AppNavigationList.vue`：应用框架共用的分组导航、线性图标和选中态渲染，并按入口属性隐藏移动端不展示的项目。
+- `frontend/src/components/RouteContentView.vue`：应用框架唯一的嵌套路由出口，以及复用统一 motion token 的页面切换动画；查询参数变化不强制重建页面。
+- `frontend/src/composables/useAccountPopover.ts`：应用框架共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
+- `frontend/src/composables/useShellLogout.ts`：应用框架共用的退出编排、错误反馈和登录页跳转。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画；支持业务 Dialog 内二级设置窗口使用独立嵌套层级、较浅遮罩和紧凑尺寸。
 - `frontend/src/components/PasswordInput.vue`：登录、注册、改密和用户管理共用的密码输入呈现控件，统一显示/隐藏、焦点恢复和无障碍状态，不校验或持久化密码。
 - `frontend/src/components/SearchField.vue`：目录页面共用的自动搜索输入，统一搜索图标、输入草稿、防抖触发和清空恢复；不请求数据或管理分页。
@@ -49,7 +48,7 @@
 - `frontend/src/components/items/`：物品基础资料、主图、可选属性模板、任意属性编辑控件和替代关系；已有物品工作区使用资料/库存/替代关系多页 Dialog，库存和替代关系均按需加载，新建会话只挂载资料编辑器。
 - `frontend/src/components/items/ItemCatalogFilterDialog.vue`：物品目录分类、属性模板和动态字段多选筛选草稿；负责取消、清除、折叠候选和应用事件，不请求目录或管理分页。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
-- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时替换路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
 - `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。
 - `frontend/src/components/users/UserListToolbar.vue`：用户列表搜索、状态选择框筛选、结果数量、刷新图标和创建入口；不请求 API。
@@ -160,9 +159,9 @@
 ## 样式和文档
 
 - `frontend/src/styles/index.scss`：全局 SCSS 入口，仅装配 foundation、shared 和认证页面族样式。
-- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染和减少动态效果适配。
+- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染、全局滚动条和减少动态效果适配。
 - `frontend/src/styles/shared/`：品牌、控件、表单、页面骨架和用户对话框共享视觉原语。
-- `frontend/src/layouts/*.scss`：AppShell、DesktopShell 和 MobileShell 各自拥有的布局与断点规则。
+- `frontend/src/layouts/AppShell.scss`：稳定应用框架的桌面/移动布局、导航 Drawer 和顶部栏断点规则。
 - `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的外观与响应式规则。
 - `frontend/src/pages/*.scss`：具体业务页面拥有的表格、移动列表、状态和分页样式。
 - `frontend/docs/page-framework.md`：页面框架和桌面/移动所有权。

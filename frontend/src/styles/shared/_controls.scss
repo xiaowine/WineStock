@@ -24,18 +24,18 @@
 
 .icon-button:hover,
 .secondary-button:hover,
-.desktop-content-pane .menu-item:hover {
+.app-navigation-pane .menu-item:hover {
   background: rgb(23 32 42 / 4%);
 }
 
-.mobile-nav-trigger[aria-expanded='true'],
-.mobile-nav-trigger[aria-expanded='true']:hover {
+.app-mobile-nav-trigger[aria-expanded='true'],
+.app-mobile-nav-trigger[aria-expanded='true']:hover {
   background: var(--color-surface);
   color: var(--color-muted);
 }
 
-.mobile-nav-trigger,
-.mobile-account-trigger {
+.app-mobile-nav-trigger,
+.app-account__trigger {
   touch-action: manipulation;
 }
 

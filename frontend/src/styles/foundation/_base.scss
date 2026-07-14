@@ -1,6 +1,39 @@
 /* 本文件拥有 frontend 基础渲染、可访问性辅助类和减少动态效果规则，不定义平台专属布局。 */
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  scrollbar-gutter: auto;
+  scrollbar-width: thin;
+}
+
+/* 所有滚动宿主共用同一套轻量滚动条，避免响应式切换滚动容器后露出系统默认样式。 */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-width: 40px;
+  min-height: 40px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-active);
+  background-clip: padding-box;
 }
 
 html {
@@ -121,6 +154,69 @@ h3 {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* 触控和移动布局依赖手势滚动，隐藏经典滚动槽，避免其压缩业务内容宽度。 */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+/* 原生槽位隐藏后，由启动层把可见滑块覆盖在真实滚动宿主边缘。 */
+.app-overlay-scrollbars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-overlay-scrollbar-thumb {
+  position: fixed;
+  display: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0.72;
+  pointer-events: auto;
+  touch-action: none;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.app-overlay-scrollbar-thumb::before {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  content: '';
+  transition: background var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.app-overlay-scrollbar-thumb--vertical::before {
+  inset: 0 2px 0 auto;
+  width: 4px;
+}
+
+.app-overlay-scrollbar-thumb--horizontal::before {
+  inset: auto 0 2px;
+  height: 4px;
+}
+
+.app-overlay-scrollbar-thumb:hover,
+.app-overlay-scrollbar-thumb--active {
+  opacity: 1;
+}
+
+.app-overlay-scrollbar-thumb:hover::before {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.app-overlay-scrollbar-thumb--active::before {
+  background: var(--scrollbar-thumb-active);
 }
 
 @media (prefers-reduced-motion: reduce) {

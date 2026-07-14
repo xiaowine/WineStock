@@ -6,6 +6,7 @@
   <section class="account-popover" aria-label="账户信息">
     <AccountUserSummary
       v-if="showUserSummary"
+      class="account-popover__summary"
       :initials="initials"
       :display-name="displayName"
     />

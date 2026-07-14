@@ -40,13 +40,11 @@
     color var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
-.desktop-navigation-pane .menu-item,
-.mobile-nav-drawer .menu-item {
+.app-navigation-pane .menu-item {
   color: var(--color-nav-text);
 }
 
-.desktop-navigation-pane .menu-item:hover,
-.mobile-nav-drawer .menu-item:hover {
+.app-navigation-pane .menu-item:hover {
   background: rgb(23 32 42 / 5%);
 }
 
@@ -55,14 +53,12 @@
   color: var(--color-accent-strong);
 }
 
-.desktop-navigation-pane .menu-item--active,
-.mobile-nav-drawer .menu-item--active {
+.app-navigation-pane .menu-item--active {
   background: var(--color-accent-soft);
   color: var(--color-accent-strong);
 }
 
-.desktop-navigation-pane .menu-item--active::before,
-.mobile-nav-drawer .menu-item--active::before {
+.app-navigation-pane .menu-item--active::before {
   content: '';
   position: absolute;
   top: 7px;
@@ -94,6 +90,18 @@
   color: var(--color-accent);
 }
 
-.mobile-nav-drawer .menu-item {
+.app-navigation-pane .menu-item {
   min-height: 42px;
+}
+
+@media (min-width: 768px) {
+  .app-navigation-pane .menu-item {
+    min-height: 38px;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-navigation-pane .menu-item--desktop-only {
+    display: none;
+  }
 }

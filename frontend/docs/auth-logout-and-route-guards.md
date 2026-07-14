@@ -361,7 +361,7 @@ watch(authStatus, (status) => {
 | `frontend/src/router/guards.ts` | 实现全局守卫、回跳校验、会话失效和强制改密监听 |
 | `frontend/src/router/index.ts` | 导出共享 Router，并注册独立修改密码路由 |
 | `frontend/src/main.ts` | 启动同步、安装守卫并提前触发统一初始化 |
-| `frontend/src/layouts/DesktopShell.vue` | 增加退出按钮、加载状态、结果导航和 `unavailable` 连接状态提示 |
+| `frontend/src/layouts/AppShell.vue` | 提供统一桌面/移动账户入口、退出状态和应用导航；连接断开覆盖层由根应用负责 |
 | `frontend/src/pages/LoginPage.vue` | 登录成功后恢复合法 redirect；显示本机退出警告 |
 | `frontend/src/pages/ChangePasswordPage.vue` | 实现响应式主动/强制改密、原目标恢复和退出入口 |
 | `docs/code-map/frontend.md` | 记录模块职责和新增守卫文件 |

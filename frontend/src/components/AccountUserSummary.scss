@@ -1,4 +1,4 @@
-/* 本文件拥有账户头像和身份摘要的通用外观，以及桌面账户区的排列变体。 */
+/* 本文件拥有账户头像和身份摘要的通用外观，以及应用框架账户触发区的排列变体。 */
 .account-user-summary {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
@@ -44,16 +44,16 @@
   font-size: 12px;
 }
 
-.desktop-account .account-user-summary {
+.app-account__trigger .account-user-summary {
   grid-template-columns: minmax(0, 160px) 34px;
 }
 
-.desktop-account .account-user-summary__avatar {
+.app-account__trigger .account-user-summary__avatar {
   grid-column: 2;
   grid-row: 1;
 }
 
-.desktop-account .account-user-summary__identity {
+.app-account__trigger .account-user-summary__identity {
   grid-column: 1;
   grid-row: 1;
   text-align: right;

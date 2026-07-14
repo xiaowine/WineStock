@@ -1,4 +1,4 @@
-// 本文件拥有 frontend Vue 应用装配入口，连接服务监控、鉴权会话、路由守卫并挂载根组件；它不拥有平台 shell 生命周期。
+// 本文件拥有 frontend Vue 应用装配入口，连接服务监控、鉴权会话、路由守卫、全局浮层滚动条并挂载根组件；它不拥有平台 shell 生命周期。
 import { createApp, watch } from 'vue'
 import './styles/index.scss'
 import App from './App.vue'
@@ -10,6 +10,7 @@ import {
   getValidAccessToken,
   startAuthSessionSynchronization,
 } from './auth/session'
+import { installOverlayScrollbars } from './bootstrap/overlayScrollbars'
 import { router } from './router'
 import { installAuthGuards } from './router/guards'
 import {
@@ -47,3 +48,4 @@ watch(
 void ensureAuthSessionInitialized()
 
 createApp(App).use(router).mount('#app')
+installOverlayScrollbars()
