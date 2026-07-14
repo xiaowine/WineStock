@@ -172,6 +172,7 @@ h3 {
 /* 原生槽位隐藏后，由启动层把可见滑块覆盖在真实滚动宿主边缘。 */
 .app-overlay-scrollbars {
   position: fixed;
+  z-index: var(--z-dialog-popover);
   inset: 0;
   pointer-events: none;
 }
@@ -199,6 +200,17 @@ h3 {
 .app-overlay-scrollbar-thumb--vertical::before {
   inset: 0 2px 0 auto;
   width: 4px;
+}
+
+/* 侧栏使用浅色背景，沿用通用 4px 低对比滑块会难以辨认，单独提高可见性。 */
+.app-overlay-scrollbar-thumb--navigation {
+  opacity: 0.9;
+}
+
+.app-overlay-scrollbar-thumb--navigation::before {
+  inset: 0 2px 0 auto;
+  width: 5px;
+  background: rgb(89 99 111 / 72%);
 }
 
 .app-overlay-scrollbar-thumb--horizontal::before {

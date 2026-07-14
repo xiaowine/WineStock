@@ -67,6 +67,7 @@ export function installOverlayScrollbars(): void {
   activeMediaQuery = window.matchMedia(ACTIVE_MEDIA_QUERY)
   activeMediaQuery.addEventListener('change', scheduleRefresh)
   document.addEventListener('scroll', schedulePositionUpdate, true)
+  document.addEventListener('transitionend', handleNavigationTransitionEnd, true)
   window.addEventListener('resize', scheduleRefresh)
   window.visualViewport?.addEventListener('resize', scheduleRefresh)
   window.visualViewport?.addEventListener('scroll', schedulePositionUpdate)
@@ -99,6 +100,17 @@ function scheduleRefresh(): void {
 function schedulePositionUpdate(): void {
   if (refreshFrame !== 0) return
   refreshFrame = window.requestAnimationFrame(updateEntryPositions)
+}
+
+/** 侧栏打开时首次检测发生在屏外；滑入结束后重新登记，恢复其浮层滚动条。 */
+function handleNavigationTransitionEnd(event: TransitionEvent): void {
+  if (
+    event.propertyName === 'transform' &&
+    event.target instanceof HTMLElement &&
+    event.target.matches('.app-navigation-pane')
+  ) {
+    scheduleRefresh()
+  }
 }
 
 function refreshEntries(): void {
@@ -150,6 +162,11 @@ function getScrollableAxes(element: HTMLElement): ScrollableAxes {
     return { horizontal: false, vertical: false }
   }
 
+  // 侧栏关闭时仍会短暂保留在 transform 退场动画中；其滑块应立即消失，避免停在旧位置。
+  if (element.matches('.app-navigation-pane:not(.app-navigation-pane--open)')) {
+    return { horizontal: false, vertical: false }
+  }
+
   const isDocumentScroller = element === document.scrollingElement
   return {
     horizontal:
@@ -182,6 +199,9 @@ function syncEntryThumbs(entry: OverlayScrollbarEntry, axes: ScrollableAxes): vo
 function createThumb(entry: OverlayScrollbarEntry, axis: ScrollAxis): HTMLDivElement {
   const thumb = document.createElement('div')
   thumb.className = `app-overlay-scrollbar-thumb app-overlay-scrollbar-thumb--${axis}`
+  if (entry.element.matches('.app-navigation-pane')) {
+    thumb.classList.add('app-overlay-scrollbar-thumb--navigation')
+  }
   thumb.addEventListener('pointerdown', (event) => startThumbDrag(event, entry, axis))
   overlayRoot?.append(thumb)
   return thumb
