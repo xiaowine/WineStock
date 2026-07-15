@@ -1,0 +1,24 @@
+/* 本文件拥有审计日志高级筛选 Dialog 的字段布局，不定义页面工具栏。 */
+.event-filter-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  &__page-size {
+    display: grid;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  &__reset {
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .event-filter-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

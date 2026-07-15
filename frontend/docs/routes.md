@@ -52,7 +52,7 @@ http://127.0.0.1:<vite-port>/#/users
 | `/locations` | `locations` | `AppShell` | 是 | 真实库位分组树、库位搜索和分组/库位 CRUD；读取需要 `stock.location.read`，管理操作需要 `stock.location.manage`；整批次移库等待按库位查询批次契约 |
 | `/templates` | `templates` | `AppShell` | 是 | 物品分类、物品属性模板和入库模板占位页；需要 `stock.template.read` |
 | `/substitutes` | `substitutes` | `AppShell` | 是 | 物品替代关系占位页；需要 `stock.substitute.read` |
-| `/events` | `events` | `AppShell` | 是 | 审计日志占位页；需要 `audit.read` |
+| `/events` | `events` | `AppShell` | 是 | 真实审计日志筛选、分页、三段式列表和历史 JSON 详情；需要 `audit.read` |
 | `/users` | `users` | `AppShell` | 是 | 用户管理真实列表和管理操作；另需 `user.read` |
 | `/login` | `login` | 独立响应式页面 | 否 | 桌面和移动共用真实登录表单 |
 | `/register` | `register` | 独立响应式页面 | 否 | 桌面和移动共用首个用户注册及自动登录流程 |

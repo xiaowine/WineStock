@@ -9,8 +9,9 @@
 当前服务会写入以下审计事件：
 
 - `item`：创建、更新和软删除物品，动作分别为 `created`、`updated`、`deleted`；更新详情包含关键字段前后快照和变更字段列表。
-- `template`：创建、更新、复制和软删除模板；复制模板记录为新模板的 `created`，详情包含 `source_template_id`。
-- `user`：注册新用户、更新状态、替换权限、管理员设置临时密码和自助改密；注册使用 `created`，其它用户变更使用 `updated`。
+- `item_category`：创建、更新和软删除物品分类，动作分别为 `created`、`updated`、`deleted`。
+- `item_attribute_template`、`inbound_template`：创建、更新、复制和软删除模板；复制模板复用创建流程并记录为新模板的 `created`。
+- `user`：注册新用户、更新状态、替换权限、管理员设置临时密码、自助改密和软删除用户；注册使用 `created`，软删除使用 `deleted`，其它用户变更使用 `updated`。
 - `inbound`：创建、审批通过和驳回入库单，动作分别为 `created`、`approved`、`rejected`。
 - `outbound`：创建、审批通过和驳回出库单，动作分别为 `created`、`approved`、`rejected`。
 - `location_group`：创建、更新、移动和软删除库位分组，动作分别为 `created`、`updated`、`moved`、`deleted`。
@@ -38,7 +39,7 @@
 |------|------|------|
 | `page` | integer | 页码，默认 1 |
 | `page_size` | integer | 每页条数，默认 50 |
-| `entity_type` | string | 筛选实体类型（item / template / user / inbound / outbound / location_group / location / location_transfer / substitute） |
+| `entity_type` | string | 筛选实体类型（item / item_category / item_attribute_template / inbound_template / user / inbound / outbound / location_group / location / location_transfer / substitute） |
 | `entity_id` | integer | 筛选实体 ID |
 | `action` | string | 操作类型（created / updated / deleted / approved / rejected / linked / unlinked / moved） |
 | `user_id` | integer | 操作人 |
@@ -53,9 +54,9 @@
 |------|------|------|
 | `id` | integer | 日志 ID |
 | `timestamp` | string (datetime) | 操作时间 |
-| `user_id` | integer | 操作人 ID |
+| `user_id` | integer/null | 操作人 ID；用户外键为空时返回 null |
 | `username` | string/null | 操作人用户名；用户外键为空时返回 null |
 | `entity_type` | string | 实体类型 |
-| `entity_id` | integer | 实体 ID |
+| `entity_id` | integer/null | 实体 ID；不关联具体记录时返回 null |
 | `action` | string | 操作类型 |
-| `details` | object/null (json) | 变更详情（JSON 格式，记录前后差异或关键摘要） |
+| `details` | JSON value | 变更详情；历史记录可能是对象、数组、标量或 null |

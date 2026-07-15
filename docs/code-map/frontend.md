@@ -87,6 +87,12 @@
   - 定义用户分页、用户详情、权限定义和管理请求 DTO。
   - 实现用户查询、后续用户注册、启停、软删除、权限替换、临时密码和权限定义接口。
 
+- `frontend/src/api/events.ts`
+  - 定义审计事件、服务端筛选和查询契约；详情保持为未知 JSON 值，由页面兼容历史结构。
+
+- `frontend/src/api/pagination.ts`
+  - 定义用户与审计等业务 API 共用的泛型分页响应，不决定页面分页交互。
+
 - `frontend/src/api/items.ts`
   - 分别定义物品创建、更新和软删除命令、库存目录、结构化筛选与筛选值、轻量选择、编辑资料、库存详情和批次分页契约；入库工作台只持有轻量选择响应。
 
@@ -155,7 +161,9 @@
 - `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
 - `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、动态模板、图片上传、提交确认和后端错误定位。
 - `frontend/src/pages/LocationsPage.vue`、`LocationsPage.scss`：`/locations` 真实库位主数据页面；桌面使用分组树与身份/备注/判断操作三段式库位列表，移动端把分组树切换为 Drawer，支持权限控制、稳定刷新、分组/库位 CRUD 和搜索；库存详情与整批次移库等待按库位查询批次契约。
-- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批、分类与模板、替代关系和审计日志共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
+- `frontend/src/pages/EventsPage.vue`、`EventsPage.scss`、`pages/events/`：`/events` 真实审计日志页面；编排路由筛选、显式分页、稳定刷新、三段式桌面列表、移动日志项目、历史 JSON 差异和未知字段回退。
+- `frontend/src/components/events/`：审计高级筛选和只读详情 Dialog，复用通用表单、Modal、Notice 和原始 JSON 安全展示。
+- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批、分类与模板和替代关系共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。
@@ -170,6 +178,7 @@
 - `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的外观与响应式规则。
 - `frontend/src/pages/*.scss`：具体业务页面拥有的表格、移动列表、状态和分页样式。
 - `frontend/docs/page-framework.md`：页面框架和桌面/移动所有权。
+- `frontend/docs/page-events.md`：审计日志页面的筛选、三段式列表、历史详情兼容、分页和响应式实施设计。
 - `frontend/docs/routes.md`：路由、history 策略和鉴权守卫状态。
 - `frontend/docs/api-client.md`：API 地址、请求行为、错误契约和会话边界。
 - `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。

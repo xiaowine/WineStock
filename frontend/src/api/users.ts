@@ -1,6 +1,7 @@
 // 本文件拥有 frontend 用户管理 HTTP 契约和请求函数；它不保存会话或决定页面权限展示。
 import type { AuthRegisterRequest, AuthUserResponse } from './auth'
 import { apiClient } from './client'
+import type { PaginatedResponse } from './pagination'
 
 /** 用户账号状态。 */
 export type UserStatus = 'active' | 'disabled'
@@ -21,20 +22,6 @@ export interface UserAdminResponse {
   created_at: string
   /** 最近更新时间，使用服务端 UTC 字符串。 */
   updated_at: string
-}
-
-/** 通用分页响应。 */
-export interface PaginatedResponse<TItem> {
-  /** 当前页数据。 */
-  items: TItem[]
-  /** 满足条件的总记录数。 */
-  total: number
-  /** 当前页码，从 1 开始。 */
-  page: number
-  /** 当前每页数量。 */
-  page_size: number
-  /** 总页数；无数据时为 0。 */
-  total_pages: number
 }
 
 /** 用户列表查询参数。 */

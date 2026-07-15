@@ -113,11 +113,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'events',
         name: 'events',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '查询用户与库存业务产生的审计事件。',
-          apiArea: 'GET /api/events',
-        },
+        component: () => import('../pages/EventsPage.vue'),
         meta: getAppRouteMeta('events'),
       },
       {
