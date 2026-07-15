@@ -147,11 +147,22 @@ pub(crate) async fn list_inbound(
         .unwrap_or(DEFAULT_PAGE_SIZE)
         .clamp(1, MAX_PAGE_SIZE);
     let repository = StockRepository::new(state.database());
+    let status = query
+        .status
+        .map(|value| normalize_required_text(&value))
+        .transpose()?;
+    if status
+        .as_deref()
+        .is_some_and(|value| !matches!(value, "pending" | "approved" | "rejected"))
+    {
+        return Err(StockApiError::InvalidRequest);
+    }
     let result = repository
         .list_inbound_orders(ListInboundOrders {
             page,
             page_size,
             item_id: query.item_id,
+            status,
             date_from: normalize_optional_text(query.date_from)?,
             date_to: normalize_optional_text(query.date_to)?,
             search: normalize_optional_text(query.search)?,

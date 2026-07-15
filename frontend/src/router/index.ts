@@ -37,11 +37,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'inbound/orders',
         name: 'inbound-orders',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '查看入库单列表、筛选结果和单据详情。',
-          apiArea: 'GET /api/inbound、/api/inbound/filter-values、/api/inbound/{id}',
-        },
+        component: () => import('../pages/InboundOrdersPage.vue'),
         meta: getAppRouteMeta('inbound-orders'),
       },
       {

@@ -103,6 +103,9 @@ pub(crate) struct InboundListQuery {
     /// 按物品 ID 筛选。
     pub item_id: Option<i64>,
 
+    /// 按单据状态筛选；只接受 pending、approved 或 rejected。
+    pub status: Option<String>,
+
     /// 创建时间起点，使用 SQLite UTC 字符串格式。
     pub date_from: Option<String>,
 
@@ -127,6 +130,22 @@ pub(crate) struct InboundItemResponse {
     /// 物品 ID。
     #[garde(skip)]
     pub item_id: i64,
+
+    /// 当前物品名称，供入库历史识别明细内容。
+    #[garde(skip)]
+    pub item_name: String,
+
+    /// 当前物品编码。
+    #[garde(skip)]
+    pub item_sku: String,
+
+    /// 当前物品计量单位。
+    #[garde(skip)]
+    pub item_unit: String,
+
+    /// 当前物品主图文件 ID。
+    #[garde(skip)]
+    pub item_image_file_id: i64,
 
     /// 入库数量。
     #[garde(skip)]

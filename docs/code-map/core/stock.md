@@ -19,7 +19,7 @@
   - 轻量选择响应额外返回推荐入库模板 ID 和其当前是否可用，供入库工作台直接判断推荐状态。
 - `controller/templates/`：分类、物品属性模板、入库模板和共享字段 DTO/handler；分类和物品模板响应公开当前有效物品使用数，删除响应公开事务内影响数；物品模板字段额外公开显式单位规则 DTO。
 - `controller/locations.rs`：库位分组树、名称唯一且可带备注的库位、整批次移库 DTO 和 handler。
-- `controller/inbound.rs`：入库提交模式、单据响应、分页、筛选值、详情和 handler。
+- `controller/inbound.rs`：入库提交模式、单据响应、含服务端状态筛选的分页、筛选值、详情和 handler。
 - `controller/outbound.rs`：出库单、搜索、筛选值、详情和 handler。
 - `controller/dashboard.rs`：库存总览和趋势。
 - `controller/substitutes.rs`：替代料整体替换、查询和删除；指定物品查询响应包含替代物品第一层资料与库存摘要。

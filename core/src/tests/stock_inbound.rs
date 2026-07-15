@@ -71,6 +71,27 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     assert_eq!(table_count(&app, "stock_movements").await, 1);
     assert_eq!(audit_count_for_entity(&app, "inbound").await, 2);
 
+    let approved_list = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/inbound?status=approved",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(approved_list.status(), StatusCode::OK);
+    let approved_list: serde_json::Value = json_body(approved_list).await;
+    assert_eq!(approved_list["total"], 1);
+    assert_eq!(approved_list["items"][0]["id"], order.id);
+
+    let invalid_status = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/inbound?status=unknown",
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(invalid_status.status(), StatusCode::BAD_REQUEST);
+
     let approve_again = authorized_empty_request(
         &app,
         "POST",

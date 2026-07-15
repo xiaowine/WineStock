@@ -25,14 +25,19 @@
           />
         </label>
         <button
-          class="secondary-button inbound-toolbar-button inbound-order-meta__notes-toggle"
+          class="icon-button inbound-order-meta__notes-toggle"
           :class="{ 'inbound-order-meta__notes-toggle--filled': notes.trim().length > 0 }"
           type="button"
+          :title="notesOpen ? '收起备注' : notes.trim() ? '备注已填写' : '添加备注'"
+          :aria-label="notesOpen ? '收起备注' : notes.trim() ? '备注已填写' : '添加备注'"
           :aria-expanded="notesOpen"
           aria-controls="inbound-order-notes-v2"
           @click="$emit('update:notes-open', !notesOpen)"
         >
-          {{ notesOpen ? '收起备注' : notes.trim() ? '备注 · 已填写' : '添加备注' }}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 4h14v12H9l-4 4V4Z" />
+            <path d="M8 8h8M8 12h5" />
+          </svg>
         </button>
         <label v-if="notesOpen" id="inbound-order-notes-v2" class="inbound-order-meta__notes">
           <span>备注</span>

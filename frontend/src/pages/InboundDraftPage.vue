@@ -23,7 +23,6 @@
       <div class="inbound-page-actions">
         <button class="text-button inbound-clear-button" type="button" :disabled="!hasDraft || submitting" @click="openClearConfirmation">清空草稿</button>
         <template v-if="currentStep === 'draft'">
-          <button v-if="canDirectInbound" class="secondary-button" type="button" :disabled="submitting" @click="reviewDraft('pending_approval')">提交审核</button>
           <button class="primary-button" type="button" :disabled="submitting" @click="reviewDraft(defaultSubmissionMode)">
             {{ submitting ? '正在提交…' : canDirectInbound ? '直接入库' : '提交审核' }}
           </button>

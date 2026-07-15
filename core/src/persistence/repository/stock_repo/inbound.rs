@@ -472,6 +472,10 @@ fn inbound_order_filters(input: &ListInboundOrders) -> (String, Vec<Value>) {
         );
         values.push(item_id.into());
     }
+    if let Some(status) = input.status.as_ref() {
+        clauses.push("status = ?".to_owned());
+        values.push(status.clone().into());
+    }
     if let Some(date_from) = input.date_from.as_ref() {
         clauses.push("created_at >= ?".to_owned());
         values.push(date_from.clone().into());
@@ -532,6 +536,10 @@ where
             SELECT inbound_items.id,
                    inbound_items.order_id,
                    inbound_items.item_id,
+                   items.name AS item_name,
+                   items.sku AS item_sku,
+                   items.unit AS item_unit,
+                   items.image_file_id AS item_image_file_id,
                    inbound_items.quantity,
                    inbound_items.unit_price,
                    inbound_items.location_id,
@@ -541,6 +549,7 @@ where
                    inbound_items.inbound_template_id,
                    inbound_items.created_at
             FROM stock_inbound_order_items inbound_items
+            JOIN stock_items items ON items.id = inbound_items.item_id
             JOIN stock_locations locations ON locations.id = inbound_items.location_id
             WHERE inbound_items.order_id = ?
             ORDER BY inbound_items.id ASC
@@ -576,6 +585,10 @@ where
             id: item_id,
             order_id: row.try_get("", "order_id")?,
             item_id: row.try_get("", "item_id")?,
+            item_name: row.try_get("", "item_name")?,
+            item_sku: row.try_get("", "item_sku")?,
+            item_unit: row.try_get("", "item_unit")?,
+            item_image_file_id: row.try_get("", "item_image_file_id")?,
             quantity: row.try_get("", "quantity")?,
             unit_price: row.try_get("", "unit_price")?,
             location_id: row.try_get("", "location_id")?,

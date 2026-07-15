@@ -96,6 +96,8 @@ pub(crate) struct ListInboundOrders {
     pub page_size: u64,
     /// 按物品 ID 筛选。
     pub item_id: Option<i64>,
+    /// 按入库单状态筛选。
+    pub status: Option<String>,
     /// 创建时间起点。
     pub date_from: Option<String>,
     /// 创建时间终点。
@@ -140,6 +142,14 @@ pub(crate) struct InboundOrderItemRecord {
     pub order_id: i64,
     /// 物品 ID。
     pub item_id: i64,
+    /// 查询时投影的当前物品名称。
+    pub item_name: String,
+    /// 查询时投影的当前物品编码。
+    pub item_sku: String,
+    /// 查询时投影的当前计量单位。
+    pub item_unit: String,
+    /// 查询时投影的当前物品主图文件 ID。
+    pub item_image_file_id: i64,
     /// 入库数量。
     pub quantity: f64,
     /// 入库单价。

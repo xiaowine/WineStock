@@ -12,6 +12,7 @@ Axum 不服务前端构建产物。
 - `page-framework.md`：当前认可的页面框架、桌面/移动布局、导航职责和样式层级；不确认具体业务页面内容。
 - `page-locations.md`：库位管理页面的职责边界、分组树、库位 CRUD、库存位置查看、整批次移库和实施验收。
 - `page-events.md`：审计日志页面的服务端筛选、三段式列表、历史 JSON 详情、分页、响应式和实施验收设计。
+- `page-inbound-orders.md`：入库单列表、服务端筛选、按需详情、审批路由边界、响应式和实施验收设计。
 - `page-templates.md`：分类、物品属性模板与入库模板页面的信息架构、字段编辑、危险操作、响应式和实施验收设计。
 - `routes.md`：当前路由、history 策略、嵌套 Shell 边界和鉴权元数据状态。
 - `api-client.md`：运行时 API 地址、统一请求、错误契约、内存会话和当前注册/登录接入状态。
@@ -23,6 +24,8 @@ Axum 不服务前端构建产物。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
 - `implementation-notes/inbound-template-usability-remediation.md`：入库模板可发现性、权限耦合、主列表状态、模板切换保护和分阶段整改方案。
+- `implementation-notes/outbound-estimated-cost.md`：新建出库提交前的批次成本预估、FIFO 分摊、界面呈现、错误边界与验收方案。
+- `implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切的原因、单列条目重构、Dialog 适配与验收方案。
 
 ## UI 文档使用顺序
 

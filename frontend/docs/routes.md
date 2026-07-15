@@ -43,8 +43,8 @@ http://127.0.0.1:<vite-port>/#/users
 | `/` | 无 | `AppShell` | 是 | 重定向到 `dashboard` |
 | `/dashboard` | `dashboard` | `AppShell` | 是 | 库存摘要、出入库趋势和呆滞物品总览；需要 `stock.dashboard.read` |
 | `/items` | `items` | `AppShell` | 是 | 全宽物品目录，以及复用通用 Dialog 的新建/编辑、分类、可选属性预设和自定义属性；需要 `stock.item.read` |
-| `/inbound` | `inbound` | `AppShell` | 是 | 桌面和移动端多明细入库工作台；创建权限可提交审核，同时拥有审核权限时可选择直接入库；拥有物品管理权限时可在选择阶段新建物品并直接加入草稿；需要 `stock.inbound.create` |
-| `/inbound/orders` | `inbound-orders` | `AppShell` | 是 | 入库单列表、筛选和详情占位页；需要 `stock.inbound.read` |
+| `/inbound` | `inbound` | `AppShell` | 是 | 桌面和移动端多明细入库工作台；提交按钮按权限自动切换为“直接入库”或“提交审核”，不允许同时选择两种模式；拥有物品管理权限时可在选择阶段新建物品并直接加入草稿；需要 `stock.inbound.create` |
+| `/inbound/orders` | `inbound-orders` | `AppShell` | 是 | 真实入库单服务端分页、关键词/状态/日期筛选和按需详情；需要 `stock.inbound.read`，审批入口仍需要 `stock.inbound.approve` |
 | `/outbound` | `outbound` | `AppShell` | 是 | 新建 pending 出库单占位页；需要 `stock.outbound.create`，移动导航暂不展示入口 |
 | `/outbound/orders` | `outbound-orders` | `AppShell` | 是 | 出库单列表、筛选和详情占位页；需要 `stock.outbound.read` |
 | `/approvals/inbound` | `inbound-approvals` | `AppShell` | 是 | 入库单审批与拒绝占位页；需要 `stock.inbound.approve` |

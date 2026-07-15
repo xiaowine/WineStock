@@ -39,9 +39,9 @@ file 值必须是 `{ "file_id": id }`。文件需要由当前创建人上传、�
 
 ## 查询与审批
 
-- `GET /api/inbound`：权限 `stock.inbound.read`，支持分页、物品、日期和自由搜索。
+- `GET /api/inbound`：权限 `stock.inbound.read`，支持分页、物品、状态（`pending`、`approved`、`rejected`）、日期和自由搜索；状态筛选在服务端与分页总数共同生效。
 - `GET /api/inbound/filter-values`：按全部入库历史聚合基础字段，以及入库模板中标记 searchable 的实际入库属性。
-- `GET /api/inbound/{id}`：返回单据、明细、`inbound_template_id` 和重建后的 `ext_attributes`。
+- `GET /api/inbound/{id}`：返回单据、明细及关联物品的名称、编码、单位和主图文件 ID，以及 `inbound_template_id` 和重建后的 `ext_attributes`。
 - `POST /api/stock-approvals/inbound/{id}/approve`：权限 `stock.inbound.approve`；重新校验入库模板、属性和文件绑定后生成批次与库存流水。
 - `POST /api/stock-approvals/inbound/{id}/reject`：权限 `stock.inbound.approve`；只更新单据状态。
 
