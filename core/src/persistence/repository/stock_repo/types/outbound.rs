@@ -48,6 +48,8 @@ pub(crate) struct ListOutboundOrders {
     pub page_size: u64,
     /// 按物品 ID 筛选。
     pub item_id: Option<i64>,
+    /// 按出库单状态筛选。
+    pub status: Option<String>,
     /// 创建时间起点。
     pub date_from: Option<String>,
     /// 创建时间终点。
@@ -92,6 +94,10 @@ pub(crate) struct OutboundOrderItemRecord {
     pub order_id: i64,
     /// 物品 ID。
     pub item_id: i64,
+    pub item_name: String,
+    pub item_sku: String,
+    pub item_unit: String,
+    pub item_image_file_id: i64,
     /// 出库数量。
     pub quantity: f64,
     /// 指定扣减批次。

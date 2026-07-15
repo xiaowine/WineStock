@@ -53,11 +53,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'outbound/orders',
         name: 'outbound-orders',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '查看出库单列表、筛选结果和单据详情。',
-          apiArea: 'GET /api/outbound、/api/outbound/filter-values、/api/outbound/{id}',
-        },
+        component: () => import('../pages/OutboundOrdersPage.vue'),
         meta: getAppRouteMeta('outbound-orders'),
       },
       {

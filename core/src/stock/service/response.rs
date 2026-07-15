@@ -288,6 +288,7 @@ pub(super) fn outbound_response(
                 id: item.id,
                 order_id: item.order_id,
                 item_id: item.item_id,
+                item_name: item.item_name, item_sku: item.item_sku, item_unit: item.item_unit, item_image_file_id: item.item_image_file_id,
                 quantity: item.quantity,
                 batch_id: item.batch_id,
                 location_id: item.location_id,

@@ -121,6 +121,12 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         .is_some_and(|parameters| parameters
             .iter()
             .any(|parameter| parameter["name"] == "status")));
+    assert!(value["paths"]["/api/outbound"].is_object());
+    assert!(value["paths"]["/api/outbound"]["get"]["parameters"]
+        .as_array()
+        .is_some_and(|parameters| parameters
+            .iter()
+            .any(|parameter| parameter["name"] == "status")));
     assert_eq!(
         value["components"]["schemas"]["InboundSubmissionMode"]["enum"],
         serde_json::json!(["pending_approval", "direct"])

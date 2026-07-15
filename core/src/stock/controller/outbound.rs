@@ -70,6 +70,9 @@ pub(crate) struct OutboundListQuery {
     /// 按物品 ID 筛选。
     pub item_id: Option<i64>,
 
+    /// 按出库单状态筛选；只接受 pending、approved 或 rejected。
+    pub status: Option<String>,
+
     /// 创建时间起点，使用 SQLite UTC 字符串格式。
     pub date_from: Option<String>,
 
@@ -94,6 +97,11 @@ pub(crate) struct OutboundItemResponse {
     /// 物品 ID。
     #[garde(skip)]
     pub item_id: i64,
+
+    #[garde(skip)] pub item_name: String,
+    #[garde(skip)] pub item_sku: String,
+    #[garde(skip)] pub item_unit: String,
+    #[garde(skip)] pub item_image_file_id: i64,
 
     /// 出库数量。
     #[garde(skip)]

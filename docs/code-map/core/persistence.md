@@ -49,7 +49,7 @@
 - `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储；物品属性模板子模块聚合当前有效物品使用数并在删除事务内记录影响数。
 - `stock_repo/locations.rs`：分组、名称唯一且可带备注的库位，以及整批次移库。
 - `stock_repo/inbound.rs`：入库单、含状态条件的服务端分页、明细、逐行属性与图片引用事务绑定，并复用同一事务步骤处理直接入库和后续审批。
-- `stock_repo/outbound.rs`：出库单、指定批次或 FIFO 扣减。
+- `stock_repo/outbound.rs`：出库单、状态筛选、物品身份投影，以及指定批次或 FIFO 扣减。
 - `stock_repo/dashboard.rs`：看板聚合。
 - `stock_repo/substitutes.rs`：替代料关系。
 - `stock_repo/events.rs`：审计事件查询。

@@ -33,9 +33,9 @@
 分页查询出库单列表。
 
 - 权限：`stock.outbound.read`
-- 查询参数：`page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
+- 查询参数：`page`、`page_size`、`item_id`、`status`（`pending`、`approved`、`rejected`）、`date_from`、`date_to`、`search`（可选；不传时返回列表，传入非空值时搜索）
 - 响应：`200` + `PaginatedResponse<OutboundResponse>`
-- 说明：出库单搜索会匹配出库去向、备注、状态、库位名称、关联物品基础字段；对已指定批次或已审批写入流水的明细，还会匹配批次号、有效期和入库模板实际值。结果按出库单去重。空 `search` 返回 `400 invalid_request`。
+- 说明：出库单搜索会匹配出库去向、备注、状态、库位名称、关联物品基础字段；对已指定批次或已审批写入流水的明细，还会匹配批次号、有效期和入库模板实际值。结果按出库单去重。空 `search` 返回 `400 invalid_request`；状态筛选同时作用于列表与总数。每条响应明细投影关联物品的名称、编码、单位和主图文件 ID，客户端不得逐行补请求。
 
 ### `GET /api/outbound/filter-values`
 

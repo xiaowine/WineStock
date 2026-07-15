@@ -20,7 +20,7 @@
 - `controller/templates/`：分类、物品属性模板、入库模板和共享字段 DTO/handler；分类和物品模板响应公开当前有效物品使用数，删除响应公开事务内影响数；物品模板字段额外公开显式单位规则 DTO。
 - `controller/locations.rs`：库位分组树、名称唯一且可带备注的库位、整批次移库 DTO 和 handler。
 - `controller/inbound.rs`：入库提交模式、单据响应、含服务端状态筛选的分页、筛选值、详情和 handler。
-- `controller/outbound.rs`：出库单、搜索、筛选值、详情和 handler。
+- `controller/outbound.rs`：出库单、含状态的服务端分页、筛选值、详情和 handler。
 - `controller/dashboard.rs`：库存总览和趋势。
 - `controller/substitutes.rs`：替代料整体替换、查询和删除；指定物品查询响应包含替代物品第一层资料与库存摘要。
 - `controller/events.rs`：审计事件分页查询。
@@ -32,7 +32,7 @@
 - `service/templates/`：分类与两类模板的独立 CRUD/copy、当前有效物品使用数投影、删除影响数、共享字段规则，以及物品模板专属单位规则归一化。
 - `service/locations.rs`：分组树、最多十层的创建/子树移动、库位 CRUD、名称唯一、移库、循环和占用校验。
 - `service/inbound.rs`：独立入库模板推导/选择、实际入库属性校验、图片引用、直接入库权限判断、审批和错误定位。
-- `service/outbound.rs`：出库创建、搜索、审批、拒绝和库存不足映射。
+- `service/outbound.rs`：出库创建、状态/搜索分页、审批、拒绝和库存不足映射。
 - `service/dashboard.rs`：库存总览、趋势和呆滞料查询。
 - `service/substitutes.rs`：替代料关系、自引用/重复/循环校验和审计。
 - `service/events.rs`：审计事件筛选与分页。
