@@ -7,7 +7,7 @@
     :open="open"
     :title="title"
     :description="readOnly && activePage === 'data' ? '你拥有查看权限，物品资料不可修改。' : undefined"
-    :busy="saving"
+    :busy="saving || substitutesSaving"
     :wide="mode === 'create'"
     :workspace="mode === 'existing'"
     @close="emit('close')"
@@ -115,6 +115,7 @@
                 :item-id="itemId ?? 0"
                 :can-manage="canManageSubstitutes"
                 @dirty-change="handleSubstitutesDirty"
+                @saving-change="substitutesSaving = $event"
               />
             </KeepAlive>
             <div v-else class="item-inventory" :aria-busy="inventoryPending">
@@ -185,7 +186,7 @@
     />
 
     <template #actions>
-      <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">
+      <button class="secondary-button" type="button" :disabled="saving || substitutesSaving" @click="emit('close')">
         {{ activePage !== 'data' || readOnly ? '关闭' : '取消' }}
       </button>
       <button v-if="activePage === 'data' && !readOnly" class="primary-button" type="submit" :form="formId" :disabled="saving || dataLoading || substitutesDirty" :title="substitutesDirty ? '请先保存替代关系' : undefined">
@@ -262,6 +263,7 @@ const batchesPending = ref(false)
 const inventoryError = ref('')
 const batchesError = ref('')
 const substitutesDirty = ref(false)
+const substitutesSaving = ref(false)
 const batchPage = ref(0)
 const batchTotalPages = ref(0)
 const itemPageCount = computed(() => 2 + (props.canViewSubstitutes ? 1 : 0))
@@ -274,6 +276,7 @@ watch(() => props.open, (open) => {
   if (!open) {
     abortRequests()
     substitutesDirty.value = false
+    substitutesSaving.value = false
     emit('substitutes-dirty', false)
     return
   }

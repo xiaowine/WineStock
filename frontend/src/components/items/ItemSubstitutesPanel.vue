@@ -14,7 +14,7 @@
         class="primary-button item-substitutes-panel__save"
         type="button"
         :disabled="saving || loading || !dirty"
-        @click="saveSubstitutes"
+        @click="requestSave"
       >
         {{ saving ? '保存中…' : '保存替代关系' }}
       </button>
@@ -24,9 +24,11 @@
       <span>{{ loadError }}</span>
       <button class="secondary-button" type="button" @click="loadSubstitutes">重试</button>
     </div>
-    <div v-else-if="showLoading && !loaded" class="item-substitutes-panel__state" role="status">正在加载替代关系…</div>
+    <div v-else-if="loading && !loaded" class="item-substitutes-panel__state" role="status">
+      <span v-if="showLoading">正在加载替代关系…</span>
+    </div>
     <template v-else>
-      <section v-if="canManage" class="item-substitutes-panel__add" aria-labelledby="item-substitutes-add-title">
+      <section v-if="canManage && canSearchCandidates" class="item-substitutes-panel__add" aria-labelledby="item-substitutes-add-title">
         <h4 id="item-substitutes-add-title">添加替代物品</h4>
         <SearchField
           v-model="searchInput"
@@ -46,18 +48,15 @@
             v-for="candidate in visibleCandidates"
             :key="candidate.id"
             class="item-substitutes-panel__candidate"
-            :class="{ 'is-selected': isSelected(candidate.id) }"
             type="button"
-            :aria-label="isSelected(candidate.id) ? `移除替代物品：${candidate.name}` : `添加替代物品：${candidate.name}`"
-            :aria-pressed="isSelected(candidate.id)"
-            :title="isSelected(candidate.id) ? '移除替代物品' : '添加替代物品'"
-            @click="toggleSubstitute(candidate)"
+            :aria-label="`添加替代物品：${candidate.name}`"
+            title="添加替代物品"
+            @click="addSubstitute(candidate)"
           >
             <span><strong>{{ candidate.name }}</strong><small>{{ candidate.sku }} · {{ candidate.unit }}</small></span>
             <span class="item-substitutes-panel__candidate-action" aria-hidden="true">
               <svg viewBox="0 0 24 24" focusable="false">
-                <path v-if="isSelected(candidate.id)" d="M5 12h14" />
-                <path v-else d="M12 5v14M5 12h14" />
+                <path d="M12 5v14M5 12h14" />
               </svg>
             </span>
           </button>
@@ -90,8 +89,8 @@
               <div><dt>再订货点</dt><dd>{{ draft.stockState === null ? '待加载' : draft.reorderPoint === null ? '未设置' : formatQuantity(draft.reorderPoint) }}</dd></div>
             </dl>
             <label class="item-substitutes-panel__notes">
-              <span>备注</span>
-              <textarea v-model="draft.notes" :name="`substitute_notes_${draft.substituteItemId}`" :disabled="!canManage || saving" rows="2" maxlength="256" placeholder="可填写兼容性说明" />
+              <span><span>备注</span><small>剩余 {{ 1024 - draft.notes.length }} 字</small></span>
+              <textarea v-model="draft.notes" :name="`substitute_notes_${draft.substituteItemId}`" :disabled="!canManage || saving" rows="2" maxlength="1024" placeholder="可填写兼容性说明" />
             </label>
             <div v-if="canManage" class="item-substitutes-panel__relation-actions">
               <button class="icon-button" type="button" title="上移优先级" :aria-label="`将 ${draft.name} 上移`" :disabled="index === 0 || saving" @click="moveSubstitute(index, -1)">
@@ -111,6 +110,24 @@
       <p v-if="saveError" class="item-substitutes-panel__save-error" role="alert">{{ saveError }}</p>
     </template>
   </section>
+
+  <ModalDialog
+    :open="clearConfirmOpen"
+    title="清空全部替代关系？"
+    description="保存后当前主物品将不再拥有任何替代物品。"
+    :busy="saving"
+    nested
+    compact
+    @close="clearConfirmOpen = false"
+  >
+    <p class="confirmation-copy">此操作会整体替换服务端关系，之后仍可重新添加替代物品。</p>
+    <template #actions>
+      <button class="secondary-button" type="button" :disabled="saving" @click="clearConfirmOpen = false">继续编辑</button>
+      <button class="danger-button" type="button" :disabled="saving" @click="confirmClearAll">
+        {{ saving ? '保存中…' : '确认清空并保存' }}
+      </button>
+    </template>
+  </ModalDialog>
 </template>
 
 <script setup lang="ts">
@@ -122,6 +139,7 @@ import SearchField from '../SearchField.vue'
 import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
 import { notice } from '../../notices/notice'
 import { useStablePendingIndicator } from '../../composables/useStablePendingIndicator'
+import ModalDialog from '../ModalDialog.vue'
 import './ItemSubstitutesPanel.scss'
 
 interface SubstituteDraft {
@@ -141,11 +159,16 @@ interface SubstituteDraft {
 const props = defineProps<{
   itemId: number
   canManage: boolean
+  canSearchCandidates?: boolean
 }>()
 
 const emit = defineEmits<{
   /** 通知工作区父级当前替代关系草稿是否有未保存修改。 */
   'dirty-change': [dirty: boolean]
+  /** 通知 Dialog 当前保存请求状态，避免请求期间关闭会话。 */
+  'saving-change': [saving: boolean]
+  /** 通知全局页面当前主物品的替代关系已保存。 */
+  saved: []
 }>()
 
 const drafts = ref<SubstituteDraft[]>([])
@@ -160,11 +183,13 @@ const activeSearch = ref('')
 const candidates = ref<ItemOptionResponse[]>([])
 const candidateLoading = ref(false)
 const candidateError = ref('')
+const clearConfirmOpen = ref(false)
 let substituteController: AbortController | null = null
 let candidateController: AbortController | null = null
 
 const dirty = computed(() => fingerprint(drafts.value) !== baseline.value)
-const visibleCandidates = computed(() => candidates.value.filter((candidate) => candidate.id !== props.itemId))
+const canSearchCandidates = computed(() => props.canSearchCandidates !== false)
+const visibleCandidates = computed(() => candidates.value.filter((candidate) => candidate.id !== props.itemId && !isSelected(candidate.id)))
 const showLoading = useStablePendingIndicator(loading, { showDelayMs: 200, minimumVisibleMs: 350 })
 
 onMounted(() => { void loadSubstitutes() })
@@ -183,6 +208,7 @@ async function loadSubstitutes(): Promise<void> {
   loaded.value = false
   loadError.value = ''
   saveError.value = ''
+  clearConfirmOpen.value = false
   drafts.value = []
   try {
     const response = await listItemSubstitutes(props.itemId, controller.signal)
@@ -206,7 +232,7 @@ function applySearch(value: string): void {
 }
 
 async function loadCandidates(page: number): Promise<void> {
-  if (!props.canManage || !activeSearch.value) {
+  if (!props.canManage || !canSearchCandidates.value || !activeSearch.value) {
     candidates.value = []
     return
   }
@@ -246,15 +272,6 @@ function addSubstitute(candidate: ItemOptionResponse): void {
   normalizePriorities()
 }
 
-function toggleSubstitute(candidate: ItemOptionResponse): void {
-  const index = drafts.value.findIndex((draft) => draft.substituteItemId === candidate.id)
-  if (index >= 0) {
-    removeSubstitute(index)
-    return
-  }
-  addSubstitute(candidate)
-}
-
 function moveSubstitute(index: number, direction: -1 | 1): void {
   const target = index + direction
   if (target < 0 || target >= drafts.value.length) return
@@ -271,6 +288,7 @@ function removeSubstitute(index: number): void {
 async function saveSubstitutes(): Promise<void> {
   if (!props.canManage || !dirty.value || saving.value) return
   saving.value = true
+  emit('saving-change', true)
   saveError.value = ''
   try {
     const response = await replaceItemSubstitutes(props.itemId, {
@@ -284,12 +302,27 @@ async function saveSubstitutes(): Promise<void> {
     normalizePriorities()
     baseline.value = fingerprint(drafts.value)
     notice.success('替代关系已保存')
+    emit('saved')
   } catch (error) {
     saveError.value = errorMessage(error)
     notice.error('保存替代关系失败', { detail: saveError.value })
   } finally {
     saving.value = false
+    emit('saving-change', false)
   }
+}
+
+function requestSave(): void {
+  if (drafts.value.length === 0 && baseline.value !== '[]') {
+    clearConfirmOpen.value = true
+    return
+  }
+  void saveSubstitutes()
+}
+
+function confirmClearAll(): void {
+  clearConfirmOpen.value = false
+  void saveSubstitutes()
 }
 
 function isSelected(itemId: number): boolean { return drafts.value.some((draft) => draft.substituteItemId === itemId) }

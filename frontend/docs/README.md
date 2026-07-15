@@ -1,7 +1,7 @@
 # 前端文档
 
 本目录记录 `frontend/` 共享前端源码的页面框架、样式规则、页面清单、组件约定和后续实施说明。
-当前已经完成页面框架、响应式 Shell、API client、统一会话恢复、注册/登录/修改密码、登出、鉴权与强制改密守卫、用户管理、库存总览、物品管理、库位主数据管理、分类与模板、审计日志和正式入库草稿工作台；其它库存业务页面按路由与 API 实现状态继续推进。
+当前已经完成页面框架、响应式 Shell、API client、统一会话恢复、注册/登录/修改密码、登出、鉴权与强制改密守卫、用户管理、库存总览、物品管理、库位主数据管理、分类与模板、替代关系全局治理、审计日志和正式入库草稿工作台；其它库存业务页面按路由与 API 实现状态继续推进。
 
 前端文档只约束前端应用源码和 WebView 内的 UI 行为。
 Desktop Tauri shell、Android native shell、WebView 生命周期、平台权限和资源打包仍由各自平台目录负责。
@@ -13,7 +13,10 @@ Axum 不服务前端构建产物。
 - `page-locations.md`：库位管理页面的职责边界、分组树、库位 CRUD、库存位置查看、整批次移库和实施验收。
 - `page-events.md`：审计日志页面的服务端筛选、三段式列表、历史 JSON 详情、分页、响应式和实施验收设计。
 - `page-inbound-orders.md`：入库单列表、服务端筛选、按需详情、审批路由边界、响应式和实施验收设计。
+- `page-outbound-orders.md`：出库单列表、服务端筛选、触底追加、批次/FIFO 语义、按需详情和审批边界实施设计。
+- `page-outbound.md`：新建出库两步工作台、批次/FIFO 分配、草稿、提交审核、响应式和验收设计。
 - `page-templates.md`：分类、物品属性模板与入库模板页面的信息架构、字段编辑、危险操作、响应式和实施验收设计。
+- `page-substitutes.md`：替代关系全局治理页面的关系分组、物品 Dialog 复用、整体保存、权限、响应式和实施验收设计。
 - `routes.md`：当前路由、history 策略、嵌套 Shell 边界和鉴权元数据状态。
 - `api-client.md`：运行时 API 地址、统一请求、错误契约、内存会话和当前注册/登录接入状态。
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。
@@ -26,6 +29,7 @@ Axum 不服务前端构建产物。
 - `implementation-notes/inbound-template-usability-remediation.md`：入库模板可发现性、权限耦合、主列表状态、模板切换保护和分阶段整改方案。
 - `implementation-notes/outbound-estimated-cost.md`：新建出库提交前的批次成本预估、FIFO 分摊、界面呈现、错误边界与验收方案。
 - `implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切的原因、单列条目重构、Dialog 适配与验收方案。
+- `implementation-notes/substitute-network-visualization.md`：替代关系星链网络的入口、力导向布局、交互、响应式、性能和分阶段实施方案。
 
 ## UI 文档使用顺序
 

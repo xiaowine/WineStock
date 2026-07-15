@@ -45,13 +45,13 @@ http://127.0.0.1:<vite-port>/#/users
 | `/items` | `items` | `AppShell` | 是 | 全宽物品目录，以及复用通用 Dialog 的新建/编辑、分类、可选属性预设和自定义属性；需要 `stock.item.read` |
 | `/inbound` | `inbound` | `AppShell` | 是 | 桌面和移动端多明细入库工作台；提交按钮按权限自动切换为“直接入库”或“提交审核”，不允许同时选择两种模式；拥有物品管理权限时可在选择阶段新建物品并直接加入草稿；需要 `stock.inbound.create` |
 | `/inbound/orders` | `inbound-orders` | `AppShell` | 是 | 真实入库单服务端分页、关键词/状态/日期筛选和按需详情；需要 `stock.inbound.read`，审批入口仍需要 `stock.inbound.approve` |
-| `/outbound` | `outbound` | `AppShell` | 是 | 新建 pending 出库单占位页；需要 `stock.outbound.create`，移动导航暂不展示入口 |
-| `/outbound/orders` | `outbound-orders` | `AppShell` | 是 | 出库单列表、筛选和详情占位页；需要 `stock.outbound.read` |
+| `/outbound` | `outbound` | `AppShell` | 是 | 两步新建待审批出库工作台，支持物品搜索、FIFO/指定批次、草稿恢复和提交确认；创建需要 `stock.outbound.create`，选品与批次读取还需要 `stock.item.read`，移动导航暂不展示入口 |
+| `/outbound/orders` | `outbound-orders` | `AppShell` | 是 | 真实出库单服务端分页协议下的触底追加、关键词/状态/日期筛选和按需详情；需要 `stock.outbound.read`，审批入口仍需要 `stock.outbound.approve` |
 | `/approvals/inbound` | `inbound-approvals` | `AppShell` | 是 | 入库单审批与拒绝占位页；需要 `stock.inbound.approve` |
 | `/approvals/outbound` | `outbound-approvals` | `AppShell` | 是 | 出库单审批与拒绝占位页；需要 `stock.outbound.approve` |
 | `/locations` | `locations` | `AppShell` | 是 | 真实库位分组树、库位搜索和分组/库位 CRUD；读取需要 `stock.location.read`，管理操作需要 `stock.location.manage`；整批次移库等待按库位查询批次契约 |
 | `/templates` | `templates` | `AppShell` | 是 | 真实物品分类、物品属性模板和入库模板列表、查看、创建、编辑、复制与差异化删除确认；需要 `stock.template.read`，写操作需要 `stock.template.manage` |
-| `/substitutes` | `substitutes` | `AppShell` | 是 | 物品替代关系占位页；需要 `stock.substitute.read` |
+| `/substitutes` | `substitutes` | `AppShell` | 是 | 全局替代关系治理页面；需要 `stock.substitute.read`，编辑需要 `stock.substitute.manage` |
 | `/events` | `events` | `AppShell` | 是 | 真实审计日志筛选、自动加载、三段式列表和历史 JSON 详情；需要 `audit.read` |
 | `/users` | `users` | `AppShell` | 是 | 用户管理真实列表和管理操作；另需 `user.read` |
 | `/login` | `login` | 独立响应式页面 | 否 | 桌面和移动共用真实登录表单 |
@@ -65,7 +65,7 @@ http://127.0.0.1:<vite-port>/#/users
 - `AppShell.vue` 始终保持同一棵应用框架 DOM，通过 CSS 在桌面和移动端重排，并只提供一个嵌套 `RouterView`。
 - 移动导航 Drawer 只覆盖导航节点，不包含也不销毁当前路由页面；页面组件和业务状态在断点变化时保持不变。
 - 一级导航配置集中在 `router/navigation.ts`；OpenAPI 业务域路由已补充对应侧栏入口，并继续复用现有业务/管理分组和图标样式。
-- 尚未实现业务内容的路由统一渲染 `PlaceholderPage.vue`，只说明 OpenAPI 接口范围，不请求接口或展示虚构数据；分类与模板已替换为真实页面。
+- 尚未实现业务内容的审批路由统一渲染 `PlaceholderPage.vue`，只说明 OpenAPI 接口范围，不请求接口或展示虚构数据；新建出库、入库单、出库单、分类与模板、替代关系已替换为真实页面。
 - 登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。
 
 ## 鉴权状态

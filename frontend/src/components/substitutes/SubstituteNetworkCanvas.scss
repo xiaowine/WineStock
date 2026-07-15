@@ -1,0 +1,218 @@
+/* 本文件拥有替代关系 SVG 画布、节点、方向边和画布状态样式。 */
+@use '../../styles/foundation/mixins' as mixins;
+
+.substitute-network-canvas {
+  position: relative;
+  min-width: 0;
+  min-height: 320px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 1px 1px, rgb(89 99 111 / 10%) 1px, transparent 0) 0 0 / 24px 24px,
+    var(--color-surface-raised);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  marker path {
+    fill: var(--color-border-strong);
+  }
+
+  marker[id$='arrow-active'] path {
+    fill: var(--color-accent);
+  }
+
+  &__backdrop {
+    fill: transparent;
+  }
+
+  &__status {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    padding: 5px 9px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: rgb(255 255 255 / 90%);
+    color: var(--color-muted);
+    font-size: 11px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+}
+
+.substitute-network-edge {
+  color: var(--color-muted);
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+
+  > path {
+    fill: none;
+    stroke: var(--color-border-strong);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+
+  rect {
+    fill: var(--color-surface);
+    stroke: var(--color-border);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  text {
+    fill: var(--color-muted);
+    font-size: 10px;
+    font-weight: 720;
+  }
+
+  &--active {
+    color: var(--color-accent);
+
+    > path {
+      stroke: var(--color-accent);
+      stroke-width: 2.2;
+    }
+
+    rect {
+      fill: var(--color-accent-soft);
+      stroke: var(--color-accent);
+    }
+
+    text {
+      fill: var(--color-accent-strong);
+    }
+  }
+
+  &--muted {
+    opacity: 0.2;
+  }
+}
+
+.substitute-network-node {
+  cursor: grab;
+  outline: none;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &__hit {
+    fill: transparent;
+    stroke: transparent;
+  }
+
+  &__surface {
+    fill: var(--node-soft, var(--color-surface));
+    stroke: var(--node-strong, var(--color-border-strong));
+    stroke-width: 1.5;
+    filter: drop-shadow(0 2px 4px rgb(23 32 42 / 10%));
+    vector-effect: non-scaling-stroke;
+    transition:
+      fill var(--motion-duration-fast) var(--motion-ease-standard),
+      stroke var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  &__name,
+  &__sku {
+    pointer-events: none;
+  }
+
+  &__label {
+    fill: rgb(255 255 255 / 94%);
+    stroke: var(--node-strong, var(--color-border));
+    stroke-opacity: 0.28;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+  }
+
+  &__name {
+    fill: var(--node-strong, var(--color-text));
+    font-size: 11px;
+    font-weight: 720;
+  }
+
+  &__sku {
+    fill: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 9px;
+  }
+
+  &:focus-visible {
+    .substitute-network-node__surface {
+      stroke: var(--color-accent);
+      stroke-width: 3;
+    }
+  }
+
+  &--selected {
+    .substitute-network-node__surface {
+      fill: var(--node-soft, var(--color-accent-soft));
+      stroke: var(--color-accent);
+      stroke-width: 3;
+      filter: drop-shadow(0 0 7px rgb(111 42 54 / 25%));
+    }
+
+    .substitute-network-node__name {
+      fill: var(--color-accent-strong);
+    }
+
+    .substitute-network-node__label {
+      stroke: var(--color-accent);
+      stroke-opacity: 0.7;
+    }
+  }
+
+  &--related:not(&--selected) {
+    .substitute-network-node__surface {
+      stroke: var(--color-accent);
+      stroke-width: 2;
+    }
+  }
+
+  &--matched:not(&--selected) {
+    .substitute-network-node__surface {
+      stroke: var(--color-teal);
+      stroke-width: 2.5;
+    }
+
+    .substitute-network-node__label {
+      stroke: var(--color-teal);
+      stroke-opacity: 0.65;
+    }
+  }
+
+  &--muted {
+    opacity: 0.28;
+  }
+}
+
+@include mixins.mobile {
+  .substitute-network-canvas {
+    min-height: 280px;
+  }
+
+  .substitute-network-node__name {
+    font-size: 10px;
+  }
+}
+
+@include mixins.reduced-motion {
+  .substitute-network-node,
+  .substitute-network-node__surface,
+  .substitute-network-edge {
+    transition: none;
+  }
+
+}

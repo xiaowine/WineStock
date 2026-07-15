@@ -87,11 +87,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'substitutes',
         name: 'substitutes',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '查看并维护物品之间的替代关系与优先级。',
-          apiArea: '/api/substitutes、/api/substitutes/{item_id}',
-        },
+        component: () => import('../pages/SubstitutesPage.vue'),
         meta: getAppRouteMeta('substitutes'),
       },
       {

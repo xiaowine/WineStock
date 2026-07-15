@@ -1,0 +1,245 @@
+/* 本文件拥有替代关系页面工具栏、三段式列表、状态和响应式布局。 */
+@use '../styles/foundation/mixins' as mixins;
+
+.substitutes-page {
+  min-height: 0;
+  gap: 14px;
+
+  &__header {
+    flex: 0 0 auto;
+
+    p {
+      max-width: 680px;
+      margin-top: 5px;
+      color: var(--color-muted);
+      font-size: 13px;
+    }
+  }
+}
+
+.substitutes-workspace {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.substitutes-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+
+  &__search {
+    width: min(100%, 560px);
+  }
+
+  &__commands,
+  &__summary,
+  &__actions {
+    display: flex;
+    align-items: center;
+  }
+
+  &__commands {
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  &__summary {
+    gap: 8px;
+  }
+
+  &__actions {
+    gap: 6px;
+  }
+
+  &__count,
+  &__refresh-status {
+    color: var(--color-muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  &__refresh-status {
+    color: var(--color-accent);
+  }
+
+  &__refresh {
+    svg {
+      @include mixins.svg-icon;
+    }
+
+    &--pending,
+    &--pending:hover {
+      border-color: rgb(111 42 54 / 24%);
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+    }
+
+    &--pending svg {
+      animation: substitutes-refresh-spin 900ms linear infinite;
+    }
+  }
+
+  &__network {
+    svg {
+      @include mixins.svg-icon;
+    }
+  }
+
+  .icon-button--primary svg {
+    @include mixins.svg-icon;
+  }
+}
+
+.substitutes-results {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+
+  &--refreshing {
+    opacity: 0.72;
+  }
+
+  &__inline-error {
+    margin: 10px 12px 0;
+    padding: 8px 10px;
+    border: 1px solid rgb(157 40 50 / 20%);
+    border-radius: var(--radius-sm);
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
+    font-size: 12px;
+  }
+}
+
+.substitutes-state {
+  display: grid;
+  min-height: 270px;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  padding: 24px;
+  color: var(--color-muted);
+  font-size: 13px;
+  text-align: center;
+
+  strong {
+    color: var(--color-text);
+    font-size: 15px;
+  }
+
+  &--error,
+  &--error strong {
+    color: var(--color-danger);
+  }
+}
+
+.substitutes-table {
+  min-width: 700px;
+
+  &__head {
+    display: grid;
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    grid-template-columns: minmax(220px, 0.95fr) minmax(280px, 1.5fr) 144px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+
+    span {
+      padding: 9px 16px;
+      color: var(--color-muted);
+      font-size: 11px;
+      font-weight: 680;
+
+      &:not(:last-child) {
+        border-right: 1px solid var(--color-border);
+      }
+    }
+  }
+}
+
+@media (max-width: 1120px) {
+  .substitutes-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+
+    &__search {
+      width: 100%;
+    }
+  }
+
+  .substitutes-table__head {
+    grid-template-columns: minmax(190px, 0.9fr) minmax(220px, 1.2fr) 132px;
+  }
+}
+
+@include mixins.mobile {
+  .substitutes-page {
+    gap: 0;
+
+    &__header {
+      display: none;
+    }
+  }
+
+  .substitutes-workspace {
+    border: 0;
+    border-radius: 0;
+  }
+
+  .substitutes-toolbar {
+    gap: 9px;
+    padding: 10px 12px;
+    background: transparent;
+
+    &__commands {
+      justify-content: space-between;
+    }
+
+    &__summary {
+      min-width: 0;
+    }
+
+    &__count {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .substitutes-results {
+    overflow-x: hidden;
+  }
+
+  .substitutes-table {
+    display: grid;
+    min-width: 0;
+    padding: 10px 12px;
+    gap: 8px;
+
+    &__head {
+      display: none;
+    }
+  }
+}
+
+@keyframes substitutes-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .substitutes-toolbar__refresh--pending svg {
+    animation-duration: 1800ms;
+  }
+}

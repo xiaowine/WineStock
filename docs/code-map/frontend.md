@@ -49,6 +49,7 @@
 - `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件，拥有遮罩、关闭、焦点返回和背景滚动锁定，不请求文件或编辑图片。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL，可按调用方要求组合通用全屏预览。
 - `frontend/src/components/items/`：物品基础资料、主图、可选属性模板、任意属性编辑控件和替代关系；已有物品工作区使用资料/库存/替代关系多页 Dialog，库存和替代关系均按需加载，新建会话只挂载资料编辑器。
+- `frontend/src/components/substitutes/`：全局替代关系的三段式关系组、主物品选择、共享单物品编辑 Dialog，以及只读星链网络 Dialog、SVG 画布和悬浮节点详情；不复制替代优先级或整体保存逻辑。
 - `frontend/src/components/items/ItemCatalogFilterDialog.vue`：物品目录分类、属性模板和动态字段多选筛选草稿；负责取消、清除、折叠候选和应用事件，不请求目录或管理分页。
 - `frontend/src/components/locations/`：最多十层的库位分组树、名称与备注表单、分组/库位创建编辑 Dialog 和删除确认；只拥有库位页面局部呈现，不直接请求 API 或修改库存数量。
 - `frontend/src/components/templates/`：分类表单、模板查看与字段编辑工作区、候选项编辑、复制和三类差异化删除确认；组件不直接请求 API。
@@ -101,7 +102,7 @@
   - 分别定义物品创建、更新和软删除命令、库存目录、结构化筛选与筛选值、轻量选择、编辑资料、库存详情和批次分页契约；入库工作台只持有轻量选择响应。
 
 - `frontend/src/api/substitutes.ts`
-  - 定义指定物品替代关系查询和整体替换请求；替代关系的循环、重复和自引用校验由 core 服务负责。
+  - 定义全局替代关系列表、指定物品详情查询和整体替换请求；替代关系的循环、重复和自引用校验由 core 服务负责。
 
 - `frontend/src/api/templateFields.ts`
 - `frontend/src/api/itemCategories.ts`
@@ -164,14 +165,16 @@
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。关键词、库存状态、高级结构化筛选、计数、排序和分页来自服务端；所有具备 `stock.item.read` 的用户可从目录行或详情图标进入资料和库存详情，只有 `stock.item.manage` 用户才能看到新建、删除和保存入口，详情 Dialog 才可编辑。
 - `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
 - `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、基于轻量选品响应的推荐入库模板解析、带请求版本防竞态的模板加载、模板切换破坏性确认、动态模板、图片上传、提交确认和后端错误定位。
-- `frontend/src/pages/LocationsPage.vue`、`LocationsPage.scss`：`/locations` 真实库位主数据页面；桌面使用分组树与身份/备注/判断操作三段式库位列表，移动端把分组树切换为 Drawer，支持权限控制、稳定刷新、分组/库位 CRUD 和搜索；库存详情与整批次移库等待按库位查询批次契约。
+- `frontend/src/pages/OutboundDraftPage.vue`、`OutboundDraftPage.scss`、`pages/outbound-draft/model.ts`、`api/outbound.ts`、`composables/useOutboundDraftPersistence.ts`：`/outbound` 两步待审批出库工作台；物品选取、FIFO/指定批次、可选库位、版本化本地草稿、离开保护及提交确认均留在前端，不审批或扣减库存。
 - `frontend/src/api/inboundOrders.ts`：入库单分页、状态/日期/关键词查询与详情 DTO，不管理页面状态或审批写入。
 - `frontend/src/pages/InboundOrdersPage.vue`、`InboundOrdersPage.scss`：`/inbound/orders` 入库单服务端分页协议下的尾部哨兵追加、关键词搜索、筛选 Dialog 编排、按需只读详情和审批路由跳转；列表呈现委托给 `InboundOrderList`，新建与审批分别保留在 `/inbound`、`/approvals/inbound`。
 - `frontend/src/api/outboundOrders.ts`、`components/outbound/OutboundOrderFiltersDialog.vue`、`pages/OutboundOrdersPage.vue`：`/outbound/orders` 出库单状态/日期/关键词查询、尾部哨兵追加、物品身份详情与审批路由跳转；新建与审批保留在 `/outbound`、`/approvals/outbound`。
 - `frontend/src/pages/TemplatesPage.vue`、`TemplatesPage.scss`、`pages/templates/model.ts`：`/templates` 真实分类与模板工作区；分别编排三类资源的本地搜索、稳定刷新、三段式列表、权限 CRUD、模板复制、字段顺序、七种字段类型、单位规则和响应式编辑工作区。
 - `frontend/src/pages/EventsPage.vue`、`EventsPage.scss`、`pages/events/`：`/events` 真实审计日志页面；编排路由筛选、哨兵自动追加、稳定刷新、三段式桌面列表、移动日志项目、历史 JSON 差异和未知字段回退。
 - `frontend/src/components/events/`：审计高级筛选和只读详情 Dialog，复用通用表单、Modal、Notice 和原始 JSON 安全展示。
-- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批和替代关系共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
+- `frontend/src/pages/SubstitutesPage.vue`、`SubstitutesPage.scss`、`pages/substitutes/`：`/substitutes` 全局替代关系治理页面；按主物品分组展示已有关系，并从相同全量响应派生确定性星链网络、直接上下游和规模降级视图，提供本地搜索、稳定刷新、权限控制和共享单物品替代编辑 Dialog，不在前端伪造库存状态或孤立物品。
+- `frontend/src/composables/useSubstituteNetworkLayout.ts`：替代关系网络的确定性力导向计算、节点位置会话缓存、拖动固定和停止调度；不请求 API 或直接操作 SVG DOM。
+- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库和审批共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板来源与解析状态、待填项与草稿值派生、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。
@@ -196,6 +199,12 @@
 - `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。
 - `frontend/docs/page-inbound-orders.md`：入库单列表、服务端筛选、按需详情、审批边界和实施验收设计。
 - `frontend/docs/implementation-notes/outbound-estimated-cost.md`：出库草稿提交前基于批次快照的预计成本、FIFO 分摊、界面呈现与验收边界。
+- `frontend/docs/page-outbound-orders.md`：出库单列表、服务端筛选、触底追加、批次/FIFO 语义、详情与审批边界实施设计。
+- `frontend/docs/page-outbound.md`：新建出库两步工作台、批次/FIFO 分配、草稿、提交审核和验收设计。
+- `frontend/docs/page-templates.md`：分类与模板页面的三业务域结构、字段编辑器、权限、危险删除、响应式和验收设计。
+- `frontend/docs/page-substitutes.md`：替代关系页面的全局分组、方向语义、物品 Dialog 复用、整体保存、权限、响应式和验收设计。
+- `frontend/docs/implementation-notes/substitute-network-visualization.md`：替代关系星链网络的节点与有向边语义、力导向布局、编辑回路、响应式、性能边界和分阶段实施方案。
+- `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。
 - `frontend/docs/routes.md`：路由、history 策略和鉴权守卫状态。
 - `frontend/docs/api-client.md`：API 地址、请求行为、错误契约和会话边界。
 - `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。

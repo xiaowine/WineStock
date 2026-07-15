@@ -1,0 +1,144 @@
+/* 本文件拥有全局替代关系编辑 Dialog 的主物品上下文和选择器布局。 */
+@use '../../styles/foundation/mixins' as mixins;
+
+.substitute-editor-dialog {
+  &__context {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 0.4fr);
+    gap: 12px;
+    padding: 9px 12px;
+    border-left: 4px solid var(--color-accent);
+    background: var(--color-surface-raised);
+
+    > div {
+      display: grid;
+      min-width: 0;
+      gap: 2px;
+
+      &:last-child {
+        text-align: right;
+      }
+    }
+
+    span {
+      color: var(--color-subtle);
+      font-size: 10px;
+    }
+
+    strong {
+      overflow: hidden;
+      color: var(--color-text);
+      font-size: 14px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__workspace {
+    min-width: 0;
+  }
+
+  &__reselect {
+    margin: 12px 18px 0;
+  }
+}
+
+.substitute-target-picker {
+  display: grid;
+  min-height: 360px;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+
+  &__state {
+    display: grid;
+    min-height: 230px;
+    place-content: center;
+    justify-items: center;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    text-align: center;
+
+    strong {
+      color: var(--color-text);
+      font-size: 14px;
+    }
+
+    &--error,
+    &--error strong {
+      color: var(--color-danger);
+    }
+  }
+
+  &__results {
+    display: grid;
+    max-height: 390px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+
+    button {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 0;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      text-align: left;
+
+      &:last-child {
+        border-bottom: 0;
+      }
+
+      &:hover {
+        background: var(--color-accent-soft);
+      }
+
+      > span {
+        display: grid;
+        min-width: 0;
+        gap: 3px;
+      }
+
+      strong,
+      small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      small {
+        color: var(--color-muted);
+        font-size: 11px;
+      }
+
+      svg {
+        @include mixins.svg-icon;
+        flex: 0 0 auto;
+      }
+    }
+  }
+}
+
+@include mixins.mobile {
+  .substitute-editor-dialog {
+    &__context {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    &__reselect {
+      margin: 10px 14px 0;
+    }
+  }
+
+  .substitute-target-picker {
+    min-height: 52vh;
+    padding: 14px;
+  }
+}

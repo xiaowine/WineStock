@@ -81,6 +81,8 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 
 `inboundOrders.ts` 负责入库单分页和按需详情读取。列表筛选把关键词、`pending`/`approved`/`rejected` 状态和日期范围提交给 `GET /api/inbound`，不能只筛选当前分页结果。
 
+`outboundOrders.ts` 负责出库单分页和按需详情读取。列表筛选把关键词、`pending`/`approved`/`rejected` 状态和日期范围提交给 `GET /api/outbound`；物品名称、编码、单位和主图文件 ID 必须由该接口批量投影，不能逐行补请求。
+
 请求路径必须以 `/` 开头且作为当前根地址的相对 API 路径处理，调用方不能传入外部绝对 URL，以免 Bearer token 泄漏到其它 host。
 
 ## 错误类型

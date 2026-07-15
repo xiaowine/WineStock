@@ -18,7 +18,12 @@
         <section
           ref="panel"
           class="modal-panel"
-          :class="{ 'modal-panel--wide': wide, 'modal-panel--workspace': workspace, 'modal-panel--compact': compact }"
+          :class="{
+            'modal-panel--wide': wide,
+            'modal-panel--workspace': workspace,
+            'modal-panel--network-workspace': networkWorkspace,
+            'modal-panel--compact': compact,
+          }"
         >
           <header class="modal-header" :class="{ 'modal-header--compact': !description }">
             <div>
@@ -69,6 +74,8 @@ const props = withDefaults(
     busy?: boolean
     wide?: boolean
     workspace?: boolean
+    networkWorkspace?: boolean
+    restoreFocus?: boolean
     compact?: boolean
     nested?: boolean
   }>(),
@@ -77,6 +84,8 @@ const props = withDefaults(
     busy: false,
     wide: false,
     workspace: false,
+    networkWorkspace: false,
+    restoreFocus: true,
     compact: false,
     nested: false,
   },
@@ -91,15 +100,19 @@ const titleId = `${dialogId}-title`
 const descriptionId = `${dialogId}-description`
 const panel = ref<HTMLElement | null>(null)
 let returnFocusElement: HTMLElement | null = null
+let previousBodyOverflow = ''
+let previousDocumentOverflow = ''
 
 watch(
   () => props.open,
   async (open) => {
     if (!open) {
       window.removeEventListener('keydown', handleKeydown)
+      unlockBackgroundScroll()
       return
     }
 
+    lockBackgroundScroll()
     returnFocusElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
     window.addEventListener('keydown', handleKeydown)
     await nextTick()
@@ -111,13 +124,50 @@ watch(
   { immediate: true },
 )
 
-onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  unlockBackgroundScroll()
+})
 
 function handleKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Tab' && isTopmostDialog()) {
+    trapFocus(event)
+    return
+  }
   if (event.key === 'Escape' && isTopmostDialog()) {
     event.preventDefault()
     requestClose()
   }
+}
+
+function trapFocus(event: KeyboardEvent): void {
+  const focusable = Array.from(panel.value?.querySelectorAll<HTMLElement>(
+    'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+  ) ?? []).filter((element) => element.getClientRects().length > 0)
+  if (!focusable.length) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+function lockBackgroundScroll(): void {
+  if (!props.networkWorkspace || document.body.style.overflow === 'hidden') return
+  previousBodyOverflow = document.body.style.overflow
+  previousDocumentOverflow = document.documentElement.style.overflow
+  document.body.style.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
+}
+
+function unlockBackgroundScroll(): void {
+  if (!props.networkWorkspace) return
+  document.body.style.overflow = previousBodyOverflow
+  document.documentElement.style.overflow = previousDocumentOverflow
 }
 
 function isTopmostDialog(): boolean {
@@ -133,7 +183,7 @@ function requestClose(): void {
 
 /** Dialog 完成离场后再把焦点还给触发控件，避免焦点落到仍在动画中的遮罩下方。 */
 function restoreFocus(): void {
-  if (returnFocusElement?.isConnected) returnFocusElement.focus()
+  if (props.restoreFocus && returnFocusElement?.isConnected) returnFocusElement.focus()
   returnFocusElement = null
 }
 </script>

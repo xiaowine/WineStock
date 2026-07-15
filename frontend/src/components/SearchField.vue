@@ -14,6 +14,7 @@
         :maxlength="maxlength"
         :placeholder="placeholder"
         :autocomplete="autocomplete"
+        :autofocus="autofocus"
         :disabled="disabled"
         @input="handleInput"
         @search="commitSearch"
@@ -35,12 +36,14 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   hideLabel?: boolean
   debounceMs?: number
+  autofocus?: boolean
 }>(), {
   maxlength: 128,
   autocomplete: 'off',
   disabled: false,
   hideLabel: false,
   debounceMs: 280,
+  autofocus: false,
 })
 
 const emit = defineEmits<{

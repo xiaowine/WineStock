@@ -65,13 +65,25 @@
     width: min(100%, 920px);
   }
 
+  &--network-workspace {
+    width: min(100%, 1180px);
+    height: min(90vh, 820px);
+    max-height: min(90vh, 820px);
+
+    .modal-body {
+      padding: 0;
+      overflow: hidden;
+    }
+  }
+
   &--compact {
     width: min(100%, 440px);
     max-height: min(76vh, 640px);
   }
 
   &--wide,
-  &--workspace {
+  &--workspace,
+  &--network-workspace {
     .modal-body {
       padding-top: 0;
     }
@@ -148,6 +160,7 @@
 
     &--wide,
     &--workspace,
+    &--network-workspace,
     &--compact {
       width: 100%;
       max-height: calc(92vh - env(safe-area-inset-top));
@@ -159,6 +172,12 @@
 
     &--compact {
       max-height: calc(88vh - env(safe-area-inset-top));
+    }
+
+    &--network-workspace {
+      height: calc(100dvh - env(safe-area-inset-top));
+      max-height: calc(100dvh - env(safe-area-inset-top));
+      border-radius: 0;
     }
   }
 
