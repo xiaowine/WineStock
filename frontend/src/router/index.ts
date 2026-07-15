@@ -43,11 +43,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'outbound',
         name: 'outbound',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '创建待审批出库单，库存扣减仍由审批流程完成。',
-          apiArea: 'POST /api/outbound',
-        },
+        component: () => import('../pages/OutboundDraftPage.vue'),
         meta: getAppRouteMeta('outbound'),
       },
       {

@@ -69,6 +69,10 @@ auth_users
 | `stock.outbound.create`   | 创建出库单                    |
 | `stock.outbound.read`     | 查看出库单列表、详情和出库历史筛选值       |
 | `stock.outbound.approve`  | 审批或拒绝出库单                 |
+
+`stock.outbound.create` 还可读取 `GET /api/items/options` 与
+`GET /api/items/{id}/batches` 的最小候选数据，以完成新建出库选品和指定批次。
+它不授予物品详情、库存总览或物品筛选值读取能力；这些接口仍要求 `stock.item.read`。
 | `stock.substitute.manage` | 整体替换或删除替代料关系             |
 | `stock.substitute.read`   | 查看替代料关系                  |
 | `stock.dashboard.read`    | 查看库存看板总览和趋势              |

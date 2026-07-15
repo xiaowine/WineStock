@@ -195,6 +195,7 @@
 - `frontend/docs/page-templates.md`：分类与模板页面的三业务域结构、字段编辑器、权限、危险删除、响应式和验收设计。
 - `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。
 - `frontend/docs/page-inbound-orders.md`：入库单列表、服务端筛选、按需详情、审批边界和实施验收设计。
+- `frontend/docs/implementation-notes/outbound-estimated-cost.md`：出库草稿提交前基于批次快照的预计成本、FIFO 分摊、界面呈现与验收边界。
 - `frontend/docs/routes.md`：路由、history 策略和鉴权守卫状态。
 - `frontend/docs/api-client.md`：API 地址、请求行为、错误契约和会话边界。
 - `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。

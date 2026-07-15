@@ -33,6 +33,11 @@ const INBOUND_TEMPLATE_READ_PERMISSIONS: &[&str] = &[
     STOCK_INBOUND_CREATE_PERMISSION,
     STOCK_TEMPLATE_READ_PERMISSION,
 ];
+// 新建出库会话只能读取轻量物品与批次候选，不能借此访问物品详情或库存总览。
+const OUTBOUND_DRAFT_ITEM_READ_PERMISSIONS: &[&str] = &[
+    STOCK_ITEM_READ_PERMISSION,
+    STOCK_OUTBOUND_CREATE_PERMISSION,
+];
 
 /// 注册库存业务 HTTP 路由集合。
 pub(crate) fn router(state: CoreState) -> Router<CoreState> {
@@ -96,7 +101,7 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             )
             .route(
                 "/items/options",
-                auth.item_read(get(controller::list_item_options)),
+                auth.outbound_draft_item_read(get(controller::list_item_options)),
             )
             .route(
                 "/items/{id}",
@@ -110,7 +115,7 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             )
             .route(
                 "/items/{id}/batches",
-                auth.item_read(get(controller::list_item_batches)),
+                auth.outbound_draft_item_read(get(controller::list_item_batches)),
             )
             .route(
                 "/location-groups/tree",
@@ -219,6 +224,11 @@ impl StockRouteAuth {
 
     fn item_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
         self.allow(route, STOCK_ITEM_READ_PERMISSION)
+    }
+
+    /// 仅为创建出库单提供选品与批次候选的最小任务读取边界。
+    fn outbound_draft_item_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        route.require_any_permission(self.state.clone(), OUTBOUND_DRAFT_ITEM_READ_PERMISSIONS)
     }
 
     fn template_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
