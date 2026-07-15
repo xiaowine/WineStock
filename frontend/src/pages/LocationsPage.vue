@@ -9,19 +9,6 @@
         <h1>库位管理</h1>
         <p>维护库位分组和入库、库存批次实际使用的存放位置。</p>
       </div>
-      <div class="content-actions">
-        <button
-          class="icon-button locations-page__refresh"
-          :class="{ 'locations-page__refresh--pending': showStableRefreshing }"
-          type="button"
-          title="刷新库位数据"
-          aria-label="刷新库位数据"
-          :disabled="treeLoading || locationsLoading"
-          @click="refreshAll"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M18.2 16a7 7 0 1 1 .8-7l1 3"/></svg>
-        </button>
-      </div>
     </header>
 
     <div class="locations-page__workspace">
@@ -119,18 +106,35 @@
           />
 
           <div class="locations-catalog__commands">
-            <span class="locations-catalog__count">{{ locations.length }} 个库位</span>
-            <span v-if="showStableListRefreshing" class="locations-catalog__refresh-status" role="status">正在刷新</span>
-            <button
-              v-if="canManage"
-              class="primary-button"
-              type="button"
-              :disabled="groupOptions.length === 0"
-              :title="groupOptions.length === 0 ? '请先创建库位分组' : undefined"
-              @click="openCreateLocation"
-            >
-              新建库位
-            </button>
+            <div class="locations-catalog__summary">
+              <span class="locations-catalog__count">{{ locations.length }} 个库位</span>
+              <span v-if="showStableListRefreshing" class="locations-catalog__refresh-status" role="status">正在刷新</span>
+            </div>
+            <div class="locations-catalog__actions">
+              <button
+                class="icon-button locations-catalog__refresh"
+                :class="{ 'locations-catalog__refresh--pending': showStableRefreshing }"
+                type="button"
+                title="刷新库位数据"
+                aria-label="刷新库位数据"
+                :aria-busy="treeLoading || locationsLoading"
+                :disabled="treeLoading || locationsLoading"
+                @click="refreshAll"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M18.2 16a7 7 0 1 1 .8-7l1 3"/></svg>
+              </button>
+              <button
+                v-if="canManage"
+                class="icon-button icon-button--primary locations-catalog__create"
+                type="button"
+                title="新建库位"
+                aria-label="新建库位"
+                :disabled="groupOptions.length === 0"
+                @click="openCreateLocation"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
           </div>
         </div>
 

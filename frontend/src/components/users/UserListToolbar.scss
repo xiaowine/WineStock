@@ -61,13 +61,17 @@
     gap: 8px;
   }
 
-  &__refresh {
+  &__refresh,
+  &__create {
     width: 40px;
     height: 40px;
 
     svg {
       @include mixins.svg-icon;
     }
+  }
+
+  &__refresh {
 
     &--pending,
     &--pending:hover {

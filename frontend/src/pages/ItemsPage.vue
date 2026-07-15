@@ -54,7 +54,7 @@
               <button v-if="canManageTemplates" class="icon-button" type="button" title="设置列表展示" aria-label="设置列表展示" :disabled="!templates.length" @click="catalogAttributeDialogOpen = true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5"/><circle cx="16" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="13" cy="18" r="2"/></svg>
               </button>
-              <button v-if="canManageItems" class="icon-button" type="button" title="新建物品" aria-label="新建物品" @click="requestStartNew">
+              <button v-if="canManageItems" class="icon-button icon-button--primary" type="button" title="新建物品" aria-label="新建物品" @click="requestStartNew">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               </button>
             </div>

@@ -57,8 +57,15 @@
           </svg>
         </button>
         <span v-if="refreshing" class="visually-hidden" role="status">正在刷新用户列表</span>
-        <button v-if="canRegister" class="primary-button" type="button" @click="emit('create')">
-          创建用户
+        <button
+          v-if="canRegister"
+          class="icon-button icon-button--primary user-list-toolbar__create"
+          type="button"
+          title="创建用户"
+          aria-label="创建用户"
+          @click="emit('create')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         </button>
       </div>
     </div>

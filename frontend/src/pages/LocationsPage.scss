@@ -17,23 +17,6 @@
     }
   }
 
-  &__refresh {
-    svg {
-      @include mixins.svg-icon;
-    }
-
-    &--pending,
-    &--pending:hover {
-      border-color: rgb(111 42 54 / 24%);
-      background: var(--color-accent-soft);
-      color: var(--color-accent);
-    }
-
-    &--pending svg {
-      animation: locations-refresh-spin 900ms linear infinite;
-    }
-  }
-
   &__workspace {
     display: grid;
     min-width: 0;
@@ -200,7 +183,21 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    gap: 10px;
+  }
+
+  &__summary,
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  &__summary {
     gap: 8px;
+  }
+
+  &__actions {
+    gap: 6px;
   }
 
   &__count,
@@ -212,6 +209,31 @@
 
   &__refresh-status {
     color: var(--color-accent);
+  }
+
+  &__refresh {
+    flex: 0 0 auto;
+
+    svg {
+      @include mixins.svg-icon;
+    }
+
+    &--pending,
+    &--pending:hover {
+      border-color: rgb(111 42 54 / 24%);
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+    }
+
+    &--pending svg {
+      animation: locations-refresh-spin 900ms linear infinite;
+    }
+  }
+
+  &__create {
+    svg {
+      @include mixins.svg-icon;
+    }
   }
 
   &__body {
