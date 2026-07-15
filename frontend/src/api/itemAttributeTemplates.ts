@@ -35,7 +35,7 @@ export interface ItemAttributeTemplateResponse {
 
 /** 更新物品属性模板时整体提交的字段定义。 */
 export interface ItemAttributeTemplateFieldRequest {
-  definition_id: number
+  definition_id: number | null
   field_name: string
   field_type: TemplateFieldResponse['field_type']
   default_value: string | null
@@ -46,9 +46,24 @@ export interface ItemAttributeTemplateFieldRequest {
   unit: ItemAttributeUnitRule
 }
 
-/** 物品属性模板更新请求；字段数组存在时由服务端整体替换。 */
-export interface ItemAttributeTemplateUpdateRequest {
+/** 物品属性模板创建与整体保存请求。 */
+export interface ItemAttributeTemplateWriteRequest {
+  name: string
+  description: string | null
+  default_inbound_template_id: number | null
   fields: ItemAttributeTemplateFieldRequest[]
+}
+
+/** 更新接口允许只提交发生变化的部分；字段存在时仍按完整数组替换。 */
+export interface ItemAttributeTemplateUpdateRequest {
+  name?: string
+  description?: string | null
+  default_inbound_template_id?: number | null
+  fields?: ItemAttributeTemplateFieldRequest[]
+}
+
+export interface TemplateCopyRequest {
+  name: string
 }
 
 export function listItemAttributeTemplates(signal?: AbortSignal) {
@@ -59,10 +74,28 @@ export function getItemAttributeTemplate(id: number, signal?: AbortSignal) {
   return apiClient.request<ItemAttributeTemplateResponse>(`/api/item-attribute-templates/${id}`, { signal })
 }
 
-/** 更新物品属性模板字段配置。 */
+export function createItemAttributeTemplate(request: ItemAttributeTemplateWriteRequest) {
+  return apiClient.request<ItemAttributeTemplateResponse>('/api/item-attribute-templates', {
+    method: 'POST',
+    json: request,
+  })
+}
+
+/** 更新物品属性模板基础信息和完整字段配置。 */
 export function updateItemAttributeTemplate(id: number, request: ItemAttributeTemplateUpdateRequest) {
   return apiClient.request<ItemAttributeTemplateResponse>(`/api/item-attribute-templates/${id}`, {
     method: 'PUT',
     json: request,
   })
+}
+
+export function copyItemAttributeTemplate(id: number, request: TemplateCopyRequest) {
+  return apiClient.request<ItemAttributeTemplateResponse>(`/api/item-attribute-templates/${id}/copy`, {
+    method: 'POST',
+    json: request,
+  })
+}
+
+export function deleteItemAttributeTemplate(id: number) {
+  return apiClient.request<void>(`/api/item-attribute-templates/${id}`, { method: 'DELETE' })
 }

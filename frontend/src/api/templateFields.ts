@@ -11,3 +11,12 @@ export interface TemplateFieldResponse {
   searchable: boolean
   sort_order: number
 }
+
+export interface TemplateFieldRequest {
+  field_name: string
+  field_type: TemplateFieldType
+  default_value: string | null
+  options: string[] | null
+  required: boolean
+  searchable: boolean
+}

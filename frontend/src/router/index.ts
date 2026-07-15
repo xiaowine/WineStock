@@ -93,11 +93,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'templates',
         name: 'templates',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '维护物品分类、物品属性模板和入库模板。',
-          apiArea: '/api/item-categories、/api/item-attribute-templates、/api/inbound-templates',
-        },
+        component: () => import('../pages/TemplatesPage.vue'),
         meta: getAppRouteMeta('templates'),
       },
       {
