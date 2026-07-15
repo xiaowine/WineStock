@@ -1,6 +1,6 @@
 // 本文件拥有可跨业务页面复用的物品新建会话，负责元数据、草稿、上传、保存与临时文件清理；它不决定编辑器呈现方式。
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { createItem, getItem, itemOptionFromEditor, type ItemOptionResponse } from '../../api/items'
+import { createItem, listItemOptions, type ItemOptionResponse } from '../../api/items'
 import { listItemCategories, type ItemCategoryResponse } from '../../api/itemCategories'
 import { listItemAttributeTemplates, type ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
 import { ApiError } from '../../api/errors'
@@ -74,7 +74,9 @@ export function useItemCreateSession() {
         ...draft.value.attributes.map((attribute) => attribute.value).filter(isImageDraftValue),
       ])
       const result = await createItem(itemCreateRequest(draft.value))
-      const created = itemOptionFromEditor(await getItem(result.id))
+      const options = await listItemOptions(draft.value.sku, 1, 20)
+      const created = options.items.find((item) => item.id === result.id)
+      if (!created) throw new Error('新建物品未出现在业务选择器中')
       draft.value.attributes.forEach((attribute) => { attribute.fileTemporary = false })
       draft.value.imageTemporary = false
       saved = true

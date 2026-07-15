@@ -5,7 +5,8 @@ import { createLineId, type AttributeValue, type FileDraftValue, type InboundDra
 import { clearInboundDraftImages, readInboundDraftImage, replaceInboundDraftImages } from '../storage/inboundDraftImageStore'
 import { createPendingImageDraft } from '../components/attributes/imageDraft'
 
-const storageKey = 'winestock.inbound-draft.v4'
+const storageKey = 'winestock.inbound-draft.v5'
+const legacyStorageKey = 'winestock.inbound-draft.v4'
 const obsoleteStorageKey = 'winestock.inbound-draft.v3'
 
 interface PersistedFileValue {
@@ -18,7 +19,7 @@ interface PersistedFileValue {
 }
 
 interface PersistedDraft {
-  version: 4
+  version: 4 | 5
   source: string
   notes: string
   notesOpen: boolean
@@ -32,6 +33,8 @@ interface PersistedDraft {
     expiresAt: string
     extAttributes: Record<string, string | number | boolean | PersistedFileValue>
     templateId: number | null
+    recommendedTemplateId?: number | null
+    templateSource?: InboundDraftLine['templateSource']
   }>
 }
 
@@ -53,16 +56,17 @@ export function useInboundDraftPersistence(
   function remove(): void {
     window.clearTimeout(imageSaveTimer)
     localStorage.removeItem(storageKey)
+    localStorage.removeItem(legacyStorageKey)
     void clearInboundDraftImages()
   }
 
   async function restore(): Promise<boolean> {
     localStorage.removeItem(obsoleteStorageKey)
-    const raw = localStorage.getItem(storageKey)
+    const raw = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey)
     if (!raw) return false
     try {
       const draft = JSON.parse(raw) as PersistedDraft
-      if (draft.version !== 4 || !Array.isArray(draft.lines)) throw new Error('invalid draft')
+      if (![4, 5].includes(draft.version) || !Array.isArray(draft.lines)) throw new Error('invalid draft')
       source.value = typeof draft.source === 'string' ? draft.source : ''
       notes.value = typeof draft.notes === 'string' ? draft.notes : ''
       notesOpen.value = Boolean(draft.notesOpen || notes.value)
@@ -70,7 +74,12 @@ export function useInboundDraftPersistence(
         lineId: line.lineId || createLineId(), item: line.item, quantity: line.quantity,
         unitPrice: line.unitPrice, locationId: line.locationId, batchNo: line.batchNo || '',
         expiresAt: line.expiresAt || '', extAttributes: await restoreAttributes(line.lineId, line.extAttributes),
-        template: null, templateLoading: false, templateId: line.templateId, templateError: '',
+        template: null,
+        templateId: line.templateId,
+        recommendedTemplateId: line.recommendedTemplateId ?? line.item.recommended_inbound_template_id ?? null,
+        templateSource: line.templateSource ?? (line.templateId === null ? 'none' : 'manual'),
+        templateState: line.templateId === null ? 'idle' : 'resolving',
+        templateError: '',
       })))
       return true
     } catch {
@@ -84,14 +93,20 @@ export function useInboundDraftPersistence(
     if (!hasDraft.value) { remove(); return }
     const localImages = new Map<string, File>()
     const draft: PersistedDraft = {
-      version: 4, source: source.value, notes: notes.value, notesOpen: notesOpen.value,
+      version: 5, source: source.value, notes: notes.value, notesOpen: notesOpen.value,
       lines: lines.value.map((line) => ({
         lineId: line.lineId, item: line.item, quantity: line.quantity, unitPrice: line.unitPrice,
         locationId: line.locationId, batchNo: line.batchNo, expiresAt: line.expiresAt,
-        extAttributes: persistAttributes(line.lineId, line.extAttributes, localImages), templateId: line.templateId,
+        extAttributes: persistAttributes(line.lineId, line.extAttributes, localImages),
+        templateId: line.templateId,
+        recommendedTemplateId: line.recommendedTemplateId,
+        templateSource: line.templateSource,
       })),
     }
-    try { localStorage.setItem(storageKey, JSON.stringify(draft)) } catch { /* 配额失败不阻断当前录入。 */ }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(draft))
+      localStorage.removeItem(legacyStorageKey)
+    } catch { /* 配额失败不阻断当前录入。 */ }
     window.clearTimeout(imageSaveTimer)
     imageSaveTimer = window.setTimeout(() => {
       void replaceInboundDraftImages(localImages).catch(() => undefined)

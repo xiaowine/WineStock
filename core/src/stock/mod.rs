@@ -29,6 +29,10 @@ pub(crate) use permissions::{
 };
 
 const STOCK_BASE_PATH: &str = "/api";
+const INBOUND_TEMPLATE_READ_PERMISSIONS: &[&str] = &[
+    STOCK_INBOUND_CREATE_PERMISSION,
+    STOCK_TEMPLATE_READ_PERMISSION,
+];
 
 /// 注册库存业务 HTTP 路由集合。
 pub(crate) fn router(state: CoreState) -> Router<CoreState> {
@@ -69,11 +73,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             .route(
                 "/inbound-templates",
                 auth.template_manage(post(controller::create_inbound_template))
-                    .merge(auth.template_read(get(controller::list_inbound_templates))),
+                    .merge(auth.inbound_template_read(get(controller::list_inbound_templates))),
             )
             .route(
                 "/inbound-templates/{id}",
-                auth.template_read(get(controller::get_inbound_template))
+                auth.inbound_template_read(get(controller::get_inbound_template))
                     .merge(auth.template_manage(put(controller::update_inbound_template)))
                     .merge(auth.template_manage(delete(controller::delete_inbound_template))),
             )
@@ -219,6 +223,10 @@ impl StockRouteAuth {
 
     fn template_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
         self.allow(route, STOCK_TEMPLATE_READ_PERMISSION)
+    }
+
+    fn inbound_template_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
+        route.require_any_permission(self.state.clone(), INBOUND_TEMPLATE_READ_PERMISSIONS)
     }
 
     fn inbound_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {

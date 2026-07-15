@@ -440,6 +440,10 @@ pub(crate) struct ItemOptionResponse {
     pub category_name: Option<String>,
     /// 物品属性模板 ID。
     pub attribute_template_id: Option<i64>,
+    /// 物品属性模板推荐的入库模板 ID；模板失效时仍返回原始 ID。
+    pub recommended_inbound_template_id: Option<i64>,
+    /// 推荐入库模板当前是否可供入库使用。
+    pub recommended_inbound_template_available: bool,
     /// 主图文件 ID。
     pub image_file_id: i64,
     /// 主图受控读取地址。

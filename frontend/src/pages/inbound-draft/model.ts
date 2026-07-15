@@ -6,6 +6,8 @@ import type { ItemOptionResponse } from '../../api/items'
 import { isImageDraftValue, releaseImageDraft, type ImageDraftValue } from '../../components/attributes/imageDraft'
 
 export type FileDraftValue = ImageDraftValue
+export type InboundTemplateSource = 'none' | 'recommended' | 'manual'
+export type InboundTemplateState = 'idle' | 'resolving' | 'ready' | 'unresolved' | 'error'
 
 /** 单个模板字段的草稿值。 */
 export type AttributeValue = string | number | boolean | FileDraftValue | undefined
@@ -21,17 +23,25 @@ export interface InboundDraftLine {
   expiresAt: string
   extAttributes: Record<string, AttributeValue>
   template: InboundTemplateResponse | null
-  templateLoading: boolean
   templateId: number | null
+  recommendedTemplateId: number | null
+  templateSource: InboundTemplateSource
+  templateState: InboundTemplateState
   templateError: string
 }
 
 /** 从真实物品创建一条互相独立的入库明细。 */
 export function createDraftLine(item: ItemOptionResponse): InboundDraftLine {
+  const recommendedTemplateId = item.recommended_inbound_template_id
+  const recommendedAvailable = item.recommended_inbound_template_available
   return {
     lineId: createLineId(), item, quantity: 1, unitPrice: 0,
     locationId: null, batchNo: '', expiresAt: '', extAttributes: {}, template: null,
-    templateLoading: false, templateId: null, templateError: '',
+    templateId: recommendedTemplateId,
+    recommendedTemplateId,
+    templateSource: recommendedTemplateId === null ? 'none' : 'recommended',
+    templateState: recommendedTemplateId === null ? 'idle' : recommendedAvailable ? 'resolving' : 'unresolved',
+    templateError: recommendedTemplateId !== null && !recommendedAvailable ? '推荐入库模板已删除，请重新选择' : '',
   }
 }
 
@@ -66,8 +76,19 @@ export function templateFieldError(line: InboundDraftLine, field: TemplateFieldR
 
 export function lineReady(line: InboundDraftLine): boolean {
   return validQuantity(line.quantity) && validUnitPrice(line.unitPrice) && line.locationId !== null &&
-    !line.templateLoading && !line.templateError &&
+    !['resolving', 'unresolved', 'error'].includes(line.templateState) &&
     (line.template?.fields.every((field) => templateFieldError(line, field) === null) ?? true)
+}
+
+export function incompleteTemplateFieldCount(line: InboundDraftLine): number {
+  return line.template?.fields.filter((field) => templateFieldError(line, field) !== null).length ?? 0
+}
+
+export function hasTemplateDraftValues(line: InboundDraftLine): boolean {
+  return Object.values(line.extAttributes).some((value) => {
+    if (value === undefined || value === null || value === '') return false
+    return typeof value !== 'string' || value.trim().length > 0
+  })
 }
 
 /** 把页面草稿转换为稳定入库创建契约，file 字段只发送 file_id。 */

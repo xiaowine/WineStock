@@ -273,6 +273,20 @@ async fn inbound_validates_template_attributes_and_permissions() {
     let staff_token =
         seed_user_with_permissions_and_login(&app, "inbound-staff", &["stock.inbound.create"])
             .await;
+    let readable_templates =
+        authorized_empty_request(&app, "GET", "/api/inbound-templates", &staff_token).await;
+    assert_eq!(readable_templates.status(), StatusCode::OK);
+    let readable_template = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/inbound-templates/{template_id}"),
+        &staff_token,
+    )
+    .await;
+    assert_eq!(readable_template.status(), StatusCode::OK);
+    let forbidden_item_templates =
+        authorized_empty_request(&app, "GET", "/api/item-attribute-templates", &staff_token).await;
+    assert_eq!(forbidden_item_templates.status(), StatusCode::FORBIDDEN);
     let created_by_staff = authorized_json_request(
         &app,
         "POST",

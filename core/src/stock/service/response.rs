@@ -137,6 +137,8 @@ pub(super) fn item_option_response(record: ItemOptionRecord) -> controller::Item
         category_id: record.category_id,
         category_name: record.category_name,
         attribute_template_id: record.attribute_template_id,
+        recommended_inbound_template_id: record.recommended_inbound_template_id,
+        recommended_inbound_template_available: record.recommended_inbound_template_available,
         image_file_id: record.image_file_id,
         image_url: format!("/api/files/{}", record.image_file_id),
         unit: record.unit,

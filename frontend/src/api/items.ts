@@ -132,6 +132,8 @@ export interface ItemOptionResponse {
   category_id: number | null
   category_name: string | null
   attribute_template_id: number | null
+  recommended_inbound_template_id: number | null
+  recommended_inbound_template_available: boolean
   image_file_id: number
   image_url: string
   unit: string
@@ -304,19 +306,4 @@ export function listItemBatches(id: number, page: number, pageSize = 20, signal?
     query: { page, page_size: pageSize },
     signal,
   })
-}
-
-/** 把编辑器资料收敛为业务选择器允许持有的轻量快照。 */
-export function itemOptionFromEditor(item: ItemEditorResponse): ItemOptionResponse {
-  return {
-    id: item.id,
-    name: item.name,
-    sku: item.sku,
-    category_id: item.category_id,
-    category_name: null,
-    attribute_template_id: item.attribute_template_id,
-    image_file_id: item.image_file_id,
-    image_url: item.image_url,
-    unit: item.unit,
-  }
 }

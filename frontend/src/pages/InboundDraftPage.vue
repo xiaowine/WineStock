@@ -61,6 +61,8 @@
           :lines="draftItems"
           :locations="locations"
           :location-error="locationError"
+          :template-options-loading="templateOptionsLoading"
+          :template-options-error="templateOptionsError"
           :source="source"
           :notes="notes"
           :notes-open="notesOpen"
@@ -72,6 +74,7 @@
           @update:notes-open="notesOpen = $event"
           @continue-adding="continueAddingItems"
           @retry-locations="loadLocationOptions"
+          @retry-templates="loadInboundTemplateOptions"
           @select-line="selectLine"
           @remove-line="removeLine"
         >
@@ -81,16 +84,37 @@
               <InboundLineEditor
                 :line="selectedLine"
                 :templates="inboundTemplates"
+                :templates-loading="templateOptionsLoading"
+                :templates-error="templateOptionsError"
                 :validation-attempted="validationAttempted"
                 @close="closeLineEditor"
                 @select-template="selectInboundTemplate"
                 @retry-template="retryLineTemplate"
+                @retry-templates="loadInboundTemplateOptions"
               />
             </div>
           </Transition>
         </InboundDraftStep>
       </Transition>
     </div>
+
+    <ModalDialog
+      :open="pendingTemplateChange !== null"
+      title="更换入库模板？"
+      description="当前已填写的模板属性和已选择图片会被清除。"
+      :busy="templateChangeSubmitting"
+      compact
+      nested
+      @close="cancelTemplateChange"
+    >
+      <p>确认后将清空当前明细的模板属性，再应用新的入库模板。</p>
+      <template #actions>
+        <button class="secondary-button" type="button" :disabled="templateChangeSubmitting" @click="cancelTemplateChange">继续编辑</button>
+        <button class="danger-button" type="button" :disabled="templateChangeSubmitting" @click="confirmTemplateChange">
+          {{ templateChangeSubmitting ? '正在更换…' : '清空并更换' }}
+        </button>
+      </template>
+    </ModalDialog>
 
     <ItemCreateDialog
       :open="itemCreateOpen"
@@ -149,7 +173,6 @@ import ItemCreateDialog from '../components/items/ItemCreateDialog.vue'
 import {
   createInbound, listLocations, type InboundSubmissionMode, type LocationResponse,
 } from '../api/inbound'
-import { getItemAttributeTemplate, type ItemAttributeTemplateResponse } from '../api/itemAttributeTemplates'
 import { getInboundTemplate, listInboundTemplates, type InboundTemplateResponse } from '../api/inboundTemplates'
 import type { ItemOptionResponse } from '../api/items'
 import { deleteImage } from '../api/files'
@@ -161,8 +184,8 @@ import { authSession } from '../auth/session'
 import { hasPermission, stockPermissions } from '../auth/permissions'
 import { isImageDraftValue, uploadImageDrafts } from '../components/attributes/imageDraft'
 import {
-  buildInboundRequest, createDraftLine, lineReady, lineSubtotal, positiveNumber,
-  revokeLinePreviews, templateFieldError, validQuantity, validUnitPrice,
+  buildInboundRequest, createDraftLine, hasTemplateDraftValues, lineReady, lineSubtotal,
+  positiveNumber, revokeLinePreviews, templateFieldError, validQuantity, validUnitPrice,
   type FileDraftValue, type InboundDraftLine,
 } from './inbound-draft/model'
 import {
@@ -180,6 +203,8 @@ const draftItems = ref<InboundDraftLine[]>([])
 const locations = ref<LocationResponse[]>([])
 const inboundTemplates = ref<InboundTemplateResponse[]>([])
 const locationError = ref('')
+const templateOptionsLoading = ref(false)
+const templateOptionsError = ref('')
 const source = ref('')
 const notes = ref('')
 const notesOpen = ref(false)
@@ -190,12 +215,15 @@ const confirmationMode = ref<ConfirmationMode>(null)
 const clearingDraft = ref(false)
 const submissionConfirmationMode = ref<InboundSubmissionMode | null>(null)
 const itemCreateOpen = ref(false)
+const pendingTemplateChange = ref<{ lineId: string; templateId: number | null } | null>(null)
+const templateChangeSubmitting = ref(false)
 let locationAbortController: AbortController | null = null
+let templateOptionsAbortController: AbortController | null = null
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
 let pendingStepTransition: { step: InboundDraftStepName; resolve: () => void } | null = null
 const templateAbortControllers = new Map<string, AbortController>()
+const templateRequestVersions = new Map<string, number>()
 const templateCache = new Map<number, InboundTemplateResponse>()
-const itemTemplateCache = new Map<number, ItemAttributeTemplateResponse>()
 
 const {
   items, searchInput, loadingItems, itemError, itemList, itemsExhausted,
@@ -235,7 +263,9 @@ onMounted(async () => {
   // 恢复历史草稿只恢复数据，不主动进入任一明细的详情编辑模式。
   selectedLineId.value = null
   currentStep.value = draftItems.value.length > 0 ? readSessionStep() : 'catalog'
-  draftItems.value.forEach((line) => { if (line.templateId) void loadLineTemplate(line, line.templateId) })
+  draftItems.value.forEach((line) => {
+    if (line.templateId) void loadLineTemplate(line, line.templateId, nextTemplateRequestVersion(line))
+  })
   if (restored && sessionStorage.getItem(restoredNoticeSessionKey) !== 'shown') {
     sessionStorage.setItem(restoredNoticeSessionKey, 'shown')
     notice.info('已恢复上次未提交的入库草稿')
@@ -273,6 +303,7 @@ onBeforeUnmount(() => {
   pendingStepTransition?.resolve()
   pendingStepTransition = null
   locationAbortController?.abort()
+  templateOptionsAbortController?.abort()
   templateAbortControllers.forEach((controller) => controller.abort())
   draftItems.value.forEach(revokeLinePreviews)
   window.removeEventListener('keydown', handlePageKeydown)
@@ -324,60 +355,90 @@ async function handleItemCreated(item: ItemOptionResponse): Promise<void> {
 }
 
 async function loadInboundTemplateOptions(): Promise<void> {
+  templateOptionsAbortController?.abort()
+  const controller = new AbortController()
+  templateOptionsAbortController = controller
+  templateOptionsLoading.value = true
+  templateOptionsError.value = ''
   try {
-    inboundTemplates.value = await listInboundTemplates()
+    inboundTemplates.value = await listInboundTemplates(controller.signal)
+    markRemovedSelectedTemplates()
   } catch (error) {
-    notice.error('加载入库模板失败', { detail: itemErrorMessage(error) })
+    if (isAbortError(error)) return
+    templateOptionsError.value = error instanceof ApiError && error.status === 403
+      ? '当前账号没有读取入库模板的权限'
+      : itemErrorMessage(error, '入库模板加载失败')
+    notice.error('加载入库模板失败', { detail: templateOptionsError.value })
+  } finally {
+    if (templateOptionsAbortController === controller) {
+      templateOptionsAbortController = null
+      templateOptionsLoading.value = false
+    }
+  }
+}
+
+/** 活动候选刷新后，已选但不再返回的模板视为失效，保留 ID 供用户处理。 */
+function markRemovedSelectedTemplates(): void {
+  const activeTemplateIds = new Set(inboundTemplates.value.map((template) => template.id))
+  for (const line of draftItems.value) {
+    if (line.templateId === null || activeTemplateIds.has(line.templateId)) continue
+    nextTemplateRequestVersion(line)
+    templateAbortControllers.get(line.lineId)?.abort()
+    templateCache.delete(line.templateId)
+    line.template = null
+    line.templateState = 'unresolved'
+    line.templateError = line.templateSource === 'recommended'
+      ? '推荐入库模板已删除，请重新选择'
+      : '所选入库模板已删除，请重新选择'
   }
 }
 
 async function loadDefaultInboundTemplate(line: InboundDraftLine): Promise<void> {
-  const itemTemplateId = line.item.attribute_template_id
-  if (!itemTemplateId) return
-  try {
-    let itemTemplate = itemTemplateCache.get(itemTemplateId)
-    if (!itemTemplate) {
-      itemTemplate = await getItemAttributeTemplate(itemTemplateId)
-      itemTemplateCache.set(itemTemplateId, itemTemplate)
-    }
-    const defaultId = itemTemplate.default_inbound_template_id
-    if (defaultId) {
-      line.templateId = defaultId
-      await loadLineTemplate(line, defaultId)
-    }
-  } catch (error) {
-    line.templateError = itemErrorMessage(error, `无法加载 ${line.item.name} 的推荐入库模板`)
-  }
+  const templateId = line.recommendedTemplateId
+  if (templateId === null || line.templateState === 'unresolved') return
+  line.templateSource = 'recommended'
+  line.templateState = 'resolving'
+  await loadLineTemplate(line, templateId, nextTemplateRequestVersion(line))
 }
 
-async function loadLineTemplate(line: InboundDraftLine, templateId: number): Promise<void> {
+async function loadLineTemplate(line: InboundDraftLine, templateId: number, requestVersion: number): Promise<void> {
   const cached = templateCache.get(templateId)
-  if (cached) { applyTemplate(line, cached); return }
+  if (cached) {
+    if (templateRequestVersions.get(line.lineId) === requestVersion && line.templateId === templateId) applyTemplate(line, cached)
+    return
+  }
   templateAbortControllers.get(line.lineId)?.abort()
   const controller = new AbortController()
   templateAbortControllers.set(line.lineId, controller)
-  line.templateLoading = true
+  line.templateState = 'resolving'
   line.templateError = ''
   try {
     const template = await getInboundTemplate(templateId, controller.signal)
+    if (templateRequestVersions.get(line.lineId) !== requestVersion || line.templateId !== templateId) return
     templateCache.set(templateId, template)
     applyTemplate(line, template)
   } catch (error) {
-    if (!isAbortError(error)) line.templateError = itemErrorMessage(error, `无法加载 ${line.item.name} 的模板`)
+    if (!isAbortError(error) && templateRequestVersions.get(line.lineId) === requestVersion) {
+      line.templateState = error instanceof ApiError && error.status === 404 ? 'unresolved' : 'error'
+      line.templateError = error instanceof ApiError && error.status === 404
+        ? '所选入库模板已删除，请重新选择'
+        : itemErrorMessage(error, `无法加载 ${line.item.name} 的模板`)
+    }
   } finally {
     if (templateAbortControllers.get(line.lineId) === controller) {
       templateAbortControllers.delete(line.lineId)
-      line.templateLoading = false
     }
   }
 }
 
 function retryLineTemplate(line: InboundDraftLine): void {
-  if (line.templateId !== null) void loadLineTemplate(line, line.templateId)
+  if (line.templateId !== null) void loadLineTemplate(line, line.templateId, nextTemplateRequestVersion(line))
 }
 
 function applyTemplate(line: InboundDraftLine, template: InboundTemplateResponse): void {
   line.template = template
+  line.templateState = 'ready'
+  line.templateError = ''
   for (const field of template.fields) {
     if (field.default_value !== null && line.extAttributes[field.field_name] === undefined && field.field_type !== 'file') {
       line.extAttributes[field.field_name] = field.field_type === 'number'
@@ -390,12 +451,49 @@ function applyTemplate(line: InboundDraftLine, template: InboundTemplateResponse
 async function selectInboundTemplate(templateId: number | null): Promise<void> {
   const line = selectedLine.value
   if (!line) return
+  if (line.templateId === templateId) return
+  if (hasTemplateDraftValues(line)) {
+    pendingTemplateChange.value = { lineId: line.lineId, templateId }
+    return
+  }
+  await applyTemplateSelection(line, templateId)
+}
+
+async function applyTemplateSelection(line: InboundDraftLine, templateId: number | null): Promise<void> {
+  nextTemplateRequestVersion(line)
+  templateAbortControllers.get(line.lineId)?.abort()
   await deleteLineUploads(line)
   line.templateId = templateId
+  line.templateSource = templateId === null ? 'none' : 'manual'
   line.template = null
   line.templateError = ''
   line.extAttributes = {}
-  if (templateId) void loadLineTemplate(line, templateId)
+  line.templateState = templateId === null ? 'idle' : 'resolving'
+  if (templateId) void loadLineTemplate(line, templateId, templateRequestVersions.get(line.lineId) ?? 0)
+}
+
+async function confirmTemplateChange(): Promise<void> {
+  const pending = pendingTemplateChange.value
+  if (!pending || templateChangeSubmitting.value) return
+  const line = draftItems.value.find((candidate) => candidate.lineId === pending.lineId)
+  if (!line) { pendingTemplateChange.value = null; return }
+  templateChangeSubmitting.value = true
+  try {
+    await applyTemplateSelection(line, pending.templateId)
+    pendingTemplateChange.value = null
+  } finally {
+    templateChangeSubmitting.value = false
+  }
+}
+
+function cancelTemplateChange(): void {
+  if (!templateChangeSubmitting.value) pendingTemplateChange.value = null
+}
+
+function nextTemplateRequestVersion(line: InboundDraftLine): number {
+  const version = (templateRequestVersions.get(line.lineId) ?? 0) + 1
+  templateRequestVersions.set(line.lineId, version)
+  return version
 }
 
 function removeLine(lineId: string): void {
@@ -403,6 +501,7 @@ function removeLine(lineId: string): void {
   if (!line) return
   templateAbortControllers.get(lineId)?.abort()
   templateAbortControllers.delete(lineId)
+  templateRequestVersions.delete(lineId)
   void deleteLineUploads(line)
   revokeLinePreviews(line)
   draftItems.value = draftItems.value.filter((candidate) => candidate.lineId !== lineId)
@@ -544,6 +643,8 @@ async function confirmCurrentAction(): Promise<void> {
 function clearLocalDraftState(): void {
   templateAbortControllers.forEach((controller) => controller.abort())
   templateAbortControllers.clear()
+  templateRequestVersions.clear()
+  pendingTemplateChange.value = null
   draftItems.value.forEach(revokeLinePreviews)
   source.value = ''
   notes.value = ''
@@ -579,7 +680,7 @@ async function focusFirstError(): Promise<void> {
     if (!validQuantity(line.quantity)) return focusLineControl(line, 'quantity')
     if (!validUnitPrice(line.unitPrice)) return focusLineControl(line, 'unitPrice')
     if (line.locationId === null) return focusLineControl(line, 'locationId')
-    if (line.templateLoading || line.templateError) return focusLineTemplate(line)
+    if (line.templateState === 'resolving' || line.templateError) return focusLineTemplate(line)
     const field = line.template?.fields.find((candidate) => templateFieldError(line, candidate) !== null)
     if (field) return focusLineTemplate(line, field.field_name)
   }

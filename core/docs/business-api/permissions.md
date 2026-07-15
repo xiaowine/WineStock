@@ -25,3 +25,9 @@
 
 权限分配由用户管理接口直接写入用户权限关系。
 首个用户获得全部内置权限；后续用户默认无权限，需要由拥有 `user.permissions.update` 的用户显式分配。
+
+## 入库任务内的模板读取例外
+
+入库模板的两个读取接口 `GET /api/inbound-templates` 与 `GET /api/inbound-templates/{id}` 允许 `stock.inbound.create` 或 `stock.template.read` 中任一权限。
+
+这样只拥有 `stock.inbound.create` 的用户可以在入库时读取并填写活动入库模板，但仍不能读取物品分类、物品属性模板列表，也不能创建或修改任何模板结构。入库模板的写接口继续要求 `stock.template.manage`。

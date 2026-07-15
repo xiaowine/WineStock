@@ -345,6 +345,10 @@ pub(crate) struct ItemOptionRecord {
     pub category_name: Option<String>,
     /// 物品属性模板 ID，用于选择推荐入库模板。
     pub attribute_template_id: Option<i64>,
+    /// 物品属性模板配置的推荐入库模板 ID；即使模板已软删除也保留原始 ID。
+    pub recommended_inbound_template_id: Option<i64>,
+    /// 推荐入库模板当前是否仍为活动模板。
+    pub recommended_inbound_template_available: bool,
     /// 主图文件 ID。
     pub image_file_id: i64,
     /// 计量单位。

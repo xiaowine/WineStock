@@ -38,9 +38,9 @@
 - `frontend/src/components/forms/DateTimeField.vue`、`DateTimeField.scss`：项目通用日期时间字段，复用嵌套 `ModalDialog` 提供日历和时分秒选择，不依赖浏览器原生日期弹层。
 - `frontend/src/components/forms/`：通用 `FormField`、`FormInput`、`FormSelect` 和 `FormTextarea` 字段组件；`FormSelect` 组合 `SelectControl`，统一标题、必填标记、提示、红框错误状态和不占布局的无障碍错误说明，不包含业务校验规则。
 - `frontend/src/composables/useFormValidation.ts`：为当前表单组件子树注册字段位置、清理单字段错误并自动滚动聚焦首个错误；校验结果仍由页面、会话或业务模型产生。
-- `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的明细抽屉，编辑批次、有效期、入库模板和本次收货属性，并在移动端切换为全屏编辑面板。
+- `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的“批次与入库属性”明细抽屉，编辑批次、有效期、入库模板和本次收货属性；说明入库模板职责、呈现候选加载错误与重试、标记失效模板选项，并在移动端切换为全屏编辑面板。
 - `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
-- `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库流程的第二步，编辑来源、备注、数量、价格和分组库位，并展示逐行完整性状态。
+- `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库流程的第二步，编辑来源、备注、数量、价格和分组库位，并在主列表展示逐行完整性和入库模板摘要（推荐、待填项数、已完成、失效和候选加载错误），状态可点击打开对应抽屉。
 - `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件；通过带视口避让和统一动效的锚定浮层选择本地文件或纯色图，已选图片使用通用组件全屏预览，并保留独立的更换与删除入口，同时完成签名预检和本地预览；不在编辑阶段上传。
 - `frontend/src/components/attributes/AttributeColorPicker.vue`：图片字段共用的无依赖 HSV/HEX 颜色选择器，提供饱和度与亮度平面、色相滑轨、HEX 输入、快捷色板和 Pointer Events/键盘交互；只输出颜色并通知应用，不生成图片。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
@@ -161,13 +161,13 @@
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。关键词、库存状态、高级结构化筛选、计数、排序和分页来自服务端；所有具备 `stock.item.read` 的用户可从目录行或详情图标进入资料和库存详情，只有 `stock.item.manage` 用户才能看到新建、删除和保存入口，详情 Dialog 才可编辑。
 - `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
-- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、动态模板、图片上传、提交确认和后端错误定位。
+- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、基于轻量选品响应的推荐入库模板解析、带请求版本防竞态的模板加载、模板切换破坏性确认、动态模板、图片上传、提交确认和后端错误定位。
 - `frontend/src/pages/LocationsPage.vue`、`LocationsPage.scss`：`/locations` 真实库位主数据页面；桌面使用分组树与身份/备注/判断操作三段式库位列表，移动端把分组树切换为 Drawer，支持权限控制、稳定刷新、分组/库位 CRUD 和搜索；库存详情与整批次移库等待按库位查询批次契约。
 - `frontend/src/pages/TemplatesPage.vue`、`TemplatesPage.scss`、`pages/templates/model.ts`：`/templates` 真实分类与模板工作区；分别编排三类资源的本地搜索、稳定刷新、三段式列表、权限 CRUD、模板复制、字段顺序、七种字段类型、单位规则和响应式编辑工作区。
 - `frontend/src/pages/EventsPage.vue`、`EventsPage.scss`、`pages/events/`：`/events` 真实审计日志页面；编排路由筛选、哨兵自动追加、稳定刷新、三段式桌面列表、移动日志项目、历史 JSON 差异和未知字段回退。
 - `frontend/src/components/events/`：审计高级筛选和只读详情 Dialog，复用通用表单、Modal、Notice 和原始 JSON 安全展示。
 - `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批和替代关系共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
-- `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
+- `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板来源与解析状态、待填项与草稿值派生、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。
 - `frontend/src/pages/UsersPage.vue`：用户列表、搜索、状态筛选、稳定刷新、分页、创建、启停、软删除、权限和临时密码操作编排。
@@ -183,6 +183,7 @@
 - `frontend/docs/page-framework.md`：页面框架和桌面/移动所有权。
 - `frontend/docs/page-events.md`：审计日志页面的筛选、三段式列表、历史详情兼容、自动加载和响应式实施设计。
 - `frontend/docs/page-templates.md`：分类与模板页面的三业务域结构、字段编辑器、权限、危险删除、响应式和验收设计。
+- `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。
 - `frontend/docs/routes.md`：路由、history 策略和鉴权守卫状态。
 - `frontend/docs/api-client.md`：API 地址、请求行为、错误契约和会话边界。
 - `frontend/docs/auth-logout-and-route-guards.md`：登出 API/UI、会话状态、路由守卫、多标签页退出实现和验收记录。

@@ -22,6 +22,7 @@ Axum 不服务前端构建产物。
 - `ui-consistency-checklist.md`：按业务状态、目标视口和真实尺寸验证 UI 规范是否落实的实施与量化验收清单。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
+- `implementation-notes/inbound-template-usability-remediation.md`：入库模板可发现性、权限耦合、主列表状态、模板切换保护和分阶段整改方案。
 
 ## UI 文档使用顺序
 

@@ -273,6 +273,11 @@ where
                     category_id: row.try_get("", "category_id")?,
                     category_name: row.try_get("", "category_name")?,
                     attribute_template_id: row.try_get("", "attribute_template_id")?,
+                    recommended_inbound_template_id: row
+                        .try_get("", "recommended_inbound_template_id")?,
+                    recommended_inbound_template_available: row
+                        .try_get::<i64>("", "recommended_inbound_template_available")?
+                        != 0,
                     image_file_id: row.try_get("", "image_file_id")?,
                     unit: row.try_get("", "unit")?,
                 })
@@ -838,10 +843,19 @@ fn item_option_base_query(
     let mut sql = r#"
         SELECT stock_items.id, stock_items.name, stock_items.sku, stock_items.category_id,
                stock_items.attribute_template_id,
+               attribute_templates.default_inbound_template_id AS recommended_inbound_template_id,
+               CASE WHEN recommended_inbound_templates.id IS NULL THEN 0 ELSE 1 END
+                   AS recommended_inbound_template_available,
                categories.name AS category_name, stock_items.image_file_id, stock_items.unit
         FROM stock_items
         LEFT JOIN stock_item_categories categories
                ON categories.id = stock_items.category_id AND categories.deleted_at IS NULL
+        LEFT JOIN stock_item_attribute_templates attribute_templates
+               ON attribute_templates.id = stock_items.attribute_template_id
+              AND attribute_templates.deleted_at IS NULL
+        LEFT JOIN stock_inbound_templates recommended_inbound_templates
+               ON recommended_inbound_templates.id = attribute_templates.default_inbound_template_id
+              AND recommended_inbound_templates.deleted_at IS NULL
         WHERE stock_items.deleted_at IS NULL
         "#
     .to_owned();

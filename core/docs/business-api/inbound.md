@@ -45,6 +45,17 @@ file 值必须是 `{ "file_id": id }`。文件需要由当前创建人上传、�
 - `POST /api/stock-approvals/inbound/{id}/approve`：权限 `stock.inbound.approve`；重新校验入库模板、属性和文件绑定后生成批次与库存流水。
 - `POST /api/stock-approvals/inbound/{id}/reject`：权限 `stock.inbound.approve`；只更新单据状态。
 
+## 入库模板读取权限
+
+入库模板的两个读取接口对入库创建任务开放，避免只拥有 stock.inbound.create 的用户在入库时无法获取模板字段：
+
+- `GET /api/inbound-templates`：允许 stock.inbound.create 或 stock.template.read 中任一权限。
+- `GET /api/inbound-templates/{id}`：允许 stock.inbound.create 或 stock.template.read 中任一权限。
+
+写接口（`POST`/`PUT`/`DELETE`/`copy`）仍要求 stock.template.manage。因此入库创建用户可以读取并填写活动入库模板，但不能进入模板管理页面或修改模板结构。
+
+物品轻量选项接口据此暴露推荐入库模板，详见 [items.md](items.md)。
+
 ## 图片文件
 
 ### `POST /api/files/images`

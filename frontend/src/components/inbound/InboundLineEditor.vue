@@ -4,7 +4,7 @@
     <header>
       <AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" previewable />
       <div>
-        <strong id="inbound-line-editor-title">批次与属性</strong>
+        <strong id="inbound-line-editor-title">批次与入库属性</strong>
         <span>{{ line.item.name }} · {{ line.item.sku }} · {{ line.item.unit }}</span>
       </div>
       <button class="inbound-line-editor__close" type="button" aria-label="关闭当前明细详情" title="关闭" @click="$emit('close')">
@@ -17,20 +17,28 @@
     </div>
     <section class="inbound-template-config" aria-labelledby="inbound-template-config-title">
       <header>
-        <strong id="inbound-template-config-title">模板扩展属性</strong>
+        <strong id="inbound-template-config-title">入库模板</strong>
+        <span>记录本次收货状态，不会修改物品长期属性。</span>
       </header>
+      <div v-if="templatesError" class="inbound-template-options-error" role="alert">
+        <span>{{ templatesError }}</span>
+        <button class="text-button" type="button" :disabled="templatesLoading" @click="$emit('retry-templates')">
+          {{ templatesLoading ? '正在重试…' : '重新加载模板' }}
+        </button>
+      </div>
       <label class="inbound-template-picker">
         <span>模板方案</span>
-        <SelectControl data-template-picker :name="`template_${line.lineId}`" :model-value="line.templateId ?? ''" @change="emitTemplateSelection">
+        <SelectControl data-template-picker :name="`template_${line.lineId}`" :model-value="line.templateId ?? ''" :disabled="templatesLoading && !templates.length" @change="emitTemplateSelection">
           <option value="">不使用入库模板</option>
+          <option v-if="unresolvedSelectedTemplate" :value="line.templateId" disabled>已删除入库模板 #{{ line.templateId }}</option>
           <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.name }}</option>
         </SelectControl>
       </label>
     </section>
-    <section v-if="line.templateLoading" class="inbound-template-state">正在加载入库模板…</section>
+    <section v-if="line.templateState === 'resolving'" class="inbound-template-state">正在加载入库模板…</section>
     <section v-else-if="line.templateError" class="inbound-template-state inbound-template-state--error" role="alert">
       <span>{{ line.templateError }}</span>
-      <button class="text-button" type="button" data-template-retry @click="$emit('retry-template', line)">重试</button>
+      <button v-if="line.templateState === 'error'" class="text-button" type="button" data-template-retry @click="$emit('retry-template', line)">重试</button>
     </section>
     <section v-else-if="line.template" class="inbound-template-fields">
       <header><strong>{{ line.template.name }}</strong><span>* 必填</span></header>
@@ -93,7 +101,7 @@
         </div>
       </div>
     </section>
-    <p v-else class="inbound-line-editor__empty">该物品没有需要填写的模板扩展属性。</p>
+    <p v-else class="inbound-line-editor__empty">当前未使用入库模板，没有需要填写的本次收货属性。</p>
     <footer class="inbound-line-editor__footer">
       <button class="primary-button" type="button" @click="$emit('close')">完成</button>
     </footer>
@@ -101,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import type { TemplateFieldResponse, TemplateFieldType } from '../../api/inbound'
 import type { InboundTemplateResponse } from '../../api/inboundTemplates'
 import { fileValue, templateFieldError, type InboundDraftLine } from '../../pages/inbound-draft/model'
@@ -109,13 +117,21 @@ import AttributeImageField from '../attributes/AttributeImageField.vue'
 import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
 import SelectControl from '../forms/SelectControl.vue'
 
-const props = defineProps<{ line: InboundDraftLine; templates: InboundTemplateResponse[]; validationAttempted: boolean }>()
+const props = defineProps<{
+  line: InboundDraftLine
+  templates: InboundTemplateResponse[]
+  templatesLoading: boolean
+  templatesError: string
+  validationAttempted: boolean
+}>()
 const emit = defineEmits<{
   close: []
   'retry-template': [line: InboundDraftLine]
+  'retry-templates': []
   'select-template': [templateId: number | null]
 }>()
 const editor = ref<HTMLElement | null>(null)
+const unresolvedSelectedTemplate = computed(() => props.line.templateState === 'unresolved' && props.line.templateId !== null)
 
 onMounted(() => { void nextTick(() => editor.value?.focus()) })
 

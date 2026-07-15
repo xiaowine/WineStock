@@ -7,6 +7,7 @@
 - `core/src/stock/mod.rs`
   - 以 `/api` 为 base path 注册各库存子域路由。
   - 在路由装配阶段声明物品、库位、模板、入库、出库、看板、替代料和审计权限。
+  - 入库模板两个读取接口按 stock.inbound.create 或 stock.template.read 任一权限放行，写接口仍要求 stock.template.manage。
 - `core/src/stock/permissions.rs`
   - 定义库存和审计稳定权限代码，以及历史兼容 `stock.read`、`stock.write`。
 
@@ -15,6 +16,7 @@
 - `controller.rs`：库存 HTTP 控制器入口和子模块重新导出。
 - `controller/common.rs`：单据状态、筛选值 DTO 和共享正数校验。
 - `controller/items.rs`、`item_attributes.rs`：物品命令、目录查询、结构化筛选参数、轻量选择、编辑资料、库存详情、批次分页和任意类型化属性。
+  - 轻量选择响应额外返回推荐入库模板 ID 和其当前是否可用，供入库工作台直接判断推荐状态。
 - `controller/templates/`：分类、物品属性模板、入库模板和共享字段 DTO/handler；物品模板字段额外公开显式单位规则 DTO。
 - `controller/locations.rs`：库位分组树、名称唯一且可带备注的库位、整批次移库 DTO 和 handler。
 - `controller/inbound.rs`：入库提交模式、单据响应、分页、筛选值、详情和 handler。
@@ -37,6 +39,7 @@
 - `service/error.rs`：`StockApiError` 和 repository 错误收敛。
 - `service/pagination.rs`：库存通用分页结构。
 - `service/response.rs`：repository 记录到 HTTP DTO 的投影。
+  - 轻量选择投影包含推荐入库模板 ID 与可用状态；软删除入库模板仍返回原始 ID 并标记不可用。
 - `service/validation.rs`：库存文本、数值、ID 和 JSON 归一化。
 
 ## 启动补齐

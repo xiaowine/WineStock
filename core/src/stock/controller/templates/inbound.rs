@@ -90,14 +90,37 @@ pub(crate) async fn create_inbound_template(
     ))
 }
 /// 查询入库模板列表。
-#[utoipa::path(get, path = "/api/inbound-templates", tag = "inbound-templates", security(("bearerAuth" = [])), responses((status = 200, body = Vec<InboundTemplateResponse>)))]
+///
+/// 允许 `stock.inbound.create` 或 `stock.template.read` 任一权限，
+/// 让入库任务在不开放模板管理权限的情况下读取入库模板候选。
+#[utoipa::path(
+    get,
+    path = "/api/inbound-templates",
+    tag = "inbound-templates",
+    summary = "查询入库模板列表。",
+    description = "允许 stock.inbound.create 或 stock.template.read 任一权限；仅用于入库任务读取活动模板，写接口仍要求 stock.template.manage。",
+    security(("bearerAuth" = [])),
+    responses((status = 200, body = Vec<InboundTemplateResponse>))
+)]
 pub(crate) async fn list_inbound_templates(
     State(state): State<CoreState>,
 ) -> Result<Json<Vec<InboundTemplateResponse>>, StockApiError> {
     Ok(Json(service::list_inbound_templates(&state).await?))
 }
 /// 查询入库模板详情。
-#[utoipa::path(get, path = "/api/inbound-templates/{id}", tag = "inbound-templates", params(("id" = i64, Path)), security(("bearerAuth" = [])), responses((status = 200, body = InboundTemplateResponse)))]
+///
+/// 允许 `stock.inbound.create` 或 `stock.template.read` 任一权限，
+/// 与列表接口保持一致的任务内读取例外。
+#[utoipa::path(
+    get,
+    path = "/api/inbound-templates/{id}",
+    tag = "inbound-templates",
+    summary = "查询入库模板详情。",
+    description = "允许 stock.inbound.create 或 stock.template.read 任一权限；仅用于入库任务读取活动模板，写接口仍要求 stock.template.manage。",
+    params(("id" = i64, Path)),
+    security(("bearerAuth" = [])),
+    responses((status = 200, body = InboundTemplateResponse))
+)]
 pub(crate) async fn get_inbound_template(
     State(state): State<CoreState>,
     ValidatedPath(id): ValidatedPath<i64>,

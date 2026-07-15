@@ -34,10 +34,10 @@
 
 - `/api/item-categories` 与 `/api/item-categories/{id}`：分类 CRUD。
 - `/api/item-attribute-templates`、`/{id}`、`/{id}/copy`：物品属性预设 CRUD/copy。
-- `/api/inbound-templates`、`/{id}`、`/{id}/copy`：入库模板 CRUD/copy。
+- `/api/inbound-templates`、`/{id}`、`/{id}/copy`：入库模板 CRUD/copy；两个读取接口按 stock.inbound.create 或 stock.template.read 任一权限放行。
 - `POST /api/items`
 - `GET /api/items`：物品目录分页、搜索、库存状态、分类、模板与结构化字段筛选；动态 `filters` 使用稳定字段 key 和参数化精确匹配。
-- `GET /api/items/options`
+- `GET /api/items/options`：轻量选择额外返回推荐入库模板 ID 与可用状态。
 - `GET /api/items/filter-values`：按当前目录上下文返回单位、有效库位和可搜索模板属性的分面候选值与计数。
 - `GET /api/items/{id}`
 - `GET /api/items/{id}/inventory`

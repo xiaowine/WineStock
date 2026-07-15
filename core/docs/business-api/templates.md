@@ -40,6 +40,8 @@
 
 入库模板只定义包装状态、实收重量、质检结果、收货照片、合格证和批次备注等本次收货字段。历史入库属性按实际属性行保留，不依赖模板继续有效。
 
+入库模板两个读取接口是权限例外：`GET /api/inbound-templates` 与 `GET /api/inbound-templates/{id}` 允许 `stock.inbound.create` 或 `stock.template.read` 中任一权限，让只拥有入库创建权限的用户也能在入库任务中读取并填写模板字段。写接口（创建、更新、删除、复制）仍要求 `stock.template.manage`。详见 [inbound.md](inbound.md)。
+
 ## 共享模板字段
 
 两类属性模板复用以下基础字段：

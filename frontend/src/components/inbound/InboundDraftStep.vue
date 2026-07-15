@@ -51,6 +51,12 @@
         {{ locationError }}
         <button class="text-button" type="button" @click="$emit('retry-locations')">重试</button>
       </div>
+      <div v-if="templateOptionsError" class="inbound-template-options-error" role="alert">
+        <span>{{ templateOptionsError }}</span>
+        <button class="text-button" type="button" :disabled="templateOptionsLoading" @click="$emit('retry-templates')">
+          {{ templateOptionsLoading ? '正在重试…' : '重新加载模板' }}
+        </button>
+      </div>
 
       <section class="inbound-lines" aria-label="入库明细">
         <table>
@@ -60,7 +66,17 @@
           <tbody>
             <tr v-for="(line, index) in lines" :key="line.lineId" :class="{ 'inbound-line--selected': selectedLineId === line.lineId }">
               <td data-label="物品">
-                <div class="inbound-line__identity"><AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" previewable /><div><strong>{{ line.item.name }}</strong><span>{{ line.item.sku }} · {{ line.item.unit }} · 明细 {{ index + 1 }}</span></div></div>
+                <div class="inbound-line__identity">
+                  <AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" previewable />
+                  <div>
+                    <strong>{{ line.item.name }}</strong>
+                    <span>{{ line.item.sku }} · {{ line.item.unit }} · 明细 {{ index + 1 }}</span>
+                    <small class="inbound-line__template-summary" :class="`inbound-line__template-summary--${templateSummary(line).tone}`">
+                      <span>入库模板：</span>{{ templateSummary(line).label }}
+                      <em v-if="line.templateSource === 'recommended' && line.templateState === 'ready'">已推荐</em>
+                    </small>
+                  </div>
+                </div>
               </td>
               <td data-label="数量"><input v-model.number="line.quantity" :name="`quantity_${line.lineId}`" :data-line-id="line.lineId" data-field="quantity" :class="{ 'inbound-control--error': validationAttempted && !validQuantity(line.quantity) }" type="number" min="0.01" step="0.01" :aria-label="`${line.item.name} 入库数量`" /></td>
               <td data-label="单价"><input v-model.number="line.unitPrice" :name="`unit_price_${line.lineId}`" :data-line-id="line.lineId" data-field="unitPrice" :class="{ 'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice) }" type="number" min="0" step="0.01" :aria-label="`${line.item.name} 入库单价`" /></td>
@@ -75,7 +91,16 @@
               <td data-label="小计" class="inbound-line__subtotal">¥{{ formatMoney(lineSubtotal(line)) }}</td>
               <td data-label="操作">
                 <div class="inbound-line__actions">
-                  <button class="inbound-line__edit" type="button" :data-line-action="line.lineId" @click="$emit('select-line', line.lineId)">批次与属性</button>
+                  <button
+                    class="inbound-line__completion"
+                    :class="`inbound-line__completion--${templateSummary(line).tone}`"
+                    type="button"
+                    :aria-label="`${line.item.name} ${templateSummary(line).status}，打开批次与入库属性`"
+                    @click="$emit('select-line', line.lineId)"
+                  >
+                    {{ templateSummary(line).status }}
+                  </button>
+                  <button class="inbound-line__edit" type="button" :data-line-action="line.lineId" @click="$emit('select-line', line.lineId)">批次与入库属性</button>
                   <button
                     class="inbound-line__remove"
                     type="button"
@@ -104,7 +129,7 @@
 import { computed } from 'vue'
 import type { LocationResponse } from '../../api/inbound'
 import type { InboundDraftLine } from '../../pages/inbound-draft/model'
-import { lineSubtotal, validQuantity, validUnitPrice } from '../../pages/inbound-draft/model'
+import { incompleteTemplateFieldCount, lineSubtotal, validQuantity, validUnitPrice } from '../../pages/inbound-draft/model'
 import { formatMoney } from '../../pages/inbound-draft/presentation'
 import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
 import SelectControl from '../forms/SelectControl.vue'
@@ -113,6 +138,8 @@ const props = defineProps<{
   lines: InboundDraftLine[]
   locations: LocationResponse[]
   locationError: string
+  templateOptionsLoading: boolean
+  templateOptionsError: string
   source: string
   notes: string
   notesOpen: boolean
@@ -137,7 +164,33 @@ defineEmits<{
   'update:notes-open': [value: boolean]
   'continue-adding': []
   'retry-locations': []
+  'retry-templates': []
   'select-line': [lineId: string]
   'remove-line': [lineId: string]
 }>()
+
+function templateSummary(line: InboundDraftLine): { label: string; status: string; tone: 'muted' | 'accent' | 'warning' | 'danger' } {
+  if (line.templateState === 'resolving') {
+    return {
+      label: line.templateSource === 'recommended' ? '正在匹配推荐模板…' : '正在加载…',
+      status: '模板加载中',
+      tone: 'muted',
+    }
+  }
+  if (line.templateState === 'unresolved') {
+    return {
+      label: line.templateSource === 'recommended' ? `推荐模板 #${line.templateId} 已失效` : `模板 #${line.templateId} 已失效`,
+      status: '需要处理',
+      tone: 'warning',
+    }
+  }
+  if (line.templateState === 'error') return { label: '加载失败', status: '需要处理', tone: 'danger' }
+  if (!line.template) return { label: '未设置', status: '无需填写', tone: 'muted' }
+  const incompleteCount = incompleteTemplateFieldCount(line)
+  return {
+    label: line.template.name,
+    status: incompleteCount > 0 ? `待填写 ${incompleteCount} 项` : '属性已完成',
+    tone: incompleteCount > 0 ? 'warning' : 'accent',
+  }
+}
 </script>
