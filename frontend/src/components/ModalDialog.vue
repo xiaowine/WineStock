@@ -114,9 +114,15 @@ watch(
 onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
+  if (event.key === 'Escape' && isTopmostDialog()) {
+    event.preventDefault()
     requestClose()
   }
+}
+
+function isTopmostDialog(): boolean {
+  const layers = document.querySelectorAll<HTMLElement>('.modal-layer')
+  return panel.value?.closest('.modal-layer') === layers.item(layers.length - 1)
 }
 
 function requestClose(): void {

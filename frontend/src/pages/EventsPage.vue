@@ -31,25 +31,6 @@
           </SelectControl>
         </label>
 
-        <FormInput
-          v-model="dateFromInput"
-          class="events-toolbar__date"
-          label="开始时间"
-          type="datetime-local"
-          step="1"
-          :disabled="requestPending"
-          @change="applyDateRange"
-        />
-        <FormInput
-          v-model="dateToInput"
-          class="events-toolbar__date"
-          label="结束时间"
-          type="datetime-local"
-          step="1"
-          :disabled="requestPending"
-          @change="applyDateRange"
-        />
-
         <div class="events-toolbar__meta">
           <span class="events-toolbar__count">{{ total }} 条</span>
           <div class="events-toolbar__actions">
@@ -81,10 +62,12 @@
       </div>
 
       <div v-if="activeFilters.length" class="events-active-filters" aria-label="当前筛选">
-        <span v-for="filter in activeFilters" :key="filter.key">
-          {{ filter.label }}
-          <button type="button" :aria-label="`清除筛选：${filter.label}`" @click="clearFilter(filter.key)">×</button>
-        </span>
+        <div class="events-active-filters__chips">
+          <span v-for="filter in activeFilters" :key="filter.key" :title="filter.title ?? filter.label">
+            {{ filter.label }}
+            <button type="button" :aria-label="`清除筛选：${filter.label}`" @click="clearFilter(filter.key)">×</button>
+          </span>
+        </div>
         <button class="text-button" type="button" @click="clearAllFilters">清除全部</button>
       </div>
 
@@ -163,15 +146,17 @@
               <small>事件 #{{ event.id }}</small>
             </article>
           </div>
+
+          <div ref="loadMoreSentinel" class="events-load-more" aria-live="polite">
+            <span v-if="loadingMore" role="status">正在加载更多审计事件…</span>
+            <button v-else-if="loadMoreError" class="secondary-button" type="button" @click="loadNextPage">
+              加载失败，点击重试
+            </button>
+            <span v-else-if="hasMoreEvents">继续向下滚动加载</span>
+            <span v-else>已加载全部 {{ total }} 条审计事件</span>
+          </div>
         </template>
       </div>
-
-      <footer v-if="loaded" class="events-pagination" aria-label="审计日志分页">
-        <button class="secondary-button" type="button" :disabled="requestPending || page <= 1" @click="changePage(page - 1)">上一页</button>
-        <span v-if="totalPages > 0">第 {{ page }} / {{ totalPages }} 页 · 共 {{ total }} 条</span>
-        <span v-else>暂无审计事件</span>
-        <button class="secondary-button" type="button" :disabled="requestPending || totalPages === 0 || page >= totalPages" @click="changePage(page + 1)">下一页</button>
-      </footer>
     </section>
 
     <EventFilterDialog
@@ -189,13 +174,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { listEvents, type EventListQuery, type EventLogResponse } from '../api/events'
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from '../api/errors'
 import EventDetailDialog from '../components/events/EventDetailDialog.vue'
 import EventFilterDialog, { type EventAdvancedFilterValue } from '../components/events/EventFilterDialog.vue'
-import FormInput from '../components/forms/FormInput.vue'
 import SelectControl from '../components/forms/SelectControl.vue'
 import { useStablePendingIndicator } from '../composables/useStablePendingIndicator'
 import { notice } from '../notices/notice'
@@ -225,20 +209,31 @@ const events = ref<EventLogResponse[]>([])
 const total = ref(0)
 const totalPages = ref(0)
 const loaded = ref(false)
-const requestPending = ref(false)
+const loading = ref(false)
+const loadingMore = ref(false)
 const loadError = ref('')
+const loadMoreError = ref('')
+const loadMoreSentinel = ref<HTMLElement | null>(null)
 const filterDialogOpen = ref(false)
 const selectedEvent = ref<EventLogResponse | null>(null)
 const entitySelectValue = ref('')
 const actionSelectValue = ref('')
-const dateFromInput = ref('')
-const dateToInput = ref('')
 let requestController: AbortController | null = null
+let loadMoreObserver: IntersectionObserver | null = null
 
-const page = computed(() => state.page)
-const showInitialLoading = useStablePendingIndicator(computed(() => requestPending.value && !loaded.value), { showDelayMs: 200, minimumVisibleMs: 350 })
-const showStableRefreshing = useStablePendingIndicator(computed(() => requestPending.value && loaded.value), { showDelayMs: 200, minimumVisibleMs: 350 })
-const advancedFilterCount = computed(() => [state.entityId, state.userId, state.pageSize !== 50, !isKnownEntityType(state.entityType) && Boolean(state.entityType), !isKnownAction(state.action) && Boolean(state.action)].filter(Boolean).length)
+const requestPending = computed(() => loading.value || loadingMore.value)
+const hasMoreEvents = computed(() => state.page < totalPages.value)
+const showInitialLoading = useStablePendingIndicator(computed(() => loading.value && !loaded.value), { showDelayMs: 200, minimumVisibleMs: 350 })
+const showStableRefreshing = useStablePendingIndicator(computed(() => loading.value && loaded.value), { showDelayMs: 200, minimumVisibleMs: 350 })
+const advancedFilterCount = computed(() => [
+  state.entityId,
+  state.userId,
+  Boolean(state.dateFrom),
+  Boolean(state.dateTo),
+  state.pageSize !== 50,
+  !isKnownEntityType(state.entityType) && Boolean(state.entityType),
+  !isKnownAction(state.action) && Boolean(state.action),
+].filter(Boolean).length)
 const advancedFilterValue = computed<EventAdvancedFilterValue>(() => ({
   entityId: state.entityId,
   userId: state.userId,
@@ -249,13 +244,13 @@ const advancedFilterValue = computed<EventAdvancedFilterValue>(() => ({
   pageSize: state.pageSize,
 }))
 const activeFilters = computed(() => {
-  const values: Array<{ key: FilterKey; label: string }> = []
+  const values: Array<{ key: FilterKey; label: string; title?: string }> = []
   if (state.entityType) values.push({ key: 'entityType', label: `实体：${eventEntityLabel(state.entityType)}` })
   if (state.action) values.push({ key: 'action', label: `动作：${eventActionLabel(state.action)}` })
   if (state.entityId !== null) values.push({ key: 'entityId', label: `实体 ID：#${state.entityId}` })
   if (state.userId !== null) values.push({ key: 'userId', label: `操作人：#${state.userId}` })
-  if (state.dateFrom) values.push({ key: 'dateFrom', label: `开始：${formatLocalTimestamp(state.dateFrom)}` })
-  if (state.dateTo) values.push({ key: 'dateTo', label: `结束：${formatLocalTimestamp(state.dateTo)}` })
+  if (state.dateFrom) values.push({ key: 'dateFrom', label: `开始：${formatFilterTimestamp(state.dateFrom)}`, title: `开始：${formatLocalTimestamp(state.dateFrom)}` })
+  if (state.dateTo) values.push({ key: 'dateTo', label: `结束：${formatFilterTimestamp(state.dateTo)}`, title: `结束：${formatLocalTimestamp(state.dateTo)}` })
   return values
 })
 
@@ -274,31 +269,57 @@ watch(
   { immediate: true },
 )
 
-onBeforeUnmount(() => requestController?.abort())
+watch(loadMoreSentinel, (element, previousElement) => {
+  if (previousElement) loadMoreObserver?.unobserve(previousElement)
+  if (element) loadMoreObserver?.observe(element)
+})
+
+onMounted(() => {
+  loadMoreObserver = new IntersectionObserver(handleLoadMoreIntersection, { rootMargin: '240px 0px' })
+  if (loadMoreSentinel.value) loadMoreObserver.observe(loadMoreSentinel.value)
+})
+
+onBeforeUnmount(() => {
+  requestController?.abort()
+  loadMoreObserver?.disconnect()
+})
 
 async function loadCurrentPage(): Promise<boolean> {
+  return loadEvents(1)
+}
+
+async function loadEvents(targetPage: number, append = false): Promise<boolean> {
   requestController?.abort()
   const controller = new AbortController()
   requestController = controller
-  requestPending.value = true
-  loadError.value = ''
+  const shouldAppend = append && events.value.length > 0
+  loading.value = !shouldAppend
+  loadingMore.value = shouldAppend
+  loadMoreError.value = ''
+  if (!shouldAppend) loadError.value = ''
   try {
-    const response = await listEvents(eventQuery(), controller.signal)
-    events.value = response.items
+    const response = await listEvents(eventQuery(targetPage), controller.signal)
+    events.value = shouldAppend ? mergeEvents(events.value, response.items) : response.items
     total.value = response.total
     totalPages.value = response.total_pages
+    state.page = response.page
     loaded.value = true
-    if (response.total_pages > 0 && state.page > response.total_pages) {
-      await navigate({ page: response.total_pages }, true)
-    }
     return true
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return false
-    loadError.value = eventErrorMessage(error)
-    if (loaded.value) notice.error('刷新审计日志失败', { detail: loadError.value })
+    const message = eventErrorMessage(error)
+    if (shouldAppend) loadMoreError.value = message
+    else loadError.value = message
+    const title = shouldAppend ? '加载更多审计事件失败' : loaded.value ? '刷新审计日志失败' : '加载审计日志失败'
+    notice.error(title, { detail: message })
     return false
   } finally {
-    if (requestController === controller) requestPending.value = false
+    if (requestController === controller) {
+      requestController = null
+      loading.value = false
+      loadingMore.value = false
+      void nextTick().then(refreshLoadMoreObservation)
+    }
   }
 }
 
@@ -306,9 +327,9 @@ async function refreshCurrentPage(): Promise<void> {
   if (await loadCurrentPage()) notice.success('审计日志已刷新')
 }
 
-function eventQuery(): EventListQuery {
+function eventQuery(targetPage: number): EventListQuery {
   return {
-    page: state.page,
+    page: targetPage,
     page_size: state.pageSize,
     entity_type: state.entityType || undefined,
     entity_id: state.entityId ?? undefined,
@@ -317,6 +338,33 @@ function eventQuery(): EventListQuery {
     date_from: state.dateFrom || undefined,
     date_to: state.dateTo || undefined,
   }
+}
+
+function handleLoadMoreIntersection(entries: IntersectionObserverEntry[]): void {
+  if (entries.some((entry) => entry.isIntersecting)) void loadNextPage()
+}
+
+async function loadNextPage(): Promise<void> {
+  if (requestPending.value || !hasMoreEvents.value) return
+  await loadEvents(state.page + 1, true)
+}
+
+function refreshLoadMoreObservation(): void {
+  const sentinel = loadMoreSentinel.value
+  if (!sentinel || !loadMoreObserver) return
+  loadMoreObserver.unobserve(sentinel)
+  loadMoreObserver.observe(sentinel)
+}
+
+function mergeEvents(current: EventLogResponse[], incoming: EventLogResponse[]): EventLogResponse[] {
+  const ids = new Set(current.map((event) => event.id))
+  const merged = [...current]
+  for (const event of incoming) {
+    if (ids.has(event.id)) continue
+    ids.add(event.id)
+    merged.push(event)
+  }
+  return merged
 }
 
 function changeEntityType(value: unknown): void {
@@ -337,20 +385,6 @@ function changeAction(value: unknown): void {
     return
   }
   void navigate({ action: next, page: 1 })
-}
-
-function applyDateRange(): void {
-  const dateFrom = localInputToIso(dateFromInput.value)
-  const dateTo = localInputToIso(dateToInput.value)
-  if ((dateFromInput.value && !dateFrom) || (dateToInput.value && !dateTo)) {
-    notice.warning('请输入有效的审计时间')
-    return
-  }
-  if (dateFrom && dateTo && dateFrom > dateTo) {
-    notice.warning('开始时间不能晚于结束时间')
-    return
-  }
-  void navigate({ dateFrom, dateTo, page: 1 })
 }
 
 function applyAdvancedFilters(value: EventAdvancedFilterValue): void {
@@ -412,21 +446,14 @@ function clearAllFilters(): void {
   void navigate({ ...defaultState(), pageSize: state.pageSize })
 }
 
-function changePage(nextPage: number): void {
-  if (nextPage >= 1 && (totalPages.value === 0 || nextPage <= totalPages.value)) {
-    void navigate({ page: nextPage }, false)
-  }
-}
-
-async function navigate(patch: Partial<EventPageState>, replace = true): Promise<void> {
+async function navigate(patch: Partial<EventPageState>): Promise<void> {
   const next = { ...state, ...patch }
   const query = queryFromState(next)
   if (queryFingerprint(route.query) === queryFingerprint(query)) {
     await loadCurrentPage()
     return
   }
-  if (replace) await router.replace({ name: 'events', query })
-  else await router.push({ name: 'events', query })
+  await router.replace({ name: 'events', query })
 }
 
 function syncInputsFromState(): void {
@@ -436,8 +463,6 @@ function syncInputsFromState(): void {
   actionSelectValue.value = state.action
     ? isKnownAction(state.action) ? state.action : CUSTOM_EVENT_FILTER
     : ''
-  dateFromInput.value = isoToLocalInput(state.dateFrom)
-  dateToInput.value = isoToLocalInput(state.dateTo)
 }
 
 function stateFromQuery(query: Record<string, unknown>): EventPageState {
@@ -448,7 +473,7 @@ function stateFromQuery(query: Record<string, unknown>): EventPageState {
     userId: positiveIntegerQuery(query.user_id),
     dateFrom: validDateQuery(query.date_from),
     dateTo: validDateQuery(query.date_to),
-    page: positiveIntegerQuery(query.page) ?? 1,
+    page: 1,
     pageSize: allowedPageSize(positiveIntegerQuery(query.page_size)),
   }
 }
@@ -461,7 +486,6 @@ function queryFromState(value: EventPageState): LocationQueryRaw {
   if (value.userId !== null) query.user_id = String(value.userId)
   if (value.dateFrom) query.date_from = value.dateFrom
   if (value.dateTo) query.date_to = value.dateTo
-  if (value.page > 1) query.page = String(value.page)
   if (value.pageSize !== 50) query.page_size = String(value.pageSize)
   return query
 }
@@ -516,6 +540,13 @@ function formatLocalTimestamp(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  }).format(date)
+}
+
+function formatFilterTimestamp(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(date)
 }
 

@@ -25,18 +25,14 @@
         placeholder="例如 1"
         :error="errors.userId"
       />
-      <FormInput
+      <DateTimeField
         v-model="dateFrom"
         label="开始时间"
-        type="datetime-local"
-        step="1"
         :error="errors.dateRange"
       />
-      <FormInput
+      <DateTimeField
         v-model="dateTo"
         label="结束时间"
-        type="datetime-local"
-        step="1"
         :error="errors.dateRange"
       />
       <FormInput
@@ -76,6 +72,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import DateTimeField from '../forms/DateTimeField.vue'
 import FormInput from '../forms/FormInput.vue'
 import SelectControl from '../forms/SelectControl.vue'
 import ModalDialog from '../ModalDialog.vue'

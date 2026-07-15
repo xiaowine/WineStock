@@ -1,0 +1,190 @@
+/* 本文件拥有项目通用日期时间字段和嵌套选择 Dialog 的视觉规则。 */
+@use '../../styles/foundation/mixins' as mixins;
+
+.date-time-field {
+  &__trigger {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    grid-template-columns: minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 9px;
+    padding: 0 10px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-align: left;
+
+    > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    svg {
+      @include mixins.svg-icon(17px, 1.7);
+      color: var(--color-muted);
+    }
+
+    &:focus-visible,
+    &[aria-expanded='true'] {
+      @include mixins.focus-ring;
+    }
+
+    &[aria-invalid='true'] {
+      border-color: var(--color-danger);
+
+      &:focus-visible,
+      &[aria-expanded='true'] {
+        outline-color: rgb(157 40 50 / 16%);
+      }
+    }
+
+    &:disabled {
+      background: var(--color-surface-raised);
+      color: var(--color-muted);
+      cursor: not-allowed;
+    }
+  }
+
+  &__placeholder {
+    color: var(--color-muted);
+  }
+}
+
+.date-time-picker {
+  display: grid;
+  gap: 12px;
+
+  &__month {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 8px;
+
+    strong {
+      text-align: center;
+    }
+
+    svg {
+      @include mixins.svg-icon;
+    }
+  }
+
+  &__weekdays,
+  &__days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  &__weekdays span {
+    color: var(--color-subtle);
+    font-size: 11px;
+    font-weight: 650;
+    text-align: center;
+  }
+
+  &__days button {
+    min-width: 0;
+    height: 34px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-size: 12px;
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  &__day {
+    &--outside {
+      color: var(--color-subtle) !important;
+    }
+
+    &--today {
+      border-color: rgb(111 42 54 / 28%) !important;
+      color: var(--color-accent) !important;
+      font-weight: 700;
+    }
+
+    &--selected {
+      border-color: var(--color-accent) !important;
+      background: var(--color-accent) !important;
+      color: #fff !important;
+      font-weight: 750;
+    }
+  }
+
+  &__time {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: end;
+    gap: 7px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+
+    legend {
+      padding: 0 5px;
+      color: var(--color-muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    > span {
+      padding-bottom: 9px;
+      color: var(--color-subtle);
+      font-weight: 750;
+    }
+
+    label {
+      display: grid;
+      gap: 4px;
+
+      span {
+        color: var(--color-subtle);
+        font-size: 10px;
+        text-align: center;
+      }
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      height: 36px;
+      padding: 0 5px;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+
+      &:focus {
+        @include mixins.focus-ring;
+      }
+    }
+  }
+
+  &__clear {
+    margin-right: auto;
+  }
+}
+
+@include mixins.hover-capable {
+  .date-time-picker__days button:hover {
+    background: var(--color-surface-raised);
+  }
+
+  .date-time-picker__day--selected:hover {
+    background: var(--color-accent-strong) !important;
+  }
+}
