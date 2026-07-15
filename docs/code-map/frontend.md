@@ -159,7 +159,7 @@
 ## 样式和文档
 
 - `frontend/src/styles/index.scss`：全局 SCSS 入口，仅装配 foundation、shared 和认证页面族样式。
-- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染、全局滚动条和减少动态效果适配。
+- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染、全局滚动条、减少动态效果适配，以及断点、输入方式、焦点和 SVG 图标的共享 SCSS mixin。
 - `frontend/src/styles/shared/`：品牌、控件、表单、页面骨架和用户对话框共享视觉原语。
 - `frontend/src/layouts/AppShell.scss`：稳定应用框架的桌面/移动布局、导航 Drawer 和顶部栏断点规则。
 - `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的外观与响应式规则。

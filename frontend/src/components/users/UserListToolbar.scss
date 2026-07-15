@@ -1,4 +1,6 @@
 /* 本文件拥有用户列表搜索、状态筛选、数量和操作栏样式，不请求用户 API。 */
+@use '../../styles/foundation/mixins' as mixins;
+
 .user-list-toolbar {
   display: flex;
   min-width: 0;
@@ -7,54 +9,87 @@
   gap: 16px;
   margin-top: 14px;
   padding: 10px 0;
-}
+  &__filters,
+  &__meta,
+  &__actions {
+    display: flex;
+    align-items: center;
+  }
 
-.user-list-toolbar__filters,
-.user-list-toolbar__meta,
-.user-list-toolbar__actions {
-  display: flex;
-  align-items: center;
-}
+  &__filters {
+    min-width: 0;
+    align-items: flex-end;
+    gap: 10px;
+  }
 
-.user-list-toolbar__filters {
-  min-width: 0;
-  align-items: flex-end;
-  gap: 10px;
-}
+  &__search {
+    width: min(300px, 28vw);
+    min-width: 180px;
+  }
 
-.user-list-toolbar__search {
-  width: min(300px, 28vw);
-  min-width: 180px;
-}
+  &__status {
+    display: grid;
+    width: 150px;
+    flex: 0 0 150px;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 650;
+  }
 
-.user-list-toolbar__status {
-  display: grid;
-  width: 150px;
-  flex: 0 0 150px;
-  gap: 6px;
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 650;
-}
+  &__meta {
+    flex: 0 0 auto;
+    gap: 12px;
+    padding-left: 14px;
+    border-left: 1px solid var(--color-border-strong);
+  }
 
-.user-list-toolbar__meta {
-  flex: 0 0 auto;
-  gap: 12px;
-  padding-left: 14px;
-  border-left: 1px solid var(--color-border-strong);
-}
+  &__count {
+    min-width: 58px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    white-space: nowrap;
 
-.user-list-toolbar__count {
-  min-width: 58px;
-  color: var(--color-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-  white-space: nowrap;
-}
+    > span {
+      display: inline-block;
+    }
+  }
 
-.user-list-toolbar__count > span {
-  display: inline-block;
+  &__actions {
+    gap: 8px;
+  }
+
+  &__refresh {
+    width: 40px;
+    height: 40px;
+
+    svg {
+      @include mixins.svg-icon;
+    }
+
+    &--pending,
+    &--pending:hover {
+      border-color: rgb(111 42 54 / 24%);
+      background: var(--color-accent-soft);
+      color: var(--color-accent);
+    }
+
+    &--pending svg {
+      animation: user-list-toolbar-refresh-spin 900ms linear infinite;
+    }
+
+    &:disabled {
+      cursor: wait;
+    }
+  }
+
+  &__refresh-status {
+    color: var(--color-accent);
+    font-size: 12px;
+    white-space: nowrap;
+  }
 }
 
 /* 数量变化只切换文字，避免重新触发列表区域的整体动画。 */
@@ -75,53 +110,13 @@
   transform: translateY(calc(0px - var(--motion-distance-small)));
 }
 
-.user-list-toolbar__actions {
-  gap: 8px;
-}
-
-.user-list-toolbar__refresh {
-  width: 40px;
-  height: 40px;
-}
-
-.user-list-toolbar__refresh svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-}
-
-.user-list-toolbar__refresh--pending,
-.user-list-toolbar__refresh--pending:hover {
-  border-color: rgb(111 42 54 / 24%);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.user-list-toolbar__refresh--pending svg {
-  animation: user-list-toolbar-refresh-spin 900ms linear infinite;
-}
-
-.user-list-toolbar__refresh:disabled {
-  cursor: wait;
-}
-
-.user-list-toolbar__refresh-status {
-  color: var(--color-accent);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 @keyframes user-list-toolbar-refresh-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@media (min-width: 768px) and (max-width: 1040px) {
+@include mixins.tablet {
   .user-list-toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -151,7 +146,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .user-list-toolbar {
     align-items: stretch;
     flex-direction: column;

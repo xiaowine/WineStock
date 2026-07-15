@@ -1,4 +1,5 @@
 /* 本文件拥有正式入库工作台的桌面与移动响应式布局；它不定义全局控件或其它业务页面样式。 */
+@use '../styles/foundation/mixins' as mixins;
 .inbound-draft-page {
   min-height: 0;
   gap: 12px;
@@ -386,7 +387,7 @@
   color: var(--color-danger);
 }
 
-@media (hover: hover) and (pointer: fine) {
+@include mixins.hover-capable {
   .inbound-catalog-step__toggle:hover {
     border-color: var(--color-accent);
     background: var(--color-accent-soft);
@@ -927,7 +928,7 @@
   font-size: 12px;
 }
 
-@media (max-width: 1199px) and (min-width: 768px) {
+@include mixins.tablet(1199px) {
   .inbound-draft-page__header {
     grid-template-columns: minmax(180px, 1fr) auto;
   }
@@ -941,7 +942,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .inbound-draft-page {
     --inbound-mobile-actions-height: calc(65px + env(safe-area-inset-bottom));
 
@@ -1308,7 +1309,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@include mixins.reduced-motion {
   .inbound-editor-enter-active,
   .inbound-editor-leave-active,
   .inbound-editor-enter-active .inbound-line-editor-backdrop,

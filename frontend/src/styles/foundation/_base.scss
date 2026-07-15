@@ -1,4 +1,5 @@
 /* 本文件拥有 frontend 基础渲染、可访问性辅助类和减少动态效果规则，不定义平台专属布局。 */
+@use './mixins' as mixins;
 * {
   box-sizing: border-box;
   scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -157,7 +158,7 @@ h3 {
 }
 
 /* 触控和移动布局依赖手势滚动，隐藏经典滚动槽，避免其压缩业务内容宽度。 */
-@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+@include mixins.mobile-or-touch {
   * {
     scrollbar-width: none;
   }
@@ -231,7 +232,7 @@ h3 {
   background: var(--scrollbar-thumb-active);
 }
 
-@media (prefers-reduced-motion: reduce) {
+@include mixins.reduced-motion {
   *,
   *::before,
   *::after {

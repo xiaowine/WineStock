@@ -1,4 +1,5 @@
 /* 本文件拥有物品库存目录的复合表格、固定列和移动库存项目，不定义 Dialog 或后端状态规则。 */
+@use '../styles/foundation/mixins' as mixins;
 .items-page { min-height: 0; }
 .items-page__header { flex: 0 0 auto; align-items: center; }
 .items-page__header p { max-width: 620px; margin-top: 5px; color: var(--color-muted); font-size: 13px; }
@@ -136,7 +137,7 @@
 .items-catalog__state--error strong { color: var(--color-danger); }
 .items-catalog__load-more { display: flex; min-width: 0; min-height: 52px; align-items: center; justify-content: center; gap: 6px; padding: 10px; color: var(--color-subtle); font-size: 12px; }
 
-@media (min-width: 768px) and (max-width: 1100px) {
+@include mixins.tablet(1100px) {
   .items-catalog__toolbar { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .items-catalog__toolbar-actions {
     display: grid; min-width: 0; grid-template-columns: minmax(110px, 4fr) minmax(145px, 5fr) auto; align-items: end; gap: 8px;
@@ -145,7 +146,7 @@
   .items-catalog__sort { width: auto; }
 }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .items-page__header { display: none; }
   .items-page__workspace { min-height: 0; margin-top: 0; overflow: visible; border: 0; border-radius: 0; }
   .items-catalog { min-height: calc(100dvh - var(--topbar-height-mobile) - 28px); }
@@ -203,7 +204,7 @@
   .items-catalog__load-more { min-width: 0; min-height: 58px; margin: 0 -12px; background: var(--color-surface-subtle); }
 }
 
-@media (max-width: 359px) {
+@include mixins.below(359px) {
   .items-catalog__toolbar-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -6,55 +6,57 @@
   gap: 10px;
   min-width: 0;
   color: var(--color-text);
+
+  &__avatar {
+    display: inline-grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid rgb(111 42 54 / 24%);
+    border-radius: 50%;
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+    font-size: 12px;
+    font-weight: 720;
+  }
+
+  &__identity {
+    display: grid;
+    min-width: 0;
+    gap: 1px;
+
+    strong,
+    small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    small {
+      color: var(--color-subtle);
+      font-size: 12px;
+    }
+  }
 }
 
-.account-user-summary__avatar {
-  display: inline-grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid rgb(111 42 54 / 24%);
-  border-radius: 50%;
-  background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
-  font-size: 12px;
-  font-weight: 720;
-}
+.app-account__trigger {
+  .account-user-summary {
+    grid-template-columns: minmax(0, 160px) 34px;
 
-.account-user-summary__identity {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
+    &__avatar {
+      grid-column: 2;
+      grid-row: 1;
+    }
 
-.account-user-summary__identity strong,
-.account-user-summary__identity small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-user-summary__identity strong {
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.account-user-summary__identity small {
-  color: var(--color-subtle);
-  font-size: 12px;
-}
-
-.app-account__trigger .account-user-summary {
-  grid-template-columns: minmax(0, 160px) 34px;
-}
-
-.app-account__trigger .account-user-summary__avatar {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.app-account__trigger .account-user-summary__identity {
-  grid-column: 1;
-  grid-row: 1;
-  text-align: right;
+    &__identity {
+      grid-column: 1;
+      grid-row: 1;
+      text-align: right;
+    }
+  }
 }

@@ -1,4 +1,5 @@
 /* 本文件拥有通用模态框外壳、过渡和移动端底部面板适配，不拥有具体对话框业务内容。 */
+@use '../styles/foundation/mixins' as mixins;
 .modal-layer {
   position: fixed;
   inset: 0;
@@ -7,11 +8,11 @@
   place-items: center;
   padding: 20px;
   background: rgb(23 32 42 / 42%);
-}
 
-.modal-layer--nested {
-  z-index: var(--z-dialog-nested);
-  background: rgb(23 32 42 / 20%);
+  &--nested {
+    z-index: var(--z-dialog-nested);
+    background: rgb(23 32 42 / 20%);
+  }
 }
 
 .modal-enter-active,
@@ -55,24 +56,26 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-menu);
   transform-origin: center;
-}
 
-.modal-panel--wide {
-  width: min(100%, 720px);
-}
+  &--wide {
+    width: min(100%, 720px);
+  }
 
-.modal-panel--workspace {
-  width: min(100%, 920px);
-}
+  &--workspace {
+    width: min(100%, 920px);
+  }
 
-.modal-panel--compact {
-  width: min(100%, 440px);
-  max-height: min(76vh, 640px);
-}
+  &--compact {
+    width: min(100%, 440px);
+    max-height: min(76vh, 640px);
+  }
 
-.modal-panel--wide .modal-body,
-.modal-panel--workspace .modal-body {
-  padding-top: 0;
+  &--wide,
+  &--workspace {
+    .modal-body {
+      padding-top: 0;
+    }
+  }
 }
 
 .modal-header {
@@ -83,23 +86,23 @@
   gap: 16px;
   padding: 18px 18px 14px;
   border-bottom: 1px solid var(--color-border);
+
+  &--compact {
+    align-items: center;
+    padding: 12px 14px;
+  }
+
+  p {
+    margin-top: 5px;
+    color: var(--color-muted);
+    font-size: 13px;
+  }
 }
 
 .modal-context {
   grid-area: context;
   padding: 14px 18px 0;
   background: var(--color-surface);
-}
-
-.modal-header--compact {
-  align-items: center;
-  padding: 12px 14px;
-}
-
-.modal-header p {
-  margin-top: 5px;
-  color: var(--color-muted);
-  font-size: 13px;
 }
 
 .modal-body {
@@ -123,32 +126,40 @@
   grid-area: notice;
   padding: 0 18px 12px;
   background: var(--color-surface);
+
+  .form-warning {
+    margin: 0;
+  }
 }
 
-.modal-notice .form-warning {
-  margin: 0;
-}
-
-@media (max-width: 767px) {
+@include mixins.mobile {
   .modal-layer {
     align-items: end;
     padding: 0;
   }
 
-  .modal-panel,
-  .modal-panel--wide,
-  .modal-panel--workspace,
-  .modal-panel--compact {
+  .modal-panel {
     width: 100%;
     max-height: calc(92vh - env(safe-area-inset-top));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  }
 
-  .modal-panel--compact {
-    max-height: calc(88vh - env(safe-area-inset-top));
+    &--wide,
+    &--workspace,
+    &--compact {
+      width: 100%;
+      max-height: calc(92vh - env(safe-area-inset-top));
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    &--compact {
+      max-height: calc(88vh - env(safe-area-inset-top));
+    }
   }
 
   .modal-enter-from .modal-panel,

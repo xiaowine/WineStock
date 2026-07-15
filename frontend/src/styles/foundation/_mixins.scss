@@ -1,0 +1,74 @@
+/* 本文件拥有前端 SCSS 的结构化工具，属于基础样式层；不定义具体组件或业务视觉。 */
+
+$breakpoint-mobile: 767px;
+$breakpoint-desktop: 768px;
+
+@mixin mobile {
+  @media (max-width: $breakpoint-mobile) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: $breakpoint-desktop) {
+    @content;
+  }
+}
+
+@mixin tablet($max: 1040px) {
+  @media (min-width: $breakpoint-desktop) and (max-width: $max) {
+    @content;
+  }
+}
+
+@mixin between($min, $max) {
+  @media (min-width: $min) and (max-width: $max) {
+    @content;
+  }
+}
+
+@mixin below($max) {
+  @media (max-width: $max) {
+    @content;
+  }
+}
+
+@mixin hover-capable {
+  @media (hover: hover) and (pointer: fine) {
+    @content;
+  }
+}
+
+@mixin touch-input {
+  @media (hover: none), (pointer: coarse) {
+    @content;
+  }
+}
+
+@mixin mobile-or-touch {
+  @media (max-width: $breakpoint-mobile), (hover: none) and (pointer: coarse) {
+    @content;
+  }
+}
+
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}
+
+@mixin svg-icon($size: 18px, $stroke-width: 1.8) {
+  width: $size;
+  height: $size;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: $stroke-width;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@mixin focus-ring($color: rgb(111 42 54 / 14%), $offset: 0) {
+  border-color: var(--color-accent);
+  outline: 3px solid $color;
+  outline-offset: $offset;
+}

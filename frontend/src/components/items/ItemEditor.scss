@@ -1,4 +1,5 @@
 /* 本文件拥有物品编辑器和属性表单网格的可复用样式；它不定义物品目录或具体页面工作区布局。 */
+@use '../../styles/foundation/mixins' as mixins;
 .item-editor {
   display: flex;
   min-width: 0;
@@ -363,7 +364,7 @@
   padding-top: 0;
 }
 
-@media (max-width: 1040px) and (min-width: 768px) {
+@include mixins.tablet {
   .item-editor__header {
     grid-template-columns: 34px minmax(0, 1fr) auto;
     gap: 10px;
@@ -374,7 +375,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .item-editor__header {
     position: static;
     z-index: 4;
@@ -482,7 +483,7 @@
   }
 }
 
-@media (min-width: 520px) and (max-width: 767px) {
+@include mixins.between(520px, mixins.$breakpoint-mobile) {
   .item-editor__fields,
   .item-editor__template-attributes,
   .item-editor__custom-attributes .item-attribute-editor {
@@ -490,7 +491,7 @@
   }
 }
 
-@media (max-width: 279px) {
+@include mixins.below(279px) {
   .item-editor__fields,
   .item-editor__template-attributes,
   .item-editor__custom-attributes .item-attribute-editor {

@@ -1,13 +1,31 @@
 /* 本文件拥有跨页面复用的按钮与轻量操作控件外观，不定义具体业务组件布局。 */
+@use 'sass:map';
+
+%button-reset {
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+}
+
+%action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 .icon-button,
 .primary-button,
 .danger-button,
 .secondary-button,
 .text-button,
 .menu-item {
-  border: 0;
-  background: transparent;
-  color: var(--color-text);
+  @extend %button-reset;
 }
 
 .icon-button {
@@ -22,16 +40,20 @@
   font-weight: 680;
 }
 
-.icon-button:hover,
-.secondary-button:hover,
-.app-navigation-pane .menu-item:hover {
-  background: rgb(23 32 42 / 4%);
+.icon-button,
+.secondary-button,
+.app-navigation-pane .menu-item {
+  &:hover {
+    background: rgb(23 32 42 / 4%);
+  }
 }
 
-.app-mobile-nav-trigger[aria-expanded='true'],
-.app-mobile-nav-trigger[aria-expanded='true']:hover {
-  background: var(--color-surface);
-  color: var(--color-muted);
+.app-mobile-nav-trigger {
+  &[aria-expanded='true'],
+  &[aria-expanded='true']:hover {
+    background: var(--color-surface);
+    color: var(--color-muted);
+  }
 }
 
 .app-mobile-nav-trigger,
@@ -42,53 +64,58 @@
 .primary-button,
 .danger-button,
 .secondary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 0 13px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 650;
-  white-space: nowrap;
+  @extend %action-button;
+}
+
+$filled-button-variants: (
+  primary: (
+    background: var(--color-accent),
+    hover-background: var(--color-accent-strong),
+  ),
+  danger: (
+    background: var(--color-danger),
+    hover-filter: brightness(0.92),
+  ),
+);
+
+@each $name, $styles in $filled-button-variants {
+  .#{$name}-button {
+    background: map.get($styles, background);
+    color: #fff;
+
+    &:hover {
+      @if map.has-key($styles, hover-background) {
+        background: map.get($styles, hover-background);
+      }
+
+      @if map.has-key($styles, hover-filter) {
+        filter: map.get($styles, hover-filter);
+      }
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.68;
+    }
+  }
+}
+
+.secondary-button,
+.text-button {
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
 }
 
 .primary-button {
-  background: var(--color-accent);
-  color: #fff;
-}
+  &--compact {
+    min-width: 64px;
+  }
 
-.primary-button:hover {
-  background: var(--color-accent-strong);
-}
-
-.danger-button {
-  background: var(--color-danger);
-  color: #fff;
-}
-
-.danger-button:hover {
-  filter: brightness(0.92);
-}
-
-.primary-button:disabled,
-.danger-button:disabled {
-  cursor: wait;
-  opacity: 0.68;
-}
-
-.secondary-button:disabled,
-.text-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.primary-button--compact {
-  min-width: 64px;
-}
-
-.primary-button--full {
-  width: 100%;
+  &--full {
+    width: 100%;
+  }
 }
 
 .secondary-button {
@@ -104,11 +131,11 @@
   font-size: 13px;
   font-weight: 650;
   white-space: nowrap;
-}
 
-.text-button:hover {
-  color: var(--color-accent-strong);
-  text-decoration: underline;
+  &:hover {
+    color: var(--color-accent-strong);
+    text-decoration: underline;
+  }
 }
 
 .eyebrow {

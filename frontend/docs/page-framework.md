@@ -180,6 +180,7 @@ frontend/src/styles/
   index.scss
   foundation/
     _tokens.scss
+    _mixins.scss
     _base.scss
   shared/
     _brand.scss
@@ -197,7 +198,7 @@ frontend/src/pages/*.scss
 职责：
 
 - `index.scss`：使用 Sass `@use` 装配全局基础层，不导入具体页面或组件实现。
-- `foundation/`：颜色、字体、尺寸、圆角、阴影、层级、导航高度、motion token、基础元素和减少动态效果适配。
+- `foundation/`：颜色、字体、尺寸、圆角、阴影、层级、导航高度、motion token、基础元素、共享 SCSS 工具和减少动态效果适配。
 - `shared/`：只放已经跨多个页面或组件复用的视觉原语，不接收单一业务页面的选择器。
 - `styles/pages/_auth.scss`：认证页面族共享的布局和表单排列。
 - `layouts/*.scss`：样式跟随所属 Shell，包含该 Shell 自己的断点调整。
@@ -209,10 +210,30 @@ frontend/src/pages/*.scss
 - 不再建立集中式 `responsive.scss`；断点规则放回对应布局、组件或页面文件。
 - 组件样式使用同一套 token。
 - 运行时主题值继续使用 CSS 自定义属性，不能用 Sass 变量替代。
+- 结构断点、输入方式和图标骨架统一复用 `foundation/_mixins.scss`；组件文件通过 Sass `@use` 按需引入，不能依赖隐式全局变量。
+- 重复状态族允许使用 Sass map、`@each` 和占位选择器生成；只有确实共享同一规则时才抽象，不能为了展示语法制造间接层。
+- 同一 BEM 块的 `__element`、`--modifier`、伪类和直接子元素优先收进块选择器并使用 `&`；跨组件上下文和无父子语义的选择器保持显式平铺。
 - SCSS 嵌套只用于明确的组件状态和子元素，避免按 DOM 结构进行深层嵌套。
 - 无跨组件或插槽选择器依赖的新样式优先使用 scoped；需要外部上下文时必须让全局选择器的所有权清晰可追踪。
 - 不把深色模式混入当前阶段。
 - 不使用大面积装饰渐变、漂浮卡片和营销化 hero。
+
+### SCSS 能力约束
+
+- 新增或重构的 `.scss` 文件必须使用 Sass `@use` 声明依赖，禁止新增 `@import` 或依赖隐式全局变量。
+- 同一 BEM 块的 `__element`、`--modifier`、伪类和直接子元素必须优先使用 `&` 嵌套；只有跨组件上下文、Teleport 宿主或没有父子语义的选择器才保留显式平铺。
+- 断点、触控输入、焦点环、SVG 图标和减少动效规则必须优先复用 `foundation/_mixins.scss`；不得在多个组件重复书写相同的 `767px`、`768px` 媒体条件或图标骨架。
+- 运行时可变的颜色、字体、圆角、层级和动效值继续使用 CSS 自定义属性；Sass 变量只用于编译期结构参数、断点和生成规则。
+- 两个以上状态拥有同一结构时才使用 Sass map、`@each` 或占位选择器；抽象必须减少重复，不能为了展示 Sass 语法增加间接层。
+- 嵌套只表达组件状态、BEM 关系和明确的直接子元素，禁止按任意 DOM 层级形成超过三层的深链选择器。
+- 修改样式时不得把共享控件外观复制到业务页面；共享边框、焦点、禁用、错误和动效仍由共享层或组件所有者维护。
+
+### SCSS 代码评审门槛
+
+- 评审必须能从文件顶部的 `@use` 看出 mixin、Sass 内置模块和共享 token 的来源。
+- 新增组件样式至少检查一次 `&__element`、`&--modifier` 或状态伪类是否可以替代重复的完整选择器；确实不能嵌套时在评审说明原因。
+- 评审必须搜索变更文件中的 `@media`、`@import`、重复 CSS 值和深层选择器，确认没有绕过共享 mixin 或样式所有权。
+- 生成 CSS 的视觉行为必须保持稳定；结构重构后仍需通过 `pnpm build`，并按 [`ui-consistency-checklist.md`](ui-consistency-checklist.md) 检查目标视口、溢出和状态。
 
 ## 当前源码对应
 

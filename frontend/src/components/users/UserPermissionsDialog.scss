@@ -1,4 +1,5 @@
 /* 本文件拥有用户权限分类选择器、选项列表和切换动效，不定义权限授权规则。 */
+@use '../../styles/foundation/mixins' as mixins;
 .permission-picker__context {
   display: flex;
   min-width: 0;
@@ -178,7 +179,7 @@
   transform: translateX(calc(0px - var(--motion-distance-small)));
 }
 
-@media (hover: hover) and (pointer: fine) {
+@include mixins.hover-capable {
   .permission-picker__group:hover {
     background: var(--color-surface);
     color: var(--color-text);
@@ -189,7 +190,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .permission-picker__context {
     gap: 12px;
   }

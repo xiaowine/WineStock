@@ -16,24 +16,24 @@
   padding: 10px 12px;
   border-left: 4px solid var(--color-accent);
   background: var(--color-surface-raised);
-}
 
-.dialog-account-context span {
-  color: var(--color-subtle);
-  font-size: 12px;
-}
+  span {
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
 
-.dialog-account-context strong {
-  display: block;
-  overflow: hidden;
-  color: var(--color-text);
-  font-size: 15px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  strong {
+    display: block;
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-.dialog-account-context--danger {
-  border-left-color: var(--color-danger);
+  &--danger {
+    border-left-color: var(--color-danger);
+  }
 }
 
 .confirmation-copy {
@@ -48,10 +48,10 @@
   min-height: 120px;
   align-content: center;
   color: var(--color-muted);
-}
 
-.dialog-state--error {
-  color: var(--color-danger);
+  &--error {
+    color: var(--color-danger);
+  }
 }
 
 .user-actions-menu {
@@ -72,42 +72,44 @@
   background: transparent;
   color: var(--color-text);
   text-align: left;
-}
 
-.user-action-option:last-child {
-  border-bottom: 0;
-}
+  &:last-child {
+    border-bottom: 0;
+  }
 
-.user-action-option:hover {
-  background: var(--color-surface-raised);
-}
+  &:hover {
+    background: var(--color-surface-raised);
+  }
 
-.user-action-option > span:first-child {
-  display: grid;
-  gap: 3px;
-}
+  > span {
+    &:first-child {
+      display: grid;
+      gap: 3px;
+    }
 
-.user-action-option strong {
-  font-size: 14px;
-  font-weight: 680;
-}
+    &:last-child {
+      color: var(--color-subtle);
+      font-size: 24px;
+      line-height: 1;
+    }
+  }
 
-.user-action-option small {
-  color: var(--color-subtle);
-  font-size: 12px;
-}
+  strong {
+    font-size: 14px;
+    font-weight: 680;
+  }
 
-.user-action-option > span:last-child {
-  color: var(--color-subtle);
-  font-size: 24px;
-  line-height: 1;
-}
+  small {
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
 
-.user-action-option--danger {
-  color: var(--color-danger);
-}
+  &--danger {
+    color: var(--color-danger);
 
-.user-action-option--danger small,
-.user-action-option--danger > span:last-child {
-  color: var(--color-danger);
+    small,
+    > span:last-child {
+      color: var(--color-danger);
+    }
+  }
 }

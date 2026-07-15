@@ -1,4 +1,5 @@
 /* 本文件拥有稳定应用框架的桌面/移动排布，不通过断点销毁组件或路由页面。 */
+@use '../styles/foundation/mixins' as mixins;
 .app-shell {
   display: flex;
   height: 100vh;
@@ -21,16 +22,16 @@
   padding: 0 16px;
   border-bottom: 1px solid var(--color-border);
   background: #fbfbfc;
-}
 
-.app-topbar__brand {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-}
+  &__brand {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+  }
 
-.app-topbar__context {
-  display: none;
+  &__context {
+    display: none;
+  }
 }
 
 .app-account {
@@ -40,20 +41,20 @@
   min-width: 0;
   align-items: center;
   justify-self: end;
-}
 
-.app-account__trigger {
-  position: relative;
-  z-index: 2;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: transparent;
-}
+  &__trigger {
+    position: relative;
+    z-index: 2;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
 
-.app-account__trigger[aria-expanded='true'],
-.app-account__trigger:hover {
-  background: rgb(23 32 42 / 5%);
+    &[aria-expanded='true'],
+    &:hover {
+      background: rgb(23 32 42 / 5%);
+    }
+  }
 }
 
 .app-workspace {
@@ -74,10 +75,10 @@
   padding: 12px 10px;
   border-right: 1px solid var(--color-nav-border);
   background: var(--color-nav);
-}
 
-.app-navigation-pane__header {
-  display: none;
+  &__header {
+    display: none;
+  }
 }
 
 .app-content-pane {
@@ -96,7 +97,7 @@
   display: none;
 }
 
-@media (max-width: 1040px) and (min-width: 768px) {
+@include mixins.tablet {
   .app-topbar {
     padding: 0 14px;
   }
@@ -110,7 +111,7 @@
   }
 }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .app-topbar {
     flex-basis: calc(var(--topbar-height-mobile) + env(safe-area-inset-top));
     grid-template-columns: minmax(0, 1fr) auto;

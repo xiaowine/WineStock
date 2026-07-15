@@ -1,4 +1,5 @@
 /* 本文件拥有物品替代关系页签的列表、候选物品和编辑操作布局，不定义 Dialog 外壳或替代关系权限。 */
+@use '../../styles/foundation/mixins' as mixins;
 .item-substitutes-panel {
   display: grid;
   min-width: 0;
@@ -88,7 +89,7 @@
 .item-substitutes-panel__state--error { color: var(--color-danger); }
 .item-substitutes-panel__save-error { margin: 0; color: var(--color-danger); font-size: 12px; }
 
-@media (max-width: 767px) {
+@include mixins.mobile {
   .item-substitutes-panel { padding: 14px; }
   .item-substitutes-panel__header { align-items: stretch; flex-direction: column; }
   .item-substitutes-panel__save { align-self: flex-start; }

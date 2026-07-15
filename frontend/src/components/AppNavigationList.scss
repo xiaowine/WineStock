@@ -1,4 +1,5 @@
 /* 本文件拥有桌面侧栏与移动抽屉共用导航列表的外观和状态，不决定导航权限。 */
+@use '../styles/foundation/mixins' as mixins;
 .app-navigation {
   display: grid;
   gap: 18px;
@@ -7,18 +8,18 @@
 .navigation-group {
   display: grid;
   gap: 4px;
-}
 
-.navigation-group--management {
-  padding-top: 14px;
-  border-top: 1px solid var(--color-nav-border);
-}
+  &--management {
+    padding-top: 14px;
+    border-top: 1px solid var(--color-nav-border);
+  }
 
-.navigation-group h3 {
-  margin: 0 10px 3px;
-  color: var(--color-nav-muted);
-  font-size: 12px;
-  font-weight: 650;
+  h3 {
+    margin: 0 10px 3px;
+    color: var(--color-nav-muted);
+    font-size: 12px;
+    font-weight: 650;
+  }
 }
 
 .menu-item {
@@ -38,70 +39,69 @@
   transition:
     background-color var(--motion-duration-fast) var(--motion-ease-standard),
     color var(--motion-duration-fast) var(--motion-ease-standard);
-}
 
-.app-navigation-pane .menu-item {
-  color: var(--color-nav-text);
-}
+  &--active {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
 
-.app-navigation-pane .menu-item:hover {
-  background: rgb(23 32 42 / 5%);
-}
+  &__icon {
+    width: 18px;
+    height: 18px;
+    overflow: visible;
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    color: var(--color-nav-muted);
+    transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+  }
 
-.menu-item--active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
-}
+  &:hover &__icon {
+    color: var(--color-nav-text);
+  }
 
-.app-navigation-pane .menu-item--active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent-strong);
-}
-
-.app-navigation-pane .menu-item--active::before {
-  content: '';
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: 0;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--color-accent);
-}
-
-.menu-item__icon {
-  width: 18px;
-  height: 18px;
-  overflow: visible;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  color: var(--color-nav-muted);
-  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-.menu-item:hover .menu-item__icon {
-  color: var(--color-nav-text);
-}
-
-.menu-item--active .menu-item__icon {
-  color: var(--color-accent);
-}
-
-.app-navigation-pane .menu-item {
-  min-height: 42px;
-}
-
-@media (min-width: 768px) {
-  .app-navigation-pane .menu-item {
-    min-height: 38px;
+  &--active &__icon {
+    color: var(--color-accent);
   }
 }
 
-@media (max-width: 767px) {
-  .app-navigation-pane .menu-item--desktop-only {
-    display: none;
+.app-navigation-pane {
+  .menu-item {
+    min-height: 42px;
+    color: var(--color-nav-text);
+
+    &:hover {
+      background: rgb(23 32 42 / 5%);
+    }
+
+    &--active {
+      background: var(--color-accent-soft);
+      color: var(--color-accent-strong);
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 7px;
+        bottom: 7px;
+        left: 0;
+        width: 3px;
+        border-radius: 999px;
+        background: var(--color-accent);
+      }
+    }
+  }
+
+  @include mixins.desktop {
+    .menu-item {
+      min-height: 38px;
+    }
+  }
+
+  @include mixins.mobile {
+    .menu-item--desktop-only {
+      display: none;
+    }
   }
 }
