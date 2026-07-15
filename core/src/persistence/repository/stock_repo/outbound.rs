@@ -369,7 +369,6 @@ where
                    outbound_items.quantity,
                    outbound_items.batch_id,
                    outbound_items.location_id,
-                   locations.code AS location_code,
                    locations.name AS location_name,
                    outbound_items.created_at
             FROM stock_outbound_order_items outbound_items
@@ -390,7 +389,6 @@ where
                 quantity: row.try_get("", "quantity")?,
                 batch_id: row.try_get("", "batch_id")?,
                 location_id: row.try_get("", "location_id")?,
-                location_code: row.try_get("", "location_code")?,
                 location_name: row.try_get("", "location_name")?,
                 created_at: row.try_get("", "created_at")?,
             })

@@ -147,7 +147,6 @@ export interface ItemOptionPageResponse {
 
 export interface ItemLocationStockResponse {
   location_id: number
-  location_code: string
   location_name: string
   quantity: number
   value: number
@@ -171,7 +170,6 @@ export interface ItemBatchStockResponse {
   id: number
   batch_no: string
   location_id: number
-  location_code: string
   location_name: string
   initial_quantity: number
   remaining_quantity: number

@@ -42,7 +42,7 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
     assert!(default_group
         .locations
         .iter()
-        .any(|location| location.code == "DEFAULT" && location.name == "默认库位"));
+        .any(|location| location.name == "默认库位" && location.notes.is_none()));
 
     let root = create_group(&app, &login.body.access_token, None, "主仓").await;
     let child = create_group(&app, &login.body.access_token, Some(root.id), "A区").await;
@@ -79,6 +79,60 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
     assert_eq!(cycle.status(), StatusCode::BAD_REQUEST);
     assert_eq!(error_code(cycle).await, "location_group_cycle");
 
+    let mut parent_id = None;
+    let mut depth_chain = Vec::new();
+    for depth in 1..=10 {
+        let group = create_group(
+            &app,
+            &login.body.access_token,
+            parent_id,
+            &format!("深度测试 {depth}"),
+        )
+        .await;
+        parent_id = Some(group.id);
+        depth_chain.push(group);
+    }
+    let too_deep = authorized_json_request(
+        &app,
+        "POST",
+        "/api/location-groups",
+        &login.body.access_token,
+        &LocationGroupCreateRequest {
+            parent_id,
+            name: "第十一层".to_owned(),
+            sort_order: Some(0),
+        },
+    )
+    .await;
+    assert_eq!(too_deep.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(too_deep).await, "location_group_depth_exceeded");
+
+    let movable_root = create_group(&app, &login.body.access_token, None, "待移动分组").await;
+    create_group(
+        &app,
+        &login.body.access_token,
+        Some(movable_root.id),
+        "待移动子分组",
+    )
+    .await;
+    let move_too_deep = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/location-groups/{}", movable_root.id),
+        &login.body.access_token,
+        &LocationGroupUpdateRequest {
+            parent_id: Some(depth_chain[8].id),
+            name: movable_root.name.clone(),
+            sort_order: Some(movable_root.sort_order),
+        },
+    )
+    .await;
+    assert_eq!(move_too_deep.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        error_code(move_too_deep).await,
+        "location_group_depth_exceeded"
+    );
+
     let delete_root = authorized_empty_request(
         &app,
         "DELETE",
@@ -97,6 +151,22 @@ async fn locations_can_be_created_moved_and_protected_by_current_stock() {
     let group_id = default_group_id(&app).await;
     let from_location = create_location(&app, &login.body.access_token, group_id, "A-01").await;
     let to_location = create_location(&app, &login.body.access_token, group_id, "B-02").await;
+    assert_eq!(from_location.notes.as_deref(), Some("测试库位备注"));
+    let duplicate_name = authorized_json_request(
+        &app,
+        "POST",
+        "/api/locations",
+        &login.body.access_token,
+        &LocationCreateRequest {
+            group_id,
+            name: "A-01".to_owned(),
+            notes: None,
+            sort_order: Some(1),
+        },
+    )
+    .await;
+    assert_eq!(duplicate_name.status(), StatusCode::CONFLICT);
+    assert_eq!(error_code(duplicate_name).await, "location_name_taken");
     let item_id = seed_item(&app, &login.body.access_token).await;
     let inbound = seed_approved_inbound(
         &app,
@@ -137,7 +207,7 @@ async fn locations_can_be_created_moved_and_protected_by_current_stock() {
     let detail: ItemInventoryResponse = json_body(detail).await;
     assert_eq!(detail.locations.len(), 1);
     assert_eq!(detail.locations[0].location_id, to_location.id);
-    assert_eq!(detail.locations[0].location_code, "B-02");
+    assert_eq!(detail.locations[0].location_name, "B-02");
 
     let delete_busy_location = authorized_empty_request(
         &app,
@@ -198,7 +268,7 @@ async fn create_location(
     app: &crate::test_support::TestApp,
     access_token: &str,
     group_id: i64,
-    code: &str,
+    name: &str,
 ) -> LocationResponse {
     let response = authorized_json_request(
         app,
@@ -207,8 +277,8 @@ async fn create_location(
         access_token,
         &LocationCreateRequest {
             group_id,
-            code: code.to_owned(),
-            name: format!("{code} 库位"),
+            name: name.to_owned(),
+            notes: Some("测试库位备注".to_owned()),
             sort_order: Some(0),
         },
     )

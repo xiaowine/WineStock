@@ -38,12 +38,12 @@ pub(crate) struct CreateLocation {
     /// 所属库位分组 ID。
     #[garde(range(min = 1))]
     pub group_id: i64,
-    /// 库位编码，未软删除库位内全局唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
-    pub code: String,
-    /// 库位名称。
+    /// 库位名称，未软删除库位内全局唯一。
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
+    /// 可选库位备注。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub notes: Option<String>,
     /// 库位排序值，从 0 开始。
     #[garde(range(min = 0))]
     pub sort_order: i32,
@@ -55,12 +55,12 @@ pub(crate) struct UpdateLocation {
     /// 所属库位分组 ID。
     #[garde(range(min = 1))]
     pub group_id: i64,
-    /// 库位编码，未软删除库位内全局唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
-    pub code: String,
-    /// 库位名称。
+    /// 库位名称，未软删除库位内全局唯一。
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
+    /// 可选库位备注。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub notes: Option<String>,
     /// 库位排序值，从 0 开始。
     #[garde(range(min = 0))]
     pub sort_order: i32,
@@ -112,10 +112,10 @@ pub(crate) struct StockLocationRecord {
     pub group_id: i64,
     /// 所属分组名称。
     pub group_name: String,
-    /// 库位编码。
-    pub code: String,
     /// 库位名称。
     pub name: String,
+    /// 可选库位备注。
+    pub notes: Option<String>,
     /// 排序值。
     pub sort_order: i32,
     /// 创建时间。

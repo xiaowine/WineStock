@@ -60,7 +60,6 @@ pub(super) fn item_inventory_response(
             .into_iter()
             .map(|location| controller::ItemLocationStockResponse {
                 location_id: location.location_id,
-                location_code: location.location_code,
                 location_name: location.location_name,
                 quantity: location.quantity,
                 value: location.value,
@@ -191,8 +190,8 @@ pub(super) fn location_response(record: StockLocationRecord) -> controller::Loca
         id: record.id,
         group_id: record.group_id,
         group_name: record.group_name,
-        code: record.code,
         name: record.name,
+        notes: record.notes,
         sort_order: record.sort_order,
         created_at: record.created_at,
         updated_at: record.updated_at,
@@ -244,7 +243,6 @@ pub(super) fn inbound_response(
                     quantity: item.quantity,
                     unit_price: item.unit_price,
                     location_id: item.location_id,
-                    location_code: item.location_code,
                     location_name: item.location_name,
                     batch_no: item.batch_no,
                     expires_at: item.expires_at,
@@ -287,7 +285,6 @@ pub(super) fn outbound_response(
                 quantity: item.quantity,
                 batch_id: item.batch_id,
                 location_id: item.location_id,
-                location_code: item.location_code,
                 location_name: item.location_name,
                 created_at: item.created_at,
             })

@@ -373,8 +373,6 @@ pub(crate) struct ItemInventoryRecord {
 pub(crate) struct StockItemLocationRecord {
     /// 库位 ID。
     pub location_id: i64,
-    /// 库位编码。
-    pub location_code: String,
     /// 库位名称。
     pub location_name: String,
     /// 该库位当前剩余库存量。
@@ -394,8 +392,6 @@ pub(crate) struct StockItemBatchRecord {
     pub batch_no: String,
     /// 批次库位 ID。
     pub location_id: i64,
-    /// 批次库位编码。
-    pub location_code: String,
     /// 批次库位名称。
     pub location_name: String,
     /// 入库时的初始数量。

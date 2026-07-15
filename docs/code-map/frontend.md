@@ -47,6 +47,7 @@
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL，可按调用方要求组合通用全屏预览。
 - `frontend/src/components/items/`：物品基础资料、主图、可选属性模板、任意属性编辑控件和替代关系；已有物品工作区使用资料/库存/替代关系多页 Dialog，库存和替代关系均按需加载，新建会话只挂载资料编辑器。
 - `frontend/src/components/items/ItemCatalogFilterDialog.vue`：物品目录分类、属性模板和动态字段多选筛选草稿；负责取消、清除、折叠候选和应用事件，不请求目录或管理分页。
+- `frontend/src/components/locations/`：最多十层的库位分组树、名称与备注表单、分组/库位创建编辑 Dialog 和删除确认；只拥有库位页面局部呈现，不直接请求 API 或修改库存数量。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
@@ -99,7 +100,10 @@
   - 定义分类、物品属性模板和入库模板的独立查询契约。
 
 - `frontend/src/api/inbound.ts`
-  - 定义入库提交模式、创建响应、库位和模板字段 DTO，查询真实库位与模板详情，并提交待审批或直接入库请求。
+  - 定义入库提交模式、创建响应和模板字段 DTO，复用统一库位 API，并提交待审批或直接入库请求。
+
+- `frontend/src/api/locations.ts`
+  - 定义库位分组树、名称唯一且可带备注的库位 CRUD 和整批次移库契约；入库页面复用同一 `LocationResponse`，不再维护重复 DTO。
 
 - `frontend/src/api/files.ts`
   - 定义图片文件 DTO、PNG/JPEG/WebP 文件头预检、15MB 限制和上传/读取/删除接口。
@@ -150,7 +154,8 @@
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。关键词、库存状态、高级结构化筛选、计数、排序和分页来自服务端；所有具备 `stock.item.read` 的用户可从目录行或详情图标进入资料和库存详情，只有 `stock.item.manage` 用户才能看到新建、删除和保存入口，详情 Dialog 才可编辑。
 - `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
 - `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、动态模板、图片上传、提交确认和后端错误定位。
-- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批、库位、分类与模板、替代关系和审计日志共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
+- `frontend/src/pages/LocationsPage.vue`、`LocationsPage.scss`：`/locations` 真实库位主数据页面；桌面使用分组树与身份/备注/判断操作三段式库位列表，移动端把分组树切换为 Drawer，支持权限控制、稳定刷新、分组/库位 CRUD 和搜索；库存详情与整批次移库等待按库位查询批次契约。
+- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库、审批、分类与模板、替代关系和审计日志共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。

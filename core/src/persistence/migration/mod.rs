@@ -5,6 +5,7 @@
 
 mod m20260706_000001_initial_schema;
 mod m20260713_000002_item_catalog_visibility;
+mod m20260715_000003_location_name_notes;
 
 use sea_orm_migration::prelude::*;
 
@@ -17,6 +18,7 @@ impl MigratorTrait for Migrator {
         vec![
             Box::new(m20260706_000001_initial_schema::Migration),
             Box::new(m20260713_000002_item_catalog_visibility::Migration),
+            Box::new(m20260715_000003_location_name_notes::Migration),
         ]
     }
 }

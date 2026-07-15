@@ -98,8 +98,6 @@ pub(crate) struct OutboundOrderItemRecord {
     pub batch_id: Option<i64>,
     /// 出库库位 ID。
     pub location_id: Option<i64>,
-    /// 出库库位编码。
-    pub location_code: Option<String>,
     /// 出库库位名称。
     pub location_name: Option<String>,
     /// 创建时间。

@@ -319,7 +319,7 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT batches.id, batches.batch_no, batches.location_id,
-                       locations.code AS location_code, locations.name AS location_name,
+                       locations.name AS location_name,
                        batches.initial_quantity, batches.remaining_quantity, batches.unit_cost,
                        batches.remaining_quantity * batches.unit_cost AS value,
                        batches.received_at, batches.expires_at
@@ -586,7 +586,6 @@ where
                 r#"
                 SELECT
                     locations.id AS location_id,
-                    locations.code AS location_code,
                     locations.name AS location_name,
                     COALESCE(SUM(batches.remaining_quantity), 0.0) AS quantity,
                     COALESCE(SUM(batches.remaining_quantity * batches.unit_cost), 0.0) AS value,
@@ -595,8 +594,8 @@ where
                 JOIN stock_locations locations ON locations.id = batches.location_id
                 WHERE batches.item_id = ?
                   AND batches.remaining_quantity > 0
-                GROUP BY locations.id, locations.code, locations.name
-                ORDER BY locations.code ASC, locations.id ASC
+                GROUP BY locations.id, locations.name
+                ORDER BY locations.name ASC, locations.id ASC
                 "#,
                 [item_id.into()],
             ))
@@ -606,7 +605,6 @@ where
             .map(|row| {
                 Ok(StockItemLocationRecord {
                     location_id: row.try_get("", "location_id")?,
-                    location_code: row.try_get("", "location_code")?,
                     location_name: row.try_get("", "location_name")?,
                     quantity: row.try_get("", "quantity")?,
                     value: row.try_get("", "value")?,
@@ -787,7 +785,7 @@ fn append_item_catalog_field_filters(
                           ON filter_locations.id = filter_batches.location_id
                         WHERE filter_batches.item_id = stock_items.id
                           AND filter_batches.remaining_quantity > 0
-                          AND filter_locations.code IN ("#,
+                          AND filter_locations.name IN ("#,
                 );
                 append_bound_values(sql, values, filter_values);
                 sql.push_str(") )");
@@ -910,7 +908,6 @@ fn stock_batch_from_query_row(row: QueryResult) -> Result<StockItemBatchRecord, 
         id: row.try_get("", "id")?,
         batch_no: row.try_get("", "batch_no")?,
         location_id: row.try_get("", "location_id")?,
-        location_code: row.try_get("", "location_code")?,
         location_name: row.try_get("", "location_name")?,
         initial_quantity: row.try_get("", "initial_quantity")?,
         remaining_quantity: row.try_get("", "remaining_quantity")?,

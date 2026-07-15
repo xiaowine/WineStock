@@ -397,7 +397,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "UPDATE stock_locations SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE code = 'DEFAULT'"
+            "UPDATE stock_locations SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE name = '默认库位'"
                 .to_owned(),
         ))
         .await
@@ -421,7 +421,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
     assert_eq!(
         query_i64(
             &second.storage.database,
-            "SELECT group_id FROM stock_locations WHERE code = 'DEFAULT' AND deleted_at IS NULL",
+            "SELECT group_id FROM stock_locations WHERE name = '默认库位' AND deleted_at IS NULL",
             "group_id",
         )
         .await,

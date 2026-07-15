@@ -1,8 +1,8 @@
 # 库位管理 API
 
-库位是库存批次和出入库流转的属性，不属于物品主数据。库位分组支持父子层级，具体库位归属于某个分组。
+库位是库存批次和出入库流转的属性，不属于物品主数据。库位分组支持父子层级，根分组计为第 1 层，最多 10 层；具体库位归属于某个分组。
 
-当前实现状态：已实现库位分组树、库位 CRUD 和整批次移库接口，并纳入 OpenAPI。本地服务启动时如果没有任何有效库位，会自动创建 `默认库区` 和 `DEFAULT / 默认库位`。
+当前实现状态：已实现库位分组树、库位 CRUD 和整批次移库接口，并纳入 OpenAPI。本地服务启动时如果没有任何有效库位，会自动创建 `默认库区` 和 `默认库位`。
 
 ## 所需权限
 
@@ -32,13 +32,14 @@
 
 - 权限：`stock.location.manage`
 - 响应：`201` + `LocationGroupResponse`
+- 错误：`400 location_group_depth_exceeded` 新分组会超过 10 层
 
 ### `PUT /api/location-groups/{id}`
 
 更新库位分组。提交 `parent_id` 可移动分组；为空表示移动到根分组。
 
 - 权限：`stock.location.manage`
-- 错误：`400 location_group_cycle` 移动后会形成循环层级 / `409 location_group_name_taken`
+- 错误：`400 location_group_cycle` 移动后会形成循环层级 / `400 location_group_depth_exceeded` 移动后的整个子树会超过 10 层 / `409 location_group_name_taken`
 
 ### `DELETE /api/location-groups/{id}`
 
@@ -66,8 +67,8 @@
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `group_id` | integer | 是 | 所属库位分组 ID |
-| `code` | string | 是 | 库位编码，未删除库位内全局唯一 |
-| `name` | string | 是 | 库位名称 |
+| `name` | string | 是 | 库位名称，未删除库位内全局唯一 |
+| `notes` | string/null | 否 | 库位备注，最多 1024 个字符 |
 | `sort_order` | integer | 否 | 排序值，默认 0 |
 
 - 权限：`stock.location.manage`
@@ -78,7 +79,7 @@
 更新库位基础资料。
 
 - 权限：`stock.location.manage`
-- 错误：`409 location_code_taken`
+- 错误：`409 location_name_taken`
 
 ### `DELETE /api/locations/{id}`
 

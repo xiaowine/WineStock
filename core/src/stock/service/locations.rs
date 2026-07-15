@@ -20,6 +20,8 @@ use super::{
     StockApiError,
 };
 
+const MAX_LOCATION_GROUP_DEPTH: usize = 10;
+
 /// 查询库位分组树；每个分组节点内包含直接子分组和直接库位。
 pub(crate) async fn list_location_group_tree(
     state: &CoreState,
@@ -39,6 +41,8 @@ pub(crate) async fn create_location_group(
 ) -> Result<controller::LocationGroupResponse, StockApiError> {
     let repository = StockRepository::new(state.database());
     let parent_id = normalize_parent_id(&repository, request.parent_id).await?;
+    let groups = repository.list_active_location_groups().await?;
+    validate_location_group_depth(&groups, parent_id, 1)?;
     let name = normalize_required_text(&request.name)?;
     let sort_order = normalize_sort_order(request.sort_order)?;
     if repository
@@ -87,6 +91,9 @@ pub(crate) async fn update_location_group(
             return Err(StockApiError::LocationGroupCycle);
         }
     }
+    let groups = repository.list_active_location_groups().await?;
+    let subtree_height = location_group_subtree_height(&groups, id);
+    validate_location_group_depth(&groups, parent_id, subtree_height)?;
     let name = normalize_required_text(&request.name)?;
     let sort_order = normalize_sort_order(request.sort_order)?;
     if repository
@@ -173,7 +180,7 @@ pub(crate) async fn list_locations(
     Ok(locations)
 }
 
-/// 创建库位；库位编码在未软删除库位内全局唯一。
+/// 创建库位；库位名称在未软删除库位内全局唯一。
 pub(crate) async fn create_location(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -188,16 +195,16 @@ pub(crate) async fn create_location(
     {
         return Err(StockApiError::LocationGroupNotFound);
     }
-    let code = normalize_required_text(&request.code)?;
-    if repository.active_location_code_exists(&code, None).await? {
-        return Err(StockApiError::LocationCodeTaken);
+    let name = normalize_required_text(&request.name)?;
+    if repository.active_location_name_exists(&name, None).await? {
+        return Err(StockApiError::LocationNameTaken);
     }
     let location = repository
         .create_location(
             CreateLocation {
                 group_id,
-                code,
-                name: normalize_required_text(&request.name)?,
+                name,
+                notes: normalize_optional_text(request.notes)?,
                 sort_order: normalize_sort_order(request.sort_order)?,
             },
             Some(current_user.user_id),
@@ -227,20 +234,20 @@ pub(crate) async fn update_location(
     {
         return Err(StockApiError::LocationGroupNotFound);
     }
-    let code = normalize_required_text(&request.code)?;
+    let name = normalize_required_text(&request.name)?;
     if repository
-        .active_location_code_exists(&code, Some(id))
+        .active_location_name_exists(&name, Some(id))
         .await?
     {
-        return Err(StockApiError::LocationCodeTaken);
+        return Err(StockApiError::LocationNameTaken);
     }
     let location = repository
         .update_location(
             id,
             UpdateLocation {
                 group_id,
-                code,
-                name: normalize_required_text(&request.name)?,
+                name,
+                notes: normalize_optional_text(request.notes)?,
                 sort_order: normalize_sort_order(request.sort_order)?,
             },
             Some(current_user.user_id),
@@ -322,6 +329,39 @@ fn normalize_sort_order(value: Option<i32>) -> Result<i32, StockApiError> {
     } else {
         Ok(value)
     }
+}
+
+/// 校验新父级深度与被移动子树高度之和不超过十层。
+fn validate_location_group_depth(
+    groups: &[StockLocationGroupRecord],
+    parent_id: Option<i64>,
+    subtree_height: usize,
+) -> Result<(), StockApiError> {
+    let parent_depth = parent_id
+        .and_then(|id| location_group_depth(groups, id))
+        .unwrap_or(0);
+    if parent_depth + subtree_height > MAX_LOCATION_GROUP_DEPTH {
+        Err(StockApiError::LocationGroupDepthExceeded)
+    } else {
+        Ok(())
+    }
+}
+
+fn location_group_depth(groups: &[StockLocationGroupRecord], group_id: i64) -> Option<usize> {
+    let group = groups.iter().find(|group| group.id == group_id)?;
+    Some(match group.parent_id {
+        Some(parent_id) => location_group_depth(groups, parent_id)? + 1,
+        None => 1,
+    })
+}
+
+fn location_group_subtree_height(groups: &[StockLocationGroupRecord], group_id: i64) -> usize {
+    groups
+        .iter()
+        .filter(|group| group.parent_id == Some(group_id))
+        .map(|group| location_group_subtree_height(groups, group.id) + 1)
+        .max()
+        .unwrap_or(1)
 }
 
 fn build_group_tree(

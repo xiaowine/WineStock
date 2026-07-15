@@ -136,7 +136,7 @@
                   <h3>库位分布</h3>
                   <div v-if="inventory.locations.length" class="item-inventory__locations">
                     <div v-for="location in inventory.locations" :key="location.location_id">
-                      <span><strong>{{ location.location_code }}</strong>{{ location.location_name }}</span>
+                      <span><strong>{{ location.location_name }}</strong></span>
                       <span>{{ formatQuantity(location.quantity) }} {{ inventory.unit }}</span>
                       <small>{{ location.batch_count }} 个批次 · {{ formatMoney(location.value) }}</small>
                     </div>
@@ -148,7 +148,7 @@
                   <h3>当前批次</h3>
                   <div v-if="batches.length" class="item-inventory__batches">
                     <div v-for="batch in batches" :key="batch.id">
-                      <span><strong>{{ batch.batch_no }}</strong>{{ batch.location_code }} · {{ batch.location_name }}</span>
+                      <span><strong>{{ batch.batch_no }}</strong>{{ batch.location_name }}</span>
                       <span>{{ formatQuantity(batch.remaining_quantity) }} {{ inventory.unit }}</span>
                       <small>{{ formatMoney(batch.unit_cost) }}/{{ inventory.unit }} · {{ batch.expires_at ? `有效期 ${formatDate(batch.expires_at)}` : '无有效期' }}</small>
                     </div>

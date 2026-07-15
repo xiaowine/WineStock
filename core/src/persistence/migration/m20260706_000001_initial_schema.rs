@@ -361,8 +361,8 @@ const INITIAL_SCHEMA: &[&str] = &[
     CREATE TABLE IF NOT EXISTS stock_locations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER NOT NULL,
-        code TEXT NOT NULL,
         name TEXT NOT NULL,
+        notes TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -371,8 +371,8 @@ const INITIAL_SCHEMA: &[&str] = &[
     )
     "#,
     r#"
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_locations_code_active
-        ON stock_locations(code)
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_locations_name_active
+        ON stock_locations(name)
         WHERE deleted_at IS NULL
     "#,
     r#"
@@ -684,7 +684,7 @@ const DROP_SCHEMA: &[&str] = &[
     "DROP INDEX IF EXISTS idx_stock_items_sku_active",
     "DROP TABLE IF EXISTS stock_items",
     "DROP INDEX IF EXISTS idx_stock_locations_group_order",
-    "DROP INDEX IF EXISTS idx_stock_locations_code_active",
+    "DROP INDEX IF EXISTS idx_stock_locations_name_active",
     "DROP TABLE IF EXISTS stock_locations",
     "DROP INDEX IF EXISTS idx_stock_location_groups_parent_order",
     "DROP INDEX IF EXISTS idx_stock_location_groups_child_name_active",

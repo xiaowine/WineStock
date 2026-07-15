@@ -291,7 +291,7 @@ async function loadLocationOptions(): Promise<void> {
   locationAbortController = controller
   locationError.value = ''
   try {
-    locations.value = await listLocations(controller.signal)
+    locations.value = await listLocations({}, controller.signal)
   } catch (error) {
     if (!isAbortError(error)) locationError.value = itemErrorMessage(error, '加载库位失败')
   } finally {

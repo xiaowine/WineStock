@@ -1,27 +1,9 @@
-// 本文件拥有入库编辑所需的库位和模板 DTO 查询，属于 frontend API 边界；它不维护页面草稿或审批状态。
+// 本文件拥有入库编辑所需的模板 DTO 和创建请求，并复用统一库位 API；它不维护页面草稿或审批状态。
 import { apiClient } from './client'
+export { listLocations } from './locations'
+export type { LocationResponse } from './locations'
 export type { InboundTemplateResponse } from './inboundTemplates'
 export type { TemplateFieldResponse, TemplateFieldType } from './templateFields'
-
-/** 可选入库库位。 */
-export interface LocationResponse {
-  /** 库位 ID。 */
-  id: number
-  /** 所属库位分组 ID。 */
-  group_id: number
-  /** 所属库位分组名称。 */
-  group_name: string
-  /** 库位编码。 */
-  code: string
-  /** 库位名称。 */
-  name: string
-  /** 同组排序值。 */
-  sort_order: number
-  /** 创建时间。 */
-  created_at: string
-  /** 最近更新时间。 */
-  updated_at: string
-}
 
 /** 创建入库单的单条物品明细。 */
 export interface InboundItemRequest {
@@ -76,11 +58,6 @@ export interface InboundResponse {
   submission_mode: InboundSubmissionMode
   /** 可选备注。 */
   notes: string | null
-}
-
-/** 查询全部有效库位。 */
-export function listLocations(signal?: AbortSignal) {
-  return apiClient.request<LocationResponse[]>('/api/locations', { signal })
 }
 
 /** 创建待审批单据或直接完成入库；响应明确返回实际采用的提交方式。 */

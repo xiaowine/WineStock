@@ -87,11 +87,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'locations',
         name: 'locations',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '维护库位分组、库位和整批次移库。',
-          apiArea: '/api/location-groups、/api/locations、/api/location-transfers',
-        },
+        component: () => import('../pages/LocationsPage.vue'),
         meta: getAppRouteMeta('locations'),
       },
       {

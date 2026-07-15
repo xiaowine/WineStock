@@ -538,10 +538,6 @@ pub(crate) struct ItemLocationStockResponse {
     #[garde(skip)]
     pub location_id: i64,
 
-    /// 库位编码。
-    #[garde(skip)]
-    pub location_code: String,
-
     /// 库位名称。
     #[garde(skip)]
     pub location_name: String,
@@ -573,10 +569,6 @@ pub(crate) struct ItemBatchStockResponse {
     /// 批次库位 ID。
     #[garde(skip)]
     pub location_id: i64,
-
-    /// 批次库位编码。
-    #[garde(skip)]
-    pub location_code: String,
 
     /// 批次库位名称。
     #[garde(skip)]

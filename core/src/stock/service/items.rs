@@ -387,7 +387,6 @@ pub(crate) async fn list_item_batches(
                 id: batch.id,
                 batch_no: batch.batch_no,
                 location_id: batch.location_id,
-                location_code: batch.location_code,
                 location_name: batch.location_name,
                 initial_quantity: batch.initial_quantity,
                 remaining_quantity: batch.remaining_quantity,

@@ -418,11 +418,11 @@ async fn item_detail_returns_current_inventory_summary() {
     assert_eq!(detail.current_quantity, 20.0);
     assert_eq!(detail.inventory_value, 50.0);
     assert_eq!(detail.locations.len(), 2);
-    assert_eq!(detail.locations[0].location_code, "A-01");
+    assert_eq!(detail.locations[0].location_name, "A-01");
     assert_eq!(detail.locations[0].quantity, 10.0);
     assert_eq!(detail.locations[0].value, 25.0);
     assert_eq!(detail.locations[0].batch_count, 1);
-    assert_eq!(detail.locations[1].location_code, "B-02");
+    assert_eq!(detail.locations[1].location_name, "B-02");
     assert_eq!(detail.batch_count, 2);
     let batches = authorized_empty_request(
         &app,

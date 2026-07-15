@@ -63,8 +63,8 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_locations
-                    (group_id, code, name, sort_order, created_at, updated_at)
-                VALUES (?, 'DEFAULT', '默认库位', 0, ?, ?)
+                    (group_id, name, notes, sort_order, created_at, updated_at)
+                VALUES (?, '默认库位', NULL, 0, ?, ?)
                 "#,
                 vec![group_id.into(), now.clone().into(), now.into()],
             ))
@@ -363,7 +363,7 @@ where
     ) -> Result<Vec<StockLocationRecord>, DbErr> {
         let mut sql = r#"
             SELECT locations.id, locations.group_id, groups.name AS group_name,
-                   locations.code, locations.name, locations.sort_order,
+                   locations.name, locations.notes, locations.sort_order,
                    locations.created_at, locations.updated_at
             FROM stock_locations locations
             JOIN stock_location_groups groups
@@ -378,7 +378,7 @@ where
             values.push(group_id.into());
         }
         if let Some(search) = search {
-            sql.push_str(" AND (lower(locations.code) LIKE ? OR lower(locations.name) LIKE ?)");
+            sql.push_str(" AND (lower(locations.name) LIKE ? OR lower(COALESCE(locations.notes, '')) LIKE ?)");
             let like = format!("%{}%", search.to_lowercase());
             values.push(like.clone().into());
             values.push(like.into());
@@ -405,16 +405,16 @@ where
         find_active_location_by_id_on_connection(self.database, id).await
     }
 
-    /// 判断未软删除库位编码是否已存在。
-    pub(crate) async fn active_location_code_exists(
+    /// 判断未软删除库位名称是否已存在。
+    pub(crate) async fn active_location_name_exists(
         &self,
-        code: &str,
+        name: &str,
         except_id: Option<i64>,
     ) -> Result<bool, DbErr> {
         let mut sql =
-            "SELECT COUNT(*) AS count FROM stock_locations WHERE deleted_at IS NULL AND code = ?"
+            "SELECT COUNT(*) AS count FROM stock_locations WHERE deleted_at IS NULL AND name = ?"
                 .to_owned();
-        let mut values = vec![code.to_owned().into()];
+        let mut values = vec![name.to_owned().into()];
         if let Some(except_id) = except_id {
             sql.push_str(" AND id != ?");
             values.push(except_id.into());
@@ -427,7 +427,7 @@ where
                 values,
             ))
             .await?
-            .ok_or_else(|| DbErr::RecordNotFound("stock location code".to_owned()))?;
+            .ok_or_else(|| DbErr::RecordNotFound("stock location name".to_owned()))?;
         let count: i64 = row.try_get("", "count")?;
 
         Ok(count > 0)
@@ -450,13 +450,13 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_locations
-                    (group_id, code, name, sort_order, created_at, updated_at)
+                    (group_id, name, notes, sort_order, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 "#,
                 vec![
                     input.group_id.into(),
-                    input.code.clone().into(),
                     input.name.clone().into(),
+                    input.notes.clone().into(),
                     input.sort_order.into(),
                     now.clone().into(),
                     now.into(),
@@ -507,13 +507,13 @@ where
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_locations
-                SET group_id = ?, code = ?, name = ?, sort_order = ?, updated_at = ?
+                SET group_id = ?, name = ?, notes = ?, sort_order = ?, updated_at = ?
                 WHERE id = ? AND deleted_at IS NULL
                 "#,
                 vec![
                     input.group_id.into(),
-                    input.code.into(),
                     input.name.into(),
+                    input.notes.into(),
                     input.sort_order.into(),
                     now.into(),
                     id.into(),
@@ -802,7 +802,7 @@ where
             DatabaseBackend::Sqlite,
             r#"
             SELECT locations.id, locations.group_id, groups.name AS group_name,
-                   locations.code, locations.name, locations.sort_order,
+                   locations.name, locations.notes, locations.sort_order,
                    locations.created_at, locations.updated_at
             FROM stock_locations locations
             JOIN stock_location_groups groups
@@ -884,8 +884,8 @@ fn location_from_row(row: sea_orm::QueryResult) -> Result<StockLocationRecord, D
         id: row.try_get("", "id")?,
         group_id: row.try_get("", "group_id")?,
         group_name: row.try_get("", "group_name")?,
-        code: row.try_get("", "code")?,
         name: row.try_get("", "name")?,
+        notes: row.try_get("", "notes")?,
         sort_order: row.try_get("", "sort_order")?,
         created_at: row.try_get("", "created_at")?,
         updated_at: row.try_get("", "updated_at")?,
@@ -919,8 +919,8 @@ fn location_group_audit_snapshot(group: &StockLocationGroupRecord) -> serde_json
 fn location_audit_snapshot(location: &StockLocationRecord) -> serde_json::Value {
     json!({
         "group_id": location.group_id,
-        "code": location.code,
         "name": location.name,
+        "notes": location.notes,
         "sort_order": location.sort_order
     })
 }
@@ -975,11 +975,11 @@ fn location_changed_fields(
     if previous.group_id != updated.group_id {
         fields.push("group_id");
     }
-    if previous.code != updated.code {
-        fields.push("code");
-    }
     if previous.name != updated.name {
         fields.push("name");
+    }
+    if previous.notes != updated.notes {
+        fields.push("notes");
     }
     if previous.sort_order != updated.sort_order {
         fields.push("sort_order");

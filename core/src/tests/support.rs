@@ -104,29 +104,25 @@ pub(crate) async fn seed_plain_user(database: &DatabaseConnection, username: &st
 }
 
 pub(crate) async fn bootstrap_location_id(app: &TestApp) -> i64 {
-    query_location_id_by_code(app, "DEFAULT").await
+    query_location_id_by_name(app, "默认库位").await
 }
 
-pub(crate) async fn seed_stock_location(app: &TestApp, code: &str) -> i64 {
+pub(crate) async fn seed_stock_location(app: &TestApp, name: &str) -> i64 {
     let group_id = query_default_location_group_id(app).await;
     app.state
         .database()
         .execute(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
-            INSERT INTO stock_locations (group_id, code, name, sort_order)
-            VALUES (?, ?, ?, 0)
+            INSERT INTO stock_locations (group_id, name, notes, sort_order)
+            VALUES (?, ?, NULL, 0)
             "#,
-            vec![
-                group_id.into(),
-                code.to_owned().into(),
-                format!("{code} 测试库位").into(),
-            ],
+            vec![group_id.into(), name.to_owned().into()],
         ))
         .await
         .expect("test location should insert");
 
-    query_location_id_by_code(app, code).await
+    query_location_id_by_name(app, name).await
 }
 
 async fn query_default_location_group_id(app: &TestApp) -> i64 {
@@ -146,14 +142,14 @@ async fn query_default_location_group_id(app: &TestApp) -> i64 {
         .expect("default location group id should decode")
 }
 
-async fn query_location_id_by_code(app: &TestApp, code: &str) -> i64 {
+async fn query_location_id_by_name(app: &TestApp, name: &str) -> i64 {
     let row = app
         .state
         .database()
         .query_one(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            "SELECT id FROM stock_locations WHERE code = ? AND deleted_at IS NULL",
-            [code.into()],
+            "SELECT id FROM stock_locations WHERE name = ? AND deleted_at IS NULL",
+            [name.into()],
         ))
         .await
         .expect("location query should succeed")

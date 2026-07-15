@@ -67,8 +67,8 @@ pub(crate) enum StockApiError {
     /// 库位分组同级名称已存在。
     LocationGroupNameTaken,
 
-    /// 库位编码已被其它未删除库位占用。
-    LocationCodeTaken,
+    /// 库位名称已被其它未删除库位占用。
+    LocationNameTaken,
 
     /// 库位分组仍有子分组或库位，不能删除。
     LocationGroupInUse,
@@ -78,6 +78,9 @@ pub(crate) enum StockApiError {
 
     /// 库位分组移动会形成循环层级。
     LocationGroupCycle,
+
+    /// 库位分组创建或移动后会超过十层。
+    LocationGroupDepthExceeded,
 
     /// 指定批次不存在、无剩余库存或不满足移库条件。
     StockBatchNotFound,
@@ -242,10 +245,10 @@ impl StockApiError {
                 "location_group_name_taken",
                 "库位分组名称已存在",
             ),
-            Self::LocationCodeTaken => (
+            Self::LocationNameTaken => (
                 StatusCode::CONFLICT,
-                "location_code_taken",
-                "库位编码已存在",
+                "location_name_taken",
+                "库位名称已存在",
             ),
             Self::LocationGroupInUse => (
                 StatusCode::CONFLICT,
@@ -257,6 +260,11 @@ impl StockApiError {
                 StatusCode::BAD_REQUEST,
                 "location_group_cycle",
                 "库位分组不能移动到自己的子级",
+            ),
+            Self::LocationGroupDepthExceeded => (
+                StatusCode::BAD_REQUEST,
+                "location_group_depth_exceeded",
+                "库位分组最多只能有 10 层",
             ),
             Self::StockBatchNotFound => (
                 StatusCode::NOT_FOUND,

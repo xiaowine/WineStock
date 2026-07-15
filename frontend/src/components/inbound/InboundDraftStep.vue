@@ -68,7 +68,7 @@
                 <SelectControl v-model="line.locationId" :name="`location_${line.lineId}`" :data-line-id="line.lineId" data-field="locationId" :aria-invalid="validationAttempted && line.locationId === null ? true : undefined" aria-label="入库库位" compact>
                   <option :value="null">请选择</option>
                   <optgroup v-for="group in locationGroups" :key="group.name" :label="group.name">
-                    <option v-for="location in group.locations" :key="location.id" :value="location.id">{{ location.code }} · {{ location.name }}</option>
+                    <option v-for="location in group.locations" :key="location.id" :value="location.id">{{ location.name }}</option>
                   </optgroup>
                 </SelectControl>
               </td>

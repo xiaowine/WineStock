@@ -1,0 +1,168 @@
+/* 本文件拥有库位分组树的层级缩进、选中态和操作按钮，不定义页面工作区布局。 */
+@use '../../styles/foundation/mixins' as mixins;
+
+.location-group-tree {
+  display: grid;
+  gap: 2px;
+
+  &__row {
+    --location-tree-depth: 0;
+
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    min-height: 38px;
+    align-items: center;
+    padding-left: calc(var(--location-tree-depth) * 16px);
+    border-radius: var(--radius-sm);
+
+    &--all {
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--color-nav-border);
+      border-radius: 0;
+    }
+
+    &:hover {
+      background: rgb(23 32 42 / 4%);
+    }
+  }
+
+  &__toggle,
+  &__actions button {
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-nav-muted);
+  }
+
+  &__toggle {
+    width: 24px;
+    height: 32px;
+
+    svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-width: 1.8;
+      transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+
+      &.is-expanded {
+        transform: rotate(90deg);
+      }
+    }
+  }
+
+  &__toggle-placeholder {
+    width: 24px;
+  }
+
+  &__label {
+    display: flex;
+    min-width: 0;
+    min-height: 34px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-nav-text);
+    text-align: left;
+
+    span {
+      overflow: hidden;
+      font-size: 13px;
+      font-weight: 620;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    small {
+      flex: 0 0 auto;
+      color: var(--color-nav-muted);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    &.is-selected {
+      background: var(--color-accent-soft);
+      color: var(--color-accent-strong);
+
+      small {
+        color: var(--color-accent);
+      }
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    align-items: center;
+    padding-right: 4px;
+    opacity: 0;
+    transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+
+    button {
+      width: 28px;
+      height: 30px;
+      border-radius: var(--radius-sm);
+
+      &:hover,
+      &:focus-visible {
+        background: var(--color-surface);
+        color: var(--color-accent);
+      }
+
+      &:last-child:hover,
+      &:last-child:focus-visible {
+        color: var(--color-danger);
+      }
+
+      &:disabled {
+        background: transparent;
+        color: var(--color-nav-muted);
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+
+      svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentcolor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+    }
+  }
+
+  &__row:hover &__actions,
+  &__row:focus-within &__actions {
+    opacity: 1;
+  }
+}
+
+@include mixins.mobile {
+  .location-group-tree {
+    &__row {
+      min-height: 44px;
+    }
+
+    &__label {
+      min-height: 40px;
+    }
+
+    &__actions {
+      opacity: 1;
+
+      button {
+        width: 34px;
+        height: 38px;
+      }
+    }
+  }
+}

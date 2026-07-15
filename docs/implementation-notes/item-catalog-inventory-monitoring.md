@@ -415,7 +415,7 @@ GET /api/items/{id}/inventory
 
 ```text
 location_id
-location_code
+location_name
 location_name
 quantity
 value
@@ -455,7 +455,7 @@ stock.item.read
 id
 batch_no
 location_id
-location_code
+location_name
 location_name
 initial_quantity
 remaining_quantity

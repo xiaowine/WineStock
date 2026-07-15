@@ -17,6 +17,7 @@ export const stockPermissions = {
   itemRead: 'stock.item.read',
   itemManage: 'stock.item.manage',
   locationRead: 'stock.location.read',
+  locationManage: 'stock.location.manage',
   inboundCreate: 'stock.inbound.create',
   inboundRead: 'stock.inbound.read',
   inboundApprove: 'stock.inbound.approve',

@@ -140,10 +140,6 @@ pub(crate) struct InboundItemResponse {
     #[garde(skip)]
     pub location_id: i64,
 
-    /// 入库库位编码。
-    #[garde(skip)]
-    pub location_code: String,
-
     /// 入库库位名称。
     #[garde(skip)]
     pub location_name: String,

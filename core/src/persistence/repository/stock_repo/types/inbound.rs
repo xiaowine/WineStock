@@ -146,8 +146,6 @@ pub(crate) struct InboundOrderItemRecord {
     pub unit_price: f64,
     /// 存储库位 ID。
     pub location_id: i64,
-    /// 存储库位编码。
-    pub location_code: String,
     /// 存储库位名称。
     pub location_name: String,
     /// 批次号。

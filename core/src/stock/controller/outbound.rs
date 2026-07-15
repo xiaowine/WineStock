@@ -107,10 +107,6 @@ pub(crate) struct OutboundItemResponse {
     #[garde(skip)]
     pub location_id: Option<i64>,
 
-    /// 出库库位编码。
-    #[garde(skip)]
-    pub location_code: Option<String>,
-
     /// 出库库位名称。
     #[garde(skip)]
     pub location_name: Option<String>,

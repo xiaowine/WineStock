@@ -132,7 +132,7 @@ pub(crate) struct LocationListQuery {
     /// 按所属分组 ID 筛选。
     pub group_id: Option<i64>,
 
-    /// 按库位编码或名称模糊搜索。
+    /// 按库位名称或备注模糊搜索。
     pub search: Option<String>,
 }
 
@@ -146,13 +146,13 @@ pub(crate) struct LocationCreateRequest {
     #[garde(range(min = 1))]
     pub group_id: i64,
 
-    /// 库位编码，未删除库位内全局唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
-    pub code: String,
-
-    /// 库位名称。
+    /// 库位名称，未删除库位内全局唯一。
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
+
+    /// 可选库位备注。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub notes: Option<String>,
 
     /// 排序值；为空时按 0 保存。
     #[garde(skip)]
@@ -169,13 +169,13 @@ pub(crate) struct LocationUpdateRequest {
     #[garde(range(min = 1))]
     pub group_id: i64,
 
-    /// 库位编码，未删除库位内全局唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
-    pub code: String,
-
-    /// 库位名称。
+    /// 库位名称，未删除库位内全局唯一。
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
+
+    /// 可选库位备注。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub notes: Option<String>,
 
     /// 排序值；为空时按 0 保存。
     #[garde(skip)]
@@ -199,13 +199,13 @@ pub(crate) struct LocationResponse {
     #[garde(skip)]
     pub group_name: String,
 
-    /// 库位编码。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
-    pub code: String,
-
     /// 库位名称。
     #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
+
+    /// 可选库位备注。
+    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    pub notes: Option<String>,
 
     /// 排序值。
     #[garde(skip)]
@@ -307,7 +307,7 @@ pub(crate) async fn list_location_group_tree(
     security(("bearerAuth" = [])),
     responses(
         (status = 201, description = "Location group created", body = LocationGroupResponse),
-        (status = 400, description = "Invalid location group request", body = crate::http::ApiErrorResponse),
+        (status = 400, description = "Invalid location group request or depth exceeds 10", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Parent location group not found", body = crate::http::ApiErrorResponse),
@@ -335,7 +335,7 @@ pub(crate) async fn create_location_group(
     security(("bearerAuth" = [])),
     responses(
         (status = 200, description = "Location group updated", body = LocationGroupResponse),
-        (status = 400, description = "Invalid location group request", body = crate::http::ApiErrorResponse),
+        (status = 400, description = "Invalid location group request, cycle, or depth exceeds 10", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Location group not found", body = crate::http::ApiErrorResponse),
@@ -410,7 +410,7 @@ pub(crate) async fn list_locations(
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Location group not found", body = crate::http::ApiErrorResponse),
-        (status = 409, description = "Location code already exists", body = crate::http::ApiErrorResponse)
+        (status = 409, description = "Location name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 创建库位。
@@ -438,7 +438,7 @@ pub(crate) async fn create_location(
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Location manage permission required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Location not found", body = crate::http::ApiErrorResponse),
-        (status = 409, description = "Location code already exists", body = crate::http::ApiErrorResponse)
+        (status = 409, description = "Location name already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 更新库位。
