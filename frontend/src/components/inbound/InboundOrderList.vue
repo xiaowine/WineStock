@@ -15,7 +15,7 @@
       @keydown.space.prevent="emit('open', order)"
     >
       <div role="cell"><strong>入库单 #{{ order.id }}</strong><span>{{ order.source || '未记录来源' }}</span><time :datetime="order.created_at">{{ formatDate(order.created_at) }}</time></div>
-      <div role="cell"><div class="inbound-order-item-summary"><AuthenticatedImage :file-id="order.items[0].item_image_file_id" :alt="`${order.items[0].item_name} 主图`" :size="34" /><div><strong>{{ order.items[0].item_name }}</strong><small>{{ itemSummary(order) }}</small></div></div><span>{{ order.items.length }} 条明细 · {{ quantityLabel(order) }}</span><strong>¥{{ money(totalAmount(order)) }}</strong></div>
+      <div role="cell"><div class="inbound-order-item-summary"><AuthenticatedImage :file-id="order.items[0].item_image_file_id" :alt="`${order.items[0].item_name} 主图`" :size="34" previewable /><div><strong>{{ order.items[0].item_name }}</strong><small>{{ itemSummary(order) }}</small></div></div><span>{{ order.items.length }} 条明细 · {{ quantityLabel(order) }}</span><strong>¥{{ money(totalAmount(order)) }}</strong></div>
       <div class="inbound-orders-table__decision" role="cell"><span class="inbound-status" :class="`inbound-status--${order.status}`">{{ statusLabel(order.status) }}</span><time v-if="statusTime(order)" :datetime="statusTime(order)!">{{ formatDate(statusTime(order)!) }}</time><button class="icon-button" type="button" title="查看入库单详情" :aria-label="`查看入库单详情：${order.source || `入库单 #${order.id}`}`" @click.stop="emit('open', order)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/></svg></button></div>
     </article>
   </div>
@@ -41,7 +41,7 @@
       <p class="inbound-orders-mobile-list__source">{{ order.source || '未记录来源' }}</p>
       <time :datetime="order.created_at">{{ formatDate(order.created_at) }}</time>
       <div class="inbound-orders-mobile-list__item-summary">
-        <AuthenticatedImage :file-id="order.items[0].item_image_file_id" :alt="`${order.items[0].item_name} 主图`" :size="38" />
+        <AuthenticatedImage :file-id="order.items[0].item_image_file_id" :alt="`${order.items[0].item_name} 主图`" :size="38" previewable />
         <div><strong>{{ order.items[0].item_name }}</strong><small>{{ itemSummary(order) }}</small></div>
       </div>
       <div class="inbound-orders-mobile-list__metrics"><span>{{ order.items.length }} 条明细 · {{ quantityLabel(order) }}</span><strong>¥{{ money(totalAmount(order)) }}</strong></div>

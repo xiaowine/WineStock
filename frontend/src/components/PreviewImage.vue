@@ -1,22 +1,34 @@
 <!-- 本组件拥有普通图片与全屏查看两种展示状态；它不加载鉴权文件、编辑图片或解释业务含义。 -->
 <template>
-  <button
+  <component
+    :is="previewable ? 'button' : 'span'"
     ref="trigger"
     v-bind="attrs"
     class="preview-image"
-    type="button"
-    :aria-label="`全屏查看：${alt}`"
-    @click.stop="openViewer"
+    :class="{ 'preview-image--static': !previewable }"
+    :type="previewable ? 'button' : undefined"
+    :aria-label="triggerLabel"
+    @click.stop="previewable && openViewer()"
   >
     <img
+      v-if="!imageUnavailable"
       :src="src"
       :alt="alt"
       :loading="loading"
       :decoding="decoding"
       draggable="false"
       :style="{ objectFit }"
+      @error="imageFailed = true"
     />
-  </button>
+    <span v-else class="preview-image__fallback" role="img" :aria-label="`${alt} 图片未能加载`">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+        <path d="m6 17 3.8-3.5 2.8 2.5 1.8-1.6 3.6 3.6M8.5 9.5h.01" />
+        <path d="m16 8 3 3M19 8l-3 3" />
+      </svg>
+      <span>图片未能加载</span>
+    </span>
+  </component>
 
   <Teleport to="body">
     <Transition name="image-viewer" appear @after-leave="restoreFocus">
@@ -52,33 +64,45 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, useAttrs, type CSSProperties } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useAttrs, watch, type CSSProperties } from 'vue'
 
 defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<{
-  src: string
+  src?: string
   alt: string
   objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down'
   loading?: 'eager' | 'lazy'
   decoding?: 'async' | 'auto' | 'sync'
+  /** 控制是否提供全屏查看；缩略图只读展示时关闭，仍复用统一图片渲染。 */
+  previewable?: boolean
 }>(), {
   objectFit: 'cover',
   loading: 'lazy',
   decoding: 'async',
+  previewable: true,
 })
 
 const attrs = useAttrs()
-const trigger = ref<HTMLButtonElement | null>(null)
+const trigger = ref<HTMLElement | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const viewerOpen = ref(false)
+const imageFailed = ref(false)
+const imageUnavailable = computed(() => !props.src || imageFailed.value)
+const triggerLabel = computed(() => imageUnavailable.value
+  ? `${props.alt} 图片未能加载`
+  : props.previewable ? `全屏查看：${props.alt}` : undefined)
 const viewerImageStyle = ref<CSSProperties>({})
 let previousBodyOverflow = ''
 let animationFrame = 0
 let closing = false
 
+watch(() => props.src, () => {
+  imageFailed.value = false
+})
+
 async function openViewer(): Promise<void> {
-  if (viewerOpen.value) return
+  if (viewerOpen.value || imageUnavailable.value) return
   const sourceRect = sourceImageRect()
   if (!sourceRect) return
   closing = false

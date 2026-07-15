@@ -95,6 +95,7 @@
             :file-id="item.image_file_id"
             :alt="`${item.name} 主图`"
             :size="38"
+            previewable
           />
           <div>
             <strong>{{ item.name }}</strong
@@ -180,6 +181,7 @@
               :file-id="line.item.image_file_id"
               :alt="`${line.item.name} 主图`"
               :size="38"
+              previewable
             />
             <div>
               <strong>{{ line.item.name }}</strong

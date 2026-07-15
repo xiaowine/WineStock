@@ -46,7 +46,7 @@
 - `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件；通过带视口避让和统一动效的锚定浮层选择本地文件或纯色图，已选图片使用通用组件全屏预览，并保留独立的更换与删除入口，同时完成签名预检和本地预览；不在编辑阶段上传。
 - `frontend/src/components/attributes/AttributeColorPicker.vue`：图片字段共用的无依赖 HSV/HEX 颜色选择器，提供饱和度与亮度平面、色相滑轨、HEX 输入、快捷色板和 Pointer Events/键盘交互；只输出颜色并通知应用，不生成图片。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
-- `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件，拥有遮罩、关闭、焦点返回和背景滚动锁定，不请求文件或编辑图片。
+- `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件；可关闭查看能力以统一渲染静态缩略图，在缺少地址或加载失败时显示统一图形占位，拥有遮罩、关闭、焦点返回和背景滚动锁定，不请求文件或编辑图片。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL，可按调用方要求组合通用全屏预览。
 - `frontend/src/components/items/`：物品基础资料、主图、可选属性模板、任意属性编辑控件和替代关系；已有物品工作区使用资料/库存/替代关系多页 Dialog，库存和替代关系均按需加载，新建会话只挂载资料编辑器。
 - `frontend/src/components/substitutes/`：全局替代关系的三段式关系组、主物品选择、共享单物品编辑 Dialog，以及只读星链网络 Dialog、SVG 画布和悬浮节点详情；不复制替代优先级或整体保存逻辑。

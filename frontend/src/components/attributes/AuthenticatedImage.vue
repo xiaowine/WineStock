@@ -1,9 +1,8 @@
 <!-- 本组件通过鉴权文件接口加载只读图片并管理 Blob URL；可按调用方要求组合全屏预览，但不编辑、上传或绑定文件。 -->
 <template>
   <div class="authenticated-image" :class="{ 'authenticated-image--loading': loading }" :style="sizeStyle">
-    <PreviewImage v-if="previewUrl && previewable" :src="previewUrl" :alt="alt" />
-    <img v-else-if="previewUrl" :src="previewUrl" :alt="alt" />
-    <span v-else aria-hidden="true">{{ loading ? '…' : '图' }}</span>
+    <PreviewImage v-if="!loading" :src="previewUrl" :alt="alt" :previewable="previewable" />
+    <span v-else aria-hidden="true">…</span>
   </div>
 </template>
 
@@ -19,7 +18,7 @@ const props = withDefaults(defineProps<{
   previewable?: boolean
 }>(), {
   size: 44,
-  previewable: false,
+  previewable: true,
 })
 const previewUrl = ref('')
 const loading = ref(false)

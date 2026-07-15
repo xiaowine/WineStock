@@ -15,6 +15,10 @@
   color: inherit;
   cursor: zoom-in;
 
+  &--static {
+    cursor: default;
+  }
+
   /* 图片脱离常规布局，避免异常宽高比通过固有尺寸撑开 grid 或 flex 外框。 */
   img {
     position: absolute;
@@ -29,6 +33,37 @@
   &:focus-visible {
     outline: 0;
     box-shadow: inset 0 0 0 3px rgb(111 42 54 / 24%);
+  }
+
+  &__fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: 2px;
+    padding: 4px;
+    background: var(--color-surface-raised);
+    color: var(--color-subtle);
+    font-size: 10px;
+    line-height: 1.2;
+    text-align: center;
+
+    svg {
+      width: min(24px, 48%);
+      height: min(24px, 48%);
+      margin: 0 auto;
+      fill: none;
+      stroke: currentcolor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.6;
+    }
+
+    > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 }
 
