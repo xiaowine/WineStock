@@ -59,17 +59,25 @@ pub(crate) async fn create_item_attribute_template(
                 Some(user.user_id),
             )
             .await?,
+        0,
     )
 }
 /// 查询全部有效物品属性模板。
 pub(crate) async fn list_item_attribute_templates(
     state: &CoreState,
 ) -> Result<Vec<controller::ItemAttributeTemplateResponse>, StockApiError> {
-    StockRepository::new(state.database())
+    let repository = StockRepository::new(state.database());
+    let usage_counts = repository
+        .active_item_attribute_template_usage_counts()
+        .await?;
+    repository
         .list_active_item_attribute_templates()
         .await?
         .into_iter()
-        .map(item_attribute_template_response)
+        .map(|detail| {
+            let usage_count = usage_counts.get(&detail.template.id).copied().unwrap_or(0);
+            item_attribute_template_response(detail, usage_count)
+        })
         .collect()
 }
 /// 查询物品属性模板详情。
@@ -77,13 +85,17 @@ pub(crate) async fn get_item_attribute_template(
     state: &CoreState,
     id: i64,
 ) -> Result<controller::ItemAttributeTemplateResponse, StockApiError> {
-    let Some(detail) = StockRepository::new(state.database())
+    let repository = StockRepository::new(state.database());
+    let usage_count = repository
+        .active_item_attribute_template_usage_count(id)
+        .await?;
+    let Some(detail) = repository
         .find_active_item_attribute_template_by_id(id)
         .await?
     else {
         return Err(StockApiError::TemplateNotFound);
     };
-    item_attribute_template_response(detail)
+    item_attribute_template_response(detail, usage_count)
 }
 /// 更新物品属性模板。
 pub(crate) async fn update_item_attribute_template(
@@ -128,23 +140,26 @@ pub(crate) async fn update_item_attribute_template(
     else {
         return Err(StockApiError::TemplateNotFound);
     };
-    item_attribute_template_response(detail)
+    let usage_count = repository
+        .active_item_attribute_template_usage_count(id)
+        .await?;
+    item_attribute_template_response(detail, usage_count)
 }
 /// 删除属性模板并清空使用物品的模板引用。
 pub(crate) async fn delete_item_attribute_template(
     state: &CoreState,
     user: &CurrentUser,
     id: i64,
-) -> Result<(), StockApiError> {
-    let repository = StockRepository::new(state.database());
-    if repository
+) -> Result<controller::ItemAttributeTemplateDeleteResponse, StockApiError> {
+    StockRepository::new(state.database())
         .soft_delete_item_attribute_template(id, Some(user.user_id))
         .await?
-    {
-        Ok(())
-    } else {
-        Err(StockApiError::TemplateNotFound)
-    }
+        .map(
+            |affected_active_item_count| controller::ItemAttributeTemplateDeleteResponse {
+                affected_active_item_count,
+            },
+        )
+        .ok_or(StockApiError::TemplateNotFound)
 }
 /// 复制物品属性模板。
 pub(crate) async fn copy_item_attribute_template(
@@ -167,5 +182,5 @@ pub(crate) async fn copy_item_attribute_template(
     else {
         return Err(StockApiError::TemplateNotFound);
     };
-    item_attribute_template_response(detail)
+    item_attribute_template_response(detail, 0)
 }

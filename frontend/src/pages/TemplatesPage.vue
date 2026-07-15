@@ -101,7 +101,7 @@
                 <div class="templates-table__identity" role="cell"><strong>{{ category.name }}</strong><span>分类 #{{ category.id }}</span></div>
                 <div class="templates-table__description" role="cell" :title="category.description ?? undefined">{{ category.description || '暂无说明' }}</div>
                 <div class="templates-table__decision" role="cell">
-                  <span class="templates-table__meta"><span>排序 <strong>{{ category.sort_order }}</strong></span><span>更新 <time :datetime="category.updated_at" :title="formatFullDateTime(category.updated_at)">{{ formatTime(category.updated_at) }}</time></span></span>
+                  <span class="templates-table__meta"><span :class="{ 'templates-table__usage--empty': category.item_usage_count === 0 }">{{ usageLabel(category.item_usage_count) }}</span><span>排序 <strong>{{ category.sort_order }}</strong></span><span>更新 <time :datetime="category.updated_at" :title="formatFullDateTime(category.updated_at)">{{ formatTime(category.updated_at) }}</time></span></span>
                   <span v-if="canManage" class="templates-table__actions">
                     <button class="icon-button" type="button" title="编辑分类" :aria-label="`编辑分类 ${category.name}`" @click="openCategory(category)"><EditIcon /></button>
                     <button class="icon-button templates-table__delete" type="button" title="删除分类" :aria-label="`删除分类 ${category.name}`" @click="openDelete('category', category)"><DeleteIcon /></button>
@@ -115,7 +115,7 @@
               <article v-for="template in filteredItemTemplates" :key="template.id" class="templates-table__row" role="row">
                 <button class="templates-table__identity templates-table__identity--button" type="button" role="cell" @click="openTemplate('item', template, true)"><strong>{{ template.name }}</strong><span>物品模板 #{{ template.id }}</span><small>{{ template.description || '暂无说明' }}</small></button>
                 <div class="templates-table__information" role="cell">
-                  <span class="templates-table__metrics"><span>字段 <strong>{{ template.fields.length }}</strong></span><span>必填 <strong>{{ countRequired(template.fields) }}</strong></span><span>可筛选 <strong>{{ countSearchable(template.fields) }}</strong></span><span>目录 <strong>{{ countCatalogVisible(template) }}/3</strong></span></span>
+                  <span class="templates-table__metrics"><span>字段 <strong>{{ template.fields.length }}</strong></span><span>必填 <strong>{{ countRequired(template.fields) }}</strong></span><span>可筛选 <strong>{{ countSearchable(template.fields) }}</strong></span><span>目录 <strong>{{ countCatalogVisible(template) }}/3</strong></span><span :class="{ 'templates-table__usage--empty': template.item_usage_count === 0 }">{{ usageLabel(template.item_usage_count) }}</span></span>
                   <span class="templates-table__default" :class="{ 'templates-table__default--warning': isUnresolvedDefault(template) }">默认入库模板 <strong>{{ defaultInboundLabel(template.default_inbound_template_id) }}</strong></span>
                 </div>
                 <div class="templates-table__decision" role="cell">
@@ -388,9 +388,9 @@ function openCopy(kind: AttributeTemplateKind, template: ItemAttributeTemplateRe
   copyTarget.value = { id: template.id, name: template.name, kind }
 }
 
-function openDelete(kind: TemplateDomain, record: { id: number; name: string }): void {
+function openDelete(kind: TemplateDomain, record: { id: number; name: string; item_usage_count?: number }): void {
   resetActionState()
-  deleteTarget.value = { id: record.id, name: record.name, kind }
+  deleteTarget.value = { id: record.id, name: record.name, kind, itemUsageCount: record.item_usage_count ?? null }
 }
 
 function closeActions(): void {
@@ -470,16 +470,22 @@ async function deleteTargetRecord(): Promise<void> {
   resetActionErrors()
   try {
     if (target.kind === 'category') {
-      await deleteItemCategory(target.id)
+      const result = await deleteItemCategory(target.id)
       categories.value = categories.value.filter((item) => item.id !== target.id)
+      notice.success(result.affected_active_item_count > 0
+        ? `物品分类已删除；${result.affected_active_item_count} 个当前物品需要重新归类`
+        : '物品分类已删除；未影响当前有效物品')
     } else if (target.kind === 'item') {
-      await deleteItemAttributeTemplate(target.id)
+      const result = await deleteItemAttributeTemplate(target.id)
       itemTemplates.value = itemTemplates.value.filter((item) => item.id !== target.id)
+      notice.success(result.affected_active_item_count > 0
+        ? `模板已删除；${result.affected_active_item_count} 个当前物品已解除模板关联`
+        : '模板已删除；未影响当前有效物品')
     } else {
       await deleteInboundTemplate(target.id)
       inboundTemplates.value = inboundTemplates.value.filter((item) => item.id !== target.id)
+      notice.success('模板已删除')
     }
-    notice.success(target.kind === 'category' ? '物品分类已删除' : '模板已删除')
     closeActionsAfterSuccess()
   } catch (error) { handleActionError(error, '删除失败') }
   finally { actionSubmitting.value = false }
@@ -497,6 +503,7 @@ function isUnresolvedDefault(template: ItemAttributeTemplateResponse): boolean {
 function countRequired(fields: readonly TemplateFieldResponse[]): number { return fields.filter((field) => field.required).length }
 function countSearchable(fields: readonly TemplateFieldResponse[]): number { return fields.filter((field) => field.searchable).length }
 function countCatalogVisible(template: ItemAttributeTemplateResponse): number { return template.fields.filter((field) => field.catalog_visible).length }
+function usageLabel(count: number): string { return count > 0 ? `已用于 ${count} 个物品` : '暂未被物品使用' }
 
 function filterRecords<T extends { name: string; description: string | null }>(records: readonly T[], search: string): T[] {
   const normalized = search.trim().toLocaleLowerCase()

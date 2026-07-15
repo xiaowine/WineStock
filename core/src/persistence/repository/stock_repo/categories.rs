@@ -3,17 +3,18 @@
 //! 本模块属于 core 持久化层，只管理分类元数据；属性模板和物品属性由独立模块负责。
 
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, QueryOrder,
-    Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
 };
 use serde_json::json;
+use std::collections::HashMap;
 
 use super::{
     common::insert_audit_event_on_connection, CreateItemCategory, StockRepository,
     UpdateItemCategory,
 };
 use crate::persistence::{
-    entity::stock_item_category,
+    entity::{stock_item, stock_item_category},
     repository::{time::sqlite_now, validation::validate_repository_input},
 };
 
@@ -84,6 +85,35 @@ where
             .filter(stock_item_category::Column::DeletedAt.is_null())
             .one(self.database)
             .await
+    }
+
+    /// 统计当前有效物品对指定分类的直接引用数。
+    pub(crate) async fn active_item_category_usage_count(&self, id: i64) -> Result<u64, DbErr> {
+        stock_item::Entity::find()
+            .filter(stock_item::Column::DeletedAt.is_null())
+            .filter(stock_item::Column::CategoryId.eq(id))
+            .count(self.database)
+            .await
+    }
+
+    /// 批量统计有效物品按分类的直接引用数，供分类列表避免逐行查询。
+    pub(crate) async fn active_item_category_usage_counts(
+        &self,
+    ) -> Result<HashMap<i64, u64>, DbErr> {
+        self.database
+            .query_all(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "SELECT category_id, COUNT(*) AS item_usage_count FROM stock_items WHERE deleted_at IS NULL AND category_id IS NOT NULL GROUP BY category_id".to_owned(),
+            ))
+            .await?
+            .into_iter()
+            .map(|row| {
+                Ok((
+                    row.try_get("", "category_id")?,
+                    row.try_get::<i64>("", "item_usage_count")? as u64,
+                ))
+            })
+            .collect()
     }
 
     /// 查询有效分类名称是否被其他记录占用。
@@ -163,7 +193,7 @@ where
         &self,
         id: i64,
         audit_user_id: Option<i64>,
-    ) -> Result<bool, DbErr>
+    ) -> Result<Option<u64>, DbErr>
     where
         C: TransactionTrait,
     {
@@ -174,8 +204,13 @@ where
             .await?
         else {
             transaction.commit().await?;
-            return Ok(false);
+            return Ok(None);
         };
+        let affected_active_item_count = stock_item::Entity::find()
+            .filter(stock_item::Column::DeletedAt.is_null())
+            .filter(stock_item::Column::CategoryId.eq(id))
+            .count(&transaction)
+            .await?;
         let now = sqlite_now(&transaction).await?;
         let mut active: stock_item_category::ActiveModel = model.into();
         active.updated_at = Set(now.clone());
@@ -193,6 +228,6 @@ where
             .await?;
         }
         transaction.commit().await?;
-        Ok(true)
+        Ok(Some(affected_active_item_count))
     }
 }

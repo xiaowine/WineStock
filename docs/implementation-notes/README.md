@@ -12,3 +12,4 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `item-catalog-inventory-monitoring.md`：物品目录实时库存聚合、补货筛选、固定列表格、移动库存项目和多页物品 Dialog 的跨 core/frontend 完整实施方案。
 - `item-catalog-structured-filters.md`：物品目录分类、模板、单位、库位和可搜索模板属性的结构化筛选契约、前端面板与验收方案。
 - `unified-item-attribute-definitions.md`：统一物品模板属性与物品自定义属性定义实体的跨 core/frontend 实施方案、确认决策和测试数据库转换步骤。
+- `category-template-item-usage-counts.md`：分类与物品属性模板的物品使用数量、删除影响提示和跨 core/frontend 验收整改方案。

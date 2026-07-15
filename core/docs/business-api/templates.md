@@ -12,7 +12,7 @@
 - `PUT /api/item-categories/{id}`
 - `DELETE /api/item-categories/{id}`
 
-分类字段包括 `name`、可选 `description` 和 `sort_order`。分类不包含字段定义，也不决定入库表单。
+分类响应还包含 `item_usage_count`：当前未软删除且直接关联该分类的物品数量。分类不包含字段定义，也不决定入库表单。删除成功返回 `200` 与 `{ "affected_active_item_count": n }`；该数量在删除事务内计算，表示仍保留失效分类引用的当前有效物品数。
 
 ## 物品属性模板
 
@@ -27,7 +27,7 @@
 
 物品模板字段额外包含 `catalog_visible`。每个模板最多三个字段可以设为 `true`，目录按字段现有 `sort_order` 返回对应物品值；物品私有自定义属性固定不可作为目录字段。
 
-删除物品属性模板会删除模板字段定义及其对应的物品属性值，并把现有物品的 `attribute_template_id` 置空；不会因仍有物品引用而返回 `409 template_in_use`。调用方必须把该操作作为会造成业务数据丢失的高风险删除明确提示。
+物品属性模板响应还包含 `item_usage_count`：当前未软删除且直接关联该模板的物品数量。删除物品属性模板会删除模板字段定义及其对应的物品属性值，并把现有物品的 `attribute_template_id` 置空；不会因仍有物品引用而返回 `409 template_in_use`。删除成功返回 `200` 与 `{ "affected_active_item_count": n }`，该数量在删除事务内计算。调用方必须把该操作作为会造成业务数据丢失的高风险删除明确提示。
 
 ## 入库模板
 

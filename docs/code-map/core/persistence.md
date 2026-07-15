@@ -45,8 +45,8 @@
 - `repository/stock_repo.rs`：`StockRepository` 入口和稳定重新导出。
 - `stock_repo/types/`：按物品、库位、模板、入库、出库和分析审计子域拆分仓储输入与读取模型，不执行查询。
 - `stock_repo/items.rs`：物品命令、编辑资料、轻量选择、目录实时库存聚合、单位/库位/模板属性参数化筛选、状态筛选计数、库位摘要和批次分页。
-- `stock_repo/categories.rs`：物品分类。
-- `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储。
+- `stock_repo/categories.rs`：物品分类、当前有效物品分类使用数聚合和分类删除影响数。
+- `stock_repo/templates/`：按 `common`、`item`、`inbound` 拆分两类模板仓储；物品属性模板子模块聚合当前有效物品使用数并在删除事务内记录影响数。
 - `stock_repo/locations.rs`：分组、名称唯一且可带备注的库位，以及整批次移库。
 - `stock_repo/inbound.rs`：入库单、明细、逐行属性与图片引用事务绑定，并复用同一事务步骤处理直接入库和后续审批。
 - `stock_repo/outbound.rs`：出库单、指定批次或 FIFO 扣减。

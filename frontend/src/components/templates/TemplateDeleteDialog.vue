@@ -35,6 +35,11 @@
       <template v-else>
         <p>模板将不再用于后续入库，历史入库实际属性仍会保留。将它设为默认值的物品模板会显示为已删除引用，需要另行调整。</p>
       </template>
+      <section v-if="target && target.kind !== 'inbound'" class="template-delete-copy__impact" aria-label="删除影响范围">
+        <strong>影响范围</strong>
+        <p v-if="target.itemUsageCount !== null && target.itemUsageCount > 0">当前有 {{ target.itemUsageCount }} 个有效物品使用此{{ target.kind === 'category' ? '分类' : '模板' }}。</p>
+        <p v-else>当前没有有效物品使用此{{ target.kind === 'category' ? '分类' : '模板' }}。</p>
+      </section>
       <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </div>
     <template #actions>
@@ -56,6 +61,8 @@ export interface TemplateDeleteTarget {
   id: number
   name: string
   kind: TemplateDomain
+  /** 打开确认框时从列表响应读取的当前有效物品使用数量。 */
+  itemUsageCount: number | null
 }
 
 const props = defineProps<{

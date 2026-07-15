@@ -64,9 +64,10 @@ pub(crate) use templates::{
     list_item_attribute_templates, list_item_categories, update_inbound_template,
     update_item_attribute_template, update_item_category, InboundTemplateCreateRequest,
     InboundTemplateResponse, InboundTemplateUpdateRequest, ItemAttributeTemplateCreateRequest,
-    ItemAttributeTemplateFieldDef, ItemAttributeTemplateFieldResponse,
-    ItemAttributeTemplateResponse, ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode,
-    ItemAttributeUnitRule, ItemCategoryCreateRequest, ItemCategoryResponse,
+    ItemAttributeTemplateDeleteResponse, ItemAttributeTemplateFieldDef,
+    ItemAttributeTemplateFieldResponse, ItemAttributeTemplateResponse,
+    ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode, ItemAttributeUnitRule,
+    ItemCategoryCreateRequest, ItemCategoryDeleteResponse, ItemCategoryResponse,
     ItemCategoryUpdateRequest, TemplateCopyRequest, TemplateFieldDef, TemplateFieldResponse,
     TemplateFieldType,
 };

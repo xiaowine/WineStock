@@ -61,6 +61,20 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert!(value["paths"]["/api/roles"].is_null());
     assert!(value["paths"]["/api/item-categories"].is_object());
     assert!(value["paths"]["/api/item-attribute-templates"].is_object());
+    assert!(
+        value["components"]["schemas"]["ItemCategoryResponse"]["properties"]["item_usage_count"]
+            .is_object()
+    );
+    assert!(
+        value["components"]["schemas"]["ItemAttributeTemplateResponse"]["properties"]
+            ["item_usage_count"]
+            .is_object()
+    );
+    assert!(value["paths"]["/api/item-categories/{id}"]["delete"]["responses"]["200"].is_object());
+    assert!(
+        value["paths"]["/api/item-attribute-templates/{id}"]["delete"]["responses"]["200"]
+            .is_object()
+    );
     assert!(value["paths"]["/api/item-attribute-templates/{id}/copy"].is_object());
     assert!(value["paths"]["/api/inbound-templates"].is_object());
     assert!(value["paths"]["/api/inbound-templates/{id}/copy"].is_object());

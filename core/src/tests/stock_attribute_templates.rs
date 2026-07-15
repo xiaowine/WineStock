@@ -9,10 +9,11 @@ use tower::ServiceExt;
 use crate::{
     stock::controller::{
         InboundTemplateCreateRequest, InboundTemplateResponse, ItemAttributeTemplateCreateRequest,
-        ItemAttributeTemplateFieldDef, ItemAttributeTemplateResponse,
-        ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode, ItemAttributeUnitRule,
-        ItemCategoryCreateRequest, ItemCategoryResponse, TemplateCopyRequest, TemplateFieldDef,
-        TemplateFieldType,
+        ItemAttributeTemplateDeleteResponse, ItemAttributeTemplateFieldDef,
+        ItemAttributeTemplateResponse, ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode,
+        ItemAttributeUnitRule, ItemCategoryCreateRequest, ItemCategoryDeleteResponse,
+        ItemCategoryResponse, ItemCreateRequest, ItemMutationResponse, TemplateCopyRequest,
+        TemplateFieldDef, TemplateFieldType,
     },
     test_support::{error_code, json_body, login_request, seeded_app},
 };
@@ -81,6 +82,155 @@ async fn category_and_two_template_kinds_are_independent() {
         json_body(authorized_empty(&app, "GET", "/api/item-attribute-templates", token).await)
             .await;
     assert!(item_templates.iter().any(|entry| entry.id == item.id));
+}
+
+#[tokio::test]
+async fn categories_and_item_templates_report_active_item_usage_and_delete_impact() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let category: ItemCategoryResponse = json_body(
+        authorized_json(
+            &app,
+            "POST",
+            "/api/item-categories",
+            &token,
+            &ItemCategoryCreateRequest {
+                name: "使用数量分类".to_owned(),
+                description: None,
+                sort_order: Some(0),
+            },
+        )
+        .await,
+    )
+    .await;
+    let template: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "POST",
+            "/api/item-attribute-templates",
+            &token,
+            &ItemAttributeTemplateCreateRequest {
+                name: "使用数量模板".to_owned(),
+                description: None,
+                default_inbound_template_id: None,
+                fields: vec![item_field("规格", TemplateFieldType::Text, false)],
+            },
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(category.item_usage_count, 0);
+    assert_eq!(template.item_usage_count, 0);
+
+    let created = authorized_json(
+        &app,
+        "POST",
+        "/api/items",
+        &token,
+        &ItemCreateRequest {
+            name: "使用数量物品".to_owned(),
+            sku: "USAGE-001".to_owned(),
+            category_id: Some(category.id),
+            attribute_template_id: Some(template.id),
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
+            unit: "瓶".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: Vec::new(),
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let created: ItemMutationResponse = json_body(created).await;
+
+    let soft_deleted = authorized_empty(
+        &app,
+        "DELETE",
+        &format!("/api/items/{}", created.id),
+        &token,
+    )
+    .await;
+    assert_eq!(soft_deleted.status(), StatusCode::NO_CONTENT);
+
+    let categories_after_item_delete: Vec<ItemCategoryResponse> =
+        json_body(authorized_empty(&app, "GET", "/api/item-categories", &token).await).await;
+    assert_eq!(
+        categories_after_item_delete
+            .iter()
+            .find(|item| item.id == category.id)
+            .unwrap()
+            .item_usage_count,
+        0
+    );
+
+    let active_item = authorized_json(
+        &app,
+        "POST",
+        "/api/items",
+        &token,
+        &ItemCreateRequest {
+            name: "当前使用数量物品".to_owned(),
+            sku: "USAGE-002".to_owned(),
+            category_id: Some(category.id),
+            attribute_template_id: Some(template.id),
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
+            unit: "瓶".to_owned(),
+            description: None,
+            default_price: None,
+            reorder_point: None,
+            attributes: Vec::new(),
+        },
+    )
+    .await;
+    assert_eq!(active_item.status(), StatusCode::CREATED);
+
+    let categories: Vec<ItemCategoryResponse> =
+        json_body(authorized_empty(&app, "GET", "/api/item-categories", &token).await).await;
+    assert_eq!(
+        categories
+            .iter()
+            .find(|item| item.id == category.id)
+            .unwrap()
+            .item_usage_count,
+        1
+    );
+    let template_detail: ItemAttributeTemplateResponse = json_body(
+        authorized_empty(
+            &app,
+            "GET",
+            &format!("/api/item-attribute-templates/{}", template.id),
+            &token,
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(template_detail.item_usage_count, 1);
+
+    let deleted_category = authorized_empty(
+        &app,
+        "DELETE",
+        &format!("/api/item-categories/{}", category.id),
+        &token,
+    )
+    .await;
+    assert_eq!(deleted_category.status(), StatusCode::OK);
+    let deleted_category: ItemCategoryDeleteResponse = json_body(deleted_category).await;
+    assert_eq!(deleted_category.affected_active_item_count, 1);
+
+    let deleted_template = authorized_empty(
+        &app,
+        "DELETE",
+        &format!("/api/item-attribute-templates/{}", template.id),
+        &token,
+    )
+    .await;
+    assert_eq!(deleted_template.status(), StatusCode::OK);
+    let deleted_template: ItemAttributeTemplateDeleteResponse = json_body(deleted_template).await;
+    assert_eq!(deleted_template.affected_active_item_count, 1);
 }
 
 #[tokio::test]

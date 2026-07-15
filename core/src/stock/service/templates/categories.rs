@@ -16,12 +16,16 @@ use crate::{
     stock::controller,
 };
 
-fn response(model: stock_item_category::Model) -> controller::ItemCategoryResponse {
+fn response(
+    model: stock_item_category::Model,
+    item_usage_count: u64,
+) -> controller::ItemCategoryResponse {
     controller::ItemCategoryResponse {
         id: model.id,
         name: model.name,
         description: model.description,
         sort_order: model.sort_order,
+        item_usage_count,
         created_at: model.created_at,
         updated_at: model.updated_at,
     }
@@ -51,17 +55,23 @@ pub(crate) async fn create_item_category(
                 Some(user.user_id),
             )
             .await?,
+        0,
     ))
 }
 /// 查询物品分类列表。
 pub(crate) async fn list_item_categories(
     state: &CoreState,
 ) -> Result<Vec<controller::ItemCategoryResponse>, StockApiError> {
-    Ok(StockRepository::new(state.database())
+    let repository = StockRepository::new(state.database());
+    let usage_counts = repository.active_item_category_usage_counts().await?;
+    Ok(repository
         .list_active_item_categories()
         .await?
         .into_iter()
-        .map(response)
+        .map(|model| {
+            let usage_count = usage_counts.get(&model.id).copied().unwrap_or(0);
+            response(model, usage_count)
+        })
         .collect())
 }
 /// 查询物品分类详情。
@@ -69,10 +79,12 @@ pub(crate) async fn get_item_category(
     state: &CoreState,
     id: i64,
 ) -> Result<controller::ItemCategoryResponse, StockApiError> {
-    StockRepository::new(state.database())
+    let repository = StockRepository::new(state.database());
+    let usage_count = repository.active_item_category_usage_count(id).await?;
+    repository
         .find_active_item_category_by_id(id)
         .await?
-        .map(response)
+        .map(|model| response(model, usage_count))
         .ok_or(StockApiError::CategoryNotFound)
 }
 /// 更新物品分类。
@@ -95,7 +107,7 @@ pub(crate) async fn update_item_category(
             return Err(StockApiError::CategoryNameTaken);
         }
     }
-    repository
+    let updated = repository
         .update_item_category(
             id,
             UpdateItemCategory {
@@ -110,21 +122,23 @@ pub(crate) async fn update_item_category(
             Some(user.user_id),
         )
         .await?
-        .map(response)
-        .ok_or(StockApiError::CategoryNotFound)
+        .ok_or(StockApiError::CategoryNotFound)?;
+    let usage_count = repository.active_item_category_usage_count(id).await?;
+    Ok(response(updated, usage_count))
 }
 /// 软删除物品分类。
 pub(crate) async fn delete_item_category(
     state: &CoreState,
     user: &CurrentUser,
     id: i64,
-) -> Result<(), StockApiError> {
-    if StockRepository::new(state.database())
+) -> Result<controller::ItemCategoryDeleteResponse, StockApiError> {
+    StockRepository::new(state.database())
         .soft_delete_item_category(id, Some(user.user_id))
         .await?
-    {
-        Ok(())
-    } else {
-        Err(StockApiError::CategoryNotFound)
-    }
+        .map(
+            |affected_active_item_count| controller::ItemCategoryDeleteResponse {
+                affected_active_item_count,
+            },
+        )
+        .ok_or(StockApiError::CategoryNotFound)
 }

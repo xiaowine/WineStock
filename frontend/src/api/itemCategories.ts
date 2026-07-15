@@ -6,8 +6,13 @@ export interface ItemCategoryResponse {
   name: string
   description: string | null
   sort_order: number
+  item_usage_count: number
   created_at: string
   updated_at: string
+}
+
+export interface ItemCategoryDeletionResponse {
+  affected_active_item_count: number
 }
 
 export interface ItemCategoryWriteRequest {
@@ -39,5 +44,5 @@ export function updateItemCategory(id: number, request: ItemCategoryWriteRequest
 }
 
 export function deleteItemCategory(id: number) {
-  return apiClient.request<void>(`/api/item-categories/${id}`, { method: 'DELETE' })
+  return apiClient.request<ItemCategoryDeletionResponse>(`/api/item-categories/${id}`, { method: 'DELETE' })
 }

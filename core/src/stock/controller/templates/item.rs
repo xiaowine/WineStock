@@ -205,6 +205,9 @@ pub(crate) struct ItemAttributeTemplateResponse {
     /// 推荐的默认入库模板 ID。
     #[garde(skip)]
     pub default_inbound_template_id: Option<i64>,
+    /// 当前有效物品直接使用该模板的数量。
+    #[garde(skip)]
+    pub item_usage_count: u64,
     /// 物品属性预设字段。
     #[garde(dive)]
     pub fields: Vec<ItemAttributeTemplateFieldResponse>,
@@ -214,6 +217,13 @@ pub(crate) struct ItemAttributeTemplateResponse {
     /// 更新时间。
     #[garde(skip)]
     pub updated_at: String,
+}
+
+/// 删除物品属性模板后受影响的当前有效物品数量。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemAttributeTemplateDeleteResponse {
+    /// 删除时仍直接引用该模板的有效物品数量。
+    pub affected_active_item_count: u64,
 }
 
 /// 创建物品属性模板。
@@ -258,14 +268,15 @@ pub(crate) async fn update_item_attribute_template(
     ))
 }
 /// 删除属性模板；使用中的物品会清空模板引用并保留自定义属性。
-#[utoipa::path(delete, path = "/api/item-attribute-templates/{id}", tag = "item-attribute-templates", params(("id" = i64, Path)), security(("bearerAuth" = [])), responses((status = 204)))]
+#[utoipa::path(delete, path = "/api/item-attribute-templates/{id}", tag = "item-attribute-templates", params(("id" = i64, Path)), security(("bearerAuth" = [])), responses((status = 200, body = ItemAttributeTemplateDeleteResponse)))]
 pub(crate) async fn delete_item_attribute_template(
     State(state): State<CoreState>,
     Extension(user): Extension<CurrentUser>,
     ValidatedPath(id): ValidatedPath<i64>,
-) -> Result<StatusCode, StockApiError> {
-    service::delete_item_attribute_template(&state, &user, id).await?;
-    Ok(StatusCode::NO_CONTENT)
+) -> Result<Json<ItemAttributeTemplateDeleteResponse>, StockApiError> {
+    Ok(Json(
+        service::delete_item_attribute_template(&state, &user, id).await?,
+    ))
 }
 /// 复制物品属性模板。
 #[utoipa::path(post, path = "/api/item-attribute-templates/{id}/copy", tag = "item-attribute-templates", params(("id" = i64, Path)), request_body = TemplateCopyRequest, security(("bearerAuth" = [])), responses((status = 201, body = ItemAttributeTemplateResponse)))]

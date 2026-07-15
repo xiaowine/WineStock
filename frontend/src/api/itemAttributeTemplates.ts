@@ -28,9 +28,14 @@ export interface ItemAttributeTemplateResponse {
   name: string
   description: string | null
   default_inbound_template_id: number | null
+  item_usage_count: number
   fields: ItemAttributeTemplateFieldResponse[]
   created_at: string
   updated_at: string
+}
+
+export interface ItemAttributeTemplateDeletionResponse {
+  affected_active_item_count: number
 }
 
 /** 更新物品属性模板时整体提交的字段定义。 */
@@ -97,5 +102,5 @@ export function copyItemAttributeTemplate(id: number, request: TemplateCopyReque
 }
 
 export function deleteItemAttributeTemplate(id: number) {
-  return apiClient.request<void>(`/api/item-attribute-templates/${id}`, { method: 'DELETE' })
+  return apiClient.request<ItemAttributeTemplateDeletionResponse>(`/api/item-attribute-templates/${id}`, { method: 'DELETE' })
 }

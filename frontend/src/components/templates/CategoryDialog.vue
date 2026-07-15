@@ -7,6 +7,12 @@
     :busy="submitting"
     @close="requestClose"
   >
+    <template v-if="category" #context>
+      <div class="dialog-account-context">
+        <span>当前有效物品使用</span>
+        <strong>{{ category.item_usage_count }} 个</strong>
+      </div>
+    </template>
     <form :id="formId" class="dialog-form" novalidate @submit.prevent="submit">
       <FormInput
         v-model="name"

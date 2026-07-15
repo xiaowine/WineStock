@@ -68,12 +68,22 @@ pub(crate) struct ItemCategoryResponse {
     /// 展示顺序。
     #[garde(range(min = 0))]
     pub sort_order: i32,
+    /// 当前有效物品直接使用该分类的数量。
+    #[garde(skip)]
+    pub item_usage_count: u64,
     /// 创建时间。
     #[garde(skip)]
     pub created_at: String,
     /// 更新时间。
     #[garde(skip)]
     pub updated_at: String,
+}
+
+/// 删除分类后受影响的当前有效物品数量。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemCategoryDeleteResponse {
+    /// 删除时仍直接引用该分类的有效物品数量。
+    pub affected_active_item_count: u64,
 }
 
 /// 创建物品分类。
@@ -116,12 +126,13 @@ pub(crate) async fn update_item_category(
     ))
 }
 /// 软删除物品分类。
-#[utoipa::path(delete, path = "/api/item-categories/{id}", tag = "item-categories", params(("id" = i64, Path)), security(("bearerAuth" = [])), responses((status = 204)))]
+#[utoipa::path(delete, path = "/api/item-categories/{id}", tag = "item-categories", params(("id" = i64, Path)), security(("bearerAuth" = [])), responses((status = 200, body = ItemCategoryDeleteResponse)))]
 pub(crate) async fn delete_item_category(
     State(state): State<CoreState>,
     Extension(user): Extension<CurrentUser>,
     ValidatedPath(id): ValidatedPath<i64>,
-) -> Result<StatusCode, StockApiError> {
-    service::delete_item_category(&state, &user, id).await?;
-    Ok(StatusCode::NO_CONTENT)
+) -> Result<Json<ItemCategoryDeleteResponse>, StockApiError> {
+    Ok(Json(
+        service::delete_item_category(&state, &user, id).await?,
+    ))
 }

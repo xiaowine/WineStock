@@ -239,12 +239,14 @@ pub(super) fn inbound_template_response(
 /// 把物品属性模板读取模型转换为 HTTP 响应。
 pub(super) fn item_attribute_template_response(
     detail: ItemAttributeTemplateDetail,
+    item_usage_count: u64,
 ) -> Result<controller::ItemAttributeTemplateResponse, StockApiError> {
     Ok(controller::ItemAttributeTemplateResponse {
         id: detail.template.id,
         name: detail.template.name,
         description: detail.template.description,
         default_inbound_template_id: detail.template.default_inbound_template_id,
+        item_usage_count,
         fields: item_fields(detail.fields)?,
         created_at: detail.template.created_at,
         updated_at: detail.template.updated_at,

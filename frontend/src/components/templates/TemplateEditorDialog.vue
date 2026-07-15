@@ -226,6 +226,7 @@
         <div><dt>模板名称</dt><dd>{{ template?.name }}</dd></div>
         <div><dt>模板说明</dt><dd>{{ template?.description || '暂无说明' }}</dd></div>
         <div v-if="kind === 'item'"><dt>默认入库模板</dt><dd>{{ readonlyDefaultInboundLabel }}</dd></div>
+        <div v-if="template && 'item_usage_count' in template"><dt>当前有效物品使用</dt><dd>{{ template.item_usage_count }} 个</dd></div>
       </dl>
       <section class="template-detail__fields" aria-label="字段结构">
         <h3>字段结构 <span>{{ draft.fields.length }} 个字段</span></h3>

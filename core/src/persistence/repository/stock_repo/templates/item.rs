@@ -4,8 +4,9 @@
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
 };
+use std::collections::HashMap;
 
 use super::super::{
     CreateItemAttributeTemplate, ItemAttributeTemplateDetail, StockRepository,
@@ -16,7 +17,7 @@ use super::common::{
     item_attribute_field_inputs, list_item_attribute_fields, replace_item_attribute_fields,
 };
 use crate::persistence::{
-    entity::item_attribute_template,
+    entity::{item_attribute_template, stock_item},
     repository::{time::sqlite_now, validation::validate_repository_input},
 };
 
@@ -65,6 +66,38 @@ where
         id: i64,
     ) -> Result<Option<ItemAttributeTemplateDetail>, DbErr> {
         find_active_item_attribute_template(self.database, id).await
+    }
+
+    /// 统计当前有效物品对指定属性模板的直接引用数。
+    pub(crate) async fn active_item_attribute_template_usage_count(
+        &self,
+        id: i64,
+    ) -> Result<u64, DbErr> {
+        stock_item::Entity::find()
+            .filter(stock_item::Column::DeletedAt.is_null())
+            .filter(stock_item::Column::AttributeTemplateId.eq(id))
+            .count(self.database)
+            .await
+    }
+
+    /// 批量统计有效物品按属性模板的直接引用数，供模板列表避免逐行查询。
+    pub(crate) async fn active_item_attribute_template_usage_counts(
+        &self,
+    ) -> Result<HashMap<i64, u64>, DbErr> {
+        self.database
+            .query_all(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "SELECT attribute_template_id, COUNT(*) AS item_usage_count FROM stock_items WHERE deleted_at IS NULL AND attribute_template_id IS NOT NULL GROUP BY attribute_template_id".to_owned(),
+            ))
+            .await?
+            .into_iter()
+            .map(|row| {
+                Ok((
+                    row.try_get("", "attribute_template_id")?,
+                    row.try_get::<i64>("", "item_usage_count")? as u64,
+                ))
+            })
+            .collect()
     }
 
     /// 查询有效物品属性模板名称是否被其他记录占用。
@@ -195,7 +228,7 @@ where
         &self,
         id: i64,
         audit_user_id: Option<i64>,
-    ) -> Result<bool, DbErr>
+    ) -> Result<Option<u64>, DbErr>
     where
         C: TransactionTrait,
     {
@@ -206,9 +239,14 @@ where
             .await?
         else {
             transaction.commit().await?;
-            return Ok(false);
+            return Ok(None);
         };
         let now = sqlite_now(&transaction).await?;
+        let affected_active_item_count = stock_item::Entity::find()
+            .filter(stock_item::Column::DeletedAt.is_null())
+            .filter(stock_item::Column::AttributeTemplateId.eq(id))
+            .count(&transaction)
+            .await?;
         let count = list_item_attribute_fields(&transaction, id).await?.len();
         transaction.execute(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
@@ -237,6 +275,6 @@ where
         )
         .await?;
         transaction.commit().await?;
-        Ok(true)
+        Ok(Some(affected_active_item_count))
     }
 }
