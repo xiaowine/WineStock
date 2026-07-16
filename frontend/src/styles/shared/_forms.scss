@@ -1,5 +1,5 @@
 /* 本文件拥有跨页面和对话框复用的表单字段、校验提示与消息样式，不执行任何提交行为。 */
-@use '../foundation/mixins' as mixins;
+@use "../foundation/mixins" as mixins;
 
 .eyebrow {
   margin-bottom: 4px;
@@ -33,7 +33,7 @@
       @include mixins.focus-ring;
     }
 
-    &[aria-invalid='true'] {
+    &[aria-invalid="true"] {
       border-color: var(--color-danger);
 
       &:focus {

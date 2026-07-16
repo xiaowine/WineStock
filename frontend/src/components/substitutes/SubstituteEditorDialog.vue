@@ -34,7 +34,11 @@
         @search="applySearch"
       />
 
-      <div v-if="searchError" class="substitute-target-picker__state substitute-target-picker__state--error" role="alert">
+      <div
+        v-if="searchError"
+        class="substitute-target-picker__state substitute-target-picker__state--error"
+        role="alert"
+      >
         <span>{{ searchError }}</span>
         <button class="secondary-button" type="button" @click="loadTargets">重试</button>
       </div>
@@ -51,14 +55,23 @@
       </div>
       <div v-else class="substitute-target-picker__results" aria-label="主物品候选">
         <button v-for="item in targets" :key="item.id" type="button" @click="selectTarget(item)">
-          <span><strong :title="item.name">{{ item.name }}</strong><small :title="item.sku">SKU {{ item.sku }}</small></span>
+          <span
+            ><strong :title="item.name">{{ item.name }}</strong
+            ><small :title="item.sku">SKU {{ item.sku }}</small></span
+          >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
         </button>
       </div>
     </section>
 
     <section v-else class="substitute-editor-dialog__workspace">
-      <button v-if="!target" class="text-button substitute-editor-dialog__reselect" type="button" :disabled="saving" @click="requestReselect">
+      <button
+        v-if="!target"
+        class="text-button substitute-editor-dialog__reselect"
+        type="button"
+        :disabled="saving"
+        @click="requestReselect"
+      >
         重新选择主物品
       </button>
       <ItemSubstitutesPanel
@@ -72,7 +85,9 @@
     </section>
 
     <template #actions>
-      <button class="secondary-button" type="button" :disabled="saving" @click="requestClose">关闭</button>
+      <button class="secondary-button" type="button" :disabled="saving" @click="requestClose">
+        关闭
+      </button>
     </template>
   </ModalDialog>
 
@@ -93,164 +108,174 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
-import { listItemOptions, type ItemOptionResponse } from '../../api/items'
-import type { SubstituteEditorTarget } from '../../pages/substitutes/model'
-import { substituteErrorMessage } from '../../pages/substitutes/presentation'
-import { useStablePendingIndicator } from '../../composables/useStablePendingIndicator'
-import ModalDialog from '../ModalDialog.vue'
-import SearchField from '../SearchField.vue'
-import ItemSubstitutesPanel from '../items/ItemSubstitutesPanel.vue'
-import './SubstituteEditorDialog.scss'
+import { onBeforeUnmount, ref, watch } from "vue";
+import { listItemOptions, type ItemOptionResponse } from "../../api/items";
+import type { SubstituteEditorTarget } from "../../pages/substitutes/model";
+import { substituteErrorMessage } from "../../pages/substitutes/presentation";
+import { useStablePendingIndicator } from "../../composables/useStablePendingIndicator";
+import ModalDialog from "../ModalDialog.vue";
+import SearchField from "../SearchField.vue";
+import ItemSubstitutesPanel from "../items/ItemSubstitutesPanel.vue";
+import "./SubstituteEditorDialog.scss";
 
 const props = defineProps<{
-  open: boolean
-  target: SubstituteEditorTarget | null
-  canManage: boolean
-  canSearchCandidates: boolean
-}>()
+  open: boolean;
+  target: SubstituteEditorTarget | null;
+  canManage: boolean;
+  canSearchCandidates: boolean;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  saved: [target: SubstituteEditorTarget]
-  'dirty-change': [dirty: boolean]
-}>()
+  close: [];
+  saved: [target: SubstituteEditorTarget];
+  "dirty-change": [dirty: boolean];
+}>();
 
-const chosenTarget = ref<SubstituteEditorTarget | null>(null)
-const searchInput = ref('')
-const activeSearch = ref('')
-const targets = ref<ItemOptionResponse[]>([])
-const searchLoading = ref(false)
-const searchError = ref('')
-const dirty = ref(false)
-const saving = ref(false)
-const discardOpen = ref(false)
-const pendingDiscardAction = ref<'close' | 'reselect' | null>(null)
-const showSearchLoading = useStablePendingIndicator(searchLoading, { showDelayMs: 200, minimumVisibleMs: 350 })
-let searchController: AbortController | null = null
+const chosenTarget = ref<SubstituteEditorTarget | null>(null);
+const searchInput = ref("");
+const activeSearch = ref("");
+const targets = ref<ItemOptionResponse[]>([]);
+const searchLoading = ref(false);
+const searchError = ref("");
+const dirty = ref(false);
+const saving = ref(false);
+const discardOpen = ref(false);
+const pendingDiscardAction = ref<"close" | "reselect" | null>(null);
+const showSearchLoading = useStablePendingIndicator(searchLoading, {
+  showDelayMs: 200,
+  minimumVisibleMs: 350,
+});
+let searchController: AbortController | null = null;
 
-watch(() => props.open, (open) => {
-  if (!open) {
-    abortSearch()
-    resetSession()
-    return
-  }
-  chosenTarget.value = props.target ? { ...props.target } : null
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) {
+      abortSearch();
+      resetSession();
+      return;
+    }
+    chosenTarget.value = props.target ? { ...props.target } : null;
+  },
+);
 
-watch(() => props.target, (target) => {
-  if (props.open) chosenTarget.value = target ? { ...target } : null
-})
+watch(
+  () => props.target,
+  (target) => {
+    if (props.open) chosenTarget.value = target ? { ...target } : null;
+  },
+);
 
-onBeforeUnmount(abortSearch)
+onBeforeUnmount(abortSearch);
 
 function applySearch(value: string): void {
-  activeSearch.value = value.trim()
-  void loadTargets()
+  activeSearch.value = value.trim();
+  void loadTargets();
 }
 
 async function loadTargets(): Promise<void> {
   if (!activeSearch.value) {
-    abortSearch()
-    targets.value = []
-    searchError.value = ''
-    return
+    abortSearch();
+    targets.value = [];
+    searchError.value = "";
+    return;
   }
-  abortSearch()
-  const controller = new AbortController()
-  searchController = controller
-  searchLoading.value = true
-  searchError.value = ''
+  abortSearch();
+  const controller = new AbortController();
+  searchController = controller;
+  searchLoading.value = true;
+  searchError.value = "";
   try {
-    const response = await listItemOptions(activeSearch.value, 1, 30, controller.signal)
-    targets.value = response.items
+    const response = await listItemOptions(activeSearch.value, 1, 30, controller.signal);
+    targets.value = response.items;
   } catch (error) {
-    if (!(error instanceof DOMException && error.name === 'AbortError')) searchError.value = substituteErrorMessage(error)
+    if (!(error instanceof DOMException && error.name === "AbortError"))
+      searchError.value = substituteErrorMessage(error);
   } finally {
     if (searchController === controller) {
-      searchController = null
-      searchLoading.value = false
+      searchController = null;
+      searchLoading.value = false;
     }
   }
 }
 
 function selectTarget(item: ItemOptionResponse): void {
-  chosenTarget.value = { id: item.id, name: item.name, sku: item.sku }
-  abortSearch()
+  chosenTarget.value = { id: item.id, name: item.name, sku: item.sku };
+  abortSearch();
 }
 
 function handleDirtyChange(value: boolean): void {
-  dirty.value = value
-  emit('dirty-change', value)
+  dirty.value = value;
+  emit("dirty-change", value);
 }
 
 function handleSaved(): void {
-  const current = chosenTarget.value
-  if (!current) return
-  dirty.value = false
-  emit('dirty-change', false)
-  emit('saved', current)
-  emit('close')
+  const current = chosenTarget.value;
+  if (!current) return;
+  dirty.value = false;
+  emit("dirty-change", false);
+  emit("saved", current);
+  emit("close");
 }
 
 function requestClose(): void {
-  if (saving.value) return
+  if (saving.value) return;
   if (dirty.value) {
-    pendingDiscardAction.value = 'close'
-    discardOpen.value = true
-    return
+    pendingDiscardAction.value = "close";
+    discardOpen.value = true;
+    return;
   }
-  emit('close')
+  emit("close");
 }
 
 function requestReselect(): void {
   if (dirty.value) {
-    pendingDiscardAction.value = 'reselect'
-    discardOpen.value = true
-    return
+    pendingDiscardAction.value = "reselect";
+    discardOpen.value = true;
+    return;
   }
-  reselectTarget()
+  reselectTarget();
 }
 
 function cancelDiscard(): void {
-  discardOpen.value = false
-  pendingDiscardAction.value = null
+  discardOpen.value = false;
+  pendingDiscardAction.value = null;
 }
 
 function confirmDiscard(): void {
-  const action = pendingDiscardAction.value
-  discardOpen.value = false
-  pendingDiscardAction.value = null
-  dirty.value = false
-  emit('dirty-change', false)
-  if (action === 'reselect') reselectTarget()
-  else emit('close')
+  const action = pendingDiscardAction.value;
+  discardOpen.value = false;
+  pendingDiscardAction.value = null;
+  dirty.value = false;
+  emit("dirty-change", false);
+  if (action === "reselect") reselectTarget();
+  else emit("close");
 }
 
 function reselectTarget(): void {
-  chosenTarget.value = null
-  searchInput.value = ''
-  activeSearch.value = ''
-  targets.value = []
-  searchError.value = ''
+  chosenTarget.value = null;
+  searchInput.value = "";
+  activeSearch.value = "";
+  targets.value = [];
+  searchError.value = "";
 }
 
 function resetSession(): void {
-  chosenTarget.value = null
-  searchInput.value = ''
-  activeSearch.value = ''
-  targets.value = []
-  searchError.value = ''
-  dirty.value = false
-  saving.value = false
-  discardOpen.value = false
-  pendingDiscardAction.value = null
-  emit('dirty-change', false)
+  chosenTarget.value = null;
+  searchInput.value = "";
+  activeSearch.value = "";
+  targets.value = [];
+  searchError.value = "";
+  dirty.value = false;
+  saving.value = false;
+  discardOpen.value = false;
+  pendingDiscardAction.value = null;
+  emit("dirty-change", false);
 }
 
 function abortSearch(): void {
-  searchController?.abort()
-  searchController = null
-  searchLoading.value = false
+  searchController?.abort();
+  searchController = null;
+  searchLoading.value = false;
 }
 </script>

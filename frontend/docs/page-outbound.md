@@ -13,12 +13,12 @@
 
 ## 已有 HTTP 契约
 
-| 接口 | 权限 | 页面用途 |
-| --- | --- | --- |
-| `GET /api/items/options` | `stock.item.read` 或 `stock.outbound.create` | 服务端分页搜索可选物品；返回名称、SKU、单位、主图。 |
-| `GET /api/items/{id}/batches` | `stock.item.read` 或 `stock.outbound.create` | 分页读取当前仍有余额的批次，供“指定批次”模式选择。 |
-| `POST /api/outbound` | `stock.outbound.create` | 创建 pending 出库单；请求包含 `destination`、`notes` 和 `items`。 |
-| `GET /api/outbound/{id}` | `stock.outbound.read` | 创建成功后的单据读取或后续跳转，不作为提交前校验源。 |
+| 接口                          | 权限                                         | 页面用途                                                          |
+| ----------------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| `GET /api/items/options`      | `stock.item.read` 或 `stock.outbound.create` | 服务端分页搜索可选物品；返回名称、SKU、单位、主图。               |
+| `GET /api/items/{id}/batches` | `stock.item.read` 或 `stock.outbound.create` | 分页读取当前仍有余额的批次，供“指定批次”模式选择。                |
+| `POST /api/outbound`          | `stock.outbound.create`                      | 创建 pending 出库单；请求包含 `destination`、`notes` 和 `items`。 |
+| `GET /api/outbound/{id}`      | `stock.outbound.read`                        | 创建成功后的单据读取或后续跳转，不作为提交前校验源。              |
 
 `OutboundItemRequest` 的稳定字段为 `item_id`、大于 0 的 `quantity`、可选 `batch_id` 和可选 `location_id`：
 
@@ -37,11 +37,11 @@
 
 ## 权限与职责
 
-| 用户能力 | 行为 |
-| --- | --- |
-| 无 `stock.outbound.create` | 路由守卫离开页面，不加载物品目录。 |
-| `stock.outbound.create` | 可搜索物品、查询批次、建立草稿和提交审核。 |
-| 另有 `stock.outbound.read` | 创建成功后可显示“查看出库单”跳转，否则只显示提交结果。 |
+| 用户能力                      | 行为                                                             |
+| ----------------------------- | ---------------------------------------------------------------- |
+| 无 `stock.outbound.create`    | 路由守卫离开页面，不加载物品目录。                               |
+| `stock.outbound.create`       | 可搜索物品、查询批次、建立草稿和提交审核。                       |
+| 另有 `stock.outbound.read`    | 创建成功后可显示“查看出库单”跳转，否则只显示提交结果。           |
 | 另有 `stock.outbound.approve` | 仍不在本页显示直接出库；可在成功 Notice 提供“前往出库审批”链接。 |
 
 前端权限只用于收敛入口。服务端仍在每次物品、批次和提交请求中实时授权。
@@ -102,10 +102,10 @@
 
 使用明确单选控件，不使用普通 tab：
 
-| 模式 | 文案 | 表单与解释 |
-| --- | --- | --- |
-| `fifo`（默认） | 按先进先出分配 | 可选选择库位；审批时从该库位或全部库存按 FIFO 扣减。 |
-| `specific_batch` | 指定批次 | 先选可用批次，可选库位自动跟随批次并锁定；显示批次号、剩余数量、有效期和库位。 |
+| 模式             | 文案           | 表单与解释                                                                     |
+| ---------------- | -------------- | ------------------------------------------------------------------------------ |
+| `fifo`（默认）   | 按先进先出分配 | 可选选择库位；审批时从该库位或全部库存按 FIFO 扣减。                           |
+| `specific_batch` | 指定批次       | 先选可用批次，可选库位自动跟随批次并锁定；显示批次号、剩余数量、有效期和库位。 |
 
 - 模式切换不立即删除已选批次；切回指定批次时保留上次候选，直到用户替换或清空。
 - 切到 FIFO 后，`batch_id` 不提交；若用户保留库位，提交该 `location_id` 以限制 FIFO 范围。
@@ -119,12 +119,12 @@
 
 ```ts
 interface OutboundDraftLine {
-  lineId: string
-  item: ItemOptionResponse
-  quantity: string
-  allocationMode: 'fifo' | 'specific_batch'
-  batchId: number | null
-  locationId: number | null
+  lineId: string;
+  item: ItemOptionResponse;
+  quantity: string;
+  allocationMode: "fifo" | "specific_batch";
+  batchId: number | null;
+  locationId: number | null;
 }
 ```
 

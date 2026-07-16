@@ -70,7 +70,7 @@
               :disabled="submitting || !hasEditablePermissions(activeGroup.permissions)"
               @click="toggleGroup(activeGroup.permissions)"
             >
-              {{ isGroupFullySelected(activeGroup.permissions) ? '取消全选' : '全选' }}
+              {{ isGroupFullySelected(activeGroup.permissions) ? "取消全选" : "全选" }}
             </button>
           </header>
 
@@ -93,7 +93,10 @@
               <span>
                 <strong>{{ permission.code }}</strong>
                 <small v-if="permission.description">{{ permission.description }}</small>
-                <small v-if="isPermissionLocked(permission.code)" class="permission-picker__lock-hint">
+                <small
+                  v-if="isPermissionLocked(permission.code)"
+                  class="permission-picker__lock-hint"
+                >
                   当前账号关键权限，不可修改
                 </small>
               </span>
@@ -121,162 +124,165 @@
         form="user-permissions-form"
         :disabled="submitting || loading || Boolean(loadError)"
       >
-        {{ submitting ? '正在保存…' : '保存权限' }}
+        {{ submitting ? "正在保存…" : "保存权限" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
-import type { PermissionResponse, UserAdminResponse } from '../../api/users'
-import { userPermissions } from '../../auth/permissions'
-import ModalDialog from '../ModalDialog.vue'
+import { computed, nextTick, ref, watch } from "vue";
+import type { PermissionResponse, UserAdminResponse } from "../../api/users";
+import { userPermissions } from "../../auth/permissions";
+import ModalDialog from "../ModalDialog.vue";
 
 interface PermissionGroup {
   /** 面向用户展示的权限分类名称。 */
-  name: string
+  name: string;
   /** 当前分类拥有的权限定义。 */
-  permissions: PermissionResponse[]
+  permissions: PermissionResponse[];
 }
 
 const props = defineProps<{
-  user: UserAdminResponse | null
-  permissions: PermissionResponse[]
-  loading: boolean
-  loadError: string
-  submitting: boolean
-  errorMessage: string
-  editingCurrentUser: boolean
-}>()
+  user: UserAdminResponse | null;
+  permissions: PermissionResponse[];
+  loading: boolean;
+  loadError: string;
+  submitting: boolean;
+  errorMessage: string;
+  editingCurrentUser: boolean;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  retry: []
-  submit: [permissions: string[]]
-}>()
+  close: [];
+  retry: [];
+  submit: [permissions: string[]];
+}>();
 
-const selectedPermissions = ref<string[]>([])
-const activeGroupName = ref('')
-const groupsViewport = ref<HTMLElement | null>(null)
-const optionsViewport = ref<HTMLElement | null>(null)
+const selectedPermissions = ref<string[]>([]);
+const activeGroupName = ref("");
+const groupsViewport = ref<HTMLElement | null>(null);
+const optionsViewport = ref<HTMLElement | null>(null);
 const selfProtectedPermissions = new Set<string>([
   userPermissions.updatePermissions,
   userPermissions.readPermissionDefinitions,
-])
+]);
 
 const permissionGroups = computed<PermissionGroup[]>(() => {
-  const groups = new Map<string, PermissionResponse[]>()
+  const groups = new Map<string, PermissionResponse[]>();
   for (const permission of props.permissions) {
-    const name = permission.code.startsWith('user.')
-      ? '用户管理'
-      : permission.code.startsWith('stock.')
-        ? '库存业务'
-        : permission.code.startsWith('audit.')
-          ? '审计'
-          : '其它'
-    const entries = groups.get(name) ?? []
-    entries.push(permission)
-    groups.set(name, entries)
+    const name = permission.code.startsWith("user.")
+      ? "用户管理"
+      : permission.code.startsWith("stock.")
+        ? "库存业务"
+        : permission.code.startsWith("audit.")
+          ? "审计"
+          : "其它";
+    const entries = groups.get(name) ?? [];
+    entries.push(permission);
+    groups.set(name, entries);
   }
-  return Array.from(groups, ([name, permissions]) => ({ name, permissions }))
-})
+  return Array.from(groups, ([name, permissions]) => ({ name, permissions }));
+});
 
 const activeGroup = computed(
   () =>
     permissionGroups.value.find((group) => group.name === activeGroupName.value) ??
     permissionGroups.value[0],
-)
+);
 
 watch(
   () => props.user,
   (user) => {
-    selectedPermissions.value = user ? [...user.permissions] : []
+    selectedPermissions.value = user ? [...user.permissions] : [];
   },
   { immediate: true },
-)
+);
 
 watch(
   permissionGroups,
   (groups) => {
     if (!groups.some((group) => group.name === activeGroupName.value)) {
-      activeGroupName.value = groups[0]?.name ?? ''
+      activeGroupName.value = groups[0]?.name ?? "";
     }
   },
   { immediate: true },
-)
+);
 
 watch(
   [activeGroupName, permissionGroups],
   async () => {
-    if (permissionGroups.value.length <= 4) return
-    await nextTick()
-    groupsViewport.value?.querySelector<HTMLElement>('.permission-picker__group--active')?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'nearest',
-      inline: 'nearest',
-    })
+    if (permissionGroups.value.length <= 4) return;
+    await nextTick();
+    groupsViewport.value
+      ?.querySelector<HTMLElement>(".permission-picker__group--active")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
   },
-  { flush: 'post' },
-)
+  { flush: "post" },
+);
 
 function resetOptionsScroll(): void {
   if (optionsViewport.value) {
-    optionsViewport.value.scrollTop = 0
+    optionsViewport.value.scrollTop = 0;
   }
 }
 
 function selectedCount(permissions: PermissionResponse[]): number {
-  return permissions.filter((permission) => selectedPermissions.value.includes(permission.code)).length
+  return permissions.filter((permission) => selectedPermissions.value.includes(permission.code))
+    .length;
 }
 
 /** 当前账号的两项关键权限必须保持打开对话框时的原值。 */
 function isPermissionLocked(permissionCode: string): boolean {
-  return props.editingCurrentUser && selfProtectedPermissions.has(permissionCode)
+  return props.editingCurrentUser && selfProtectedPermissions.has(permissionCode);
 }
 
 function editablePermissions(permissions: PermissionResponse[]): PermissionResponse[] {
-  return permissions.filter((permission) => !isPermissionLocked(permission.code))
+  return permissions.filter((permission) => !isPermissionLocked(permission.code));
 }
 
 function hasEditablePermissions(permissions: PermissionResponse[]): boolean {
-  return editablePermissions(permissions).length > 0
+  return editablePermissions(permissions).length > 0;
 }
 
 function isGroupFullySelected(permissions: PermissionResponse[]): boolean {
-  const editable = editablePermissions(permissions)
+  const editable = editablePermissions(permissions);
   return (
     editable.length > 0 &&
     editable.every((permission) => selectedPermissions.value.includes(permission.code))
-  )
+  );
 }
 
 /** 切换当前权限分类的可编辑权限，不改动当前账号的两项关键权限。 */
 function toggleGroup(permissions: PermissionResponse[]): void {
-  const codes = new Set(editablePermissions(permissions).map((permission) => permission.code))
+  const codes = new Set(editablePermissions(permissions).map((permission) => permission.code));
   if (codes.size === 0) {
-    return
+    return;
   }
   if (isGroupFullySelected(permissions)) {
-    selectedPermissions.value = selectedPermissions.value.filter((code) => !codes.has(code))
-    return
+    selectedPermissions.value = selectedPermissions.value.filter((code) => !codes.has(code));
+    return;
   }
-  selectedPermissions.value = Array.from(new Set([...selectedPermissions.value, ...codes]))
+  selectedPermissions.value = Array.from(new Set([...selectedPermissions.value, ...codes]));
 }
 
 /** 提交前恢复当前账号关键权限的原值，避免表单状态意外绕过禁用选项。 */
 function submitPermissions(): void {
-  const permissions = new Set(selectedPermissions.value)
+  const permissions = new Set(selectedPermissions.value);
   if (props.editingCurrentUser && props.user) {
     for (const permissionCode of selfProtectedPermissions) {
       if (props.user.permissions.includes(permissionCode)) {
-        permissions.add(permissionCode)
+        permissions.add(permissionCode);
       } else {
-        permissions.delete(permissionCode)
+        permissions.delete(permissionCode);
       }
     }
   }
-  emit('submit', Array.from(permissions))
+  emit("submit", Array.from(permissions));
 }
 </script>
 

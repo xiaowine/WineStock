@@ -19,9 +19,9 @@
     <div class="dialog-content">
       <p class="confirmation-copy">
         {{
-          nextStatus === 'disabled'
-            ? '停用后，该用户将在所有已登录设备上退出，并且无法再次登录，直到账号重新启用。'
-            : '启用后，该用户可以重新登录。'
+          nextStatus === "disabled"
+            ? "停用后，该用户将在所有已登录设备上退出，并且无法再次登录，直到账号重新启用。"
+            : "启用后，该用户可以重新登录。"
         }}
       </p>
       <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
@@ -31,32 +31,26 @@
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
         取消
       </button>
-      <button
-        class="primary-button"
-        type="button"
-        :disabled="submitting"
-        @click="emit('submit')"
-      >
-        {{ submitting ? '正在保存…' : nextStatus === 'disabled' ? '确认停用' : '确认启用' }}
+      <button class="primary-button" type="button" :disabled="submitting" @click="emit('submit')">
+        {{ submitting ? "正在保存…" : nextStatus === "disabled" ? "确认停用" : "确认启用" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import type { UserAdminResponse, UserStatus } from '../../api/users'
-import ModalDialog from '../ModalDialog.vue'
+import type { UserAdminResponse, UserStatus } from "../../api/users";
+import ModalDialog from "../ModalDialog.vue";
 
 defineProps<{
-  user: UserAdminResponse | null
-  nextStatus: UserStatus
-  submitting: boolean
-  errorMessage: string
-}>()
+  user: UserAdminResponse | null;
+  nextStatus: UserStatus;
+  submitting: boolean;
+  errorMessage: string;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  submit: []
-}>()
-
+  close: [];
+  submit: [];
+}>();
 </script>

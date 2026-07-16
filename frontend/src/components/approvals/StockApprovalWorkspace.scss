@@ -1,5 +1,5 @@
 /* 本文件拥有入库与出库审批共享工作台、队列、审核详情和响应式样式；不定义其它单据页面外观。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 .approval-page {
   min-height: 0;
   gap: 14px;

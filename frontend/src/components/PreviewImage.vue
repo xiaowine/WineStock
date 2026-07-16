@@ -52,153 +52,158 @@
             <path d="m6 6 12 12M18 6 6 18" />
           </svg>
         </button>
-        <img
-          :src="src"
-          :alt="alt"
-          draggable="false"
-          :style="viewerImageStyle"
-        />
+        <img :src="src" :alt="alt" draggable="false" :style="viewerImageStyle" />
       </div>
     </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useAttrs, watch, type CSSProperties } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useAttrs, watch, type CSSProperties } from "vue";
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ inheritAttrs: false });
 
-const props = withDefaults(defineProps<{
-  src?: string
-  alt: string
-  objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down'
-  loading?: 'eager' | 'lazy'
-  decoding?: 'async' | 'auto' | 'sync'
-  /** 控制是否提供全屏查看；缩略图只读展示时关闭，仍复用统一图片渲染。 */
-  previewable?: boolean
-}>(), {
-  objectFit: 'cover',
-  loading: 'lazy',
-  decoding: 'async',
-  previewable: true,
-})
+const props = withDefaults(
+  defineProps<{
+    src?: string;
+    alt: string;
+    objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
+    loading?: "eager" | "lazy";
+    decoding?: "async" | "auto" | "sync";
+    /** 控制是否提供全屏查看；缩略图只读展示时关闭，仍复用统一图片渲染。 */
+    previewable?: boolean;
+  }>(),
+  {
+    objectFit: "cover",
+    loading: "lazy",
+    decoding: "async",
+    previewable: true,
+  },
+);
 
-const attrs = useAttrs()
-const trigger = ref<HTMLElement | null>(null)
-const closeButton = ref<HTMLButtonElement | null>(null)
-const viewerOpen = ref(false)
-const imageFailed = ref(false)
-const imageUnavailable = computed(() => !props.src || imageFailed.value)
-const triggerLabel = computed(() => imageUnavailable.value
-  ? `${props.alt} 图片未能加载`
-  : props.previewable ? `全屏查看：${props.alt}` : undefined)
-const viewerImageStyle = ref<CSSProperties>({})
-let previousBodyOverflow = ''
-let animationFrame = 0
-let closing = false
+const attrs = useAttrs();
+const trigger = ref<HTMLElement | null>(null);
+const closeButton = ref<HTMLButtonElement | null>(null);
+const viewerOpen = ref(false);
+const imageFailed = ref(false);
+const imageUnavailable = computed(() => !props.src || imageFailed.value);
+const triggerLabel = computed(() =>
+  imageUnavailable.value
+    ? `${props.alt} 图片未能加载`
+    : props.previewable
+      ? `全屏查看：${props.alt}`
+      : undefined,
+);
+const viewerImageStyle = ref<CSSProperties>({});
+let previousBodyOverflow = "";
+let animationFrame = 0;
+let closing = false;
 
-watch(() => props.src, () => {
-  imageFailed.value = false
-})
+watch(
+  () => props.src,
+  () => {
+    imageFailed.value = false;
+  },
+);
 
 async function openViewer(): Promise<void> {
-  if (viewerOpen.value || imageUnavailable.value) return
-  const sourceRect = sourceImageRect()
-  if (!sourceRect) return
-  closing = false
-  viewerImageStyle.value = rectStyle(sourceRect)
-  viewerOpen.value = true
-  previousBodyOverflow = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
-  window.addEventListener('keydown', handleKeydown)
-  window.addEventListener('resize', updateExpandedRect)
-  await nextTick()
+  if (viewerOpen.value || imageUnavailable.value) return;
+  const sourceRect = sourceImageRect();
+  if (!sourceRect) return;
+  closing = false;
+  viewerImageStyle.value = rectStyle(sourceRect);
+  viewerOpen.value = true;
+  previousBodyOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+  window.addEventListener("keydown", handleKeydown);
+  window.addEventListener("resize", updateExpandedRect);
+  await nextTick();
   animationFrame = requestAnimationFrame(() => {
     animationFrame = requestAnimationFrame(() => {
-      viewerImageStyle.value = expandedImageStyle()
-      closeButton.value?.focus()
-    })
-  })
+      viewerImageStyle.value = expandedImageStyle();
+      closeButton.value?.focus();
+    });
+  });
 }
 
 function closeViewer(): void {
-  if (!viewerOpen.value || closing) return
-  closing = true
-  cancelAnimationFrame(animationFrame)
-  const sourceRect = sourceImageRect()
-  if (sourceRect) viewerImageStyle.value = rectStyle(sourceRect)
-  unlockBodyScroll()
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('resize', updateExpandedRect)
+  if (!viewerOpen.value || closing) return;
+  closing = true;
+  cancelAnimationFrame(animationFrame);
+  const sourceRect = sourceImageRect();
+  if (sourceRect) viewerImageStyle.value = rectStyle(sourceRect);
+  unlockBodyScroll();
+  window.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("resize", updateExpandedRect);
   animationFrame = requestAnimationFrame(() => {
-    viewerOpen.value = false
-  })
+    viewerOpen.value = false;
+  });
 }
 
 function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeViewer()
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeViewer();
   }
 }
 
 function unlockBodyScroll(): void {
-  document.body.style.overflow = previousBodyOverflow
+  document.body.style.overflow = previousBodyOverflow;
 }
 
 function restoreFocus(): void {
-  closing = false
-  trigger.value?.focus()
+  closing = false;
+  trigger.value?.focus();
 }
 
 function sourceImageRect(): DOMRect | null {
-  return trigger.value?.querySelector('img')?.getBoundingClientRect() ?? null
+  return trigger.value?.querySelector("img")?.getBoundingClientRect() ?? null;
 }
 
 function rectStyle(rect: DOMRect): CSSProperties {
-  const borderRadius = trigger.value ? getComputedStyle(trigger.value).borderRadius : '0'
+  const borderRadius = trigger.value ? getComputedStyle(trigger.value).borderRadius : "0";
   return {
     left: `${rect.left}px`,
     top: `${rect.top}px`,
     width: `${rect.width}px`,
     height: `${rect.height}px`,
     borderRadius,
-  }
+  };
 }
 
 /** 按原图比例计算视口内的最终矩形，保证共享元素动画结束后完整展示图片。 */
 function expandedImageStyle(): CSSProperties {
-  const sourceImage = trigger.value?.querySelector('img')
-  const horizontalPadding = window.innerWidth < 768 ? 12 : 20
-  const topPadding = 56
-  const bottomPadding = 20
-  const availableWidth = Math.max(1, window.innerWidth - horizontalPadding * 2)
-  const availableHeight = Math.max(1, window.innerHeight - topPadding - bottomPadding)
-  const sourceRect = sourceImage?.getBoundingClientRect()
-  const naturalWidth = sourceImage?.naturalWidth || sourceRect?.width || 1
-  const naturalHeight = sourceImage?.naturalHeight || sourceRect?.height || 1
-  const scale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight)
-  const width = naturalWidth * scale
-  const height = naturalHeight * scale
+  const sourceImage = trigger.value?.querySelector("img");
+  const horizontalPadding = window.innerWidth < 768 ? 12 : 20;
+  const topPadding = 56;
+  const bottomPadding = 20;
+  const availableWidth = Math.max(1, window.innerWidth - horizontalPadding * 2);
+  const availableHeight = Math.max(1, window.innerHeight - topPadding - bottomPadding);
+  const sourceRect = sourceImage?.getBoundingClientRect();
+  const naturalWidth = sourceImage?.naturalWidth || sourceRect?.width || 1;
+  const naturalHeight = sourceImage?.naturalHeight || sourceRect?.height || 1;
+  const scale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight);
+  const width = naturalWidth * scale;
+  const height = naturalHeight * scale;
   return {
     left: `${(window.innerWidth - width) / 2}px`,
     top: `${topPadding + (availableHeight - height) / 2}px`,
     width: `${width}px`,
     height: `${height}px`,
-    borderRadius: '0px',
-  }
+    borderRadius: "0px",
+  };
 }
 
 function updateExpandedRect(): void {
-  if (viewerOpen.value && !closing) viewerImageStyle.value = expandedImageStyle()
+  if (viewerOpen.value && !closing) viewerImageStyle.value = expandedImageStyle();
 }
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(animationFrame)
-  window.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('resize', updateExpandedRect)
-  if (viewerOpen.value) unlockBodyScroll()
-})
+  cancelAnimationFrame(animationFrame);
+  window.removeEventListener("keydown", handleKeydown);
+  window.removeEventListener("resize", updateExpandedRect);
+  if (viewerOpen.value) unlockBodyScroll();
+});
 </script>
 
 <style lang="scss" src="./PreviewImage.scss"></style>

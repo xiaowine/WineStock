@@ -20,11 +20,16 @@
         </svg>
       </button>
       <div class="item-editor__heading">
-        <h2>{{ draft.id ? draft.name || '编辑物品' : '新建物品' }}</h2>
+        <h2>{{ draft.id ? draft.name || "编辑物品" : "新建物品" }}</h2>
         <p v-if="draft.id">{{ draft.sku }} · {{ draft.unit }}</p>
       </div>
-      <button v-if="!readOnly" class="primary-button item-editor__desktop-save" type="submit" :disabled="saving">
-        {{ saving ? '保存中…' : '保存物品' }}
+      <button
+        v-if="!readOnly"
+        class="primary-button item-editor__desktop-save"
+        type="submit"
+        :disabled="saving"
+      >
+        {{ saving ? "保存中…" : "保存物品" }}
       </button>
     </header>
 
@@ -77,8 +82,10 @@
               required
             />
             <FormSelect v-model="draft.categoryId" label="分类" name="category">
-                <option :value="null">未分类</option>
-                <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+              <option :value="null">未分类</option>
+              <option v-for="category in categories" :key="category.id" :value="category.id">
+                {{ category.name }}
+              </option>
             </FormSelect>
             <FormInput
               v-model="draft.unit"
@@ -124,7 +131,10 @@
         </div>
       </section>
 
-      <section class="item-editor__section item-editor__attributes" aria-labelledby="item-attributes-heading">
+      <section
+        class="item-editor__section item-editor__attributes"
+        aria-labelledby="item-attributes-heading"
+      >
         <header class="item-editor__section-header">
           <h3 id="item-attributes-heading">物品属性</h3>
         </header>
@@ -136,8 +146,10 @@
           :model-value="draft.attributeTemplateId ?? ''"
           @update:model-value="selectTemplate"
         >
-            <option value="">不使用模板</option>
-            <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.name }}</option>
+          <option value="">不使用模板</option>
+          <option v-for="template in templates" :key="template.id" :value="template.id">
+            {{ template.name }}
+          </option>
         </FormSelect>
 
         <section
@@ -159,10 +171,17 @@
           </div>
         </section>
 
-        <section class="item-editor__attribute-group" aria-labelledby="item-custom-attributes-heading">
+        <section
+          class="item-editor__attribute-group"
+          aria-labelledby="item-custom-attributes-heading"
+        >
           <header class="item-editor__attribute-group-header">
             <h4 id="item-custom-attributes-heading">自定义属性</h4>
-            <button class="secondary-button item-editor__add-attribute" type="button" @click="addAttribute">
+            <button
+              class="secondary-button item-editor__add-attribute"
+              type="button"
+              @click="addAttribute"
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
@@ -183,99 +202,125 @@
     </fieldset>
 
     <footer v-if="!embedded" class="item-editor__mobile-actions">
-      <button v-if="!readOnly" class="primary-button" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存物品' }}</button>
+      <button v-if="!readOnly" class="primary-button" type="submit" :disabled="saving">
+        {{ saving ? "保存中…" : "保存物品" }}
+      </button>
     </footer>
   </form>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { ItemCategoryResponse } from '../../api/itemCategories'
-import type { ItemAttributeTemplateResponse } from '../../api/itemAttributeTemplates'
-import { applyAttributeTemplate, newCustomAttribute, type ItemDraft } from '../../pages/items/model'
-import { discardTemporaryAttributeFile } from '../../pages/items/fileCleanup'
-import ItemAttributeEditor from './ItemAttributeEditor.vue'
-import AttributeImageField from '../attributes/AttributeImageField.vue'
-import type { FileDraftValue } from '../../pages/inbound-draft/model'
-import { notice } from '../../notices/notice'
-import FormField from '../forms/FormField.vue'
-import FormInput from '../forms/FormInput.vue'
-import FormSelect from '../forms/FormSelect.vue'
-import FormTextarea from '../forms/FormTextarea.vue'
+import { computed } from "vue";
+import type { ItemCategoryResponse } from "../../api/itemCategories";
+import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
+import {
+  applyAttributeTemplate,
+  newCustomAttribute,
+  type ItemDraft,
+} from "../../pages/items/model";
+import { discardTemporaryAttributeFile } from "../../pages/items/fileCleanup";
+import ItemAttributeEditor from "./ItemAttributeEditor.vue";
+import AttributeImageField from "../attributes/AttributeImageField.vue";
+import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import { notice } from "../../notices/notice";
+import FormField from "../forms/FormField.vue";
+import FormInput from "../forms/FormInput.vue";
+import FormSelect from "../forms/FormSelect.vue";
+import FormTextarea from "../forms/FormTextarea.vue";
 
-const props = withDefaults(defineProps<{
-  draft: ItemDraft
-  categories: ItemCategoryResponse[]
-  templates: ItemAttributeTemplateResponse[]
-  saving: boolean
-  metadataError: string
-  validationErrors: Record<string, string>
-  closeLabel?: string
-  embedded?: boolean
-  formId?: string
-  /** 没有物品管理权限时只展示资料，不允许修改草稿或提交。 */
-  readOnly?: boolean
-}>(), {
-  closeLabel: '返回物品目录',
-  embedded: false,
-  formId: undefined,
-  readOnly: false,
-})
+const props = withDefaults(
+  defineProps<{
+    draft: ItemDraft;
+    categories: ItemCategoryResponse[];
+    templates: ItemAttributeTemplateResponse[];
+    saving: boolean;
+    metadataError: string;
+    validationErrors: Record<string, string>;
+    closeLabel?: string;
+    embedded?: boolean;
+    formId?: string;
+    /** 没有物品管理权限时只展示资料，不允许修改草稿或提交。 */
+    readOnly?: boolean;
+  }>(),
+  {
+    closeLabel: "返回物品目录",
+    embedded: false,
+    formId: undefined,
+    readOnly: false,
+  },
+);
 
-const emit = defineEmits<{ save: []; close: [] }>()
-const templateFieldsById = computed(() => new Map(
-  props.templates.flatMap((template) => template.fields.map((field) => [field.id, field] as const)),
-))
-const templateAttributes = computed(() => props.draft.attributes.filter((attribute) => !attribute.custom))
-const customAttributes = computed(() => props.draft.attributes.filter((attribute) => attribute.custom))
+const emit = defineEmits<{ save: []; close: [] }>();
+const templateFieldsById = computed(
+  () =>
+    new Map(
+      props.templates.flatMap((template) =>
+        template.fields.map((field) => [field.id, field] as const),
+      ),
+    ),
+);
+const templateAttributes = computed(() =>
+  props.draft.attributes.filter((attribute) => !attribute.custom),
+);
+const customAttributes = computed(() =>
+  props.draft.attributes.filter((attribute) => attribute.custom),
+);
 
 function submit(): void {
-  if (!props.readOnly) emit('save')
+  if (!props.readOnly) emit("save");
 }
 
 function attributeValidationErrors(key: string): Record<string, string> {
-  const prefix = `attribute.${key}.`
+  const prefix = `attribute.${key}.`;
   return Object.fromEntries(
     Object.entries(props.validationErrors)
       .filter(([field]) => field.startsWith(prefix))
       .map(([field, message]) => [field.slice(prefix.length), message]),
-  )
+  );
 }
 
 function addAttribute(): void {
-  props.draft.attributes.push(newCustomAttribute())
+  props.draft.attributes.push(newCustomAttribute());
 }
 
 function removeAttribute(key: string): void {
-  const index = props.draft.attributes.findIndex((attribute) => attribute.key === key)
-  if (index >= 0) props.draft.attributes.splice(index, 1)
+  const index = props.draft.attributes.findIndex((attribute) => attribute.key === key);
+  if (index >= 0) props.draft.attributes.splice(index, 1);
 }
 
 function updateMainImage(value: FileDraftValue | undefined): void {
   if (!props.draft.imageTemporary && props.draft.image?.fileId) {
-    props.draft.obsoleteImageFileId = props.draft.image.fileId
+    props.draft.obsoleteImageFileId = props.draft.image.fileId;
   }
-  props.draft.image = value ?? null
-  props.draft.imageTemporary = true
+  props.draft.image = value ?? null;
+  props.draft.imageTemporary = true;
 }
 
 async function selectTemplate(value: string | number | boolean | null | undefined): Promise<void> {
-  const id = Number(value)
-  const template = props.templates.find((candidate) => candidate.id === id) ?? null
-  const customNames = new Set(customAttributes.value.map((attribute) => attribute.fieldName.trim().toLowerCase()))
-  const conflicts = template?.fields.filter((field) => customNames.has(field.field_name.toLowerCase())).map((field) => field.field_name) ?? []
+  const id = Number(value);
+  const template = props.templates.find((candidate) => candidate.id === id) ?? null;
+  const customNames = new Set(
+    customAttributes.value.map((attribute) => attribute.fieldName.trim().toLowerCase()),
+  );
+  const conflicts =
+    template?.fields
+      .filter((field) => customNames.has(field.field_name.toLowerCase()))
+      .map((field) => field.field_name) ?? [];
   if (conflicts.length > 0) {
-    notice.warning('无法切换属性模板', { detail: `自定义属性与目标模板字段重名：${conflicts.join('、')}` })
-    return
+    notice.warning("无法切换属性模板", {
+      detail: `自定义属性与目标模板字段重名：${conflicts.join("、")}`,
+    });
+    return;
   }
-  const changingFiles = props.draft.attributes.filter((attribute) =>
-    !attribute.custom && attribute.fieldType === 'file')
+  const changingFiles = props.draft.attributes.filter(
+    (attribute) => !attribute.custom && attribute.fieldType === "file",
+  );
   try {
-    await Promise.all(changingFiles.map(discardTemporaryAttributeFile))
+    await Promise.all(changingFiles.map(discardTemporaryAttributeFile));
   } catch {
-    notice.warning('部分临时图片未能立即删除', { detail: '服务会在超过保留期限后自动清理。' })
+    notice.warning("部分临时图片未能立即删除", { detail: "服务会在超过保留期限后自动清理。" });
   }
-  applyAttributeTemplate(props.draft, template)
+  applyAttributeTemplate(props.draft, template);
 }
 </script>
 

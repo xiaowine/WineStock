@@ -33,16 +33,16 @@
         </div>
         <div>
           <dt>批次</dt>
-          <dd>{{ item.batch_no || '自动生成' }}</dd>
+          <dd>{{ item.batch_no || "自动生成" }}</dd>
         </div>
         <div>
           <dt>有效期</dt>
-          <dd>{{ item.expires_at || '未设置' }}</dd>
+          <dd>{{ item.expires_at || "未设置" }}</dd>
         </div>
         <div>
           <dt>入库模板</dt>
           <dd>
-            {{ item.inbound_template_id ? `#${item.inbound_template_id}` : '未使用' }}
+            {{ item.inbound_template_id ? `#${item.inbound_template_id}` : "未使用" }}
           </dd>
         </div>
       </dl>
@@ -64,24 +64,24 @@
   </section>
 </template>
 <script setup lang="ts">
-import type { InboundOrderResponse } from '../../api/inboundOrders'
-import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
-defineProps<{ order: InboundOrderResponse }>()
+import type { InboundOrderResponse } from "../../api/inboundOrders";
+import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
+defineProps<{ order: InboundOrderResponse }>();
 function money(value: number): string {
-  return new Intl.NumberFormat('zh-CN', {
+  return new Intl.NumberFormat("zh-CN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value)
+  }).format(value);
 }
 function fileId(value: unknown): number | null {
-  return typeof value === 'object' &&
+  return typeof value === "object" &&
     value !== null &&
-    'file_id' in value &&
-    typeof value.file_id === 'number'
+    "file_id" in value &&
+    typeof value.file_id === "number"
     ? value.file_id
-    : null
+    : null;
 }
 function displayValue(value: unknown): string {
-  return typeof value === 'string' ? value : JSON.stringify(value)
+  return typeof value === "string" ? value : JSON.stringify(value);
 }
 </script>

@@ -1,10 +1,14 @@
 /* 本文件拥有入库单列表的桌面/平板/移动呈现切换；不定义筛选、分页或详情行为。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 
-.inbound-orders-mobile-list { display: none; }
+.inbound-orders-mobile-list {
+  display: none;
+}
 
 @include mixins.mobile {
-  .inbound-orders-table { display: none; }
+  .inbound-orders-table {
+    display: none;
+  }
 
   .inbound-orders-mobile-list {
     display: grid;
@@ -22,7 +26,10 @@
     cursor: pointer;
   }
 
-  .inbound-orders-mobile-list__item:focus-visible { outline: 3px solid rgb(111 42 54 / 16%); outline-offset: 1px; }
+  .inbound-orders-mobile-list__item:focus-visible {
+    outline: 3px solid rgb(111 42 54 / 16%);
+    outline-offset: 1px;
+  }
 
   .inbound-orders-mobile-list__item > header {
     display: grid;
@@ -37,8 +44,13 @@
     white-space: nowrap;
   }
 
-  .inbound-orders-mobile-list__item > header .icon-button { width: 36px; height: 36px; }
-  .inbound-orders-mobile-list__item > header svg { @include mixins.svg-icon; }
+  .inbound-orders-mobile-list__item > header .icon-button {
+    width: 36px;
+    height: 36px;
+  }
+  .inbound-orders-mobile-list__item > header svg {
+    @include mixins.svg-icon;
+  }
 
   .inbound-orders-mobile-list__source {
     display: -webkit-box;
@@ -68,7 +80,9 @@
     padding-top: 4px;
   }
 
-  .inbound-orders-mobile-list__item-summary > div { min-width: 0; }
+  .inbound-orders-mobile-list__item-summary > div {
+    min-width: 0;
+  }
   .inbound-orders-mobile-list__item-summary strong,
   .inbound-orders-mobile-list__item-summary small {
     display: block;
@@ -76,7 +90,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .inbound-orders-mobile-list__item-summary small { margin-top: 3px; color: var(--color-muted); font-size: 12px; }
+  .inbound-orders-mobile-list__item-summary small {
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: 12px;
+  }
 
   .inbound-orders-mobile-list__metrics {
     display: flex;
@@ -87,6 +105,14 @@
     border-top: 1px solid var(--color-border);
   }
 
-  .inbound-orders-mobile-list__metrics > span { min-width: 0; color: var(--color-muted); font-size: 12px; line-height: 1.4; }
-  .inbound-orders-mobile-list__metrics > strong { flex: 0 0 auto; font-size: 14px; }
+  .inbound-orders-mobile-list__metrics > span {
+    min-width: 0;
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .inbound-orders-mobile-list__metrics > strong {
+    flex: 0 0 auto;
+    font-size: 14px;
+  }
 }

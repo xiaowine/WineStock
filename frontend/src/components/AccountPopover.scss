@@ -1,5 +1,5 @@
 /* 本文件拥有账户弹层、遮罩、错误和开关动效，不处理会话退出行为。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 
 .account-popover-backdrop {
   position: fixed;

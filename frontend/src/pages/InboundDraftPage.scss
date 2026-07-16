@@ -1,5 +1,5 @@
 /* 本文件拥有正式入库工作台的桌面与移动响应式布局；它不定义全局控件或其它业务页面样式。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 .inbound-draft-page {
   min-height: 0;
   gap: 12px;
@@ -548,12 +548,24 @@
   text-align: left;
 }
 
-.inbound-lines th:first-child { width: 29%; }
+.inbound-lines th:first-child {
+  width: 29%;
+}
 .inbound-lines th:nth-child(2),
-.inbound-lines th:nth-child(3) { width: 10%; }
-.inbound-lines th:nth-child(4) { width: 23%; }
-.inbound-lines th:nth-child(5) { width: 12%; text-align: right; }
-.inbound-lines th:last-child { width: 188px; text-align: right; }
+.inbound-lines th:nth-child(3) {
+  width: 10%;
+}
+.inbound-lines th:nth-child(4) {
+  width: 23%;
+}
+.inbound-lines th:nth-child(5) {
+  width: 12%;
+  text-align: right;
+}
+.inbound-lines th:last-child {
+  width: 188px;
+  text-align: right;
+}
 
 .inbound-lines td {
   padding: 8px;
@@ -618,9 +630,15 @@
     font-weight: 700;
   }
 
-  &--muted { color: var(--color-muted); }
-  &--warning { color: var(--color-warn); }
-  &--danger { color: var(--color-danger); }
+  &--muted {
+    color: var(--color-muted);
+  }
+  &--warning {
+    color: var(--color-warn);
+  }
+  &--danger {
+    color: var(--color-danger);
+  }
 }
 
 .inbound-line__identity span {
@@ -636,7 +654,7 @@
   font-size: 12px;
 }
 
-.inbound-lines input[type='number'] {
+.inbound-lines input[type="number"] {
   text-align: right;
 }
 
@@ -664,11 +682,19 @@
   font-weight: 650;
   text-align: right;
 
-  &:hover { text-decoration: underline; }
+  &:hover {
+    text-decoration: underline;
+  }
 
-  &--accent { color: var(--color-teal); }
-  &--warning { color: var(--color-warn); }
-  &--danger { color: var(--color-danger); }
+  &--accent {
+    color: var(--color-teal);
+  }
+  &--warning {
+    color: var(--color-warn);
+  }
+  &--danger {
+    color: var(--color-danger);
+  }
 }
 
 .inbound-line__edit {
@@ -1027,12 +1053,22 @@
     min-width: 0;
   }
 
-  .inbound-lines th:first-child { width: 26%; }
+  .inbound-lines th:first-child {
+    width: 26%;
+  }
   .inbound-lines th:nth-child(2),
-  .inbound-lines th:nth-child(3) { width: 9%; }
-  .inbound-lines th:nth-child(4) { width: 20%; }
-  .inbound-lines th:nth-child(5) { width: 10%; }
-  .inbound-lines th:last-child { width: 26%; }
+  .inbound-lines th:nth-child(3) {
+    width: 9%;
+  }
+  .inbound-lines th:nth-child(4) {
+    width: 20%;
+  }
+  .inbound-lines th:nth-child(5) {
+    width: 10%;
+  }
+  .inbound-lines th:last-child {
+    width: 26%;
+  }
 
   .inbound-line__template-summary {
     overflow: visible;

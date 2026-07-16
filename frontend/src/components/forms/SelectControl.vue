@@ -20,7 +20,7 @@
       @keydown="handleTriggerKeydown"
     >
       <span :class="{ 'select-control__value--placeholder': selectedOption?.placeholder }">
-        {{ selectedOption?.label ?? '请选择' }}
+        {{ selectedOption?.label ?? "请选择" }}
       </span>
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="m4 6 4 4 4-4" />
@@ -41,7 +41,10 @@
           @keydown="handleListboxKeydown"
         >
           <template v-for="(option, index) in options" :key="option.key">
-            <div v-if="option.group && option.group !== options[index - 1]?.group" class="select-control__group">
+            <div
+              v-if="option.group && option.group !== options[index - 1]?.group"
+              class="select-control__group"
+            >
               {{ option.group }}
             </div>
             <button
@@ -65,239 +68,276 @@
 
 <script setup lang="ts">
 import {
-  Comment, Fragment, Text, computed, nextTick, onBeforeUnmount, ref, useAttrs, useId, useSlots,
-  type ComponentPublicInstance, type CSSProperties, type VNode,
-} from 'vue'
+  Comment,
+  Fragment,
+  Text,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  useAttrs,
+  useId,
+  useSlots,
+  type ComponentPublicInstance,
+  type CSSProperties,
+  type VNode,
+} from "vue";
 
 interface NormalizedOption {
-  key: string
-  label: string
-  value: unknown
-  disabled: boolean
-  placeholder: boolean
-  group?: string
+  key: string;
+  label: string;
+  value: unknown;
+  disabled: boolean;
+  placeholder: boolean;
+  group?: string;
 }
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ inheritAttrs: false });
 
-const props = withDefaults(defineProps<{
-  compact?: boolean
-  disabled?: boolean
-  name?: string
-}>(), {
-  compact: false,
-  disabled: false,
-  name: '',
-})
+const props = withDefaults(
+  defineProps<{
+    compact?: boolean;
+    disabled?: boolean;
+    name?: string;
+  }>(),
+  {
+    compact: false,
+    disabled: false,
+    name: "",
+  },
+);
 
 const emit = defineEmits<{
-  change: [value: unknown]
-}>()
+  change: [value: unknown];
+}>();
 
-const model = defineModel<unknown>()
-const attrs = useAttrs()
-const slots = useSlots()
-const uid = useId()
-const listboxId = `select-options-${uid}`
-const root = ref<HTMLElement | null>(null)
-const trigger = ref<HTMLButtonElement | null>(null)
-const listbox = ref<HTMLElement | null>(null)
-const open = ref(false)
-const activeIndex = ref(-1)
-const optionElements = new Map<number, HTMLButtonElement>()
-const popoverStyle = ref<CSSProperties>({})
+const model = defineModel<unknown>();
+const attrs = useAttrs();
+const slots = useSlots();
+const uid = useId();
+const listboxId = `select-options-${uid}`;
+const root = ref<HTMLElement | null>(null);
+const trigger = ref<HTMLButtonElement | null>(null);
+const listbox = ref<HTMLElement | null>(null);
+const open = ref(false);
+const activeIndex = ref(-1);
+const optionElements = new Map<number, HTMLButtonElement>();
+const popoverStyle = ref<CSSProperties>({});
 
-const triggerAttrs = computed(() => Object.fromEntries(
-  Object.entries(attrs).filter(([key]) => !['class', 'style', 'name', 'disabled', 'required'].includes(key)),
-))
-const options = computed(() => normalizeNodes(slots.default?.() ?? []))
-const selectedOption = computed(() => options.value.find((option) => sameValue(option.value, model.value)))
-const serializedValue = computed(() => model.value === null || model.value === undefined ? '' : String(model.value))
+const triggerAttrs = computed(() =>
+  Object.fromEntries(
+    Object.entries(attrs).filter(
+      ([key]) => !["class", "style", "name", "disabled", "required"].includes(key),
+    ),
+  ),
+);
+const options = computed(() => normalizeNodes(slots.default?.() ?? []));
+const selectedOption = computed(() =>
+  options.value.find((option) => sameValue(option.value, model.value)),
+);
+const serializedValue = computed(() =>
+  model.value === null || model.value === undefined ? "" : String(model.value),
+);
 
 function normalizeNodes(nodes: VNode[], group?: string): NormalizedOption[] {
-  const normalized: NormalizedOption[] = []
+  const normalized: NormalizedOption[] = [];
   for (const node of nodes) {
-    if (node.type === Comment || node.type === Text) continue
+    if (node.type === Comment || node.type === Text) continue;
     if (node.type === Fragment) {
-      normalized.push(...normalizeNodes(asNodes(node.children), group))
-      continue
+      normalized.push(...normalizeNodes(asNodes(node.children), group));
+      continue;
     }
-    if (node.type === 'optgroup') {
-      normalized.push(...normalizeNodes(asNodes(node.children), String(node.props?.label ?? '')))
-      continue
+    if (node.type === "optgroup") {
+      normalized.push(...normalizeNodes(asNodes(node.children), String(node.props?.label ?? "")));
+      continue;
     }
-    if (node.type === 'option') {
-      const label = nodeText(node)
-      const hasValue = Object.prototype.hasOwnProperty.call(node.props ?? {}, 'value')
-      const value = hasValue ? node.props?.value : label
+    if (node.type === "option") {
+      const label = nodeText(node);
+      const hasValue = Object.prototype.hasOwnProperty.call(node.props ?? {}, "value");
+      const value = hasValue ? node.props?.value : label;
       normalized.push({
-        key: `${group ?? ''}:${String(value ?? '')}:${normalized.length}`,
+        key: `${group ?? ""}:${String(value ?? "")}:${normalized.length}`,
         label,
         value,
         disabled: Boolean(node.props?.disabled),
-        placeholder: hasValue && (value === '' || value === null || value === undefined),
+        placeholder: hasValue && (value === "" || value === null || value === undefined),
         group,
-      })
-      continue
+      });
+      continue;
     }
-    normalized.push(...normalizeNodes(asNodes(node.children), group))
+    normalized.push(...normalizeNodes(asNodes(node.children), group));
   }
-  return normalized
+  return normalized;
 }
 
-function asNodes(children: VNode['children']): VNode[] {
-  return Array.isArray(children) ? children as VNode[] : []
+function asNodes(children: VNode["children"]): VNode[] {
+  return Array.isArray(children) ? (children as VNode[]) : [];
 }
 
 function nodeText(node: VNode): string {
-  if (typeof node.children === 'string') return node.children.trim()
-  return asNodes(node.children).map((child) => typeof child.children === 'string' ? child.children : nodeText(child)).join('').trim()
+  if (typeof node.children === "string") return node.children.trim();
+  return asNodes(node.children)
+    .map((child) => (typeof child.children === "string" ? child.children : nodeText(child)))
+    .join("")
+    .trim();
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true
-  if (left === null || left === undefined || right === null || right === undefined) return false
-  return String(left) === String(right)
+  if (Object.is(left, right)) return true;
+  if (left === null || left === undefined || right === null || right === undefined) return false;
+  return String(left) === String(right);
 }
 
 function toggle(): void {
-  if (props.disabled) return
-  open.value ? close() : void show()
+  if (props.disabled) return;
+  open.value ? close() : void show();
 }
 
 async function show(): Promise<void> {
-  window.dispatchEvent(new CustomEvent('winestock-select-open', { detail: uid }))
-  open.value = true
-  activeIndex.value = Math.max(0, options.value.findIndex((option) => sameValue(option.value, model.value)))
-  window.addEventListener('pointerdown', handleOutsidePointer)
-  window.addEventListener('resize', positionPopover)
-  window.addEventListener('scroll', positionPopover, true)
-  window.addEventListener('winestock-select-open', handleOtherSelect as EventListener)
-  await nextTick()
-  positionPopover()
-  focusActiveOption()
+  window.dispatchEvent(new CustomEvent("winestock-select-open", { detail: uid }));
+  open.value = true;
+  activeIndex.value = Math.max(
+    0,
+    options.value.findIndex((option) => sameValue(option.value, model.value)),
+  );
+  window.addEventListener("pointerdown", handleOutsidePointer);
+  window.addEventListener("resize", positionPopover);
+  window.addEventListener("scroll", positionPopover, true);
+  window.addEventListener("winestock-select-open", handleOtherSelect as EventListener);
+  await nextTick();
+  positionPopover();
+  focusActiveOption();
 }
 
 function close(restoreFocus = false): void {
-  if (!open.value) return
-  open.value = false
-  removeWindowListeners()
-  if (restoreFocus) void nextTick(() => trigger.value?.focus())
+  if (!open.value) return;
+  open.value = false;
+  removeWindowListeners();
+  if (restoreFocus) void nextTick(() => trigger.value?.focus());
 }
 
 function choose(option: NormalizedOption): void {
-  if (option.disabled) return
-  model.value = option.value
-  emit('change', option.value)
-  close(true)
+  if (option.disabled) return;
+  model.value = option.value;
+  emit("change", option.value);
+  close(true);
 }
 
 function handleTriggerKeydown(event: KeyboardEvent): void {
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    void show()
+  if (
+    event.key === "ArrowDown" ||
+    event.key === "ArrowUp" ||
+    event.key === "Enter" ||
+    event.key === " "
+  ) {
+    event.preventDefault();
+    void show();
   }
 }
 
 function handleListboxKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' || event.key === 'Tab') {
-    if (event.key === 'Escape') event.stopPropagation()
-    close(event.key === 'Escape')
-    return
+  if (event.key === "Escape" || event.key === "Tab") {
+    if (event.key === "Escape") event.stopPropagation();
+    close(event.key === "Escape");
+    return;
   }
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-    event.preventDefault()
-    moveActive(event.key === 'ArrowDown' ? 1 : -1)
-    return
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    moveActive(event.key === "ArrowDown" ? 1 : -1);
+    return;
   }
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    const option = options.value[activeIndex.value]
-    if (option) choose(option)
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    const option = options.value[activeIndex.value];
+    if (option) choose(option);
   }
 }
 
 function moveActive(direction: number): void {
-  if (!options.value.length) return
-  let next = activeIndex.value
+  if (!options.value.length) return;
+  let next = activeIndex.value;
   do {
-    next = (next + direction + options.value.length) % options.value.length
-  } while (options.value[next]?.disabled && next !== activeIndex.value)
-  activeIndex.value = next
-  focusActiveOption()
+    next = (next + direction + options.value.length) % options.value.length;
+  } while (options.value[next]?.disabled && next !== activeIndex.value);
+  activeIndex.value = next;
+  focusActiveOption();
 }
 
 function focusActiveOption(): void {
-  void nextTick(() => optionElements.get(activeIndex.value)?.focus())
+  void nextTick(() => optionElements.get(activeIndex.value)?.focus());
 }
 
 function setOptionElement(element: Element | ComponentPublicInstance | null, index: number): void {
-  if (element instanceof HTMLButtonElement) optionElements.set(index, element)
-  else optionElements.delete(index)
+  if (element instanceof HTMLButtonElement) optionElements.set(index, element);
+  else optionElements.delete(index);
 }
 
 function positionPopover(): void {
-  const triggerElement = trigger.value
-  if (!triggerElement) return
-  const anchor = triggerElement.getBoundingClientRect()
-  const triggerStyle = window.getComputedStyle(triggerElement)
-  const viewportHeight = window.visualViewport?.height ?? window.innerHeight
-  const viewportWidth = window.visualViewport?.width ?? window.innerWidth
-  const gap = 5
-  const viewportPadding = 8
-  const availableBelow = viewportHeight - anchor.bottom - gap - viewportPadding
-  const availableAbove = anchor.top - gap - viewportPadding
-  const estimatedHeight = Math.min(280, options.value.length * 38 + 12)
-  const placeAbove = availableBelow < Math.min(180, estimatedHeight) && availableAbove > availableBelow
-  const maxHeight = Math.max(120, Math.min(280, placeAbove ? availableAbove : availableBelow))
+  const triggerElement = trigger.value;
+  if (!triggerElement) return;
+  const anchor = triggerElement.getBoundingClientRect();
+  const triggerStyle = window.getComputedStyle(triggerElement);
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+  const gap = 5;
+  const viewportPadding = 8;
+  const availableBelow = viewportHeight - anchor.bottom - gap - viewportPadding;
+  const availableAbove = anchor.top - gap - viewportPadding;
+  const estimatedHeight = Math.min(280, options.value.length * 38 + 12);
+  const placeAbove =
+    availableBelow < Math.min(180, estimatedHeight) && availableAbove > availableBelow;
+  const maxHeight = Math.max(120, Math.min(280, placeAbove ? availableAbove : availableBelow));
   const popoverWidth = Math.min(
     Math.max(anchor.width, preferredPopoverWidth(triggerStyle)),
     320,
     viewportWidth - viewportPadding * 2,
-  )
+  );
   const popoverLeft = Math.min(
     Math.max(viewportPadding, anchor.left),
     Math.max(viewportPadding, viewportWidth - popoverWidth - viewportPadding),
-  )
+  );
   popoverStyle.value = {
     left: `${popoverLeft}px`,
-    top: placeAbove ? 'auto' : `${anchor.bottom + gap}px`,
-    bottom: placeAbove ? `${viewportHeight - anchor.top + gap}px` : 'auto',
+    top: placeAbove ? "auto" : `${anchor.bottom + gap}px`,
+    bottom: placeAbove ? `${viewportHeight - anchor.top + gap}px` : "auto",
     width: `${popoverWidth}px`,
     maxWidth: `calc(100vw - ${viewportPadding * 2}px)`,
     maxHeight: `${maxHeight}px`,
     fontSize: triggerStyle.fontSize,
     lineHeight: triggerStyle.lineHeight,
-  }
+  };
 }
 
 function preferredPopoverWidth(triggerStyle: CSSStyleDeclaration): number {
-  const canvas = document.createElement('canvas')
-  const context = canvas.getContext('2d')
-  if (!context) return 0
-  context.font = `${triggerStyle.fontWeight} ${triggerStyle.fontSize} ${triggerStyle.fontFamily}`
-  const widestLabel = options.value.reduce((width, option) => Math.max(width, context.measureText(option.label).width), 0)
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  if (!context) return 0;
+  context.font = `${triggerStyle.fontWeight} ${triggerStyle.fontSize} ${triggerStyle.fontFamily}`;
+  const widestLabel = options.value.reduce(
+    (width, option) => Math.max(width, context.measureText(option.label).width),
+    0,
+  );
   // 包含选项与浮层的水平内边距、边框，并为字体测量误差保留少量余量。
-  return Math.ceil(widestLabel + 30)
+  return Math.ceil(widestLabel + 30);
 }
 
 function handleOutsidePointer(event: PointerEvent): void {
-  const target = event.target as Node
-  if (!root.value?.contains(target) && !listbox.value?.contains(target)) close()
+  const target = event.target as Node;
+  if (!root.value?.contains(target) && !listbox.value?.contains(target)) close();
 }
 
 function handleOtherSelect(event: CustomEvent<string>): void {
-  if (event.detail !== uid) close()
+  if (event.detail !== uid) close();
 }
 
 function removeWindowListeners(): void {
-  window.removeEventListener('pointerdown', handleOutsidePointer)
-  window.removeEventListener('resize', positionPopover)
-  window.removeEventListener('scroll', positionPopover, true)
-  window.removeEventListener('winestock-select-open', handleOtherSelect as EventListener)
+  window.removeEventListener("pointerdown", handleOutsidePointer);
+  window.removeEventListener("resize", positionPopover);
+  window.removeEventListener("scroll", positionPopover, true);
+  window.removeEventListener("winestock-select-open", handleOtherSelect as EventListener);
 }
 
-onBeforeUnmount(removeWindowListeners)
+onBeforeUnmount(removeWindowListeners);
 </script>
 
 <style scoped lang="scss">
@@ -359,12 +399,12 @@ onBeforeUnmount(removeWindowListeners)
   box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
 }
 
-.select-control__trigger[aria-invalid='true'] {
+.select-control__trigger[aria-invalid="true"] {
   border-color: var(--color-danger);
 }
 
-.select-control__trigger[aria-invalid='true']:focus-visible,
-.select-control--open .select-control__trigger[aria-invalid='true'] {
+.select-control__trigger[aria-invalid="true"]:focus-visible,
+.select-control--open .select-control__trigger[aria-invalid="true"] {
   box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
 }
 

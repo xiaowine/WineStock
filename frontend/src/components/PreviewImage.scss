@@ -1,5 +1,5 @@
 /* 本文件拥有普通图片触发器和全屏图片查看层样式，不拥有鉴权加载或业务页面布局。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 .preview-image {
   position: relative;
   display: block;
@@ -73,7 +73,8 @@
   z-index: calc(var(--z-notice) - 1);
   display: grid;
   place-items: center;
-  padding: max(56px, calc(20px + env(safe-area-inset-top))) 20px max(20px, env(safe-area-inset-bottom));
+  padding: max(56px, calc(20px + env(safe-area-inset-top))) 20px
+    max(20px, env(safe-area-inset-bottom));
   background: rgb(11 15 20 / 70%);
   backdrop-filter: blur(1.8px);
 

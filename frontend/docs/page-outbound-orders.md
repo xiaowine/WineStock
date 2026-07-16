@@ -12,14 +12,14 @@
 
 ## 现有 HTTP 契约
 
-| 接口 | 权限 | 用途 |
-| --- | --- | --- |
-| `GET /api/outbound` | `stock.outbound.read` | 服务端分页列表，已有 `page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`。 |
-| `GET /api/outbound/filter-values` | `stock.outbound.read` | 历史筛选候选；首版不以它伪造本地筛选。 |
-| `GET /api/outbound/{id}` | `stock.outbound.read` | 打开详情后的完整单据与明细。 |
-| `POST /api/outbound` | `stock.outbound.create` | 新建 pending 出库单；本页只跳转，不调用。 |
-| `POST /api/stock-approvals/outbound/{id}/approve` | `stock.outbound.approve` | 审批并按指定批次或 FIFO 扣库存；仅审批页调用。 |
-| `POST /api/stock-approvals/outbound/{id}/reject` | `stock.outbound.approve` | 拒绝 pending 单据；仅审批页调用。 |
+| 接口                                              | 权限                     | 用途                                                                                    |
+| ------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------- |
+| `GET /api/outbound`                               | `stock.outbound.read`    | 服务端分页列表，已有 `page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`。 |
+| `GET /api/outbound/filter-values`                 | `stock.outbound.read`    | 历史筛选候选；首版不以它伪造本地筛选。                                                  |
+| `GET /api/outbound/{id}`                          | `stock.outbound.read`    | 打开详情后的完整单据与明细。                                                            |
+| `POST /api/outbound`                              | `stock.outbound.create`  | 新建 pending 出库单；本页只跳转，不调用。                                               |
+| `POST /api/stock-approvals/outbound/{id}/approve` | `stock.outbound.approve` | 审批并按指定批次或 FIFO 扣库存；仅审批页调用。                                          |
+| `POST /api/stock-approvals/outbound/{id}/reject`  | `stock.outbound.approve` | 拒绝 pending 单据；仅审批页调用。                                                       |
 
 `OutboundResponse` 应提供单据 ID、目的地 `destination`、状态、备注、创建/审批/拒绝用户 ID 与时间，以及明细的物品 ID、数量、可选 `batch_id`、批次号、单价/成本或业务金额字段。列表和详情均使用同一响应时，列表只展示轻量摘要，详情再按需读取完整属性。
 
@@ -35,11 +35,11 @@
 
 ## 权限与库存语义
 
-| 能力 | 页面行为 |
-| --- | --- |
-| 无 `stock.outbound.read` | 路由守卫离开页面，禁止请求。 |
-| `stock.outbound.read` | 查询、筛选、查看详情和触底追加。 |
-| 另有 `stock.outbound.create` | 顶部显示“新建出库”，跳转 `/outbound`。 |
+| 能力                          | 页面行为                                                     |
+| ----------------------------- | ------------------------------------------------------------ |
+| 无 `stock.outbound.read`      | 路由守卫离开页面，禁止请求。                                 |
+| `stock.outbound.read`         | 查询、筛选、查看详情和触底追加。                             |
+| 另有 `stock.outbound.create`  | 顶部显示“新建出库”，跳转 `/outbound`。                       |
 | 另有 `stock.outbound.approve` | pending 详情显示“前往出库审批”，跳转 `/approvals/outbound`。 |
 
 - `pending`：尚未扣减库存；详情必须明确“等待审批，库存未扣减”。

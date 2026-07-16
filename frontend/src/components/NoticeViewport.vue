@@ -62,35 +62,35 @@ import {
   resumeNotice,
   type NoticeItem,
   type NoticeTone,
-} from '../notices/notice'
+} from "../notices/notice";
 
 function progress(item: NoticeItem): number {
-  return Math.max(0, Math.min(1, item.remainingMs / item.durationMs))
+  return Math.max(0, Math.min(1, item.remainingMs / item.durationMs));
 }
 
 function toneLabel(tone: NoticeTone): string {
-  if (tone === 'success') {
-    return '成功'
+  if (tone === "success") {
+    return "成功";
   }
-  if (tone === 'warning') {
-    return '警告'
+  if (tone === "warning") {
+    return "警告";
   }
-  if (tone === 'error') {
-    return '错误'
+  if (tone === "error") {
+    return "错误";
   }
-  return '提示'
+  return "提示";
 }
 
 function handleFocusOut(id: string, event: FocusEvent): void {
-  const currentTarget = event.currentTarget
+  const currentTarget = event.currentTarget;
   if (
     currentTarget instanceof HTMLElement &&
     event.relatedTarget instanceof Node &&
     currentTarget.contains(event.relatedTarget)
   ) {
-    return
+    return;
   }
-  resumeNotice(id)
+  resumeNotice(id);
 }
 </script>
 

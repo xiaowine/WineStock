@@ -1,5 +1,5 @@
 /* 本文件拥有用户列表搜索、状态筛选、数量和操作栏样式，不请求用户 API。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 
 .user-list-toolbar {
   display: flex;
@@ -72,7 +72,6 @@
   }
 
   &__refresh {
-
     &--pending,
     &--pending:hover {
       border-color: rgb(111 42 54 / 24%);

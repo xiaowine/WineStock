@@ -110,75 +110,75 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { authSession } from '../auth/session'
-import AccountPopover from '../components/AccountPopover.vue'
-import AccountUserSummary from '../components/AccountUserSummary.vue'
-import AppNavigationList from '../components/AppNavigationList.vue'
-import RouteContentView from '../components/RouteContentView.vue'
-import { useAccountPopover } from '../composables/useAccountPopover'
-import { useShellLogout } from '../composables/useShellLogout'
-import { getVisibleAppNavigation } from '../router/navigation'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import { authSession } from "../auth/session";
+import AccountPopover from "../components/AccountPopover.vue";
+import AccountUserSummary from "../components/AccountUserSummary.vue";
+import AppNavigationList from "../components/AppNavigationList.vue";
+import RouteContentView from "../components/RouteContentView.vue";
+import { useAccountPopover } from "../composables/useAccountPopover";
+import { useShellLogout } from "../composables/useShellLogout";
+import { getVisibleAppNavigation } from "../router/navigation";
 
-const DESKTOP_QUERY = '(min-width: 768px)'
-const navOpen = ref(false)
-const navTrigger = ref<HTMLButtonElement | null>(null)
-const route = useRoute()
+const DESKTOP_QUERY = "(min-width: 768px)";
+const navOpen = ref(false);
+const navTrigger = ref<HTMLButtonElement | null>(null);
+const route = useRoute();
 const {
   accountMenuOpen,
   closeAccountMenu,
   toggleAccountMenu: toggleAccountPopover,
-} = useAccountPopover()
-const { handleLogout, isLoggingOut, logoutError } = useShellLogout()
-const pageTitle = computed(() => route.meta.title)
+} = useAccountPopover();
+const { handleLogout, isLoggingOut, logoutError } = useShellLogout();
+const pageTitle = computed(() => route.meta.title);
 const visibleNavigation = computed(() =>
   getVisibleAppNavigation(authSession.value?.user.permissions),
-)
-const userDisplayName = computed(() => authSession.value?.user.username ?? '')
+);
+const userDisplayName = computed(() => authSession.value?.user.username ?? "");
 const userInitials = computed(() =>
-  Array.from(userDisplayName.value.trim()).slice(0, 2).join('').toUpperCase(),
-)
-let desktopMediaQuery: MediaQueryList | undefined
+  Array.from(userDisplayName.value.trim()).slice(0, 2).join("").toUpperCase(),
+);
+let desktopMediaQuery: MediaQueryList | undefined;
 
 function openNavigation(): void {
-  navTrigger.value?.blur()
-  closeAccountMenu()
-  navOpen.value = true
+  navTrigger.value?.blur();
+  closeAccountMenu();
+  navOpen.value = true;
 }
 
 function closeNavigation(): void {
-  navOpen.value = false
+  navOpen.value = false;
 }
 
 function toggleAccountMenu(): void {
-  closeNavigation()
-  logoutError.value = ''
-  toggleAccountPopover()
+  closeNavigation();
+  logoutError.value = "";
+  toggleAccountPopover();
 }
 
 /** 断点变化只关闭临时 Drawer，不切换或重挂载应用框架和路由页面。 */
 function handleDesktopQueryChange(event: MediaQueryListEvent): void {
-  if (event.matches) closeNavigation()
+  if (event.matches) closeNavigation();
 }
 
 /** Escape 只关闭移动导航；账户弹层由共享 composable 处理。 */
 function handleEscape(event: KeyboardEvent): void {
-  if (event.key === 'Escape') closeNavigation()
+  if (event.key === "Escape") closeNavigation();
 }
 
-watch(() => route.fullPath, closeNavigation)
+watch(() => route.fullPath, closeNavigation);
 
 onMounted(() => {
-  document.addEventListener('keydown', handleEscape)
-  desktopMediaQuery = window.matchMedia(DESKTOP_QUERY)
-  desktopMediaQuery.addEventListener('change', handleDesktopQueryChange)
-})
+  document.addEventListener("keydown", handleEscape);
+  desktopMediaQuery = window.matchMedia(DESKTOP_QUERY);
+  desktopMediaQuery.addEventListener("change", handleDesktopQueryChange);
+});
 
 onBeforeUnmount(() => {
-  document.removeEventListener('keydown', handleEscape)
-  desktopMediaQuery?.removeEventListener('change', handleDesktopQueryChange)
-})
+  document.removeEventListener("keydown", handleEscape);
+  desktopMediaQuery?.removeEventListener("change", handleDesktopQueryChange);
+});
 </script>
 
 <style lang="scss" src="./AppShell.scss"></style>

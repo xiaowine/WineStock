@@ -1,5 +1,5 @@
 /* 本文件拥有桌面侧栏与移动抽屉共用导航列表的外观和状态，不决定导航权限。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 .app-navigation {
   display: grid;
   gap: 18px;
@@ -81,7 +81,7 @@
       color: var(--color-accent-strong);
 
       &::before {
-        content: '';
+        content: "";
         position: absolute;
         top: 7px;
         bottom: 7px;

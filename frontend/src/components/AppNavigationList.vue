@@ -30,40 +30,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { AppNavigationIcon, AppNavigationItem } from '../router/navigation'
+import { computed } from "vue";
+import type { AppNavigationIcon, AppNavigationItem } from "../router/navigation";
 
 const props = defineProps<{
   /** 已按当前会话权限过滤的应用导航入口。 */
-  items: readonly AppNavigationItem[]
-}>()
+  items: readonly AppNavigationItem[];
+}>();
 
 const emit = defineEmits<{
   /** 用户选择入口后通知所属 Shell 收起临时导航。 */
-  navigate: []
-}>()
+  navigate: [];
+}>();
 
 const navigationGroups = computed(() =>
   [
     {
-      id: 'primary',
-      label: '',
-      items: props.items.filter((item) => item.group === 'primary'),
+      id: "primary",
+      label: "",
+      items: props.items.filter((item) => item.group === "primary"),
     },
     {
-      id: 'management',
-      label: '管理',
-      items: props.items.filter((item) => item.group === 'management'),
+      id: "management",
+      label: "管理",
+      items: props.items.filter((item) => item.group === "management"),
     },
   ].filter((group) => group.items.length > 0),
-)
+);
 
 const navigationIconPaths: Record<AppNavigationIcon, string> = {
-  dashboard: 'M4 4h6v6H4z M14 4h6v4h-6z M14 12h6v8h-6z M4 14h6v6H4z',
-  items: 'm4 7.5 8-4.5 8 4.5v9L12 21l-8-4.5v-9Z M4 7.5l8 4.5 8-4.5 M12 12v9',
-  inbound: 'M4 5h16v14H4z M8 9h8 M8 13h5 M12 2v6 M9 5l3 3 3-3',
-  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M3 21v-2a6 6 0 0 1 6-6h1 M16 11a4 4 0 0 0 0-8 M14 13h1a6 6 0 0 1 6 6v2',
-}
+  dashboard: "M4 4h6v6H4z M14 4h6v4h-6z M14 12h6v8h-6z M4 14h6v6H4z",
+  items: "m4 7.5 8-4.5 8 4.5v9L12 21l-8-4.5v-9Z M4 7.5l8 4.5 8-4.5 M12 12v9",
+  inbound: "M4 5h16v14H4z M8 9h8 M8 13h5 M12 2v6 M9 5l3 3 3-3",
+  users:
+    "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M3 21v-2a6 6 0 0 1 6-6h1 M16 11a4 4 0 0 0 0-8 M14 13h1a6 6 0 0 1 6 6v2",
+};
 </script>
 
 <style lang="scss" src="./AppNavigationList.scss"></style>

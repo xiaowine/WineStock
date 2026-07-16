@@ -12,15 +12,22 @@
         <h1>{{ $route.meta.title }}</h1>
       </div>
       <div v-if="step === 'draft'" class="outbound-summary">
-        <span><strong>{{ lines.length }}</strong> 条明细</span><span>·</span>
+        <span
+          ><strong>{{ lines.length }}</strong> 条明细</span
+        ><span>·</span>
         <span>{{ itemCount }} 个物品</span>
         <template v-if="costSummary.state === 'complete'">
-          <span>·</span><span>预计成本 <strong>¥{{ formatMoney(costSummary.amount ?? 0) }}</strong></span>
+          <span>·</span
+          ><span
+            >预计成本 <strong>¥{{ formatMoney(costSummary.amount ?? 0) }}</strong></span
+          >
         </template>
         <template v-else-if="costSummary.state === 'loading'">
           <span>·</span><span>正在估算成本…</span>
         </template>
-        <template v-else-if="costSummary.state === 'insufficient' || costSummary.state === 'failed'">
+        <template
+          v-else-if="costSummary.state === 'insufficient' || costSummary.state === 'failed'"
+        >
           <span>·</span><span>成本以实际出库为准</span>
         </template>
       </div>
@@ -37,13 +44,7 @@
           :disabled="submitting"
           @click="review"
         >
-          {{
-            submitting
-              ? "正在提交…"
-              : canDirectOutbound
-                ? "直接出库"
-                : "提交审核"
-          }}
+          {{ submitting ? "正在提交…" : canDirectOutbound ? "直接出库" : "提交审核" }}
         </button>
       </div>
     </header>
@@ -60,11 +61,7 @@
           <h2>选择出库物品</h2>
           <p>加入后再填写数量及扣减方式。</p>
         </div>
-        <button
-          class="secondary-button"
-          :disabled="!lines.length"
-          @click="step = 'draft'"
-        >
+        <button class="secondary-button" :disabled="!lines.length" @click="step = 'draft'">
           下一步：填写单据
         </button>
       </header>
@@ -80,12 +77,7 @@
         <strong>{{ itemError }}</strong
         ><button class="text-button" @click="resetItems">重试</button>
       </div>
-      <div
-        v-else
-        :ref="setItemList"
-        class="outbound-catalog"
-        @scroll.passive="handleItemScroll"
-      >
+      <div v-else :ref="setItemList" class="outbound-catalog" @scroll.passive="handleItemScroll">
         <article
           v-for="item in items"
           :key="item.id"
@@ -106,9 +98,7 @@
             :class="{ 'outbound-catalog__toggle--selected': selected(item.id) }"
             type="button"
             :aria-label="
-              selected(item.id)
-                ? `将 ${item.name} 移出出库申请`
-                : `将 ${item.name} 加入出库申请`
+              selected(item.id) ? `将 ${item.name} 移出出库申请` : `将 ${item.name} 加入出库申请`
             "
             :aria-pressed="selected(item.id)"
             :title="selected(item.id) ? '移出申请' : '加入申请'"
@@ -135,9 +125,7 @@
             }}
           </p>
         </div>
-        <button class="secondary-button" @click="step = 'catalog'">
-          上一步：选择物品
-        </button>
+        <button class="secondary-button" @click="step = 'catalog'">上一步：选择物品</button>
       </header>
       <div class="outbound-meta">
         <label
@@ -185,9 +173,7 @@
             />
             <div>
               <strong>{{ line.item.name }}</strong
-              ><small
-                >{{ line.item.sku }} · {{ line.item.unit }} · 明细
-                {{ index + 1 }}</small
+              ><small>{{ line.item.sku }} · {{ line.item.unit }} · 明细 {{ index + 1 }}</small
               ><small>分类：{{ line.item.category_name || "未分类" }}</small>
             </div>
           </div>
@@ -201,8 +187,7 @@
               min="0.01"
               step="0.01"
               :aria-label="`${line.item.name} 出库数量`"
-            /></label
-          >
+          /></label>
           <button
             class="outbound-allocation"
             type="button"
@@ -240,57 +225,35 @@
       <template #context
         ><div v-if="allocationLine" class="outbound-allocation-context">
           <strong>{{ allocationLine.item.name }}</strong
-          ><span
-            >{{ allocationLine.item.sku }} ·
-            {{ allocationLine.item.unit }}</span
-          >
+          ><span>{{ allocationLine.item.sku }} · {{ allocationLine.item.unit }}</span>
         </div></template
       >
       <template v-if="allocationLine"
         ><section class="outbound-allocation-section">
-          <header>
-            <strong>扣减方式</strong
-            ><span>选择实际出库时扣减库存的规则。</span>
-          </header>
+          <header><strong>扣减方式</strong><span>选择实际出库时扣减库存的规则。</span></header>
           <fieldset class="outbound-allocation-editor">
             <label
-              ><input
-                v-model="allocationDraft.mode"
-                type="radio"
-                value="fifo"
-              /><span
+              ><input v-model="allocationDraft.mode" type="radio" value="fifo" /><span
                 ><strong>按先进先出分配</strong
                 ><small>实际出库时从指定库位或全部库存按 FIFO 扣减。</small></span
               ></label
             ><label
-              ><input
-                v-model="allocationDraft.mode"
-                type="radio"
-                value="specific_batch"
-              /><span
+              ><input v-model="allocationDraft.mode" type="radio" value="specific_batch" /><span
                 ><strong>指定批次</strong
                 ><small>实际出库时从选定批次扣减，库位随批次确定。</small></span
               ></label
             >
           </fieldset>
         </section>
-        <section
-          v-if="allocationDraft.mode === 'fifo'"
-          class="outbound-allocation-section"
-        >
+        <section v-if="allocationDraft.mode === 'fifo'" class="outbound-allocation-section">
           <header>
-            <strong>扣减范围</strong
-            ><span>不限制时，审批可从全部库位按 FIFO 分配。</span>
+            <strong>扣减范围</strong><span>不限制时，审批可从全部库位按 FIFO 分配。</span>
           </header>
           <label class="outbound-location"
             ><span>限制库位（可选）</span
             ><select v-model="allocationDraft.locationId">
               <option :value="null">全部库位</option>
-              <option
-                v-for="location in locations"
-                :key="location.id"
-                :value="location.id"
-              >
+              <option v-for="location in locations" :key="location.id" :value="location.id">
                 {{ location.name }}
               </option></select
             ><small v-if="locationError"
@@ -300,28 +263,20 @@
         </section>
         <section v-else class="outbound-allocation-section">
           <header>
-            <strong>选择批次</strong
-            ><span>批次可用数量仅为当前快照，实际出库时仍会校验库存。</span>
+            <strong>选择批次</strong><span>批次可用数量仅为当前快照，实际出库时仍会校验库存。</span>
           </header>
           <div class="outbound-batches" @scroll.passive="handleBatchScroll">
-            <div
-              v-for="batch in batches"
-              :key="batch.id"
-              class="outbound-batch"
-            >
+            <div v-for="batch in batches" :key="batch.id" class="outbound-batch">
               <label
-                ><input
-                  v-model="allocationDraft.batchId"
-                  type="radio"
-                  :value="batch.id"
-                /><span
+                ><input v-model="allocationDraft.batchId" type="radio" :value="batch.id" /><span
                   ><strong>{{ batch.batch_no }}</strong
                   ><small
-                    >{{ batch.location_name }} · 剩余
-                    {{ batch.remaining_quantity }} {{ allocationLine.item.unit
-                    }}{{
-                      batch.expires_at ? ` · 有效期 ${batch.expires_at}` : ""
-                    }} · 成本 ¥{{ formatMoney(batch.unit_cost) }} / {{ allocationLine.item.unit }}</small
+                    >{{ batch.location_name }} · 剩余 {{ batch.remaining_quantity }}
+                    {{ allocationLine.item.unit
+                    }}{{ batch.expires_at ? ` · 有效期 ${batch.expires_at}` : "" }} · 成本 ¥{{
+                      formatMoney(batch.unit_cost)
+                    }}
+                    / {{ allocationLine.item.unit }}</small
                   ></span
                 ></label
               >
@@ -339,9 +294,7 @@
       >
       <template #actions
         ><button class="secondary-button" @click="closeAllocation">取消</button
-        ><button class="primary-button" @click="applyAllocation">
-          应用
-        </button></template
+        ><button class="primary-button" @click="applyAllocation">应用</button></template
       >
     </ModalDialog>
     <ModalDialog
@@ -378,11 +331,7 @@
           </div>
         </dl></template
       ><template #actions
-        ><button
-          class="secondary-button"
-          :disabled="submitting"
-          @click="confirmMode = null"
-        >
+        ><button class="secondary-button" :disabled="submitting" @click="confirmMode = null">
           {{ confirmMode === "submit" ? "返回检查" : "取消" }}</button
         ><button
           :class="confirmMode === 'clear' ? 'danger-button' : 'primary-button'"
@@ -471,16 +420,10 @@ const router = useRouter(),
 let batchController: AbortController | null = null;
 const costBatchControllers = new Map<number, AbortController>();
 const canReadItems = computed(() =>
-    hasPermission(
-      authSession.value?.user.permissions,
-      stockPermissions.outboundCreate,
-    ),
+    hasPermission(authSession.value?.user.permissions, stockPermissions.outboundCreate),
   ),
   hasDraft = computed(
-    () =>
-      lines.value.length > 0 ||
-      !!destination.value.trim() ||
-      !!notes.value.trim(),
+    () => lines.value.length > 0 || !!destination.value.trim() || !!notes.value.trim(),
   ),
   itemCount = computed(() => new Set(lines.value.map((l) => l.item.id)).size),
   quantitySummary = computed(
@@ -543,10 +486,7 @@ const canReadItems = computed(() =>
       : "实际出库时按扣减批次确认",
   );
 const canDirectOutbound = computed(() =>
-  hasPermission(
-    authSession.value?.user.permissions,
-    stockPermissions.outboundApprove,
-  ),
+  hasPermission(authSession.value?.user.permissions, stockPermissions.outboundApprove),
 );
 const {
   items,
@@ -559,12 +499,15 @@ const {
   applySearch,
   handleItemScroll,
 } = useInboundItemCatalog((e) =>
-  e instanceof ApiError && e.status === 403
-    ? "当前账号没有读取物品的权限"
-    : "加载物品失败，请重试",
+  e instanceof ApiError && e.status === 403 ? "当前账号没有读取物品的权限" : "加载物品失败，请重试",
 );
-const { restoreDraft, resumeDraftSaving, removePersistedDraft } =
-  useOutboundDraftPersistence(destination, notes, notesOpen, lines, hasDraft);
+const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useOutboundDraftPersistence(
+  destination,
+  notes,
+  notesOpen,
+  lines,
+  hasDraft,
+);
 onMounted(async () => {
   if (restoreDraft()) {
     notice.info("已恢复上次未提交的出库草稿");
@@ -573,12 +516,7 @@ onMounted(async () => {
   resumeDraftSaving();
   requestCostEstimates();
   void resetItems();
-  if (
-    hasPermission(
-      authSession.value?.user.permissions,
-      stockPermissions.locationRead,
-    )
-  )
+  if (hasPermission(authSession.value?.user.permissions, stockPermissions.locationRead))
     try {
       locations.value = await listLocations({});
     } catch {
@@ -590,18 +528,12 @@ onBeforeUnmount(() => {
   costBatchControllers.forEach((controller) => controller.abort());
 });
 onBeforeRouteLeave(() =>
-  hasDraft.value
-    ? window.confirm("当前出库草稿已自动保存在本机，确认离开吗？")
-    : true,
+  hasDraft.value ? window.confirm("当前出库草稿已自动保存在本机，确认离开吗？") : true,
 );
 watch(
   () => allocationDraft.value.mode,
   (mode) => {
-    if (
-      mode === "specific_batch" &&
-      allocationLine.value &&
-      !batches.value.length
-    )
+    if (mode === "specific_batch" && allocationLine.value && !batches.value.length)
       void resetBatches();
   },
 );
@@ -643,8 +575,7 @@ function costEstimateLabel(line: OutboundDraftLine): string {
   const estimate = lineCostEstimate(line);
   if (estimate.state === "complete")
     return `预计 ¥${formatMoney(estimate.amount ?? 0)}${estimate.allocationCount > 1 ? ` · ${estimate.allocationCount} 个批次` : ""}`;
-  if (estimate.state === "insufficient")
-    return "成本以实际出库为准";
+  if (estimate.state === "insufficient") return "成本以实际出库为准";
   if (estimate.state === "failed") return "暂无法估算成本";
   return estimate.state === "loading" ? "正在估算成本…" : "填写数量后估算成本";
 }
@@ -653,7 +584,8 @@ function costEstimateDetail(estimate: OutboundCostEstimate): string {
     return `预计出库成本 ¥${formatMoney(estimate.amount ?? 0)}${estimate.allocationCount > 1 ? `，按 ${estimate.allocationCount} 个批次分摊。` : "。"} 实际出库时会按实际库存重新校验。`;
   if (estimate.state === "insufficient")
     return "当前库存快照无法完整覆盖该数量，成本将在实际出库时按实际扣减批次确认。";
-  if (estimate.state === "failed") return "暂无法读取批次成本；不影响提交，实际出库时会按实际库存处理。";
+  if (estimate.state === "failed")
+    return "暂无法读取批次成本；不影响提交，实际出库时会按实际库存处理。";
   if (estimate.state === "loading") return "正在按当前批次余额估算成本…";
   return "填写数量后，将按当前批次余额估算成本。";
 }
@@ -676,7 +608,9 @@ async function loadCostBatches(itemId: number): Promise<void> {
       if (costBatchControllers.get(itemId) !== controller) return;
       batches = [
         ...batches,
-        ...response.items.filter((batch) => !batches.some((candidate) => candidate.id === batch.id)),
+        ...response.items.filter(
+          (batch) => !batches.some((candidate) => candidate.id === batch.id),
+        ),
       ];
       page = response.page + 1;
       totalPages = response.total_pages;
@@ -698,8 +632,7 @@ async function loadCostBatches(itemId: number): Promise<void> {
       };
     }
   } finally {
-    if (costBatchControllers.get(itemId) === controller)
-      costBatchControllers.delete(itemId);
+    if (costBatchControllers.get(itemId) === controller) costBatchControllers.delete(itemId);
   }
 }
 function setItemList(element: unknown) {
@@ -707,9 +640,7 @@ function setItemList(element: unknown) {
 }
 function allocationSummary(line: OutboundDraftLine) {
   if (line.allocationMode === "fifo")
-    return line.locationId
-      ? `按 FIFO 分配 · 库位 #${line.locationId}`
-      : "按 FIFO 分配 · 全部库位";
+    return line.locationId ? `按 FIFO 分配 · 库位 #${line.locationId}` : "按 FIFO 分配 · 全部库位";
   const batch = batches.value.find((b) => b.id === line.batchId);
   return batch
     ? `批次 ${batch.batch_no} · ${batch.location_name}`
@@ -752,8 +683,7 @@ function closeAllocation() {
 }
 function handleBatchScroll(event: Event) {
   const el = event.currentTarget as HTMLElement;
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < 100)
-    void loadBatches();
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) void loadBatches();
 }
 async function resetBatches() {
   if (allocationLine.value && costSnapshot(allocationLine.value.item.id)?.state === "failed")
@@ -770,11 +700,7 @@ async function retryCostBatches(itemId: number): Promise<void> {
   await loadCostBatches(itemId);
 }
 async function loadBatches() {
-  if (
-    !allocationLine.value ||
-    batchLoading.value ||
-    (!batchMore.value && batchPage.value > 0)
-  )
+  if (!allocationLine.value || batchLoading.value || (!batchMore.value && batchPage.value > 0))
     return;
   batchController?.abort();
   const controller = new AbortController();
@@ -798,9 +724,7 @@ async function loadBatches() {
   } catch (e) {
     if (!(e instanceof DOMException && e.name === "AbortError"))
       batchError.value =
-        e instanceof ApiError && e.status === 403
-          ? "无权读取库存批次"
-          : "加载批次失败";
+        e instanceof ApiError && e.status === 403 ? "无权读取库存批次" : "加载批次失败";
   } finally {
     if (batchController === controller) {
       batchController = null;
@@ -813,13 +737,10 @@ function applyAllocation() {
   if (!line) return;
   line.allocationMode = allocationDraft.value.mode;
   line.batchId =
-    allocationDraft.value.mode === "specific_batch"
-      ? allocationDraft.value.batchId
-      : null;
+    allocationDraft.value.mode === "specific_batch" ? allocationDraft.value.batchId : null;
   line.locationId =
     allocationDraft.value.mode === "specific_batch"
-      ? (batches.value.find((b) => b.id === allocationDraft.value.batchId)
-          ?.location_id ?? null)
+      ? (batches.value.find((b) => b.id === allocationDraft.value.batchId)?.location_id ?? null)
       : allocationDraft.value.locationId;
   closeAllocation();
 }
@@ -866,10 +787,7 @@ async function confirmAction() {
       detail: canDirectOutbound.value
         ? `单号 #${order.id} 已完成出库，库存已扣减。`
         : `单号 #${order.id} 已进入待审批状态，库存未扣减。`,
-      onClick: hasPermission(
-        authSession.value?.user.permissions,
-        stockPermissions.outboundRead,
-      )
+      onClick: hasPermission(authSession.value?.user.permissions, stockPermissions.outboundRead)
         ? () => router.push({ name: "outbound-orders" })
         : undefined,
     });

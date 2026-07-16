@@ -1,5 +1,5 @@
 /* 本文件拥有通用模态框外壳、过渡和移动端底部面板适配，不拥有具体对话框业务内容。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 .modal-layer {
   position: fixed;
   inset: 0;
@@ -42,11 +42,11 @@
 .modal-panel {
   display: grid;
   grid-template-areas:
-    'header'
-    'context'
-    'body'
-    'notice'
-    'actions';
+    "header"
+    "context"
+    "body"
+    "notice"
+    "actions";
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   width: min(100%, 480px);
   max-height: min(86vh, 760px);

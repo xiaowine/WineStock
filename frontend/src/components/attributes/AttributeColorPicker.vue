@@ -20,7 +20,11 @@
     >
       <span
         class="attribute-color-picker__saturation-handle"
-        :style="{ left: `${saturation * 100}%`, top: `${(1 - value) * 100}%`, backgroundColor: selectedColor }"
+        :style="{
+          left: `${saturation * 100}%`,
+          top: `${(1 - value) * 100}%`,
+          backgroundColor: selectedColor,
+        }"
       />
     </div>
 
@@ -43,7 +47,11 @@
     </div>
 
     <div class="attribute-color-picker__value-row">
-      <span class="attribute-color-picker__current" :style="{ backgroundColor: selectedColor }" aria-hidden="true" />
+      <span
+        class="attribute-color-picker__current"
+        :style="{ backgroundColor: selectedColor }"
+        aria-hidden="true"
+      />
       <label class="attribute-color-picker__hex">
         <span>HEX</span>
         <span class="attribute-color-picker__hex-control">
@@ -81,181 +89,200 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, ref, useId, watch } from "vue";
 
-const props = defineProps<{ modelValue: string }>()
+const props = defineProps<{ modelValue: string }>();
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  commit: [value: string]
-}>()
+  "update:modelValue": [value: string];
+  commit: [value: string];
+}>();
 
 const palette = [
-  '#9d2832', '#d4664f', '#d59b45', '#c9a978', '#86a45d',
-  '#4f91aa', '#3f6f9f', '#657fba', '#8174b2', '#ad6f92',
-]
-const hexInputName = `color_hex_${useId()}`
-const initial = hexToHsv(props.modelValue)
-const hue = ref(initial.h)
-const saturation = ref(initial.s)
-const value = ref(initial.v)
-const hexText = ref(normalizeHex(props.modelValue).slice(1))
-const saturationPlane = ref<HTMLElement | null>(null)
-const hueTrack = ref<HTMLElement | null>(null)
-const activeDrag = ref<'saturation' | 'hue' | null>(null)
-const selectedColor = computed(() => hsvToHex(hue.value, saturation.value, value.value))
+  "#9d2832",
+  "#d4664f",
+  "#d59b45",
+  "#c9a978",
+  "#86a45d",
+  "#4f91aa",
+  "#3f6f9f",
+  "#657fba",
+  "#8174b2",
+  "#ad6f92",
+];
+const hexInputName = `color_hex_${useId()}`;
+const initial = hexToHsv(props.modelValue);
+const hue = ref(initial.h);
+const saturation = ref(initial.s);
+const value = ref(initial.v);
+const hexText = ref(normalizeHex(props.modelValue).slice(1));
+const saturationPlane = ref<HTMLElement | null>(null);
+const hueTrack = ref<HTMLElement | null>(null);
+const activeDrag = ref<"saturation" | "hue" | null>(null);
+const selectedColor = computed(() => hsvToHex(hue.value, saturation.value, value.value));
 
-watch(() => props.modelValue, (next) => {
-  const normalized = normalizeHex(next)
-  if (normalized === selectedColor.value) return
-  const hsv = hexToHsv(normalized)
-  hue.value = hsv.h
-  saturation.value = hsv.s
-  value.value = hsv.v
-  hexText.value = normalized.slice(1)
-})
+watch(
+  () => props.modelValue,
+  (next) => {
+    const normalized = normalizeHex(next);
+    if (normalized === selectedColor.value) return;
+    const hsv = hexToHsv(normalized);
+    hue.value = hsv.h;
+    saturation.value = hsv.s;
+    value.value = hsv.v;
+    hexText.value = normalized.slice(1);
+  },
+);
 
 watch(selectedColor, (next) => {
-  hexText.value = next.slice(1)
-  emit('update:modelValue', next)
-})
+  hexText.value = next.slice(1);
+  emit("update:modelValue", next);
+});
 
 function startSaturationDrag(event: PointerEvent): void {
-  activeDrag.value = 'saturation'
-  saturationPlane.value?.setPointerCapture(event.pointerId)
-  updateSaturation(event)
+  activeDrag.value = "saturation";
+  saturationPlane.value?.setPointerCapture(event.pointerId);
+  updateSaturation(event);
 }
 
 function moveSaturationDrag(event: PointerEvent): void {
-  if (activeDrag.value === 'saturation') updateSaturation(event)
+  if (activeDrag.value === "saturation") updateSaturation(event);
 }
 
 function finishSaturationDrag(event: PointerEvent): void {
-  if (activeDrag.value !== 'saturation') return
-  updateSaturation(event)
-  saturationPlane.value?.releasePointerCapture(event.pointerId)
-  activeDrag.value = null
-  emit('commit', selectedColor.value)
+  if (activeDrag.value !== "saturation") return;
+  updateSaturation(event);
+  saturationPlane.value?.releasePointerCapture(event.pointerId);
+  activeDrag.value = null;
+  emit("commit", selectedColor.value);
 }
 
 function startHueDrag(event: PointerEvent): void {
-  activeDrag.value = 'hue'
-  hueTrack.value?.setPointerCapture(event.pointerId)
-  updateHue(event)
+  activeDrag.value = "hue";
+  hueTrack.value?.setPointerCapture(event.pointerId);
+  updateHue(event);
 }
 
 function moveHueDrag(event: PointerEvent): void {
-  if (activeDrag.value === 'hue') updateHue(event)
+  if (activeDrag.value === "hue") updateHue(event);
 }
 
 function finishHueDrag(event: PointerEvent): void {
-  if (activeDrag.value !== 'hue') return
-  updateHue(event)
-  hueTrack.value?.releasePointerCapture(event.pointerId)
-  activeDrag.value = null
-  emit('commit', selectedColor.value)
+  if (activeDrag.value !== "hue") return;
+  updateHue(event);
+  hueTrack.value?.releasePointerCapture(event.pointerId);
+  activeDrag.value = null;
+  emit("commit", selectedColor.value);
 }
 
 function cancelDrag(): void {
-  activeDrag.value = null
+  activeDrag.value = null;
 }
 
 function updateSaturation(event: PointerEvent): void {
-  const rect = saturationPlane.value?.getBoundingClientRect()
-  if (!rect) return
-  saturation.value = clamp((event.clientX - rect.left) / rect.width)
-  value.value = 1 - clamp((event.clientY - rect.top) / rect.height)
+  const rect = saturationPlane.value?.getBoundingClientRect();
+  if (!rect) return;
+  saturation.value = clamp((event.clientX - rect.left) / rect.width);
+  value.value = 1 - clamp((event.clientY - rect.top) / rect.height);
 }
 
 function updateHue(event: PointerEvent): void {
-  const rect = hueTrack.value?.getBoundingClientRect()
-  if (!rect) return
-  hue.value = clamp((event.clientX - rect.left) / rect.width) * 360
+  const rect = hueTrack.value?.getBoundingClientRect();
+  if (!rect) return;
+  hue.value = clamp((event.clientX - rect.left) / rect.width) * 360;
 }
 
 function handleSaturationKeydown(event: KeyboardEvent): void {
-  const step = event.shiftKey ? 0.1 : 0.02
-  if (event.key === 'ArrowLeft') saturation.value = clamp(saturation.value - step)
-  else if (event.key === 'ArrowRight') saturation.value = clamp(saturation.value + step)
-  else if (event.key === 'ArrowDown') value.value = clamp(value.value - step)
-  else if (event.key === 'ArrowUp') value.value = clamp(value.value + step)
-  else if (event.key === 'Enter' || event.key === ' ') emit('commit', selectedColor.value)
-  else return
-  event.preventDefault()
+  const step = event.shiftKey ? 0.1 : 0.02;
+  if (event.key === "ArrowLeft") saturation.value = clamp(saturation.value - step);
+  else if (event.key === "ArrowRight") saturation.value = clamp(saturation.value + step);
+  else if (event.key === "ArrowDown") value.value = clamp(value.value - step);
+  else if (event.key === "ArrowUp") value.value = clamp(value.value + step);
+  else if (event.key === "Enter" || event.key === " ") emit("commit", selectedColor.value);
+  else return;
+  event.preventDefault();
 }
 
 function handleHueKeydown(event: KeyboardEvent): void {
-  const step = event.shiftKey ? 15 : 3
-  if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') hue.value = (hue.value - step + 360) % 360
-  else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') hue.value = (hue.value + step) % 360
-  else if (event.key === 'Enter' || event.key === ' ') emit('commit', selectedColor.value)
-  else return
-  event.preventDefault()
+  const step = event.shiftKey ? 15 : 3;
+  if (event.key === "ArrowLeft" || event.key === "ArrowDown")
+    hue.value = (hue.value - step + 360) % 360;
+  else if (event.key === "ArrowRight" || event.key === "ArrowUp")
+    hue.value = (hue.value + step) % 360;
+  else if (event.key === "Enter" || event.key === " ") emit("commit", selectedColor.value);
+  else return;
+  event.preventDefault();
 }
 
 function applyHexDraft(commit: boolean): void {
-  const candidate = `#${hexText.value.trim()}`
+  const candidate = `#${hexText.value.trim()}`;
   if (!/^#[0-9a-f]{6}$/i.test(candidate)) {
-    if (commit) hexText.value = selectedColor.value.slice(1)
-    return
+    if (commit) hexText.value = selectedColor.value.slice(1);
+    return;
   }
-  const normalized = normalizeHex(candidate)
-  const hsv = hexToHsv(normalized)
-  hue.value = hsv.h
-  saturation.value = hsv.s
-  value.value = hsv.v
-  if (commit) emit('commit', normalized)
+  const normalized = normalizeHex(candidate);
+  const hsv = hexToHsv(normalized);
+  hue.value = hsv.h;
+  saturation.value = hsv.s;
+  value.value = hsv.v;
+  if (commit) emit("commit", normalized);
 }
 
 function selectSwatch(color: string): void {
-  const hsv = hexToHsv(color)
-  hue.value = hsv.h
-  saturation.value = hsv.s
-  value.value = hsv.v
-  emit('commit', normalizeHex(color))
+  const hsv = hexToHsv(color);
+  hue.value = hsv.h;
+  saturation.value = hsv.s;
+  value.value = hsv.v;
+  emit("commit", normalizeHex(color));
 }
 
 function clamp(number: number): number {
-  return Math.min(1, Math.max(0, number))
+  return Math.min(1, Math.max(0, number));
 }
 
 function normalizeHex(color: string): string {
-  const normalized = color.trim().toLowerCase()
-  return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : '#6f2a36'
+  const normalized = color.trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : "#6f2a36";
 }
 
 function hexToHsv(color: string): { h: number; s: number; v: number } {
-  const hex = normalizeHex(color).slice(1)
-  const red = Number.parseInt(hex.slice(0, 2), 16) / 255
-  const green = Number.parseInt(hex.slice(2, 4), 16) / 255
-  const blue = Number.parseInt(hex.slice(4, 6), 16) / 255
-  const max = Math.max(red, green, blue)
-  const min = Math.min(red, green, blue)
-  const delta = max - min
-  let nextHue = 0
+  const hex = normalizeHex(color).slice(1);
+  const red = Number.parseInt(hex.slice(0, 2), 16) / 255;
+  const green = Number.parseInt(hex.slice(2, 4), 16) / 255;
+  const blue = Number.parseInt(hex.slice(4, 6), 16) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let nextHue = 0;
   if (delta > 0) {
-    if (max === red) nextHue = 60 * (((green - blue) / delta) % 6)
-    else if (max === green) nextHue = 60 * ((blue - red) / delta + 2)
-    else nextHue = 60 * ((red - green) / delta + 4)
+    if (max === red) nextHue = 60 * (((green - blue) / delta) % 6);
+    else if (max === green) nextHue = 60 * ((blue - red) / delta + 2);
+    else nextHue = 60 * ((red - green) / delta + 4);
   }
-  if (nextHue < 0) nextHue += 360
-  return { h: nextHue, s: max === 0 ? 0 : delta / max, v: max }
+  if (nextHue < 0) nextHue += 360;
+  return { h: nextHue, s: max === 0 ? 0 : delta / max, v: max };
 }
 
 function hsvToHex(nextHue: number, nextSaturation: number, nextValue: number): string {
-  const chroma = nextValue * nextSaturation
-  const segment = nextHue / 60
-  const intermediate = chroma * (1 - Math.abs((segment % 2) - 1))
-  let red = 0
-  let green = 0
-  let blue = 0
-  if (segment < 1) [red, green] = [chroma, intermediate]
-  else if (segment < 2) [red, green] = [intermediate, chroma]
-  else if (segment < 3) [green, blue] = [chroma, intermediate]
-  else if (segment < 4) [green, blue] = [intermediate, chroma]
-  else if (segment < 5) [red, blue] = [intermediate, chroma]
-  else [red, blue] = [chroma, intermediate]
-  const match = nextValue - chroma
-  return `#${[red, green, blue].map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, '0')).join('')}`
+  const chroma = nextValue * nextSaturation;
+  const segment = nextHue / 60;
+  const intermediate = chroma * (1 - Math.abs((segment % 2) - 1));
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  if (segment < 1) [red, green] = [chroma, intermediate];
+  else if (segment < 2) [red, green] = [intermediate, chroma];
+  else if (segment < 3) [green, blue] = [chroma, intermediate];
+  else if (segment < 4) [green, blue] = [intermediate, chroma];
+  else if (segment < 5) [red, blue] = [intermediate, chroma];
+  else [red, blue] = [chroma, intermediate];
+  const match = nextValue - chroma;
+  return `#${[red, green, blue]
+    .map((channel) =>
+      Math.round((channel + match) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
 }
 </script>
 
@@ -274,8 +301,7 @@ function hsvToHex(nextHue: number, nextSaturation: number, nextValue: number): s
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background-image:
-    linear-gradient(to top, #000, transparent),
-    linear-gradient(to right, #fff, transparent);
+    linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent);
   cursor: crosshair;
   touch-action: none;
 }
@@ -388,7 +414,7 @@ function hsvToHex(nextHue: number, nextSaturation: number, nextValue: number): s
   border-radius: 3px;
 }
 
-.attribute-color-picker__swatches button[aria-pressed='true'] {
+.attribute-color-picker__swatches button[aria-pressed="true"] {
   outline: 2px solid var(--color-text);
   outline-offset: 1px;
 }

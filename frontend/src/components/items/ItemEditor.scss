@@ -1,5 +1,5 @@
 /* 本文件拥有物品编辑器和属性表单网格的可复用样式；它不定义物品目录或具体页面工作区布局。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 .item-editor {
   display: flex;
   min-width: 0;
@@ -41,12 +41,12 @@
   box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
 }
 
-.item-editor input[aria-invalid='true'],
+.item-editor input[aria-invalid="true"],
 .item-attribute-editor__unit-settings.is-invalid {
   border-color: var(--color-danger);
 }
 
-.item-editor input[aria-invalid='true']:focus,
+.item-editor input[aria-invalid="true"]:focus,
 .item-attribute-editor__unit-settings.is-invalid:focus-visible {
   box-shadow: 0 0 0 3px rgb(157 40 50 / 10%);
 }
@@ -109,7 +109,9 @@
   padding: 0 18px 24px;
 }
 
-.item-editor--readonly :disabled { cursor: default; }
+.item-editor--readonly :disabled {
+  cursor: default;
+}
 
 .item-editor__metadata-error {
   margin-top: 14px;

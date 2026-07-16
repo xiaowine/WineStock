@@ -17,50 +17,47 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { authStatus } from './auth/session'
-import { waitForStableViewport } from './bootstrap/viewport'
-import NoticeViewport from './components/NoticeViewport.vue'
-import ServiceUnavailableScreen from './components/ServiceUnavailableScreen.vue'
-import { useStablePendingIndicator } from './composables/useStablePendingIndicator'
+import { computed, onMounted, ref, watch } from "vue";
+import { authStatus } from "./auth/session";
+import { waitForStableViewport } from "./bootstrap/viewport";
+import NoticeViewport from "./components/NoticeViewport.vue";
+import ServiceUnavailableScreen from "./components/ServiceUnavailableScreen.vue";
+import { useStablePendingIndicator } from "./composables/useStablePendingIndicator";
 import {
   checkServiceAvailability,
   isCheckingServiceAvailability,
   serviceAvailabilityStatus,
-} from './service/availability'
+} from "./service/availability";
 
-const isInitialServiceCheck = computed(() => serviceAvailabilityStatus.value === 'checking')
-const viewportReady = ref(false)
+const isInitialServiceCheck = computed(() => serviceAvailabilityStatus.value === "checking");
+const viewportReady = ref(false);
 const showStableInitialCheck = useStablePendingIndicator(isInitialServiceCheck, {
   showDelayMs: 200,
   minimumVisibleMs: 350,
-})
+});
 const serviceUnavailable = computed(
-  () =>
-    serviceAvailabilityStatus.value === 'unavailable' || authStatus.value === 'unavailable',
-)
+  () => serviceAvailabilityStatus.value === "unavailable" || authStatus.value === "unavailable",
+);
 const showServiceUnavailableScreen = computed(
   () => serviceUnavailable.value || showStableInitialCheck.value,
-)
+);
 
 // 首次成功连接后保持路由树挂载；后续断连只显示覆盖层，不能销毁当前页面和未保存上下文。
-const hasMountedRoutes = ref(false)
+const hasMountedRoutes = ref(false);
 watch(
-  () => serviceAvailabilityStatus.value === 'available' && !showStableInitialCheck.value,
+  () => serviceAvailabilityStatus.value === "available" && !showStableInitialCheck.value,
   (ready) => {
-    if (ready) hasMountedRoutes.value = true
+    if (ready) hasMountedRoutes.value = true;
   },
   { immediate: true },
-)
-const canRenderRoutes = computed(
-  () => viewportReady.value && hasMountedRoutes.value,
-)
+);
+const canRenderRoutes = computed(() => viewportReady.value && hasMountedRoutes.value);
 
 onMounted(() => {
   void waitForStableViewport().then(() => {
-    viewportReady.value = true
-  })
-})
+    viewportReady.value = true;
+  });
+});
 </script>
 
 <style scoped lang="scss">

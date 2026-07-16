@@ -15,10 +15,10 @@
 <script setup lang="ts">
 defineProps<{
   /** 从真实用户名生成的头像缩写。 */
-  initials: string
+  initials: string;
   /** 当前用户展示名称。 */
-  displayName: string
-}>()
+  displayName: string;
+}>();
 </script>
 
 <style lang="scss" src="./AccountUserSummary.scss"></style>

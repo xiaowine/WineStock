@@ -3,11 +3,7 @@
   它只编排可见操作，不调用业务 API，也不替代后端权限校验。
 -->
 <template>
-  <ModalDialog
-    :open="Boolean(user)"
-    title="管理操作"
-    @close="emit('close')"
-  >
+  <ModalDialog :open="Boolean(user)" title="管理操作" @close="emit('close')">
     <template #context>
       <div v-if="user" class="dialog-account-context">
         <span>目标用户</span>
@@ -47,9 +43,9 @@
         @click="emit('status')"
       >
         <span>
-          <strong>{{ user.status === 'active' ? '停用账号' : '启用账号' }}</strong>
+          <strong>{{ user.status === "active" ? "停用账号" : "启用账号" }}</strong>
           <small>
-            {{ user.status === 'active' ? '结束现有会话并禁止登录' : '允许该用户重新登录' }}
+            {{ user.status === "active" ? "结束现有会话并禁止登录" : "允许该用户重新登录" }}
           </small>
         </span>
         <span aria-hidden="true">›</span>
@@ -71,22 +67,22 @@
 </template>
 
 <script setup lang="ts">
-import type { UserAdminResponse } from '../../api/users'
-import ModalDialog from '../ModalDialog.vue'
+import type { UserAdminResponse } from "../../api/users";
+import ModalDialog from "../ModalDialog.vue";
 
 defineProps<{
-  user: UserAdminResponse | null
-  canEditPermissions: boolean
-  canResetPassword: boolean
-  canUpdateStatus: boolean
-  canDelete: boolean
-}>()
+  user: UserAdminResponse | null;
+  canEditPermissions: boolean;
+  canResetPassword: boolean;
+  canUpdateStatus: boolean;
+  canDelete: boolean;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  permissions: []
-  password: []
-  status: []
-  delete: []
-}>()
+  close: [];
+  permissions: [];
+  password: [];
+  status: [];
+  delete: [];
+}>();
 </script>

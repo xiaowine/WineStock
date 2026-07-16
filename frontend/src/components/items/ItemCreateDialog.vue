@@ -31,86 +31,99 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
-import type { ItemOptionResponse } from '../../api/items'
-import ModalDialog from '../ModalDialog.vue'
-import ItemEditorDialog from './ItemEditorDialog.vue'
-import { useItemCreateSession } from './useItemCreateSession'
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
+import type { ItemOptionResponse } from "../../api/items";
+import ModalDialog from "../ModalDialog.vue";
+import ItemEditorDialog from "./ItemEditorDialog.vue";
+import { useItemCreateSession } from "./useItemCreateSession";
 
-const props = defineProps<{ open: boolean }>()
+const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
-  close: []
-  created: [item: ItemOptionResponse]
-}>()
+  close: [];
+  created: [item: ItemOptionResponse];
+}>();
 
-const discardDialogOpen = ref(false)
-let pendingLeaveResolution: ((allowed: boolean) => void) | null = null
+const discardDialogOpen = ref(false);
+let pendingLeaveResolution: ((allowed: boolean) => void) | null = null;
 const {
-  draft, categories, templates, saving, metadataError, validationErrors, hasUnsavedChanges,
-  loadMetadata, save, discard,
-} = useItemCreateSession()
+  draft,
+  categories,
+  templates,
+  saving,
+  metadataError,
+  validationErrors,
+  hasUnsavedChanges,
+  loadMetadata,
+  save,
+  discard,
+} = useItemCreateSession();
 
-watch(() => props.open, (open) => {
-  if (open) void loadMetadata()
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (open) void loadMetadata();
+  },
+);
 
-onMounted(() => window.addEventListener('beforeunload', handleBeforeUnload))
+onMounted(() => window.addEventListener("beforeunload", handleBeforeUnload));
 onBeforeUnmount(() => {
-  window.removeEventListener('beforeunload', handleBeforeUnload)
-  pendingLeaveResolution?.(false)
-  pendingLeaveResolution = null
-  void discard()
-})
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+  pendingLeaveResolution?.(false);
+  pendingLeaveResolution = null;
+  void discard();
+});
 
 onBeforeRouteLeave(() => {
-  if (!props.open || !hasUnsavedChanges.value) return true
-  discardDialogOpen.value = true
-  return new Promise<boolean>((resolve) => { pendingLeaveResolution = resolve })
-})
+  if (!props.open || !hasUnsavedChanges.value) return true;
+  discardDialogOpen.value = true;
+  return new Promise<boolean>((resolve) => {
+    pendingLeaveResolution = resolve;
+  });
+});
 
 async function saveItem(): Promise<void> {
-  const item = await save()
-  if (!item) return
-  await discard()
-  emit('created', item)
+  const item = await save();
+  if (!item) return;
+  await discard();
+  emit("created", item);
 }
 
 function requestClose(): void {
-  if (!props.open || saving.value) return
+  if (!props.open || saving.value) return;
   if (hasUnsavedChanges.value) {
-    discardDialogOpen.value = true
-    return
+    discardDialogOpen.value = true;
+    return;
   }
-  void closeAfterDiscard()
+  void closeAfterDiscard();
 }
 
 async function confirmClose(): Promise<void> {
-  discardDialogOpen.value = false
-  await discard()
+  discardDialogOpen.value = false;
+  await discard();
   if (pendingLeaveResolution) {
-    const resolve = pendingLeaveResolution
-    pendingLeaveResolution = null
-    resolve(true)
-    return
+    const resolve = pendingLeaveResolution;
+    pendingLeaveResolution = null;
+    resolve(true);
+    return;
   }
-  emit('close')
+  emit("close");
 }
 
 async function closeAfterDiscard(): Promise<void> {
-  await discard()
-  emit('close')
+  await discard();
+  emit("close");
 }
 
 function cancelDiscard(): void {
-  discardDialogOpen.value = false
-  pendingLeaveResolution?.(false)
-  pendingLeaveResolution = null
+  discardDialogOpen.value = false;
+  pendingLeaveResolution?.(false);
+  pendingLeaveResolution = null;
 }
 
 function handleBeforeUnload(event: BeforeUnloadEvent): void {
-  if (!props.open || !hasUnsavedChanges.value) return
-  event.preventDefault()
-  event.returnValue = ''
+  if (!props.open || !hasUnsavedChanges.value) return;
+  event.preventDefault();
+  event.returnValue = "";
 }
 </script>

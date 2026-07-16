@@ -1,5 +1,5 @@
 /* 本文件拥有服务断连全屏提示的外观和响应式规则，不定义其它页面或组件样式。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 .service-unavailable {
   position: fixed;
   z-index: var(--z-service-status);

@@ -24,7 +24,14 @@
         :disabled="submitting"
       />
 
-      <FormField label="初始密码" control-id="user-create-password" validation-key="password" :error="fieldErrors.password" hint="至少 8 个字符" v-slot="{ describedBy, invalid }">
+      <FormField
+        label="初始密码"
+        control-id="user-create-password"
+        validation-key="password"
+        :error="fieldErrors.password"
+        hint="至少 8 个字符"
+        v-slot="{ describedBy, invalid }"
+      >
         <PasswordInput
           id="user-create-password"
           v-model="password"
@@ -38,7 +45,13 @@
         />
       </FormField>
 
-      <FormField label="确认密码" control-id="user-create-password-confirmation" validation-key="confirmation" :error="fieldErrors.confirmation" v-slot="{ describedBy, invalid }">
+      <FormField
+        label="确认密码"
+        control-id="user-create-password-confirmation"
+        validation-key="confirmation"
+        :error="fieldErrors.confirmation"
+        v-slot="{ describedBy, invalid }"
+      >
         <PasswordInput
           id="user-create-password-confirmation"
           v-model="confirmation"
@@ -58,77 +71,72 @@
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
         取消
       </button>
-      <button
-        class="primary-button"
-        type="submit"
-        form="user-create-form"
-        :disabled="submitting"
-      >
-        {{ submitting ? '正在创建…' : '创建用户' }}
+      <button class="primary-button" type="submit" form="user-create-form" :disabled="submitting">
+        {{ submitting ? "正在创建…" : "创建用户" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useFormValidation } from '../../composables/useFormValidation'
-import { notice } from '../../notices/notice'
-import ModalDialog from '../ModalDialog.vue'
-import PasswordInput from '../PasswordInput.vue'
-import FormField from '../forms/FormField.vue'
-import FormInput from '../forms/FormInput.vue'
+import { ref, watch } from "vue";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
+import ModalDialog from "../ModalDialog.vue";
+import PasswordInput from "../PasswordInput.vue";
+import FormField from "../forms/FormField.vue";
+import FormInput from "../forms/FormInput.vue";
 
 const props = defineProps<{
-  open: boolean
-  submitting: boolean
-  errorMessage: string
-}>()
+  open: boolean;
+  submitting: boolean;
+  errorMessage: string;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  submit: [request: { username: string; password: string }]
-}>()
+  close: [];
+  submit: [request: { username: string; password: string }];
+}>();
 
-const username = ref('')
-const password = ref('')
-const confirmation = ref('')
-const fieldErrors = ref<Record<string, string>>({})
-useFormValidation(fieldErrors)
+const username = ref("");
+const password = ref("");
+const confirmation = ref("");
+const fieldErrors = ref<Record<string, string>>({});
+useFormValidation(fieldErrors);
 
 watch(
   () => props.open,
   (open) => {
     if (open) {
-      username.value = ''
-      password.value = ''
-      confirmation.value = ''
-      fieldErrors.value = {}
+      username.value = "";
+      password.value = "";
+      confirmation.value = "";
+      fieldErrors.value = {};
     }
   },
-)
+);
 
 function submit(): void {
-  const errors: Record<string, string> = {}
-  const normalizedUsername = username.value.trim()
+  const errors: Record<string, string> = {};
+  const normalizedUsername = username.value.trim();
   if (!normalizedUsername) {
-    errors.username = '请输入用户名'
+    errors.username = "请输入用户名";
   }
   if (!password.value) {
-    errors.password = '请输入初始密码'
+    errors.password = "请输入初始密码";
   } else if (password.value.length < 8) {
-    errors.password = '密码至少需要 8 个字符'
+    errors.password = "密码至少需要 8 个字符";
   }
   if (!confirmation.value) {
-    errors.confirmation = '请再次输入密码'
+    errors.confirmation = "请再次输入密码";
   } else if (confirmation.value !== password.value) {
-    errors.confirmation = '两次输入的密码不一致'
+    errors.confirmation = "两次输入的密码不一致";
   }
-  fieldErrors.value = errors
+  fieldErrors.value = errors;
   if (Object.keys(errors).length > 0) {
-    notice.warning('请检查用户信息', { detail: Object.values(errors)[0] })
-    return
+    notice.warning("请检查用户信息", { detail: Object.values(errors)[0] });
+    return;
   }
-  emit('submit', { username: normalizedUsername, password: password.value })
+  emit("submit", { username: normalizedUsername, password: password.value });
 }
 </script>

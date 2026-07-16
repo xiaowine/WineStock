@@ -33,65 +33,84 @@
         />
       </template>
       <template v-else>
-        <p>模板将不再用于后续入库，历史入库实际属性仍会保留。将它设为默认值的物品模板会显示为已删除引用，需要另行调整。</p>
+        <p>
+          模板将不再用于后续入库，历史入库实际属性仍会保留。将它设为默认值的物品模板会显示为已删除引用，需要另行调整。
+        </p>
       </template>
-      <section v-if="target && target.kind !== 'inbound'" class="template-delete-copy__impact" aria-label="删除影响范围">
+      <section
+        v-if="target && target.kind !== 'inbound'"
+        class="template-delete-copy__impact"
+        aria-label="删除影响范围"
+      >
         <strong>影响范围</strong>
-        <p v-if="target.itemUsageCount !== null && target.itemUsageCount > 0">当前有 {{ target.itemUsageCount }} 个有效物品使用此{{ target.kind === 'category' ? '分类' : '模板' }}。</p>
-        <p v-else>当前没有有效物品使用此{{ target.kind === 'category' ? '分类' : '模板' }}。</p>
+        <p v-if="target.itemUsageCount !== null && target.itemUsageCount > 0">
+          当前有 {{ target.itemUsageCount }} 个有效物品使用此{{
+            target.kind === "category" ? "分类" : "模板"
+          }}。
+        </p>
+        <p v-else>当前没有有效物品使用此{{ target.kind === "category" ? "分类" : "模板" }}。</p>
       </section>
       <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </div>
     <template #actions>
-      <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">取消</button>
+      <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
+        取消
+      </button>
       <button class="danger-button" type="button" :disabled="submitting" @click="submit">
-        {{ submitting ? '正在删除…' : target?.kind === 'item' ? '删除模板及属性' : '确认删除' }}
+        {{ submitting ? "正在删除…" : target?.kind === "item" ? "删除模板及属性" : "确认删除" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import type { TemplateDomain } from '../../pages/templates/model'
-import ModalDialog from '../ModalDialog.vue'
-import FormInput from '../forms/FormInput.vue'
+import { computed, ref, watch } from "vue";
+import type { TemplateDomain } from "../../pages/templates/model";
+import ModalDialog from "../ModalDialog.vue";
+import FormInput from "../forms/FormInput.vue";
 
 export interface TemplateDeleteTarget {
-  id: number
-  name: string
-  kind: TemplateDomain
+  id: number;
+  name: string;
+  kind: TemplateDomain;
   /** 打开确认框时从列表响应读取的当前有效物品使用数量。 */
-  itemUsageCount: number | null
+  itemUsageCount: number | null;
 }
 
 const props = defineProps<{
-  target: TemplateDeleteTarget | null
-  submitting: boolean
-  errorMessage: string
-}>()
+  target: TemplateDeleteTarget | null;
+  submitting: boolean;
+  errorMessage: string;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  submit: []
-}>()
+  close: [];
+  submit: [];
+}>();
 
-const confirmationName = ref('')
-const confirmationError = ref('')
-const dialogTitle = computed(() => props.target?.kind === 'category'
-  ? '删除物品分类'
-  : props.target?.kind === 'item' ? '删除物品属性模板' : '删除入库模板')
+const confirmationName = ref("");
+const confirmationError = ref("");
+const dialogTitle = computed(() =>
+  props.target?.kind === "category"
+    ? "删除物品分类"
+    : props.target?.kind === "item"
+      ? "删除物品属性模板"
+      : "删除入库模板",
+);
 
-watch(() => props.target, () => {
-  confirmationName.value = ''
-  confirmationError.value = ''
-})
+watch(
+  () => props.target,
+  () => {
+    confirmationName.value = "";
+    confirmationError.value = "";
+  },
+);
 
 function submit(): void {
-  if (props.target?.kind === 'item' && confirmationName.value.trim() !== props.target.name) {
-    confirmationError.value = '请输入完整模板名称以确认删除'
-    return
+  if (props.target?.kind === "item" && confirmationName.value.trim() !== props.target.name) {
+    confirmationError.value = "请输入完整模板名称以确认删除";
+    return;
   }
-  emit('submit')
+  emit("submit");
 }
 </script>

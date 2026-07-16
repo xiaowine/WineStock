@@ -73,38 +73,38 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick } from 'vue'
-import type { UserStatus } from '../../api/users'
-import SearchField from '../SearchField.vue'
-import SelectControl from '../forms/SelectControl.vue'
+import { nextTick } from "vue";
+import type { UserStatus } from "../../api/users";
+import SearchField from "../SearchField.vue";
+import SelectControl from "../forms/SelectControl.vue";
 
-const search = defineModel<string>('search', { required: true })
-const status = defineModel<'' | UserStatus>('status', { required: true })
+const search = defineModel<string>("search", { required: true });
+const status = defineModel<"" | UserStatus>("status", { required: true });
 
 defineProps<{
-  total: number
-  loading: boolean
-  refreshing: boolean
-  canRegister: boolean
-}>()
+  total: number;
+  loading: boolean;
+  refreshing: boolean;
+  canRegister: boolean;
+}>();
 
 const emit = defineEmits<{
-  apply: []
-  search: [value: string]
-  refresh: []
-  create: []
-}>()
+  apply: [];
+  search: [value: string];
+  refresh: [];
+  create: [];
+}>();
 
-const statusOptions: ReadonlyArray<{ label: string; value: '' | UserStatus }> = [
-  { label: '全部', value: '' },
-  { label: '已启用', value: 'active' },
-  { label: '已停用', value: 'disabled' },
-]
+const statusOptions: ReadonlyArray<{ label: string; value: "" | UserStatus }> = [
+  { label: "全部", value: "" },
+  { label: "已启用", value: "active" },
+  { label: "已停用", value: "disabled" },
+];
 
 /** 同步账号状态并立即应用筛选，使选择框行为与其它目录页一致。 */
 async function applyStatus(): Promise<void> {
-  await nextTick()
-  emit('apply')
+  await nextTick();
+  emit("apply");
 }
 </script>
 

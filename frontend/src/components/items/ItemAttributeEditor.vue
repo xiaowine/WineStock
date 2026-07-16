@@ -28,11 +28,31 @@
       required
       v-slot="{ describedBy, invalid }"
     >
-      <div v-for="(_, index) in attribute.options" :key="index" class="item-attribute-editor__option-row">
-        <input v-model="attribute.options[index]" :name="`attribute_option_${attribute.key}_${index}`" required placeholder="输入候选项" :aria-invalid="invalid || undefined" :aria-describedby="describedBy" />
-        <button type="button" class="icon-button" aria-label="删除候选项" @click="removeOption(attribute.options, index)">×</button>
+      <div
+        v-for="(_, index) in attribute.options"
+        :key="index"
+        class="item-attribute-editor__option-row"
+      >
+        <input
+          v-model="attribute.options[index]"
+          :name="`attribute_option_${attribute.key}_${index}`"
+          required
+          placeholder="输入候选项"
+          :aria-invalid="invalid || undefined"
+          :aria-describedby="describedBy"
+        />
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="删除候选项"
+          @click="removeOption(attribute.options, index)"
+        >
+          ×
+        </button>
       </div>
-      <button type="button" class="secondary-button" @click="attribute.options.push('')">添加候选项</button>
+      <button type="button" class="secondary-button" @click="attribute.options.push('')">
+        添加候选项
+      </button>
     </FormField>
     <FormSelect
       v-if="!templateField"
@@ -44,13 +64,13 @@
       @focus="rememberType"
       @change="resetValue"
     >
-        <option value="text">文本</option>
-        <option value="number">数字</option>
-        <option value="select">选项</option>
-        <option value="date">日期</option>
-        <option value="url">网址</option>
-        <option value="boolean">布尔</option>
-        <option value="file">图片</option>
+      <option value="text">文本</option>
+      <option value="number">数字</option>
+      <option value="select">选项</option>
+      <option value="date">日期</option>
+      <option value="url">网址</option>
+      <option value="boolean">布尔</option>
+      <option value="file">图片</option>
     </FormSelect>
     <FormField
       class="item-attribute-editor__value"
@@ -60,9 +80,7 @@
       :error="validationErrors.value"
       v-slot="{ describedBy, invalid }"
     >
-      <div
-        class="item-attribute-editor__value-control"
-      >
+      <div class="item-attribute-editor__value-control">
         <AttributeImageField
           v-if="attribute.fieldType === 'file'"
           :model-value="fileValue"
@@ -92,7 +110,9 @@
           :aria-describedby="describedBy"
         >
           <option value="">请选择</option>
-          <option v-for="option in selectOptions" :key="option" :value="option">{{ option }}</option>
+          <option v-for="option in selectOptions" :key="option" :value="option">
+            {{ option }}
+          </option>
         </SelectControl>
         <input
           v-else
@@ -105,7 +125,9 @@
           :aria-describedby="describedBy"
           placeholder="输入属性值"
         />
-        <span v-if="unitMode === 'fixed'" class="item-attribute-editor__fixed-unit">{{ fixedUnitLabel }}</span>
+        <span v-if="unitMode === 'fixed'" class="item-attribute-editor__fixed-unit">{{
+          fixedUnitLabel
+        }}</span>
         <FormField
           v-else-if="unitMode === 'select'"
           class="item-attribute-editor__unit-value"
@@ -122,7 +144,9 @@
             :aria-describedby="unitDescribedBy"
           >
             <option value="">选择单位</option>
-            <option v-for="option in unitOptions" :key="option" :value="option">{{ option }}</option>
+            <option v-for="option in unitOptions" :key="option" :value="option">
+              {{ option }}
+            </option>
           </SelectControl>
         </FormField>
       </div>
@@ -170,100 +194,131 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import AttributeImageField from '../attributes/AttributeImageField.vue'
-import type { ItemAttributeTemplateFieldResponse } from '../../api/itemAttributeTemplates'
-import type { FileDraftValue } from '../../pages/inbound-draft/model'
-import type { ItemAttributeDraft } from '../../pages/items/model'
-import { discardTemporaryAttributeFile } from '../../pages/items/fileCleanup'
-import { notice } from '../../notices/notice'
-import ItemUnitSettingsDialog from './ItemUnitSettingsDialog.vue'
-import type { ItemAttributeUnitMode } from '../../api/itemAttributeTemplates'
-import FormField from '../forms/FormField.vue'
-import FormInput from '../forms/FormInput.vue'
-import FormSelect from '../forms/FormSelect.vue'
-import SelectControl from '../forms/SelectControl.vue'
+import { computed, ref } from "vue";
+import AttributeImageField from "../attributes/AttributeImageField.vue";
+import type { ItemAttributeTemplateFieldResponse } from "../../api/itemAttributeTemplates";
+import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import type { ItemAttributeDraft } from "../../pages/items/model";
+import { discardTemporaryAttributeFile } from "../../pages/items/fileCleanup";
+import { notice } from "../../notices/notice";
+import ItemUnitSettingsDialog from "./ItemUnitSettingsDialog.vue";
+import type { ItemAttributeUnitMode } from "../../api/itemAttributeTemplates";
+import FormField from "../forms/FormField.vue";
+import FormInput from "../forms/FormInput.vue";
+import FormSelect from "../forms/FormSelect.vue";
+import SelectControl from "../forms/SelectControl.vue";
 
-const props = withDefaults(defineProps<{
-  attribute: ItemAttributeDraft
-  templateField?: ItemAttributeTemplateFieldResponse
-  validationErrors?: Record<string, string>
-}>(), {
-  templateField: undefined,
-  validationErrors: () => ({}),
-})
-const emit = defineEmits<{ remove: [] }>()
-const fileValue = computed(() => typeof props.attribute.value === 'object' && props.attribute.value?.kind === 'file' ? props.attribute.value : undefined)
-const inputType = computed(() => props.attribute.fieldType === 'number' ? 'number' : props.attribute.fieldType === 'date' ? 'date' : props.attribute.fieldType === 'url' ? 'url' : 'text')
-const unitMode = computed(() => props.templateField?.unit.mode ?? props.attribute.unitMode)
-const fixedUnitLabel = computed(() => props.templateField?.unit.value ?? props.attribute.fixedUnit)
-const selectOptions = computed(() => props.templateField?.options ?? props.attribute.options)
-const unitOptions = computed(() => props.templateField?.unit.options ?? props.attribute.unitOptions)
-const unitDialogOpen = ref(false)
+const props = withDefaults(
+  defineProps<{
+    attribute: ItemAttributeDraft;
+    templateField?: ItemAttributeTemplateFieldResponse;
+    validationErrors?: Record<string, string>;
+  }>(),
+  {
+    templateField: undefined,
+    validationErrors: () => ({}),
+  },
+);
+const emit = defineEmits<{ remove: [] }>();
+const fileValue = computed(() =>
+  typeof props.attribute.value === "object" && props.attribute.value?.kind === "file"
+    ? props.attribute.value
+    : undefined,
+);
+const inputType = computed(() =>
+  props.attribute.fieldType === "number"
+    ? "number"
+    : props.attribute.fieldType === "date"
+      ? "date"
+      : props.attribute.fieldType === "url"
+        ? "url"
+        : "text",
+);
+const unitMode = computed(() => props.templateField?.unit.mode ?? props.attribute.unitMode);
+const fixedUnitLabel = computed(() => props.templateField?.unit.value ?? props.attribute.fixedUnit);
+const selectOptions = computed(() => props.templateField?.options ?? props.attribute.options);
+const unitOptions = computed(
+  () => props.templateField?.unit.options ?? props.attribute.unitOptions,
+);
+const unitDialogOpen = ref(false);
 const unitSummary = computed(() => {
-  if (props.attribute.unitMode === 'fixed') return `指定单位 · ${props.attribute.fixedUnit || '未设置'}`
-  if (props.attribute.unitMode === 'select') return `选择单位 · ${props.attribute.unitOptions.length} 个候选`
-  return '无单位'
-})
-let previousType = props.attribute.fieldType
+  if (props.attribute.unitMode === "fixed")
+    return `指定单位 · ${props.attribute.fixedUnit || "未设置"}`;
+  if (props.attribute.unitMode === "select")
+    return `选择单位 · ${props.attribute.unitOptions.length} 个候选`;
+  return "无单位";
+});
+let previousType = props.attribute.fieldType;
 
 function validationKey(field: string): string {
-  return `attribute.${props.attribute.key}.${field}`
+  return `attribute.${props.attribute.key}.${field}`;
 }
 
 function rememberType(): void {
-  previousType = props.attribute.fieldType
+  previousType = props.attribute.fieldType;
 }
 
 function removeOption(options: string[], index: number): void {
-  const [removed] = options.splice(index, 1)
+  const [removed] = options.splice(index, 1);
   if (props.attribute.value === removed || props.attribute.unit === removed) {
-    props.attribute.value = props.attribute.fieldType === 'select' ? '' : props.attribute.value
-    props.attribute.unit = props.attribute.unit === removed ? '' : props.attribute.unit
+    props.attribute.value = props.attribute.fieldType === "select" ? "" : props.attribute.value;
+    props.attribute.unit = props.attribute.unit === removed ? "" : props.attribute.unit;
   }
 }
 
-function applyUnitSettings(settings: { mode: ItemAttributeUnitMode; fixedUnit: string; options: string[] }): void {
-  const previousUnit = props.attribute.unit
-  props.attribute.unitMode = settings.mode
-  props.attribute.fixedUnit = settings.fixedUnit
-  props.attribute.unitOptions = settings.options
-  if (settings.mode === 'none' || settings.mode === 'fixed' || !settings.options.includes(previousUnit)) {
-    props.attribute.unit = ''
+function applyUnitSettings(settings: {
+  mode: ItemAttributeUnitMode;
+  fixedUnit: string;
+  options: string[];
+}): void {
+  const previousUnit = props.attribute.unit;
+  props.attribute.unitMode = settings.mode;
+  props.attribute.fixedUnit = settings.fixedUnit;
+  props.attribute.unitOptions = settings.options;
+  if (
+    settings.mode === "none" ||
+    settings.mode === "fixed" ||
+    !settings.options.includes(previousUnit)
+  ) {
+    props.attribute.unit = "";
   }
-  unitDialogOpen.value = false
+  unitDialogOpen.value = false;
 }
 
 function updateFile(value: FileDraftValue | undefined): void {
-  props.attribute.value = value
-  props.attribute.fileTemporary = true
+  props.attribute.value = value;
+  props.attribute.fileTemporary = true;
 }
 
 async function removeAttribute(): Promise<void> {
-  await discardTemporaryFile()
-  emit('remove')
+  await discardTemporaryFile();
+  emit("remove");
 }
 
 async function resetValue(): Promise<void> {
-  if (props.attribute.value !== '' && props.attribute.value !== undefined && !window.confirm('修改类型会清空当前属性值，是否继续？')) {
-    props.attribute.fieldType = previousType
-    return
+  if (
+    props.attribute.value !== "" &&
+    props.attribute.value !== undefined &&
+    !window.confirm("修改类型会清空当前属性值，是否继续？")
+  ) {
+    props.attribute.fieldType = previousType;
+    return;
   }
-  await discardTemporaryFile()
-  props.attribute.value = props.attribute.fieldType === 'boolean' ? undefined : ''
-  props.attribute.unit = ''
-  props.attribute.options = []
-  props.attribute.unitMode = 'none'
-  props.attribute.fixedUnit = ''
-  props.attribute.unitOptions = []
-  previousType = props.attribute.fieldType
+  await discardTemporaryFile();
+  props.attribute.value = props.attribute.fieldType === "boolean" ? undefined : "";
+  props.attribute.unit = "";
+  props.attribute.options = [];
+  props.attribute.unitMode = "none";
+  props.attribute.fixedUnit = "";
+  props.attribute.unitOptions = [];
+  previousType = props.attribute.fieldType;
 }
 
 async function discardTemporaryFile(): Promise<void> {
   try {
-    await discardTemporaryAttributeFile(props.attribute)
+    await discardTemporaryAttributeFile(props.attribute);
   } catch {
-    notice.warning('临时图片未能立即删除', { detail: '服务会在超过保留期限后自动清理。' })
+    notice.warning("临时图片未能立即删除", { detail: "服务会在超过保留期限后自动清理。" });
   }
 }
 </script>

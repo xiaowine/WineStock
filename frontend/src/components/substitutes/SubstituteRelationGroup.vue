@@ -7,17 +7,26 @@
       <span class="substitute-relation-group__direction">主物品 → 替代物品</span>
       <strong :title="group.itemName">{{ group.itemName }}</strong>
       <dl>
-        <div><dt>SKU</dt><dd :title="group.itemSku">{{ group.itemSku }}</dd></div>
-        <div><dt>物品 ID</dt><dd>#{{ group.itemId }}</dd></div>
+        <div>
+          <dt>SKU</dt>
+          <dd :title="group.itemSku">{{ group.itemSku }}</dd>
+        </div>
+        <div>
+          <dt>物品 ID</dt>
+          <dd>#{{ group.itemId }}</dd>
+        </div>
       </dl>
     </div>
 
     <div class="substitute-relation-group__summary" role="cell">
       <div class="substitute-relation-group__first">
         <span>首选替代</span>
-        <strong :title="group.firstSubstitute.substitute_item_name">{{ group.firstSubstitute.substitute_item_name }}</strong>
+        <strong :title="group.firstSubstitute.substitute_item_name">{{
+          group.firstSubstitute.substitute_item_name
+        }}</strong>
         <small :title="group.firstSubstitute.substitute_item_sku">
-          优先级 {{ group.firstSubstitute.priority }} · SKU {{ group.firstSubstitute.substitute_item_sku }}
+          优先级 {{ group.firstSubstitute.priority }} · SKU
+          {{ group.firstSubstitute.substitute_item_sku }}
         </small>
       </div>
       <div class="substitute-relation-group__chips" aria-label="关系摘要">
@@ -27,7 +36,9 @@
     </div>
 
     <div class="substitute-relation-group__decision" role="cell">
-      <span><strong>{{ group.relations.length }}</strong> 条关系</span>
+      <span
+        ><strong>{{ group.relations.length }}</strong> 条关系</span
+      >
       <button
         class="icon-button"
         type="button"
@@ -45,13 +56,13 @@
 </template>
 
 <script setup lang="ts">
-import type { SubstituteRelationGroupModel } from '../../pages/substitutes/model'
+import type { SubstituteRelationGroupModel } from "../../pages/substitutes/model";
 
-defineProps<{ group: SubstituteRelationGroupModel }>()
+defineProps<{ group: SubstituteRelationGroupModel }>();
 
 const emit = defineEmits<{
-  open: [group: SubstituteRelationGroupModel]
-}>()
+  open: [group: SubstituteRelationGroupModel];
+}>();
 </script>
 
 <style lang="scss" src="./SubstituteRelationGroup.scss"></style>

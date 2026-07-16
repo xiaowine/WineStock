@@ -3,12 +3,7 @@
   它不调用密码重置 API，也不持久化任何密码。
 -->
 <template>
-  <ModalDialog
-    :open="Boolean(user)"
-    title="设置临时密码"
-    :busy="submitting"
-    @close="emit('close')"
-  >
+  <ModalDialog :open="Boolean(user)" title="设置临时密码" :busy="submitting" @close="emit('close')">
     <template #context>
       <div v-if="user" class="dialog-account-context">
         <span>目标用户</span>
@@ -22,7 +17,13 @@
       </p>
 
       <form id="user-password-reset-form" class="dialog-form" novalidate @submit.prevent="submit">
-        <FormField label="临时密码" control-id="user-temporary-password" validation-key="password" :error="fieldErrors.password" v-slot="{ describedBy, invalid }">
+        <FormField
+          label="临时密码"
+          control-id="user-temporary-password"
+          validation-key="password"
+          :error="fieldErrors.password"
+          v-slot="{ describedBy, invalid }"
+        >
           <PasswordInput
             id="user-temporary-password"
             v-model="password"
@@ -37,7 +38,13 @@
           />
         </FormField>
 
-        <FormField label="确认临时密码" control-id="user-temporary-password-confirmation" validation-key="confirmation" :error="fieldErrors.confirmation" v-slot="{ describedBy, invalid }">
+        <FormField
+          label="确认临时密码"
+          control-id="user-temporary-password-confirmation"
+          validation-key="confirmation"
+          :error="fieldErrors.confirmation"
+          v-slot="{ describedBy, invalid }"
+        >
           <PasswordInput
             id="user-temporary-password-confirmation"
             v-model="confirmation"
@@ -64,65 +71,65 @@
         form="user-password-reset-form"
         :disabled="submitting"
       >
-        {{ submitting ? '正在设置…' : '设置临时密码' }}
+        {{ submitting ? "正在设置…" : "设置临时密码" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { UserAdminResponse } from '../../api/users'
-import { useFormValidation } from '../../composables/useFormValidation'
-import { notice } from '../../notices/notice'
-import ModalDialog from '../ModalDialog.vue'
-import PasswordInput from '../PasswordInput.vue'
-import FormField from '../forms/FormField.vue'
+import { ref, watch } from "vue";
+import type { UserAdminResponse } from "../../api/users";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
+import ModalDialog from "../ModalDialog.vue";
+import PasswordInput from "../PasswordInput.vue";
+import FormField from "../forms/FormField.vue";
 
 const props = defineProps<{
-  user: UserAdminResponse | null
-  submitting: boolean
-  errorMessage: string
-}>()
+  user: UserAdminResponse | null;
+  submitting: boolean;
+  errorMessage: string;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  submit: [password: string]
-}>()
+  close: [];
+  submit: [password: string];
+}>();
 
-const password = ref('')
-const confirmation = ref('')
-const fieldErrors = ref<Record<string, string>>({})
-useFormValidation(fieldErrors)
+const password = ref("");
+const confirmation = ref("");
+const fieldErrors = ref<Record<string, string>>({});
+useFormValidation(fieldErrors);
 
 watch(
   () => props.user,
   (user) => {
     if (user) {
-      password.value = ''
-      confirmation.value = ''
-      fieldErrors.value = {}
+      password.value = "";
+      confirmation.value = "";
+      fieldErrors.value = {};
     }
   },
-)
+);
 
 function submit(): void {
-  const errors: Record<string, string> = {}
+  const errors: Record<string, string> = {};
   if (!password.value) {
-    errors.password = '请输入临时密码'
+    errors.password = "请输入临时密码";
   } else if (password.value.length < 8) {
-    errors.password = '密码至少需要 8 个字符'
+    errors.password = "密码至少需要 8 个字符";
   }
   if (!confirmation.value) {
-    errors.confirmation = '请再次输入临时密码'
+    errors.confirmation = "请再次输入临时密码";
   } else if (confirmation.value !== password.value) {
-    errors.confirmation = '两次输入的密码不一致'
+    errors.confirmation = "两次输入的密码不一致";
   }
-  fieldErrors.value = errors
+  fieldErrors.value = errors;
   if (Object.keys(errors).length > 0) {
-    notice.warning('请检查临时密码', { detail: Object.values(errors)[0] })
-    return
+    notice.warning("请检查临时密码", { detail: Object.values(errors)[0] });
+    return;
   }
-  emit('submit', password.value)
+  emit("submit", password.value);
 }
 </script>

@@ -41,16 +41,16 @@
 
 ## 所有权边界
 
-| 边界 | 负责内容 | 不负责内容 |
-| --- | --- | --- |
-| `frontend/src/api/auth.ts` | logout 和当前用户改密 HTTP DTO/请求函数 | 本地 token 清理、导航、页面提示 |
-| `frontend/src/auth/session.ts` | 会话状态、初始化、服务端登出用例、本地清理和改密完成标记 | Vue Router 导航、按钮布局 |
-| `frontend/src/auth/coordination.ts` | refresh 与 logout 的跨标签页互斥 | token 持久化、HTTP 请求 |
-| `frontend/src/auth/storage.ts` | refresh token 读取、条件清理和 storage 事件 | 服务端吊销、路由跳转 |
-| `frontend/src/router/guards.ts` | 全局守卫、登录回跳、会话失效和强制改密导航 | token 解析、HTTP 业务 |
-| `frontend/src/pages/ChangePasswordPage.vue` | 当前用户改密表单、错误反馈、目标恢复和退出入口 | 管理员重置密码、token 签发规则 |
-| 桌面应用壳 | 退出按钮、加载状态和用户提示 | 服务端 token 规则 |
-| `core` auth 模块 | 吊销提交的 refresh token | 前端导航和 localStorage |
+| 边界                                        | 负责内容                                                 | 不负责内容                      |
+| ------------------------------------------- | -------------------------------------------------------- | ------------------------------- |
+| `frontend/src/api/auth.ts`                  | logout 和当前用户改密 HTTP DTO/请求函数                  | 本地 token 清理、导航、页面提示 |
+| `frontend/src/auth/session.ts`              | 会话状态、初始化、服务端登出用例、本地清理和改密完成标记 | Vue Router 导航、按钮布局       |
+| `frontend/src/auth/coordination.ts`         | refresh 与 logout 的跨标签页互斥                         | token 持久化、HTTP 请求         |
+| `frontend/src/auth/storage.ts`              | refresh token 读取、条件清理和 storage 事件              | 服务端吊销、路由跳转            |
+| `frontend/src/router/guards.ts`             | 全局守卫、登录回跳、会话失效和强制改密导航               | token 解析、HTTP 业务           |
+| `frontend/src/pages/ChangePasswordPage.vue` | 当前用户改密表单、错误反馈、目标恢复和退出入口           | 管理员重置密码、token 签发规则  |
+| 桌面应用壳                                  | 退出按钮、加载状态和用户提示                             | 服务端 token 规则               |
+| `core` auth 模块                            | 吊销提交的 refresh token                                 | 前端导航和 localStorage         |
 
 服务端现有 logout 行为保持不变：只吊销 refresh token；已签发的 JWT access token 按短 TTL 自然过期。
 
@@ -60,23 +60,18 @@
 会话层公开只读状态：
 
 ```ts
-export type AuthStatus =
-  | 'idle'
-  | 'restoring'
-  | 'authenticated'
-  | 'anonymous'
-  | 'unavailable'
+export type AuthStatus = "idle" | "restoring" | "authenticated" | "anonymous" | "unavailable";
 ```
 
 状态含义：
 
-| 状态 | 含义 | 路由行为 |
-| --- | --- | --- |
-| `idle` | 尚未开始读取持久会话 | 守卫触发初始化 |
-| `restoring` | 正在调用 refresh 恢复 | 守卫等待同一个初始化 Promise |
-| `authenticated` | 内存中存在有效会话 | 允许受保护路由 |
-| `anonymous` | 无持久 token，或 token 已明确失效 | 受保护路由重定向登录页 |
-| `unavailable` | 服务地址、网络或响应暂时不可用，持久 token 仍保留 | 不误判为未登录；允许保留目标路由并显示连接异常状态 |
+| 状态            | 含义                                              | 路由行为                                           |
+| --------------- | ------------------------------------------------- | -------------------------------------------------- |
+| `idle`          | 尚未开始读取持久会话                              | 守卫触发初始化                                     |
+| `restoring`     | 正在调用 refresh 恢复                             | 守卫等待同一个初始化 Promise                       |
+| `authenticated` | 内存中存在有效会话                                | 允许受保护路由                                     |
+| `anonymous`     | 无持久 token，或 token 已明确失效                 | 受保护路由重定向登录页                             |
+| `unavailable`   | 服务地址、网络或响应暂时不可用，持久 token 仍保留 | 不误判为未登录；允许保留目标路由并显示连接异常状态 |
 
 主要状态转换：
 
@@ -97,7 +92,7 @@ unavailable retry success -> authenticated or anonymous
 会话层通过 `ensureAuthSessionInitialized()` 复用单一初始化 Promise：
 
 ```ts
-export function ensureAuthSessionInitialized(): Promise<AuthStatus>
+export function ensureAuthSessionInitialized(): Promise<AuthStatus>;
 ```
 
 行为要求：
@@ -131,10 +126,10 @@ export function ensureAuthSessionInitialized(): Promise<AuthStatus>
 
 ```ts
 export interface AuthLogoutRequest {
-  refresh_token: string
+  refresh_token: string;
 }
 
-export function logout(request: AuthLogoutRequest): Promise<void>
+export function logout(request: AuthLogoutRequest): Promise<void>;
 ```
 
 请求约束：
@@ -150,9 +145,9 @@ export function logout(request: AuthLogoutRequest): Promise<void>
 会话层已提供：
 
 ```ts
-export type LogoutResult = 'revoked' | 'already_invalid' | 'local_only'
+export type LogoutResult = "revoked" | "already_invalid" | "local_only";
 
-export function logoutAuthSession(): Promise<LogoutResult>
+export function logoutAuthSession(): Promise<LogoutResult>;
 ```
 
 同时公开只读 `isLoggingOut`，供按钮禁用和加载文案使用。
@@ -192,11 +187,11 @@ logout 必须与 refresh 使用同一个 Web Locks 锁名，避免下面的竞�
 
 ### 错误语义
 
-| 情况 | 本地处理 | `LogoutResult` | UI 建议 |
-| --- | --- | --- | --- |
-| 服务端返回 204 | 清除本地会话 | `revoked` | 正常进入登录页 |
-| token 已不存在或返回 `invalid_refresh_token` | 清除本地会话 | `already_invalid` | 视为已退出，不显示错误 |
-| 网络、配置、5xx 或响应错误 | 清除本地会话 | `local_only` | 进入登录页并提示服务端吊销未确认 |
+| 情况                                         | 本地处理     | `LogoutResult`    | UI 建议                          |
+| -------------------------------------------- | ------------ | ----------------- | -------------------------------- |
+| 服务端返回 204                               | 清除本地会话 | `revoked`         | 正常进入登录页                   |
+| token 已不存在或返回 `invalid_refresh_token` | 清除本地会话 | `already_invalid` | 视为已退出，不显示错误           |
+| 网络、配置、5xx 或响应错误                   | 清除本地会话 | `local_only`      | 进入登录页并提示服务端吊销未确认 |
 
 用户明确点击退出时，即使网络失败也不能保留本地 token，否则用户会被迫保持登录。
 `local_only` 表示服务端 refresh token 可能仍有效至过期，不代表本机仍保持登录。
@@ -226,27 +221,27 @@ logout 必须与 refresh 使用同一个 Web Locks 锁名，避免下面的竞�
 
 ```ts
 router.beforeEach(async (to) => {
-  const status = await ensureAuthSessionInitialized()
+  const status = await ensureAuthSessionInitialized();
 
-  if (to.meta.requiresAuth && status === 'anonymous') {
+  if (to.meta.requiresAuth && status === "anonymous") {
     return {
-      name: 'login',
+      name: "login",
       query: { redirect: to.fullPath },
-    }
+    };
   }
 
   if (
-    status === 'authenticated' &&
+    status === "authenticated" &&
     authSession.value?.user.password_change_required &&
     !to.meta.allowsPasswordChangeRequired
   ) {
-    return { name: 'change-password' }
+    return { name: "change-password" };
   }
 
-  if (to.name === 'login' && status === 'authenticated') {
-    return { name: 'dashboard' }
+  if (to.name === "login" && status === "authenticated") {
+    return { name: "dashboard" };
   }
-})
+});
 ```
 
 守卫要求：
@@ -301,13 +296,13 @@ router.beforeEach(async (to) => {
 
 ```ts
 watch(authStatus, (status) => {
-  if (status === 'anonymous' && router.currentRoute.value.meta.requiresAuth) {
+  if (status === "anonymous" && router.currentRoute.value.meta.requiresAuth) {
     void router.replace({
-      name: 'login',
+      name: "login",
       query: { redirect: router.currentRoute.value.fullPath },
-    })
+    });
   }
-})
+});
 ```
 
 这个监听覆盖：
@@ -352,21 +347,21 @@ watch(authStatus, (status) => {
 
 ## 实现文件
 
-| 文件 | 已实现职责 |
-| --- | --- |
-| `frontend/src/api/auth.ts` | 增加 logout、当前用户改密 DTO 和 204 请求函数 |
-| `frontend/src/auth/session.ts` | 增加 AuthStatus、单一初始化 Promise、logout 用例、logging-out 状态和改密完成标记 |
-| `frontend/src/auth/auto-refresh.ts` | 根据 access token 到期时间主动 refresh，并处理失败重试和页面唤醒补检 |
-| `frontend/src/auth/coordination.ts` | 复用现有锁名串行执行 refresh/logout，并将公开函数命名扩展为会话锁 |
-| `frontend/src/router/guards.ts` | 实现全局守卫、回跳校验、会话失效和强制改密监听 |
-| `frontend/src/router/index.ts` | 导出共享 Router，并注册独立修改密码路由 |
-| `frontend/src/main.ts` | 启动同步、安装守卫并提前触发统一初始化 |
-| `frontend/src/layouts/AppShell.vue` | 提供统一桌面/移动账户入口、退出状态和应用导航；连接断开覆盖层由根应用负责 |
-| `frontend/src/pages/LoginPage.vue` | 登录成功后恢复合法 redirect；显示本机退出警告 |
-| `frontend/src/pages/ChangePasswordPage.vue` | 实现响应式主动/强制改密、原目标恢复和退出入口 |
-| `docs/code-map/frontend.md` | 记录模块职责和新增守卫文件 |
-| `frontend/docs/api-client.md` | 记录登出、五态会话和多标签页语义 |
-| `frontend/docs/routes.md` | 记录实际守卫和安全回跳规则 |
+| 文件                                        | 已实现职责                                                                       |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `frontend/src/api/auth.ts`                  | 增加 logout、当前用户改密 DTO 和 204 请求函数                                    |
+| `frontend/src/auth/session.ts`              | 增加 AuthStatus、单一初始化 Promise、logout 用例、logging-out 状态和改密完成标记 |
+| `frontend/src/auth/auto-refresh.ts`         | 根据 access token 到期时间主动 refresh，并处理失败重试和页面唤醒补检             |
+| `frontend/src/auth/coordination.ts`         | 复用现有锁名串行执行 refresh/logout，并将公开函数命名扩展为会话锁                |
+| `frontend/src/router/guards.ts`             | 实现全局守卫、回跳校验、会话失效和强制改密监听                                   |
+| `frontend/src/router/index.ts`              | 导出共享 Router，并注册独立修改密码路由                                          |
+| `frontend/src/main.ts`                      | 启动同步、安装守卫并提前触发统一初始化                                           |
+| `frontend/src/layouts/AppShell.vue`         | 提供统一桌面/移动账户入口、退出状态和应用导航；连接断开覆盖层由根应用负责        |
+| `frontend/src/pages/LoginPage.vue`          | 登录成功后恢复合法 redirect；显示本机退出警告                                    |
+| `frontend/src/pages/ChangePasswordPage.vue` | 实现响应式主动/强制改密、原目标恢复和退出入口                                    |
+| `docs/code-map/frontend.md`                 | 记录模块职责和新增守卫文件                                                       |
+| `frontend/docs/api-client.md`               | 记录登出、五态会话和多标签页语义                                                 |
+| `frontend/docs/routes.md`                   | 记录实际守卫和安全回跳规则                                                       |
 
 ## 落地顺序
 
@@ -383,29 +378,29 @@ watch(authStatus, (status) => {
 
 ## 验收矩阵
 
-| 场景 | 预期结果 |
-| --- | --- |
-| 未登录直接访问 `/dashboard` | 等待初始化后进入登录页，redirect 保存 `/dashboard` |
-| 持久 token 有效时刷新 `/items` | 先恢复会话，再停留 `/items`，不闪跳登录页 |
-| 持久 token 已失效 | 清除记录并进入登录页 |
-| 恢复时服务离线 | 保留持久 token，不误显示“凭据失效”；页面显示连接异常状态 |
-| 登录成功且存在合法 redirect | 使用 replace 返回目标页面 |
-| 临时密码用户登录 | 建立受限会话并进入修改密码页，不进入业务 Shell |
-| 强制改密成功 | 清除本地强制标记并恢复原内部目标或 dashboard |
-| 强制改密状态在停留期间恢复 | 离开当前业务页面并进入修改密码页 |
-| redirect 为外部 URL | 拒绝并进入 dashboard |
-| 已登录访问登录页 | 重定向 dashboard |
-| 正常点击退出 | 服务端 logout 204，本地清理，进入登录页 |
-| logout 返回 invalid_refresh_token | 视为已退出，本地清理，不显示错误 |
-| logout 时网络失败 | 本地和其它标签页退出，提示服务端吊销未确认 |
-| A 标签页退出，B 停留 dashboard | B 清除内存并自动进入登录页 |
-| A refresh、B logout 同时发生 | 共用锁，最终没有持久 token，所有标签页退出 |
-| 同标签页重复点击退出 | 只执行一个 logout Promise，按钮保持禁用 |
-| access token 距离到期不足一分钟 | 后台调度调用 refresh，并用新 token 包更新会话和下一次定时器 |
-| 自动 refresh 时服务离线 | 保留持久 token，状态进入 unavailable，并在重连或重试时间到达后恢复 |
-| 自动 refresh 后立即退出 | 登出等待同标签页 refresh，并在共用锁内吊销最新 refresh token |
-| 退出后浏览器后退 | 不重新进入已登录页面；守卫继续拦截 |
-| 未登录直接请求受保护 API | 服务端仍返回 401，证明安全不依赖前端守卫 |
+| 场景                              | 预期结果                                                           |
+| --------------------------------- | ------------------------------------------------------------------ |
+| 未登录直接访问 `/dashboard`       | 等待初始化后进入登录页，redirect 保存 `/dashboard`                 |
+| 持久 token 有效时刷新 `/items`    | 先恢复会话，再停留 `/items`，不闪跳登录页                          |
+| 持久 token 已失效                 | 清除记录并进入登录页                                               |
+| 恢复时服务离线                    | 保留持久 token，不误显示“凭据失效”；页面显示连接异常状态           |
+| 登录成功且存在合法 redirect       | 使用 replace 返回目标页面                                          |
+| 临时密码用户登录                  | 建立受限会话并进入修改密码页，不进入业务 Shell                     |
+| 强制改密成功                      | 清除本地强制标记并恢复原内部目标或 dashboard                       |
+| 强制改密状态在停留期间恢复        | 离开当前业务页面并进入修改密码页                                   |
+| redirect 为外部 URL               | 拒绝并进入 dashboard                                               |
+| 已登录访问登录页                  | 重定向 dashboard                                                   |
+| 正常点击退出                      | 服务端 logout 204，本地清理，进入登录页                            |
+| logout 返回 invalid_refresh_token | 视为已退出，本地清理，不显示错误                                   |
+| logout 时网络失败                 | 本地和其它标签页退出，提示服务端吊销未确认                         |
+| A 标签页退出，B 停留 dashboard    | B 清除内存并自动进入登录页                                         |
+| A refresh、B logout 同时发生      | 共用锁，最终没有持久 token，所有标签页退出                         |
+| 同标签页重复点击退出              | 只执行一个 logout Promise，按钮保持禁用                            |
+| access token 距离到期不足一分钟   | 后台调度调用 refresh，并用新 token 包更新会话和下一次定时器        |
+| 自动 refresh 时服务离线           | 保留持久 token，状态进入 unavailable，并在重连或重试时间到达后恢复 |
+| 自动 refresh 后立即退出           | 登出等待同标签页 refresh，并在共用锁内吊销最新 refresh token       |
+| 退出后浏览器后退                  | 不重新进入已登录页面；守卫继续拦截                                 |
+| 未登录直接请求受保护 API          | 服务端仍返回 401，证明安全不依赖前端守卫                           |
 
 ## 验证命令与浏览器检查
 

@@ -1,5 +1,5 @@
 /* 本文件拥有物品工作区 Dialog 的多页导航、库存摘要和批次布局，不改变共享编辑器字段规则。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 .item-workspace__context {
   display: flex;
   min-width: 0;
@@ -138,7 +138,9 @@
 
 .item-workspace-panel-enter-active,
 .item-workspace-panel-leave-active {
-  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard), transform var(--motion-duration-standard) var(--motion-ease-standard);
+  transition:
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    transform var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .item-workspace-panel-enter-from,
@@ -192,10 +194,18 @@
   white-space: nowrap;
 }
 
-.stock-state--out_of_stock { color: var(--color-danger); }
-.stock-state--reorder_due { color: var(--color-warn); }
-.stock-state--needs_configuration { color: var(--color-muted); }
-.stock-state--normal { color: var(--color-text); }
+.stock-state--out_of_stock {
+  color: var(--color-danger);
+}
+.stock-state--reorder_due {
+  color: var(--color-warn);
+}
+.stock-state--needs_configuration {
+  color: var(--color-muted);
+}
+.stock-state--normal {
+  color: var(--color-text);
+}
 
 .item-inventory__section {
   margin-top: 20px;
@@ -246,7 +256,9 @@
   gap: 8px;
 }
 
-.item-inventory__inline-error { color: var(--color-danger); }
+.item-inventory__inline-error {
+  color: var(--color-danger);
+}
 
 @include mixins.mobile {
   .item-workspace__context {
@@ -267,7 +279,9 @@
     border-bottom: 1px solid var(--color-border-strong);
   }
 
-  .item-workspace__nav--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .item-workspace__nav--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
   .item-workspace__nav--scrollable {
     display: flex;
@@ -304,6 +318,10 @@
     padding-left: 14px;
   }
 
-  .item-inventory { padding: 14px; }
-  .item-inventory__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .item-inventory {
+    padding: 14px;
+  }
+  .item-inventory__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

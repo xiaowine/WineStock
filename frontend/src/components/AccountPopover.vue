@@ -19,33 +19,36 @@
       :disabled="isLoggingOut"
       @click="emit('logout')"
     >
-      {{ isLoggingOut ? '正在退出…' : '退出登录' }}
+      {{ isLoggingOut ? "正在退出…" : "退出登录" }}
     </button>
   </section>
 </template>
 
 <script setup lang="ts">
-import AccountUserSummary from './AccountUserSummary.vue'
+import AccountUserSummary from "./AccountUserSummary.vue";
 
-withDefaults(defineProps<{
-  /** 从真实用户名生成的头像缩写。 */
-  initials: string
-  /** 当前用户展示名称。 */
-  displayName: string
-  /** 是否在弹层中补充头像和用户名；触发区已显示完整信息时应关闭。 */
-  showUserSummary?: boolean
-  /** 退出操作的可展示错误；空字符串表示没有错误。 */
-  logoutError: string
-  /** 是否正在执行统一退出流程。 */
-  isLoggingOut: boolean
-}>(), {
-  showUserSummary: true,
-})
+withDefaults(
+  defineProps<{
+    /** 从真实用户名生成的头像缩写。 */
+    initials: string;
+    /** 当前用户展示名称。 */
+    displayName: string;
+    /** 是否在弹层中补充头像和用户名；触发区已显示完整信息时应关闭。 */
+    showUserSummary?: boolean;
+    /** 退出操作的可展示错误；空字符串表示没有错误。 */
+    logoutError: string;
+    /** 是否正在执行统一退出流程。 */
+    isLoggingOut: boolean;
+  }>(),
+  {
+    showUserSummary: true,
+  },
+);
 
 const emit = defineEmits<{
   /** 请求所属 Shell 执行统一退出流程。 */
-  logout: []
-}>()
+  logout: [];
+}>();
 </script>
 
 <style lang="scss" src="./AccountPopover.scss"></style>

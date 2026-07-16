@@ -103,51 +103,51 @@
 </template>
 
 <script setup lang="ts">
-import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
+import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 import {
   approvalContext,
   type ApprovalCatalog,
   type ApprovalRecord,
-} from '../../pages/approvals/catalog'
+} from "../../pages/approvals/catalog";
 
-defineProps<{ records: ApprovalRecord[]; catalog: ApprovalCatalog }>()
-const emit = defineEmits<{ open: [record: ApprovalRecord] }>()
+defineProps<{ records: ApprovalRecord[]; catalog: ApprovalCatalog }>();
+const emit = defineEmits<{ open: [record: ApprovalRecord] }>();
 
 function orderLabel(record: ApprovalRecord): string {
-  return record.kind === 'inbound' ? '入库单' : '出库单'
+  return record.kind === "inbound" ? "入库单" : "出库单";
 }
 function detailButtonTitle(record: ApprovalRecord): string {
-  return `查看${record.kind === 'inbound' ? '入库' : '出库'}审批详情`
+  return `查看${record.kind === "inbound" ? "入库" : "出库"}审批详情`;
 }
 function detailButtonAriaLabel(record: ApprovalRecord): string {
-  return `${detailButtonTitle(record)}：${orderLabel(record)} #${record.order.id}`
+  return `${detailButtonTitle(record)}：${orderLabel(record)} #${record.order.id}`;
 }
 function firstItem(record: ApprovalRecord) {
-  return record.order.items[0]
+  return record.order.items[0];
 }
 function itemSummary(record: ApprovalRecord): string {
-  const item = firstItem(record)
-  return `${item.quantity} ${item.item_unit}`
+  const item = firstItem(record);
+  return `${item.quantity} ${item.item_unit}`;
 }
 function ruleSummary(record: ApprovalRecord): string {
-  if (record.kind === 'inbound')
-    return record.order.items.length === 1 ? record.order.items[0].location_name : '按明细写入库位'
-  return record.order.items.some((item) => item.batch_id !== null) ? '含指定批次' : '审批时按 FIFO'
+  if (record.kind === "inbound")
+    return record.order.items.length === 1 ? record.order.items[0].location_name : "按明细写入库位";
+  return record.order.items.some((item) => item.batch_id !== null) ? "含指定批次" : "审批时按 FIFO";
 }
 function waitingLabel(value: string): string {
-  const elapsed = Date.now() - new Date(value).getTime()
-  if (!Number.isFinite(elapsed) || elapsed < 60_000) return '刚刚提交'
-  if (elapsed < 3_600_000) return `等待 ${Math.floor(elapsed / 60_000)} 分钟`
-  if (elapsed < 86_400_000) return `等待 ${Math.floor(elapsed / 3_600_000)} 小时`
-  return `等待 ${Math.floor(elapsed / 86_400_000)} 天`
+  const elapsed = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(elapsed) || elapsed < 60_000) return "刚刚提交";
+  if (elapsed < 3_600_000) return `等待 ${Math.floor(elapsed / 60_000)} 分钟`;
+  if (elapsed < 86_400_000) return `等待 ${Math.floor(elapsed / 3_600_000)} 小时`;
+  return `等待 ${Math.floor(elapsed / 86_400_000)} 天`;
 }
 function formatDate(value: string): string {
-  const date = new Date(value)
+  const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('zh-CN', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }).format(date)
+    : new Intl.DateTimeFormat("zh-CN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 }
 </script>

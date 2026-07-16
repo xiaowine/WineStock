@@ -17,11 +17,11 @@
 
 ### 可直接使用
 
-| 接口 | 权限 | 页面用途 |
-| --- | --- | --- |
-| `GET /api/inbound` | `stock.inbound.read` | 服务端分页列表；当前支持 `page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`。 |
-| `GET /api/inbound/filter-values` | `stock.inbound.read` | 获取历史中可出现的基础字段和可搜索入库属性值，供高级筛选候选展示与后续扩展。 |
-| `GET /api/inbound/{id}` | `stock.inbound.read` | 按需读取单据完整明细、实际属性、创建/审批/拒绝元数据。 |
+| 接口                             | 权限                 | 页面用途                                                                                    |
+| -------------------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
+| `GET /api/inbound`               | `stock.inbound.read` | 服务端分页列表；当前支持 `page`、`page_size`、`item_id`、`date_from`、`date_to`、`search`。 |
+| `GET /api/inbound/filter-values` | `stock.inbound.read` | 获取历史中可出现的基础字段和可搜索入库属性值，供高级筛选候选展示与后续扩展。                |
+| `GET /api/inbound/{id}`          | `stock.inbound.read` | 按需读取单据完整明细、实际属性、创建/审批/拒绝元数据。                                      |
 
 `InboundResponse` 现有 `id`、`source`、`status`、`notes`、创建/审批/拒绝用户 ID 与时间，以及 `items`。每条明细提供物品 ID、数量、单价、库位 ID/名称、批次号、有效期、入库模板 ID 和 `ext_attributes`。列表与详情使用同一响应结构，但页面不得假设创建响应独有的 `submission_mode` 一定存在。
 
@@ -42,11 +42,11 @@ GET /api/inbound?...&status=pending|approved|rejected
 
 ## 权限与职责
 
-| 用户能力 | 页面行为 |
-| --- | --- |
-| 无 `stock.inbound.read` | 路由守卫返回总览，页面不请求 API。 |
-| `stock.inbound.read` | 可查看列表、筛选、触底追加和详情。 |
-| 另有 `stock.inbound.create` | 顶部可显示“新建入库”主按钮，跳转 `/inbound`；没有创建权限时完全不渲染。 |
+| 用户能力                     | 页面行为                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 无 `stock.inbound.read`      | 路由守卫返回总览，页面不请求 API。                                                                               |
+| `stock.inbound.read`         | 可查看列表、筛选、触底追加和详情。                                                                               |
+| 另有 `stock.inbound.create`  | 顶部可显示“新建入库”主按钮，跳转 `/inbound`；没有创建权限时完全不渲染。                                          |
 | 另有 `stock.inbound.approve` | 状态为 `pending` 时在详情中显示“前往入库审批”，跳转 `/approvals/inbound`；不在本页直接调用 approve/reject 接口。 |
 
 前端权限只收敛入口，服务端继续实时授权。详情读取或跳转后出现 `403` 时，保留列表上下文、关闭不可用动作并给出 Notice。
@@ -75,11 +75,11 @@ GET /api/inbound?...&status=pending|approved|rejected
 
 状态选择位于“筛选入库单”Dialog：`全部`、`待审批`、`已入库`、`已拒绝`。选项使用文字，不只依赖颜色区分状态。
 
-| 状态 | 标签 | 视觉语义 | 行为 |
-| --- | --- | --- | --- |
-| `pending` | 待审批 | 低饱和警告色 | 库存尚未增加；详情可显示审批入口。 |
-| `approved` | 已入库 | 低饱和成功色 | 已写入批次和库存流水。 |
-| `rejected` | 已拒绝 | 中性弱化或低饱和危险色 | 不增加库存，也不能再次审批。 |
+| 状态       | 标签   | 视觉语义               | 行为                               |
+| ---------- | ------ | ---------------------- | ---------------------------------- |
+| `pending`  | 待审批 | 低饱和警告色           | 库存尚未增加；详情可显示审批入口。 |
+| `approved` | 已入库 | 低饱和成功色           | 已写入批次和库存流水。             |
+| `rejected` | 已拒绝 | 中性弱化或低饱和危险色 | 不增加库存，也不能再次审批。       |
 
 点击“应用筛选”才请求新的服务端页，并更新 URL query，例如 `#/inbound/orders?status=pending`。页面初始化解析 query；浏览器前进/后退恢复同一筛选与页码，非法 query 降级为默认值并 replace 为合法 URL。
 

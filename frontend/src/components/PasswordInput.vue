@@ -33,36 +33,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useAttrs, watch } from 'vue'
+import { computed, nextTick, ref, useAttrs, watch } from "vue";
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ inheritAttrs: false });
 
-const model = defineModel<string>({ required: true })
-const attrs = useAttrs()
-const inputElement = ref<HTMLInputElement | null>(null)
-const visible = ref(false)
+const model = defineModel<string>({ required: true });
+const attrs = useAttrs();
+const inputElement = ref<HTMLInputElement | null>(null);
+const visible = ref(false);
 const disabled = computed(
-  () => attrs.disabled === '' || attrs.disabled === true || attrs.disabled === 'disabled',
-)
+  () => attrs.disabled === "" || attrs.disabled === true || attrs.disabled === "disabled",
+);
 
 watch(model, (value) => {
   if (!value) {
-    visible.value = false
+    visible.value = false;
   }
-})
+});
 
 /** 切换呈现类型后恢复原焦点和选区，避免用户继续输入时光标跳动。 */
 async function toggleVisibility(): Promise<void> {
-  const input = inputElement.value
-  const selectionStart = input?.selectionStart ?? null
-  const selectionEnd = input?.selectionEnd ?? null
+  const input = inputElement.value;
+  const selectionStart = input?.selectionStart ?? null;
+  const selectionEnd = input?.selectionEnd ?? null;
 
-  visible.value = !visible.value
-  await nextTick()
+  visible.value = !visible.value;
+  await nextTick();
 
-  input?.focus({ preventScroll: true })
+  input?.focus({ preventScroll: true });
   if (input && selectionStart !== null && selectionEnd !== null) {
-    input.setSelectionRange(selectionStart, selectionEnd)
+    input.setSelectionRange(selectionStart, selectionEnd);
   }
 }
 </script>

@@ -1,5 +1,5 @@
 /* 本文件拥有 frontend 基础渲染、可访问性辅助类和减少动态效果规则，不定义平台专属布局。 */
-@use './mixins' as mixins;
+@use "./mixins" as mixins;
 * {
   box-sizing: border-box;
   scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -73,20 +73,20 @@ select {
 /* 可编辑控件仍需支持光标定位、复制和替换文本。 */
 input,
 textarea,
-[contenteditable='true'] {
+[contenteditable="true"] {
   -webkit-touch-callout: default;
   -webkit-user-select: text;
   user-select: text;
 }
 
 /* 数字字段使用统一控件外观，不显示浏览器内置的上下调节按钮。 */
-input[type='number'] {
+input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
 
-input[type='number']::-webkit-inner-spin-button,
-input[type='number']::-webkit-outer-spin-button {
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
   -webkit-appearance: none;
 }
@@ -194,7 +194,7 @@ h3 {
   position: absolute;
   border-radius: 999px;
   background: var(--scrollbar-thumb);
-  content: '';
+  content: "";
   transition: background var(--motion-duration-fast) var(--motion-ease-standard);
 }
 

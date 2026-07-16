@@ -1,6 +1,10 @@
 <!-- 本组件拥有选中网络节点的文字关系摘要和列表、编辑入口；它不管理画布或请求数据。 -->
 <template>
-  <section class="substitute-network-detail" :class="{ 'substitute-network-detail--expanded': expanded }" aria-live="polite">
+  <section
+    class="substitute-network-detail"
+    :class="{ 'substitute-network-detail--expanded': expanded }"
+    aria-live="polite"
+  >
     <template v-if="node">
       <div class="substitute-network-detail__summary">
         <div class="substitute-network-detail__identity">
@@ -9,15 +13,28 @@
           <small>SKU {{ node.sku }}</small>
         </div>
         <div class="substitute-network-detail__metrics">
-          <span><strong>{{ incoming.length }}</strong> 个上游</span>
-          <span><strong>{{ outgoing.length }}</strong> 个直接替代</span>
-          <span><strong>{{ reachableCount }}</strong> 个可到达</span>
+          <span
+            ><strong>{{ incoming.length }}</strong> 个上游</span
+          >
+          <span
+            ><strong>{{ outgoing.length }}</strong> 个直接替代</span
+          >
+          <span
+            ><strong>{{ reachableCount }}</strong> 个可到达</span
+          >
         </div>
         <div class="substitute-network-detail__actions">
-          <button class="text-button substitute-network-detail__toggle" type="button" :aria-expanded="expanded" @click="expanded = !expanded">
-            {{ expanded ? '收起详情' : '关系详情' }}
+          <button
+            class="text-button substitute-network-detail__toggle"
+            type="button"
+            :aria-expanded="expanded"
+            @click="expanded = !expanded"
+          >
+            {{ expanded ? "收起详情" : "关系详情" }}
           </button>
-          <button v-if="canManage" class="primary-button" type="button" @click="emit('edit', node)">维护关系</button>
+          <button v-if="canManage" class="primary-button" type="button" @click="emit('edit', node)">
+            维护关系
+          </button>
         </div>
       </div>
 
@@ -50,42 +67,58 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch } from "vue";
 import {
   getReachableDownstreamNodeIds,
   type SubstituteNetworkEdge,
   type SubstituteNetworkGraph,
   type SubstituteNetworkNode,
-} from '../../pages/substitutes/networkModel'
+} from "../../pages/substitutes/networkModel";
 
 const props = defineProps<{
-  graph: SubstituteNetworkGraph
-  selectedId: number | null
-  canManage: boolean
-}>()
+  graph: SubstituteNetworkGraph;
+  selectedId: number | null;
+  canManage: boolean;
+}>();
 
 const emit = defineEmits<{
-  edit: [node: SubstituteNetworkNode]
-}>()
+  edit: [node: SubstituteNetworkNode];
+}>();
 
 interface RelatedNode {
-  edge: SubstituteNetworkEdge
-  node: SubstituteNetworkNode
+  edge: SubstituteNetworkEdge;
+  node: SubstituteNetworkNode;
 }
 
-const expanded = ref(false)
-const node = computed(() => props.selectedId === null ? null : props.graph.nodeById.get(props.selectedId) ?? null)
-const incoming = computed(() => relatedNodes(props.graph.incomingById.get(props.selectedId ?? -1) ?? [], 'sourceId'))
-const outgoing = computed(() => relatedNodes(props.graph.outgoingById.get(props.selectedId ?? -1) ?? [], 'targetId'))
-const reachableCount = computed(() => props.selectedId === null ? 0 : getReachableDownstreamNodeIds(props.graph, props.selectedId).size)
+const expanded = ref(false);
+const node = computed(() =>
+  props.selectedId === null ? null : (props.graph.nodeById.get(props.selectedId) ?? null),
+);
+const incoming = computed(() =>
+  relatedNodes(props.graph.incomingById.get(props.selectedId ?? -1) ?? [], "sourceId"),
+);
+const outgoing = computed(() =>
+  relatedNodes(props.graph.outgoingById.get(props.selectedId ?? -1) ?? [], "targetId"),
+);
+const reachableCount = computed(() =>
+  props.selectedId === null ? 0 : getReachableDownstreamNodeIds(props.graph, props.selectedId).size,
+);
 
-watch(() => props.selectedId, () => { expanded.value = false })
+watch(
+  () => props.selectedId,
+  () => {
+    expanded.value = false;
+  },
+);
 
-function relatedNodes(edges: readonly SubstituteNetworkEdge[], key: 'sourceId' | 'targetId'): RelatedNode[] {
+function relatedNodes(
+  edges: readonly SubstituteNetworkEdge[],
+  key: "sourceId" | "targetId",
+): RelatedNode[] {
   return edges.flatMap((edge) => {
-    const relatedNode = props.graph.nodeById.get(edge[key])
-    return relatedNode ? [{ edge, node: relatedNode }] : []
-  })
+    const relatedNode = props.graph.nodeById.get(edge[key]);
+    return relatedNode ? [{ edge, node: relatedNode }] : [];
+  });
 }
 </script>
 

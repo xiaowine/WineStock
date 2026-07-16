@@ -23,35 +23,43 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useAttrs, useId } from 'vue'
-import FormField from './FormField.vue'
+import { computed, useAttrs, useId } from "vue";
+import FormField from "./FormField.vue";
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ inheritAttrs: false });
 
-const props = withDefaults(defineProps<{
-  label: string
-  validationKey?: string
-  error?: string
-  hint?: string
-  required?: boolean
-  id?: string
-}>(), {
-  validationKey: '',
-  error: '',
-  hint: '',
-  required: false,
-  id: undefined,
-})
+const props = withDefaults(
+  defineProps<{
+    label: string;
+    validationKey?: string;
+    error?: string;
+    hint?: string;
+    required?: boolean;
+    id?: string;
+  }>(),
+  {
+    validationKey: "",
+    error: "",
+    hint: "",
+    required: false,
+    id: undefined,
+  },
+);
 
-const model = defineModel<string>({ required: true })
-const attrs = useAttrs()
-const uid = useId()
-const textareaId = computed(() => props.id ?? `form-textarea-${uid}`)
-const controlAttrs = computed(() => Object.fromEntries(
-  Object.entries(attrs).filter(([key]) => !['class', 'style', 'id'].includes(key)),
-))
+const model = defineModel<string>({ required: true });
+const attrs = useAttrs();
+const uid = useId();
+const textareaId = computed(() => props.id ?? `form-textarea-${uid}`);
+const controlAttrs = computed(() =>
+  Object.fromEntries(
+    Object.entries(attrs).filter(([key]) => !["class", "style", "id"].includes(key)),
+  ),
+);
 
 function mergeDescribedBy(current: unknown, generated: string | undefined): string | undefined {
-  return [typeof current === 'string' ? current : '', generated ?? ''].filter(Boolean).join(' ') || undefined
+  return (
+    [typeof current === "string" ? current : "", generated ?? ""].filter(Boolean).join(" ") ||
+    undefined
+  );
 }
 </script>

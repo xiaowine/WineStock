@@ -15,44 +15,44 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
-import ModalDialog from '../ModalDialog.vue'
-import DateTimeField from '../forms/DateTimeField.vue'
+import { reactive, ref, watch } from "vue";
+import ModalDialog from "../ModalDialog.vue";
+import DateTimeField from "../forms/DateTimeField.vue";
 
 /** 审批队列创建时间筛选值。 */
 export interface ApprovalDateFilterValue {
-  dateFrom: string
-  dateTo: string
+  dateFrom: string;
+  dateTo: string;
 }
 
-const props = defineProps<{ open: boolean; value: ApprovalDateFilterValue }>()
+const props = defineProps<{ open: boolean; value: ApprovalDateFilterValue }>();
 const emit = defineEmits<{
-  close: []
-  apply: [value: ApprovalDateFilterValue]
-}>()
-const draft = reactive<ApprovalDateFilterValue>({ dateFrom: '', dateTo: '' })
-const error = ref('')
+  close: [];
+  apply: [value: ApprovalDateFilterValue];
+}>();
+const draft = reactive<ApprovalDateFilterValue>({ dateFrom: "", dateTo: "" });
+const error = ref("");
 
 watch(
   () => props.open,
   (open) => {
-    if (!open) return
-    draft.dateFrom = props.value.dateFrom
-    draft.dateTo = props.value.dateTo
-    error.value = ''
+    if (!open) return;
+    draft.dateFrom = props.value.dateFrom;
+    draft.dateTo = props.value.dateTo;
+    error.value = "";
   },
-)
+);
 
 function reset(): void {
-  draft.dateFrom = ''
-  draft.dateTo = ''
-  error.value = ''
+  draft.dateFrom = "";
+  draft.dateTo = "";
+  error.value = "";
 }
 function apply(): void {
   if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-    error.value = '创建时间起点不能晚于终点'
-    return
+    error.value = "创建时间起点不能晚于终点";
+    return;
   }
-  emit('apply', { ...draft })
+  emit("apply", { ...draft });
 }
 </script>

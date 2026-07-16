@@ -12,13 +12,13 @@
 
 现有 `GET /api/items/{item_id}/batches` 已返回仍有余额的批次分页，单个批次包含：
 
-| 字段 | 用途 |
-| --- | --- |
-| `id` | 指定批次匹配与缓存键。 |
-| `location_id`、`location_name` | FIFO 限制库位与扣减说明。 |
-| `remaining_quantity` | 批次可参与预估的当前余额。 |
-| `unit_cost` | 批次单位成本。 |
-| `received_at` | FIFO 排序依据；不得依赖当前页面加载顺序。 |
+| 字段                           | 用途                                      |
+| ------------------------------ | ----------------------------------------- |
+| `id`                           | 指定批次匹配与缓存键。                    |
+| `location_id`、`location_name` | FIFO 限制库位与扣减说明。                 |
+| `remaining_quantity`           | 批次可参与预估的当前余额。                |
+| `unit_cost`                    | 批次单位成本。                            |
+| `received_at`                  | FIFO 排序依据；不得依赖当前页面加载顺序。 |
 
 前端现有 `ItemBatchStockResponse` 已声明 `unit_cost`。因此首期不需要新增 core API。请求权限沿用当前 `stock.item.read` 或 `stock.outbound.create` 的批次读取边界。
 
@@ -58,14 +58,14 @@ FIFO 预估须同时返回覆盖状态：
 在 `pages/outbound-draft/model.ts` 增加纯函数和类型，不将计算散落在 Vue 模板：
 
 ```ts
-type EstimatedCostState = 'idle' | 'loading' | 'complete' | 'insufficient' | 'failed'
+type EstimatedCostState = "idle" | "loading" | "complete" | "insufficient" | "failed";
 
 interface OutboundCostEstimate {
-  state: EstimatedCostState
-  amount: number | null
-  coveredQuantity: number
-  requestedQuantity: number
-  allocationCount: number
+  state: EstimatedCostState;
+  amount: number | null;
+  coveredQuantity: number;
+  requestedQuantity: number;
+  allocationCount: number;
 }
 ```
 
@@ -126,13 +126,13 @@ FIFO 模式显示说明：
 
 ## 错误与边界
 
-| 场景 | 呈现与行为 |
-| --- | --- |
-| 批次读取 403 | 显示“无权读取批次，暂无法估算成本”；不暴露成本值，不阻止提交。 |
-| 网络或解析失败 | 明细和汇总显示“暂无法估算”；提供在扣减 Dialog 内重试。 |
-| FIFO 快照无法覆盖 | 显示“成本以实际出库为准”；不以快照替代实际出库库存校验。 |
-| 指定批次失效 | 沿用当前明细校验，要求用户重新选择；不计算成本。 |
-| 货币精度 | 计算阶段使用 number，展示统一两位小数；不把显示值回写请求或草稿。 |
+| 场景              | 呈现与行为                                                        |
+| ----------------- | ----------------------------------------------------------------- |
+| 批次读取 403      | 显示“无权读取批次，暂无法估算成本”；不暴露成本值，不阻止提交。    |
+| 网络或解析失败    | 明细和汇总显示“暂无法估算”；提供在扣减 Dialog 内重试。            |
+| FIFO 快照无法覆盖 | 显示“成本以实际出库为准”；不以快照替代实际出库库存校验。          |
+| 指定批次失效      | 沿用当前明细校验，要求用户重新选择；不计算成本。                  |
+| 货币精度          | 计算阶段使用 number，展示统一两位小数；不把显示值回写请求或草稿。 |
 
 若未来需要保存审批后的实际成本、审计成本分摊或统计销售毛利，再单独启动 core 迁移与事务方案；这不是本方案的工作内容。
 

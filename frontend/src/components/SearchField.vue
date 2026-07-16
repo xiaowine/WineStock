@@ -24,54 +24,57 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount } from 'vue'
+import { onBeforeUnmount } from "vue";
 
-const props = withDefaults(defineProps<{
-  modelValue: string
-  label: string
-  name: string
-  placeholder: string
-  maxlength?: number
-  autocomplete?: string
-  disabled?: boolean
-  hideLabel?: boolean
-  debounceMs?: number
-  autofocus?: boolean
-}>(), {
-  maxlength: 128,
-  autocomplete: 'off',
-  disabled: false,
-  hideLabel: false,
-  debounceMs: 280,
-  autofocus: false,
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue: string;
+    label: string;
+    name: string;
+    placeholder: string;
+    maxlength?: number;
+    autocomplete?: string;
+    disabled?: boolean;
+    hideLabel?: boolean;
+    debounceMs?: number;
+    autofocus?: boolean;
+  }>(),
+  {
+    maxlength: 128,
+    autocomplete: "off",
+    disabled: false,
+    hideLabel: false,
+    debounceMs: 280,
+    autofocus: false,
+  },
+);
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  search: [value: string]
-}>()
+  "update:modelValue": [value: string];
+  search: [value: string];
+}>();
 
-let searchTimer: number | undefined
+let searchTimer: number | undefined;
 
 /** 输入时同步草稿并延迟搜索；清空输入立即恢复完整目录。 */
 function handleInput(event: Event): void {
-  const value = (event.target as HTMLInputElement).value
-  emit('update:modelValue', value)
-  window.clearTimeout(searchTimer)
-  if (value.trim() === '') {
-    emit('search', '')
-    return
+  const value = (event.target as HTMLInputElement).value;
+  emit("update:modelValue", value);
+  window.clearTimeout(searchTimer);
+  if (value.trim() === "") {
+    emit("search", "");
+    return;
   }
-  searchTimer = window.setTimeout(() => emit('search', value.trim()), props.debounceMs)
+  searchTimer = window.setTimeout(() => emit("search", value.trim()), props.debounceMs);
 }
 
 /** 浏览器清除按钮或 Enter 触发 search 事件时立即应用当前关键词。 */
 function commitSearch(event: Event): void {
-  window.clearTimeout(searchTimer)
-  emit('search', (event.target as HTMLInputElement).value.trim())
+  window.clearTimeout(searchTimer);
+  emit("search", (event.target as HTMLInputElement).value.trim());
 }
 
-onBeforeUnmount(() => window.clearTimeout(searchTimer))
+onBeforeUnmount(() => window.clearTimeout(searchTimer));
 </script>
 
 <style lang="scss" src="./SearchField.scss"></style>

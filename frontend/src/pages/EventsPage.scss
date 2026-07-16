@@ -1,5 +1,5 @@
 /* 本文件拥有审计日志工具栏、三段式列表、移动项目和分页布局。 */
-@use '../styles/foundation/mixins' as mixins;
+@use "../styles/foundation/mixins" as mixins;
 
 .events-page {
   min-height: 0;
@@ -477,7 +477,9 @@ button.event-action-pill {
 }
 
 @keyframes events-refresh-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @include mixins.below(1100px) {
@@ -546,5 +548,4 @@ button.event-action-pill {
       grid-column: 1;
     }
   }
-
 }

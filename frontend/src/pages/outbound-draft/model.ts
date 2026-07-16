@@ -25,9 +25,7 @@ export interface OutboundCostEstimate {
 }
 
 /** 用物品选项建立默认 FIFO 明细。 */
-export function createOutboundDraftLine(
-  item: ItemOptionResponse,
-): OutboundDraftLine {
+export function createOutboundDraftLine(item: ItemOptionResponse): OutboundDraftLine {
   return {
     lineId: crypto.randomUUID?.() ?? `outbound-${Date.now()}-${Math.random()}`,
     item,
@@ -50,10 +48,7 @@ export function buildOutboundRequest(
     items: lines.map((line) => ({
       item_id: line.item.id,
       quantity: Number(line.quantity),
-      batch_id:
-        line.allocationMode === "specific_batch"
-          ? (line.batchId ?? undefined)
-          : undefined,
+      batch_id: line.allocationMode === "specific_batch" ? (line.batchId ?? undefined) : undefined,
       location_id: line.locationId ?? undefined,
     })),
   };
@@ -63,8 +58,7 @@ export function buildOutboundRequest(
 export function lineError(line: OutboundDraftLine): string | null {
   if (!Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0)
     return "请输入大于 0 的数量";
-  if (line.allocationMode === "specific_batch" && line.batchId === null)
-    return "请选择扣减批次";
+  if (line.allocationMode === "specific_batch" && line.batchId === null) return "请选择扣减批次";
   return null;
 }
 
@@ -119,9 +113,7 @@ export function estimateFifoCost(
 }
 
 /** 供异步批次快照尚未可用和输入未完成时构造一致的空预估。 */
-export function emptyCostEstimate(
-  state: OutboundCostEstimate["state"],
-): OutboundCostEstimate {
+export function emptyCostEstimate(state: OutboundCostEstimate["state"]): OutboundCostEstimate {
   return { state, amount: null, coveredQuantity: 0, requestedQuantity: 0, allocationCount: 0 };
 }
 

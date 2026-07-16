@@ -55,79 +55,81 @@
     </form>
 
     <template #actions>
-      <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">取消</button>
+      <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
+        取消
+      </button>
       <button class="primary-button" type="submit" :form="formId" :disabled="submitting">
-        {{ submitting ? '正在保存…' : group ? '保存分组' : '创建分组' }}
+        {{ submitting ? "正在保存…" : group ? "保存分组" : "创建分组" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { ref, useId, watch } from 'vue'
-import type { LocationGroupResponse, LocationGroupUpdateRequest } from '../../api/locations'
-import { useFormValidation } from '../../composables/useFormValidation'
-import { notice } from '../../notices/notice'
-import ModalDialog from '../ModalDialog.vue'
-import FormInput from '../forms/FormInput.vue'
-import FormSelect from '../forms/FormSelect.vue'
-import type { LocationGroupOption } from './types'
+import { ref, useId, watch } from "vue";
+import type { LocationGroupResponse, LocationGroupUpdateRequest } from "../../api/locations";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
+import ModalDialog from "../ModalDialog.vue";
+import FormInput from "../forms/FormInput.vue";
+import FormSelect from "../forms/FormSelect.vue";
+import type { LocationGroupOption } from "./types";
 
 const props = defineProps<{
-  open: boolean
-  group: LocationGroupResponse | null
-  defaultParentId: number | null
-  parentOptions: LocationGroupOption[]
-  submitting: boolean
-  errorMessage: string
-  fieldErrors: Record<string, string>
-}>()
+  open: boolean;
+  group: LocationGroupResponse | null;
+  defaultParentId: number | null;
+  parentOptions: LocationGroupOption[];
+  submitting: boolean;
+  errorMessage: string;
+  fieldErrors: Record<string, string>;
+}>();
 
 const emit = defineEmits<{
-  close: []
-  submit: [request: LocationGroupUpdateRequest]
-}>()
+  close: [];
+  submit: [request: LocationGroupUpdateRequest];
+}>();
 
-const formId = `location-group-form-${useId()}`
-const name = ref('')
-const parentId = ref<number | null>(null)
-const sortOrder = ref<number | null>(0)
-const errors = ref<Record<string, string>>({})
-useFormValidation(errors)
+const formId = `location-group-form-${useId()}`;
+const name = ref("");
+const parentId = ref<number | null>(null);
+const sortOrder = ref<number | null>(0);
+const errors = ref<Record<string, string>>({});
+useFormValidation(errors);
 
 watch(
   () => props.open,
   (open) => {
-    if (!open) return
-    name.value = props.group?.name ?? ''
-    parentId.value = props.group?.parent_id ?? props.defaultParentId
-    sortOrder.value = props.group?.sort_order ?? 0
-    errors.value = { ...props.fieldErrors }
+    if (!open) return;
+    name.value = props.group?.name ?? "";
+    parentId.value = props.group?.parent_id ?? props.defaultParentId;
+    sortOrder.value = props.group?.sort_order ?? 0;
+    errors.value = { ...props.fieldErrors };
   },
-)
+);
 
 watch(
   () => props.fieldErrors,
   (fieldErrors) => {
-    if (props.open) errors.value = { ...fieldErrors }
+    if (props.open) errors.value = { ...fieldErrors };
   },
   { deep: true },
-)
+);
 
 function submit(): void {
-  const nextErrors: Record<string, string> = {}
-  const normalizedName = name.value.trim()
-  if (!normalizedName) nextErrors.name = '请输入分组名称'
-  if (!Number.isInteger(sortOrder.value ?? 0)) nextErrors.sort_order = '排序必须是整数'
-  errors.value = nextErrors
+  const nextErrors: Record<string, string> = {};
+  const normalizedName = name.value.trim();
+  if (!normalizedName) nextErrors.name = "请输入分组名称";
+  if (!Number.isInteger(sortOrder.value ?? 0)) nextErrors.sort_order = "排序必须是整数";
+  errors.value = nextErrors;
   if (Object.keys(nextErrors).length > 0) {
-    notice.warning('请检查分组信息', { detail: Object.values(nextErrors)[0] })
-    return
+    notice.warning("请检查分组信息", { detail: Object.values(nextErrors)[0] });
+    return;
   }
-  emit('submit', {
+  emit("submit", {
     parent_id: parentId.value,
     name: normalizedName,
     sort_order: sortOrder.value ?? 0,
-  })
+  });
 }
 </script>

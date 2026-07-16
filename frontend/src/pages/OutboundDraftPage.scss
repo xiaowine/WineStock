@@ -212,10 +212,9 @@
 }
 .outbound-lines article {
   display: grid;
-  grid-template-columns: minmax(250px, 1fr) minmax(150px, 0.55fr) minmax(
-      230px,
-      0.8fr
-    ) 36px;
+  grid-template-columns:
+    minmax(250px, 1fr) minmax(150px, 0.55fr) minmax(230px, 0.8fr)
+    36px;
   grid-template-areas: "identity quantity allocation remove";
   align-items: start;
   column-gap: 18px;

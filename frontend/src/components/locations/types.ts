@@ -3,21 +3,21 @@
 /** 分组选择控件使用的层级化选项。 */
 export interface LocationGroupOption {
   /** 分组 ID。 */
-  id: number
+  id: number;
   /** 包含层级缩进的分组名称。 */
-  label: string
+  label: string;
   /** 分组所在层级，根分组为 1。 */
-  depth: number
+  depth: number;
 }
 
 /** 库位管理删除确认目标。 */
 export interface LocationDeleteTarget {
   /** 删除对象类型。 */
-  kind: 'group' | 'location'
+  kind: "group" | "location";
   /** 删除对象 ID。 */
-  id: number
+  id: number;
   /** 删除确认中显示的对象名称。 */
-  label: string
+  label: string;
   /** 分组删除后用于恢复选择的上级分组 ID。 */
-  parentId?: number | null
+  parentId?: number | null;
 }

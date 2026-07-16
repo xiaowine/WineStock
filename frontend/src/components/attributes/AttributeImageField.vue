@@ -33,7 +33,11 @@
           :aria-controls="pickerId"
           @click="togglePicker"
         >
-          <span v-if="!value?.previewUrl" class="inbound-file-field__image-placeholder" aria-hidden="true">
+          <span
+            v-if="!value?.previewUrl"
+            class="inbound-file-field__image-placeholder"
+            aria-hidden="true"
+          >
             <svg v-if="!value" viewBox="0 0 24 24">
               <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
               <circle cx="9" cy="10" r="1.5" />
@@ -42,7 +46,7 @@
             <template v-else>图</template>
           </span>
           <span class="inbound-file-field__preview-copy">
-            <strong>{{ value?.name ?? '选择图片' }}</strong>
+            <strong>{{ value?.name ?? "选择图片" }}</strong>
             <span v-if="!value">本地图片或纯色图片</span>
             <span v-else-if="value.status === 'pending'">将在提交时上传</span>
             <span v-else-if="value.status === 'uploading'">上传中 {{ value.progress }}%</span>
@@ -106,7 +110,9 @@
             @click="toggleColorPicker"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3a9 9 0 1 0 0 18h1.2a1.8 1.8 0 0 0 0-3.6h-.7a1.4 1.4 0 0 1 0-2.8H16A5 5 0 0 0 21 9.7C21 6 17 3 12 3Z" />
+              <path
+                d="M12 3a9 9 0 1 0 0 18h1.2a1.8 1.8 0 0 0 0-3.6h-.7a1.4 1.4 0 0 1 0-2.8H16A5 5 0 0 0 21 9.7C21 6 17 3 12 3Z"
+              />
               <circle cx="7.5" cy="10" r=".8" />
               <circle cx="10" cy="6.8" r=".8" />
               <circle cx="14" cy="6.5" r=".8" />
@@ -114,9 +120,13 @@
             </svg>
             <span>
               <strong>纯色图片</strong>
-              <small>{{ colorPickerOpen ? '调整颜色后立即生成' : '打开颜色选择器' }}</small>
+              <small>{{ colorPickerOpen ? "调整颜色后立即生成" : "打开颜色选择器" }}</small>
             </span>
-            <span class="image-picker-popover__color-swatch" :style="{ backgroundColor: solidColor }" aria-hidden="true" />
+            <span
+              class="image-picker-popover__color-swatch"
+              :style="{ backgroundColor: solidColor }"
+              aria-hidden="true"
+            />
           </button>
           <AttributeColorPicker
             v-if="colorPickerOpen"
@@ -130,230 +140,251 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, toRef, useId, watch } from 'vue'
-import { deleteImage, readImage, validateImageFile } from '../../api/files'
-import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from '../../api/errors'
-import { notice } from '../../notices/notice'
-import type { FileDraftValue } from '../../pages/inbound-draft/model'
-import PreviewImage from '../PreviewImage.vue'
-import { createPendingImageDraft, createSolidColorImage, randomSolidColor, releaseImageDraft } from './imageDraft'
-import AttributeColorPicker from './AttributeColorPicker.vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRef, useId, watch } from "vue";
+import { deleteImage, readImage, validateImageFile } from "../../api/files";
+import {
+  ApiConfigurationError,
+  ApiError,
+  ApiNetworkError,
+  ApiResponseError,
+} from "../../api/errors";
+import { notice } from "../../notices/notice";
+import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import PreviewImage from "../PreviewImage.vue";
+import {
+  createPendingImageDraft,
+  createSolidColorImage,
+  randomSolidColor,
+  releaseImageDraft,
+} from "./imageDraft";
+import AttributeColorPicker from "./AttributeColorPicker.vue";
 
-const props = withDefaults(defineProps<{
-  modelValue?: FileDraftValue
-  invalid?: boolean
-  title?: string
-  label?: string
-  deleteOnRemove?: boolean
-}>(), {
-  deleteOnRemove: true,
-  label: '图片属性',
-})
+const props = withDefaults(
+  defineProps<{
+    modelValue?: FileDraftValue;
+    invalid?: boolean;
+    title?: string;
+    label?: string;
+    deleteOnRemove?: boolean;
+  }>(),
+  {
+    deleteOnRemove: true,
+    label: "图片属性",
+  },
+);
 
-const emit = defineEmits<{ 'update:modelValue': [value: FileDraftValue | undefined] }>()
-const value = toRef(props, 'modelValue')
-const fieldRoot = ref<HTMLElement | null>(null)
-const pickerTrigger = ref<HTMLButtonElement | null>(null)
-const pickerPopover = ref<HTMLElement | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
-const pickerOpen = ref(false)
-const colorPickerOpen = ref(false)
-const pickerPlacement = ref<'above' | 'below'>('below')
-const pickerPosition = ref({ top: 0, left: 0, width: 276 })
-const solidColor = ref(randomSolidColor())
-const pickerId = `image-picker-${useId()}`
-let solidGenerationSequence = 0
+const emit = defineEmits<{ "update:modelValue": [value: FileDraftValue | undefined] }>();
+const value = toRef(props, "modelValue");
+const fieldRoot = ref<HTMLElement | null>(null);
+const pickerTrigger = ref<HTMLButtonElement | null>(null);
+const pickerPopover = ref<HTMLElement | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const pickerOpen = ref(false);
+const colorPickerOpen = ref(false);
+const pickerPlacement = ref<"above" | "below">("below");
+const pickerPosition = ref({ top: 0, left: 0, width: 276 });
+const solidColor = ref(randomSolidColor());
+const pickerId = `image-picker-${useId()}`;
+let solidGenerationSequence = 0;
 const pickerStyle = computed(() => ({
   top: `${pickerPosition.value.top}px`,
   left: `${pickerPosition.value.left}px`,
   width: `${pickerPosition.value.width}px`,
-}))
+}));
 
-watch(value, (next, previous) => {
-  if (previous && previous !== next) releaseImageDraft(previous)
-  if (next?.localFile && !next.previewUrl) next.previewUrl = URL.createObjectURL(next.localFile)
-  else if (next?.fileId && !next.previewUrl) void loadPreview(next)
-}, { immediate: true })
+watch(
+  value,
+  (next, previous) => {
+    if (previous && previous !== next) releaseImageDraft(previous);
+    if (next?.localFile && !next.previewUrl) next.previewUrl = URL.createObjectURL(next.localFile);
+    else if (next?.fileId && !next.previewUrl) void loadPreview(next);
+  },
+  { immediate: true },
+);
 
 onBeforeUnmount(() => {
-  solidGenerationSequence += 1
-  removePickerListeners()
-  const current = value.value
-  releaseImageDraft(current)
-  if (current) current.previewUrl = undefined
-})
+  solidGenerationSequence += 1;
+  removePickerListeners();
+  const current = value.value;
+  releaseImageDraft(current);
+  if (current) current.previewUrl = undefined;
+});
 
 function togglePicker(): void {
   if (pickerOpen.value) {
-    closePicker(true)
-    return
+    closePicker(true);
+    return;
   }
-  void openPicker()
+  void openPicker();
 }
 
 /** 打开锚定选择浮层并根据触发控件和视口空间决定上下方向。 */
 async function openPicker(): Promise<void> {
-  colorPickerOpen.value = false
-  pickerOpen.value = true
-  addPickerListeners()
-  await nextTick()
-  positionPicker()
-  pickerPopover.value?.querySelector<HTMLElement>('button, input')?.focus()
+  colorPickerOpen.value = false;
+  pickerOpen.value = true;
+  addPickerListeners();
+  await nextTick();
+  positionPicker();
+  pickerPopover.value?.querySelector<HTMLElement>("button, input")?.focus();
 }
 
 function closePicker(restoreFocus: boolean): void {
-  if (!pickerOpen.value) return
-  pickerOpen.value = false
-  colorPickerOpen.value = false
-  removePickerListeners()
-  if (restoreFocus) void nextTick(() => pickerTrigger.value?.focus())
+  if (!pickerOpen.value) return;
+  pickerOpen.value = false;
+  colorPickerOpen.value = false;
+  removePickerListeners();
+  if (restoreFocus) void nextTick(() => pickerTrigger.value?.focus());
 }
 
 /** 使用 fixed 定位避免浮层被编辑器滚动容器裁切，并在空间不足时改为向上展开。 */
 function positionPicker(): void {
-  const trigger = pickerTrigger.value
-  const popover = pickerPopover.value
-  if (!trigger || !popover) return
-  const viewportPadding = 12
-  const gap = 6
-  const triggerRect = trigger.getBoundingClientRect()
-  const width = Math.min(276, window.innerWidth - viewportPadding * 2)
+  const trigger = pickerTrigger.value;
+  const popover = pickerPopover.value;
+  if (!trigger || !popover) return;
+  const viewportPadding = 12;
+  const gap = 6;
+  const triggerRect = trigger.getBoundingClientRect();
+  const width = Math.min(276, window.innerWidth - viewportPadding * 2);
   const left = Math.min(
     Math.max(triggerRect.left, viewportPadding),
     window.innerWidth - width - viewportPadding,
-  )
-  const popoverHeight = popover.offsetHeight
-  const belowTop = triggerRect.bottom + gap
-  const aboveTop = triggerRect.top - popoverHeight - gap
-  const useAbove = belowTop + popoverHeight > window.innerHeight - viewportPadding && aboveTop >= viewportPadding
-  pickerPlacement.value = useAbove ? 'above' : 'below'
+  );
+  const popoverHeight = popover.offsetHeight;
+  const belowTop = triggerRect.bottom + gap;
+  const aboveTop = triggerRect.top - popoverHeight - gap;
+  const useAbove =
+    belowTop + popoverHeight > window.innerHeight - viewportPadding && aboveTop >= viewportPadding;
+  pickerPlacement.value = useAbove ? "above" : "below";
   pickerPosition.value = {
     top: useAbove ? aboveTop : belowTop,
     left,
     width,
-  }
+  };
 }
 
 async function chooseLocalFile(): Promise<void> {
-  closePicker(false)
-  await nextTick()
-  fileInput.value?.click()
+  closePicker(false);
+  await nextTick();
+  fileInput.value?.click();
 }
 
 async function toggleColorPicker(): Promise<void> {
-  colorPickerOpen.value = !colorPickerOpen.value
-  await nextTick()
-  positionPicker()
+  colorPickerOpen.value = !colorPickerOpen.value;
+  await nextTick();
+  positionPicker();
   if (colorPickerOpen.value) {
-    pickerPopover.value?.querySelector<HTMLElement>('.attribute-color-picker [tabindex]')?.focus()
+    pickerPopover.value?.querySelector<HTMLElement>(".attribute-color-picker [tabindex]")?.focus();
   }
 }
 
 async function selectFile(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
   if (!file) {
-    pickerTrigger.value?.focus()
-    return
+    pickerTrigger.value?.focus();
+    return;
   }
-  const error = await validateImageFile(file)
+  const error = await validateImageFile(file);
   if (error) {
-    notice.warning('无法选择该图片', { detail: error })
-    pickerTrigger.value?.focus()
-    return
+    notice.warning("无法选择该图片", { detail: error });
+    pickerTrigger.value?.focus();
+    return;
   }
-  replace(file)
-  pickerTrigger.value?.focus()
+  replace(file);
+  pickerTrigger.value?.focus();
 }
 
 function replace(file: File): void {
-  const current = value.value
-  releaseImageDraft(current)
-  if (current?.fileId && props.deleteOnRemove) void deleteImage(current.fileId).catch(() => undefined)
-  emit('update:modelValue', createPendingImageDraft(file))
+  const current = value.value;
+  releaseImageDraft(current);
+  if (current?.fileId && props.deleteOnRemove)
+    void deleteImage(current.fileId).catch(() => undefined);
+  emit("update:modelValue", createPendingImageDraft(file));
 }
 
 async function generateSolidColor(color: string): Promise<void> {
-  const sequence = ++solidGenerationSequence
+  const sequence = ++solidGenerationSequence;
   try {
-    const file = await createSolidColorImage(color)
-    if (sequence === solidGenerationSequence) replace(file)
+    const file = await createSolidColorImage(color);
+    if (sequence === solidGenerationSequence) replace(file);
   } catch (error) {
-    notice.error(errorMessage(error, '纯色图片生成失败'))
+    notice.error(errorMessage(error, "纯色图片生成失败"));
   }
 }
 
 async function remove(): Promise<void> {
-  closePicker(false)
-  const current = value.value
-  if (!current) return
-  releaseImageDraft(current)
-  emit('update:modelValue', undefined)
+  closePicker(false);
+  const current = value.value;
+  if (!current) return;
+  releaseImageDraft(current);
+  emit("update:modelValue", undefined);
   if (current.fileId && props.deleteOnRemove) {
     try {
-      await deleteImage(current.fileId)
+      await deleteImage(current.fileId);
     } catch (error) {
-      notice.error(errorMessage(error, '删除临时图片失败'))
+      notice.error(errorMessage(error, "删除临时图片失败"));
     }
   }
-  await nextTick()
-  pickerTrigger.value?.focus()
+  await nextTick();
+  pickerTrigger.value?.focus();
 }
 
 async function loadPreview(target: FileDraftValue): Promise<void> {
   try {
-    target.previewUrl = URL.createObjectURL(await readImage(target.fileId as number))
+    target.previewUrl = URL.createObjectURL(await readImage(target.fileId as number));
   } catch (error) {
-    target.status = 'failed'
-    target.error = errorMessage(error, '无法读取已上传图片')
+    target.status = "failed";
+    target.error = errorMessage(error, "无法读取已上传图片");
   }
 }
 
 function addPickerListeners(): void {
-  document.addEventListener('pointerdown', handleOutsidePointerDown)
-  document.addEventListener('keydown', handlePickerKeydown)
-  document.addEventListener('scroll', handleDocumentScroll, true)
-  window.addEventListener('resize', positionPicker)
+  document.addEventListener("pointerdown", handleOutsidePointerDown);
+  document.addEventListener("keydown", handlePickerKeydown);
+  document.addEventListener("scroll", handleDocumentScroll, true);
+  window.addEventListener("resize", positionPicker);
 }
 
 function removePickerListeners(): void {
-  document.removeEventListener('pointerdown', handleOutsidePointerDown)
-  document.removeEventListener('keydown', handlePickerKeydown)
-  document.removeEventListener('scroll', handleDocumentScroll, true)
-  window.removeEventListener('resize', positionPicker)
+  document.removeEventListener("pointerdown", handleOutsidePointerDown);
+  document.removeEventListener("keydown", handlePickerKeydown);
+  document.removeEventListener("scroll", handleDocumentScroll, true);
+  window.removeEventListener("resize", positionPicker);
 }
 
 function handleOutsidePointerDown(event: PointerEvent): void {
-  const target = event.target as Node
-  if (fieldRoot.value?.contains(target) || pickerPopover.value?.contains(target)) return
-  closePicker(false)
+  const target = event.target as Node;
+  if (fieldRoot.value?.contains(target) || pickerPopover.value?.contains(target)) return;
+  closePicker(false);
 }
 
 function handlePickerKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    event.stopPropagation()
-    event.stopImmediatePropagation()
-    closePicker(true)
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    closePicker(true);
   }
 }
 
 function handleDocumentScroll(): void {
-  closePicker(false)
+  closePicker(false);
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message
-  if (error instanceof ApiConfigurationError) return error.message
-  if (error instanceof ApiNetworkError) return '无法连接到 WineStock 服务'
-  if (error instanceof ApiResponseError) return '服务响应格式无效，请检查前后端版本'
-  return fallback
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof ApiConfigurationError) return error.message;
+  if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
+  if (error instanceof ApiResponseError) return "服务响应格式无效，请检查前后端版本";
+  return fallback;
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes <= 0) return '已保存图片'
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+  if (bytes <= 0) return "已保存图片";
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 </script>
 
@@ -611,5 +642,4 @@ button.image-picker-popover__option:hover,
 .image-picker-popover--above.image-picker-popover-leave-to {
   transform: translateY(var(--motion-distance-small)) scale(0.98);
 }
-
 </style>

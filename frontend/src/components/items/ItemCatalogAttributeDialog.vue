@@ -23,8 +23,14 @@
     <form id="item-catalog-attribute-form" class="catalog-attribute-dialog" @submit.prevent="save">
       <label class="catalog-attribute-dialog__template">
         <span>物品属性模板</span>
-        <SelectControl v-model="selectedTemplateId" name="catalog_attribute_template" :disabled="saving">
-          <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.name }}</option>
+        <SelectControl
+          v-model="selectedTemplateId"
+          name="catalog_attribute_template"
+          :disabled="saving"
+        >
+          <option v-for="template in templates" :key="template.id" :value="template.id">
+            {{ template.name }}
+          </option>
         </SelectControl>
       </label>
 
@@ -59,88 +65,107 @@
           </div>
         </div>
 
-        <div v-else key="empty" class="catalog-attribute-dialog__empty">暂无可配置的物品属性模板</div>
+        <div v-else key="empty" class="catalog-attribute-dialog__empty">
+          暂无可配置的物品属性模板
+        </div>
       </Transition>
     </form>
 
     <template #actions>
-      <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">取消</button>
-      <button class="primary-button" type="submit" form="item-catalog-attribute-form" :disabled="saving || !activeTemplate || !changed">
-        {{ saving ? '保存中…' : '保存设置' }}
+      <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">
+        取消
+      </button>
+      <button
+        class="primary-button"
+        type="submit"
+        form="item-catalog-attribute-form"
+        :disabled="saving || !activeTemplate || !changed"
+      >
+        {{ saving ? "保存中…" : "保存设置" }}
       </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import type { TemplateFieldType } from '../../api/templateFields'
+import { computed, ref, watch } from "vue";
+import type { TemplateFieldType } from "../../api/templateFields";
 import {
   updateItemAttributeTemplate,
   type ItemAttributeTemplateFieldResponse,
   type ItemAttributeTemplateResponse,
-} from '../../api/itemAttributeTemplates'
-import { ApiError } from '../../api/errors'
-import { notice } from '../../notices/notice'
-import ModalDialog from '../ModalDialog.vue'
-import SelectControl from '../forms/SelectControl.vue'
+} from "../../api/itemAttributeTemplates";
+import { ApiError } from "../../api/errors";
+import { notice } from "../../notices/notice";
+import ModalDialog from "../ModalDialog.vue";
+import SelectControl from "../forms/SelectControl.vue";
 
 const props = defineProps<{
-  open: boolean
-  templates: ItemAttributeTemplateResponse[]
-}>()
+  open: boolean;
+  templates: ItemAttributeTemplateResponse[];
+}>();
 
 const emit = defineEmits<{
-  close: []
-  saved: [template: ItemAttributeTemplateResponse]
-}>()
+  close: [];
+  saved: [template: ItemAttributeTemplateResponse];
+}>();
 
-const selectedTemplateId = ref<number | null>(null)
-const selectedFieldIds = ref<number[]>([])
-const baselineFieldIds = ref<number[]>([])
-const saving = ref(false)
+const selectedTemplateId = ref<number | null>(null);
+const selectedFieldIds = ref<number[]>([]);
+const baselineFieldIds = ref<number[]>([]);
+const saving = ref(false);
 
-const activeTemplate = computed(() => props.templates.find((template) => template.id === selectedTemplateId.value) ?? null)
-const selectedCount = computed(() => selectedFieldIds.value.length)
-const changed = computed(() => normalizedIds(selectedFieldIds.value) !== normalizedIds(baselineFieldIds.value))
+const activeTemplate = computed(
+  () => props.templates.find((template) => template.id === selectedTemplateId.value) ?? null,
+);
+const selectedCount = computed(() => selectedFieldIds.value.length);
+const changed = computed(
+  () => normalizedIds(selectedFieldIds.value) !== normalizedIds(baselineFieldIds.value),
+);
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  const firstTemplate = props.templates[0] ?? null
-  selectedTemplateId.value = firstTemplate?.id ?? null
-  restoreSelection(firstTemplate)
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return;
+    const firstTemplate = props.templates[0] ?? null;
+    selectedTemplateId.value = firstTemplate?.id ?? null;
+    restoreSelection(firstTemplate);
+  },
+);
 
 watch(selectedTemplateId, (id) => {
-  restoreSelection(props.templates.find((template) => template.id === id) ?? null)
-})
+  restoreSelection(props.templates.find((template) => template.id === id) ?? null);
+});
 
 function restoreSelection(template: ItemAttributeTemplateResponse | null): void {
-  const ids = template?.fields.filter((field) => field.catalog_visible).map((field) => field.id) ?? []
-  selectedFieldIds.value = [...ids]
-  baselineFieldIds.value = [...ids]
+  const ids =
+    template?.fields.filter((field) => field.catalog_visible).map((field) => field.id) ?? [];
+  selectedFieldIds.value = [...ids];
+  baselineFieldIds.value = [...ids];
 }
 
 function fieldDisabled(fieldId: number): boolean {
-  return selectedCount.value >= 3 && !selectedFieldIds.value.includes(fieldId)
+  return selectedCount.value >= 3 && !selectedFieldIds.value.includes(fieldId);
 }
 
 async function save(): Promise<void> {
-  const template = activeTemplate.value
-  if (!template || saving.value || !changed.value) return
-  saving.value = true
+  const template = activeTemplate.value;
+  if (!template || saving.value || !changed.value) return;
+  saving.value = true;
   try {
-    const selected = new Set(selectedFieldIds.value)
+    const selected = new Set(selectedFieldIds.value);
     const updated = await updateItemAttributeTemplate(template.id, {
       fields: template.fields.map((field) => fieldRequest(field, selected.has(field.id))),
-    })
-    notice.success('列表展示已更新')
-    emit('saved', updated)
-    emit('close')
+    });
+    notice.success("列表展示已更新");
+    emit("saved", updated);
+    emit("close");
   } catch (error) {
-    notice.error('保存列表展示失败', { detail: error instanceof ApiError ? error.message : '无法连接到 WineStock 服务' })
+    notice.error("保存列表展示失败", {
+      detail: error instanceof ApiError ? error.message : "无法连接到 WineStock 服务",
+    });
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
@@ -155,15 +180,23 @@ function fieldRequest(field: ItemAttributeTemplateFieldResponse, catalogVisible:
     searchable: field.searchable,
     catalog_visible: catalogVisible,
     unit: field.unit,
-  }
+  };
 }
 
 function normalizedIds(ids: number[]): string {
-  return [...ids].sort((left, right) => left - right).join(',')
+  return [...ids].sort((left, right) => left - right).join(",");
 }
 
 function fieldTypeLabel(type: TemplateFieldType): string {
-  return ({ text: '文本', number: '数值', select: '选项', date: '日期', file: '图片', url: '链接', boolean: '是 / 否' })[type]
+  return {
+    text: "文本",
+    number: "数值",
+    select: "选项",
+    date: "日期",
+    file: "图片",
+    url: "链接",
+    boolean: "是 / 否",
+  }[type];
 }
 </script>
 

@@ -3,13 +3,13 @@
 /** 通用分页响应。 */
 export interface PaginatedResponse<TItem> {
   /** 当前页数据。 */
-  items: TItem[]
+  items: TItem[];
   /** 满足条件的总记录数。 */
-  total: number
+  total: number;
   /** 当前页码，从 1 开始。 */
-  page: number
+  page: number;
   /** 当前每页数量。 */
-  page_size: number
+  page_size: number;
   /** 总页数；无数据时为 0。 */
-  total_pages: number
+  total_pages: number;
 }

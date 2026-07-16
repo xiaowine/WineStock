@@ -1,5 +1,5 @@
 /* 本文件拥有登录、注册和修改密码页面共用的认证页面布局与响应式规则，不处理鉴权状态。 */
-@use '../foundation/mixins' as mixins;
+@use "../foundation/mixins" as mixins;
 .auth-page {
   display: grid;
   min-height: 100vh;

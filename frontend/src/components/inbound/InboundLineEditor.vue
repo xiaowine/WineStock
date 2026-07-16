@@ -1,19 +1,50 @@
 <!-- 本组件拥有正式入库明细的批次、有效期和模板字段编辑区；它不选择明细或提交整张入库单。 -->
 <template>
-  <section ref="editor" class="inbound-line-editor inbound-line-editor--drawer" role="dialog" aria-modal="true" aria-labelledby="inbound-line-editor-title" tabindex="-1">
+  <section
+    ref="editor"
+    class="inbound-line-editor inbound-line-editor--drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="inbound-line-editor-title"
+    tabindex="-1"
+  >
     <header>
-      <AuthenticatedImage :file-id="line.item.image_file_id" :alt="`${line.item.name} 主图`" :size="34" previewable />
+      <AuthenticatedImage
+        :file-id="line.item.image_file_id"
+        :alt="`${line.item.name} 主图`"
+        :size="34"
+        previewable
+      />
       <div>
         <strong id="inbound-line-editor-title">批次与入库属性</strong>
         <span>{{ line.item.name }} · {{ line.item.sku }} · {{ line.item.unit }}</span>
       </div>
-      <button class="inbound-line-editor__close" type="button" aria-label="关闭当前明细详情" title="关闭" @click="$emit('close')">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" /></svg>
+      <button
+        class="inbound-line-editor__close"
+        type="button"
+        aria-label="关闭当前明细详情"
+        title="关闭"
+        @click="$emit('close')"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
       </button>
     </header>
     <div class="inbound-line-editor__base-fields">
-      <label><span>批次号</span><input v-model="line.batchNo" :name="`batch_no_${line.lineId}`" type="text" maxlength="128" placeholder="留空后由服务端生成" /></label>
-      <label><span>有效期</span><input v-model="line.expiresAt" :name="`expires_at_${line.lineId}`" type="date" /></label>
+      <label
+        ><span>批次号</span
+        ><input
+          v-model="line.batchNo"
+          :name="`batch_no_${line.lineId}`"
+          type="text"
+          maxlength="128"
+          placeholder="留空后由服务端生成"
+      /></label>
+      <label
+        ><span>有效期</span
+        ><input v-model="line.expiresAt" :name="`expires_at_${line.lineId}`" type="date"
+      /></label>
     </div>
     <section class="inbound-template-config" aria-labelledby="inbound-template-config-title">
       <header>
@@ -22,26 +53,58 @@
       </header>
       <div v-if="templatesError" class="inbound-template-options-error" role="alert">
         <span>{{ templatesError }}</span>
-        <button class="text-button" type="button" :disabled="templatesLoading" @click="$emit('retry-templates')">
-          {{ templatesLoading ? '正在重试…' : '重新加载模板' }}
+        <button
+          class="text-button"
+          type="button"
+          :disabled="templatesLoading"
+          @click="$emit('retry-templates')"
+        >
+          {{ templatesLoading ? "正在重试…" : "重新加载模板" }}
         </button>
       </div>
       <label class="inbound-template-picker">
         <span>模板方案</span>
-        <SelectControl data-template-picker :name="`template_${line.lineId}`" :model-value="line.templateId ?? ''" :disabled="templatesLoading && !templates.length" @change="emitTemplateSelection">
+        <SelectControl
+          data-template-picker
+          :name="`template_${line.lineId}`"
+          :model-value="line.templateId ?? ''"
+          :disabled="templatesLoading && !templates.length"
+          @change="emitTemplateSelection"
+        >
           <option value="">不使用入库模板</option>
-          <option v-if="unresolvedSelectedTemplate" :value="line.templateId" disabled>已删除入库模板 #{{ line.templateId }}</option>
-          <option v-for="template in templates" :key="template.id" :value="template.id">{{ template.name }}</option>
+          <option v-if="unresolvedSelectedTemplate" :value="line.templateId" disabled>
+            已删除入库模板 #{{ line.templateId }}
+          </option>
+          <option v-for="template in templates" :key="template.id" :value="template.id">
+            {{ template.name }}
+          </option>
         </SelectControl>
       </label>
     </section>
-    <section v-if="line.templateState === 'resolving'" class="inbound-template-state">正在加载入库模板…</section>
-    <section v-else-if="line.templateError" class="inbound-template-state inbound-template-state--error" role="alert">
+    <section v-if="line.templateState === 'resolving'" class="inbound-template-state">
+      正在加载入库模板…
+    </section>
+    <section
+      v-else-if="line.templateError"
+      class="inbound-template-state inbound-template-state--error"
+      role="alert"
+    >
       <span>{{ line.templateError }}</span>
-      <button v-if="line.templateState === 'error'" class="text-button" type="button" data-template-retry @click="$emit('retry-template', line)">重试</button>
+      <button
+        v-if="line.templateState === 'error'"
+        class="text-button"
+        type="button"
+        data-template-retry
+        @click="$emit('retry-template', line)"
+      >
+        重试
+      </button>
     </section>
     <section v-else-if="line.template" class="inbound-template-fields">
-      <header><strong>{{ line.template.name }}</strong><span>* 必填</span></header>
+      <header>
+        <strong>{{ line.template.name }}</strong
+        ><span>* 必填</span>
+      </header>
       <div>
         <div
           v-for="field in line.template.fields"
@@ -70,7 +133,10 @@
             :aria-describedby="fieldInvalid(field) ? fieldErrorId(field) : undefined"
             :title="fieldTitle(field)"
           >
-            <option value="">请选择</option><option v-for="option in field.options ?? []" :key="option" :value="option">{{ option }}</option>
+            <option value="">请选择</option>
+            <option v-for="option in field.options ?? []" :key="option" :value="option">
+              {{ option }}
+            </option>
           </SelectControl>
           <SelectControl
             v-else-if="field.field_type === 'boolean'"
@@ -82,7 +148,9 @@
             :aria-describedby="fieldInvalid(field) ? fieldErrorId(field) : undefined"
             :title="fieldTitle(field)"
           >
-            <option :value="undefined">请选择</option><option :value="true">是</option><option :value="false">否</option>
+            <option :value="undefined">请选择</option>
+            <option :value="true">是</option>
+            <option :value="false">否</option>
           </SelectControl>
           <input
             v-else
@@ -97,11 +165,19 @@
             :placeholder="field.default_value ?? undefined"
             :title="fieldTitle(field)"
           />
-          <small v-if="fieldInvalid(field)" :id="fieldErrorId(field)" class="visually-hidden" role="alert">{{ fieldTitle(field) }}</small>
+          <small
+            v-if="fieldInvalid(field)"
+            :id="fieldErrorId(field)"
+            class="visually-hidden"
+            role="alert"
+            >{{ fieldTitle(field) }}</small
+          >
         </div>
       </div>
     </section>
-    <p v-else class="inbound-line-editor__empty">当前未使用入库模板，没有需要填写的本次收货属性。</p>
+    <p v-else class="inbound-line-editor__empty">
+      当前未使用入库模板，没有需要填写的本次收货属性。
+    </p>
     <footer class="inbound-line-editor__footer">
       <button class="primary-button" type="button" @click="$emit('close')">完成</button>
     </footer>
@@ -109,53 +185,66 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import type { TemplateFieldResponse, TemplateFieldType } from '../../api/inbound'
-import type { InboundTemplateResponse } from '../../api/inboundTemplates'
-import { fileValue, templateFieldError, type InboundDraftLine } from '../../pages/inbound-draft/model'
-import AttributeImageField from '../attributes/AttributeImageField.vue'
-import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
-import SelectControl from '../forms/SelectControl.vue'
+import { computed, nextTick, onMounted, ref } from "vue";
+import type { TemplateFieldResponse, TemplateFieldType } from "../../api/inbound";
+import type { InboundTemplateResponse } from "../../api/inboundTemplates";
+import {
+  fileValue,
+  templateFieldError,
+  type InboundDraftLine,
+} from "../../pages/inbound-draft/model";
+import AttributeImageField from "../attributes/AttributeImageField.vue";
+import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
+import SelectControl from "../forms/SelectControl.vue";
 
 const props = defineProps<{
-  line: InboundDraftLine
-  templates: InboundTemplateResponse[]
-  templatesLoading: boolean
-  templatesError: string
-  validationAttempted: boolean
-}>()
+  line: InboundDraftLine;
+  templates: InboundTemplateResponse[];
+  templatesLoading: boolean;
+  templatesError: string;
+  validationAttempted: boolean;
+}>();
 const emit = defineEmits<{
-  close: []
-  'retry-template': [line: InboundDraftLine]
-  'retry-templates': []
-  'select-template': [templateId: number | null]
-}>()
-const editor = ref<HTMLElement | null>(null)
-const unresolvedSelectedTemplate = computed(() => props.line.templateState === 'unresolved' && props.line.templateId !== null)
+  close: [];
+  "retry-template": [line: InboundDraftLine];
+  "retry-templates": [];
+  "select-template": [templateId: number | null];
+}>();
+const editor = ref<HTMLElement | null>(null);
+const unresolvedSelectedTemplate = computed(
+  () => props.line.templateState === "unresolved" && props.line.templateId !== null,
+);
 
-onMounted(() => { void nextTick(() => editor.value?.focus()) })
+onMounted(() => {
+  void nextTick(() => editor.value?.focus());
+});
 
 function emitTemplateSelection(value: unknown): void {
-  emit('select-template', value === '' || value === null || value === undefined ? null : Number(value))
+  emit(
+    "select-template",
+    value === "" || value === null || value === undefined ? null : Number(value),
+  );
 }
 
 function fieldInvalid(field: TemplateFieldResponse): boolean {
-  return props.validationAttempted && templateFieldError(props.line, field) !== null
+  return props.validationAttempted && templateFieldError(props.line, field) !== null;
 }
 
 function fieldTitle(field: TemplateFieldResponse): string | undefined {
-  return props.validationAttempted ? templateFieldError(props.line, field) ?? undefined : undefined
+  return props.validationAttempted
+    ? (templateFieldError(props.line, field) ?? undefined)
+    : undefined;
 }
 
 function fieldControlName(fieldName: string): string {
-  return `attribute_${props.line.lineId}_${fieldName.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+  return `attribute_${props.line.lineId}_${fieldName.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 function fieldErrorId(field: TemplateFieldResponse): string {
-  return `inbound-field-${props.line.lineId}-${field.id}-error`
+  return `inbound-field-${props.line.lineId}-${field.id}-error`;
 }
 
 function inputType(type: TemplateFieldType): string {
-  return type === 'number' ? 'number' : type === 'date' ? 'date' : type === 'url' ? 'url' : 'text'
+  return type === "number" ? "number" : type === "date" ? "date" : type === "url" ? "url" : "text";
 }
 </script>

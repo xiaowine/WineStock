@@ -39,11 +39,18 @@
         required
       />
 
-      <FormField v-if="mode === 'select'" class="item-unit-settings__options-field" validation-key="options" :error="fieldErrors.options">
+      <FormField
+        v-if="mode === 'select'"
+        class="item-unit-settings__options-field"
+        validation-key="options"
+        :error="fieldErrors.options"
+      >
         <section class="item-unit-settings__options" aria-labelledby="unit-options-heading">
           <header class="item-unit-settings__options-header">
             <div>
-              <h3 id="unit-options-heading">单位候选 <span>{{ options.length }}/32</span></h3>
+              <h3 id="unit-options-heading">
+                单位候选 <span>{{ options.length }}/32</span>
+              </h3>
               <p>名称不能为空，忽略大小写不能重复。</p>
             </div>
             <button
@@ -60,10 +67,27 @@
             </button>
           </header>
           <div v-for="(_, index) in options" :key="index" class="item-unit-settings__option">
-            <FormField :validation-key="`option.${index}`" :error="fieldErrors[`option.${index}`]" v-slot="{ describedBy, invalid }">
-              <input v-model="options[index]" :name="`unit_setting_option_${index}`" maxlength="32" :placeholder="`候选单位 ${index + 1}`" :aria-label="`候选单位 ${index + 1}`" :aria-invalid="invalid || undefined" :aria-describedby="describedBy" />
+            <FormField
+              :validation-key="`option.${index}`"
+              :error="fieldErrors[`option.${index}`]"
+              v-slot="{ describedBy, invalid }"
+            >
+              <input
+                v-model="options[index]"
+                :name="`unit_setting_option_${index}`"
+                maxlength="32"
+                :placeholder="`候选单位 ${index + 1}`"
+                :aria-label="`候选单位 ${index + 1}`"
+                :aria-invalid="invalid || undefined"
+                :aria-describedby="describedBy"
+              />
             </FormField>
-            <button type="button" class="icon-button" :aria-label="`删除候选单位 ${index + 1}`" @click="removeOption(index)">
+            <button
+              type="button"
+              class="icon-button"
+              :aria-label="`删除候选单位 ${index + 1}`"
+              @click="removeOption(index)"
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
               </svg>
@@ -82,92 +106,95 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { ItemAttributeUnitMode } from '../../api/itemAttributeTemplates'
-import { useFormValidation } from '../../composables/useFormValidation'
-import { notice } from '../../notices/notice'
-import ModalDialog from '../ModalDialog.vue'
-import FormField from '../forms/FormField.vue'
-import FormInput from '../forms/FormInput.vue'
+import { ref, watch } from "vue";
+import type { ItemAttributeUnitMode } from "../../api/itemAttributeTemplates";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
+import ModalDialog from "../ModalDialog.vue";
+import FormField from "../forms/FormField.vue";
+import FormInput from "../forms/FormInput.vue";
 
 const props = defineProps<{
-  open: boolean
-  attributeName: string
-  unitMode: ItemAttributeUnitMode
-  fixedUnit: string
-  unitOptions: string[]
-}>()
+  open: boolean;
+  attributeName: string;
+  unitMode: ItemAttributeUnitMode;
+  fixedUnit: string;
+  unitOptions: string[];
+}>();
 const emit = defineEmits<{
-  close: []
-  save: [settings: { mode: ItemAttributeUnitMode; fixedUnit: string; options: string[] }]
-}>()
+  close: [];
+  save: [settings: { mode: ItemAttributeUnitMode; fixedUnit: string; options: string[] }];
+}>();
 
-const mode = ref<ItemAttributeUnitMode>('none')
-const fixedUnit = ref('')
-const options = ref<string[]>([])
-const fieldErrors = ref<Record<string, string>>({})
-const { clearErrors } = useFormValidation(fieldErrors)
+const mode = ref<ItemAttributeUnitMode>("none");
+const fixedUnit = ref("");
+const options = ref<string[]>([]);
+const fieldErrors = ref<Record<string, string>>({});
+const { clearErrors } = useFormValidation(fieldErrors);
 const modeOptions: Array<{ value: ItemAttributeUnitMode; label: string }> = [
-  { value: 'none', label: '无单位' },
-  { value: 'fixed', label: '指定单位' },
-  { value: 'select', label: '选择单位' },
-]
+  { value: "none", label: "无单位" },
+  { value: "fixed", label: "指定单位" },
+  { value: "select", label: "选择单位" },
+];
 
-watch(() => props.open, (open) => {
-  if (!open) return
-  mode.value = props.unitMode
-  fixedUnit.value = props.fixedUnit
-  options.value = [...props.unitOptions]
-  clearErrors()
-})
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) return;
+    mode.value = props.unitMode;
+    fixedUnit.value = props.fixedUnit;
+    options.value = [...props.unitOptions];
+    clearErrors();
+  },
+);
 
 function close(): void {
-  emit('close')
+  emit("close");
 }
 
 function selectMode(nextMode: ItemAttributeUnitMode): void {
-  mode.value = nextMode
-  clearErrors()
+  mode.value = nextMode;
+  clearErrors();
 }
 
 function addOption(): void {
-  options.value.push('')
-  clearErrors()
+  options.value.push("");
+  clearErrors();
 }
 
 function removeOption(index: number): void {
-  options.value.splice(index, 1)
-  clearErrors()
+  options.value.splice(index, 1);
+  clearErrors();
 }
 
 function save(): void {
-  const normalizedFixed = fixedUnit.value.trim()
-  const normalizedOptions = options.value.map((option) => option.trim())
-  const errors: Record<string, string> = {}
-  if (mode.value === 'fixed' && !normalizedFixed) {
-    errors.fixedUnit = '请输入单位名称。'
+  const normalizedFixed = fixedUnit.value.trim();
+  const normalizedOptions = options.value.map((option) => option.trim());
+  const errors: Record<string, string> = {};
+  if (mode.value === "fixed" && !normalizedFixed) {
+    errors.fixedUnit = "请输入单位名称。";
   }
-  if (mode.value === 'select') {
-    const names = new Set<string>()
-    if (normalizedOptions.length === 0) errors.options = '至少添加一个候选单位。'
+  if (mode.value === "select") {
+    const names = new Set<string>();
+    if (normalizedOptions.length === 0) errors.options = "至少添加一个候选单位。";
     normalizedOptions.forEach((option, index) => {
       if (!option) {
-        errors[`option.${index}`] = '请输入候选单位。'
-        return
+        errors[`option.${index}`] = "请输入候选单位。";
+        return;
       }
-      if (!names.add(option.toLowerCase())) errors[`option.${index}`] = '候选单位不能重复。'
-    })
+      if (!names.add(option.toLowerCase())) errors[`option.${index}`] = "候选单位不能重复。";
+    });
   }
   if (Object.keys(errors).length > 0) {
-    fieldErrors.value = errors
-    notice.warning('请检查单位设置', { detail: Object.values(errors)[0] })
-    return
+    fieldErrors.value = errors;
+    notice.warning("请检查单位设置", { detail: Object.values(errors)[0] });
+    return;
   }
-  emit('save', {
+  emit("save", {
     mode: mode.value,
-    fixedUnit: mode.value === 'fixed' ? normalizedFixed : '',
-    options: mode.value === 'select' ? normalizedOptions : [],
-  })
+    fixedUnit: mode.value === "fixed" ? normalizedFixed : "",
+    options: mode.value === "select" ? normalizedOptions : [],
+  });
 }
 </script>
 
@@ -289,7 +316,7 @@ function save(): void {
   box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
 }
 
-.item-unit-settings__option input[aria-invalid='true']:focus {
+.item-unit-settings__option input[aria-invalid="true"]:focus {
   border-color: var(--color-danger);
   box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
 }

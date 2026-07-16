@@ -25,12 +25,12 @@
         </div>
         <div>
           <dt>限制库位</dt>
-          <dd>{{ item.location_name || '全部库位' }}</dd>
+          <dd>{{ item.location_name || "全部库位" }}</dd>
         </div>
         <div>
           <dt>扣减方式</dt>
           <dd>
-            {{ item.batch_id ? `指定批次 #${item.batch_id}` : '审批时按 FIFO 分配' }}
+            {{ item.batch_id ? `指定批次 #${item.batch_id}` : "审批时按 FIFO 分配" }}
           </dd>
         </div>
       </dl>
@@ -41,7 +41,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import type { OutboundOrderResponse } from '../../api/outboundOrders'
-import AuthenticatedImage from '../attributes/AuthenticatedImage.vue'
-defineProps<{ order: OutboundOrderResponse }>()
+import type { OutboundOrderResponse } from "../../api/outboundOrders";
+import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
+defineProps<{ order: OutboundOrderResponse }>();
 </script>

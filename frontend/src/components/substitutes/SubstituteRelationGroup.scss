@@ -1,5 +1,5 @@
 /* 本文件拥有全局替代关系组的三段式与移动单列布局。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 
 .substitute-relation-group {
   display: grid;
@@ -58,7 +58,7 @@
         font-size: 11px;
 
         &::after {
-          content: '：';
+          content: "：";
         }
       }
 
@@ -177,8 +177,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      'identity decision'
-      'summary summary';
+      "identity decision"
+      "summary summary";
     padding: 13px 14px;
     overflow: hidden;
     border: 1px solid var(--color-border);

@@ -1,5 +1,5 @@
 /* 本文件拥有替代关系 SVG 画布、节点、方向边和画布状态样式。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 
 .substitute-network-canvas {
   position: relative;
@@ -28,7 +28,7 @@
     fill: var(--color-border-strong);
   }
 
-  marker[id$='arrow-active'] path {
+  marker[id$="arrow-active"] path {
     fill: var(--color-accent);
   }
 
@@ -214,5 +214,4 @@
   .substitute-network-edge {
     transition: none;
   }
-
 }

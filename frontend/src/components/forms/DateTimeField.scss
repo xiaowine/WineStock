@@ -1,5 +1,5 @@
 /* 本文件拥有项目通用日期时间字段和嵌套选择 Dialog 的视觉规则。 */
-@use '../../styles/foundation/mixins' as mixins;
+@use "../../styles/foundation/mixins" as mixins;
 
 .date-time-field {
   &__trigger {
@@ -29,15 +29,15 @@
     }
 
     &:focus-visible,
-    &[aria-expanded='true'] {
+    &[aria-expanded="true"] {
       @include mixins.focus-ring;
     }
 
-    &[aria-invalid='true'] {
+    &[aria-invalid="true"] {
       border-color: var(--color-danger);
 
       &:focus-visible,
-      &[aria-expanded='true'] {
+      &[aria-expanded="true"] {
         outline-color: rgb(157 40 50 / 16%);
       }
     }

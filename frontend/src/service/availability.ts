@@ -1,35 +1,35 @@
 // 本文件拥有 frontend 服务可用性探测与恢复调度；它不启动 Axum、不管理鉴权 token，也不决定具体页面布局。
-import { readonly, ref } from 'vue'
-import { checkHealth } from '../api/health'
+import { readonly, ref } from "vue";
+import { checkHealth } from "../api/health";
 
-const AVAILABLE_CHECK_INTERVAL_MS = 15_000
-const UNAVAILABLE_CHECK_INTERVAL_MS = 5_000
-const HEALTH_CHECK_TIMEOUT_MS = 4_000
+const AVAILABLE_CHECK_INTERVAL_MS = 15_000;
+const UNAVAILABLE_CHECK_INTERVAL_MS = 5_000;
+const HEALTH_CHECK_TIMEOUT_MS = 4_000;
 
 /** 当前配置服务的可用性状态。 */
-export type ServiceAvailabilityStatus = 'checking' | 'available' | 'unavailable'
+export type ServiceAvailabilityStatus = "checking" | "available" | "unavailable";
 
-const mutableStatus = ref<ServiceAvailabilityStatus>('checking')
-const mutableIsChecking = ref(false)
-const mutableSuccessfulCheckSequence = ref(0)
-let monitorStarted = false
-let scheduledCheck: number | null = null
-let checkInFlight: Promise<void> | null = null
+const mutableStatus = ref<ServiceAvailabilityStatus>("checking");
+const mutableIsChecking = ref(false);
+const mutableSuccessfulCheckSequence = ref(0);
+let monitorStarted = false;
+let scheduledCheck: number | null = null;
+let checkInFlight: Promise<void> | null = null;
 
 /** 只读服务可用性；根应用据此决定是否阻断业务页面。 */
-export const serviceAvailabilityStatus = readonly(mutableStatus)
+export const serviceAvailabilityStatus = readonly(mutableStatus);
 
 /** 只读探测进行状态；用于禁用重复手动重试。 */
-export const isCheckingServiceAvailability = readonly(mutableIsChecking)
+export const isCheckingServiceAvailability = readonly(mutableIsChecking);
 
 /** 每次健康检查成功后递增，供会话层在服务恢复时执行一次恢复。 */
-export const successfulServiceCheckSequence = readonly(mutableSuccessfulCheckSequence)
+export const successfulServiceCheckSequence = readonly(mutableSuccessfulCheckSequence);
 
 /** 业务 API 已确认网络连接失败时立即进入全屏断连状态，并安排下一次健康检查。 */
 export function reportServiceUnavailable(): void {
-  mutableStatus.value = 'unavailable'
-  clearScheduledCheck()
-  scheduleNextCheck()
+  mutableStatus.value = "unavailable";
+  clearScheduledCheck();
+  scheduleNextCheck();
 }
 
 /**
@@ -37,80 +37,80 @@ export function reportServiceUnavailable(): void {
  * 它会立即检查，并在前台按可用性选择轮询间隔；窗口唤醒或恢复联网时会立即补检。
  */
 export function startServiceAvailabilityMonitor(): void {
-  if (monitorStarted || typeof window === 'undefined' || typeof document === 'undefined') {
-    return
+  if (monitorStarted || typeof window === "undefined" || typeof document === "undefined") {
+    return;
   }
 
-  monitorStarted = true
-  window.addEventListener('focus', handleServiceWake)
-  window.addEventListener('online', handleServiceWake)
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-  void checkServiceAvailability()
+  monitorStarted = true;
+  window.addEventListener("focus", handleServiceWake);
+  window.addEventListener("online", handleServiceWake);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  void checkServiceAvailability();
 }
 
 /** 立即检查服务；并发触发会复用同一个请求。 */
 export function checkServiceAvailability(): Promise<void> {
   if (checkInFlight) {
-    return checkInFlight
+    return checkInFlight;
   }
 
-  clearScheduledCheck()
-  mutableIsChecking.value = true
+  clearScheduledCheck();
+  mutableIsChecking.value = true;
   const task = performHealthCheck().finally(() => {
-    mutableIsChecking.value = false
-    checkInFlight = null
-    scheduleNextCheck()
-  })
-  checkInFlight = task
-  return task
+    mutableIsChecking.value = false;
+    checkInFlight = null;
+    scheduleNextCheck();
+  });
+  checkInFlight = task;
+  return task;
 }
 
 async function performHealthCheck(): Promise<void> {
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS)
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
   try {
-    await checkHealth(controller.signal)
-    mutableStatus.value = 'available'
-    mutableSuccessfulCheckSequence.value += 1
+    await checkHealth(controller.signal);
+    mutableStatus.value = "available";
+    mutableSuccessfulCheckSequence.value += 1;
   } catch {
-    mutableStatus.value = 'unavailable'
+    mutableStatus.value = "unavailable";
   } finally {
-    window.clearTimeout(timeout)
+    window.clearTimeout(timeout);
   }
 }
 
 function scheduleNextCheck(): void {
-  if (document.visibilityState === 'hidden') {
-    return
+  if (document.visibilityState === "hidden") {
+    return;
   }
 
   const delay =
-    mutableStatus.value === 'available'
+    mutableStatus.value === "available"
       ? AVAILABLE_CHECK_INTERVAL_MS
-      : UNAVAILABLE_CHECK_INTERVAL_MS
+      : UNAVAILABLE_CHECK_INTERVAL_MS;
   scheduledCheck = window.setTimeout(() => {
-    scheduledCheck = null
-    void checkServiceAvailability()
-  }, delay)
+    scheduledCheck = null;
+    void checkServiceAvailability();
+  }, delay);
 }
 
 function clearScheduledCheck(): void {
   if (scheduledCheck === null) {
-    return
+    return;
   }
-  window.clearTimeout(scheduledCheck)
-  scheduledCheck = null
+  window.clearTimeout(scheduledCheck);
+  scheduledCheck = null;
 }
 
 function handleServiceWake(): void {
-  void checkServiceAvailability()
+  void checkServiceAvailability();
 }
 
 function handleVisibilityChange(): void {
-  if (document.visibilityState === 'visible') {
-    handleServiceWake()
-    return
+  if (document.visibilityState === "visible") {
+    handleServiceWake();
+    return;
   }
-  clearScheduledCheck()
+  clearScheduledCheck();
 }

@@ -38,15 +38,15 @@ GET   /api/permissions
 
 ## 操作权限
 
-| 操作 | 所需权限 |
-| --- | --- |
-| 查看页面和列表 | `user.read` |
-| 创建用户 | `user.register` |
-| 启用或停用用户 | `user.status.update` |
-| 软删除用户 | `user.delete` |
-| 查看权限定义 | `user.permission.read` |
-| 修改用户权限 | `user.permissions.update` + `user.permission.read` |
-| 设置临时密码 | `user.password.reset` |
+| 操作           | 所需权限                                           |
+| -------------- | -------------------------------------------------- |
+| 查看页面和列表 | `user.read`                                        |
+| 创建用户       | `user.register`                                    |
+| 启用或停用用户 | `user.status.update`                               |
+| 软删除用户     | `user.delete`                                      |
+| 查看权限定义   | `user.permission.read`                             |
+| 修改用户权限   | `user.permissions.update` + `user.permission.read` |
+| 设置临时密码   | `user.password.reset`                              |
 
 当前页面不提供停用自己、删除自己或为自己设置临时密码的入口。当前用户应使用独立修改密码页修改自己的密码。
 

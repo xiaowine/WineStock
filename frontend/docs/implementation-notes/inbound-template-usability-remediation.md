@@ -95,15 +95,15 @@
 
 显示规则：
 
-| 状态 | 文案 | 颜色 |
-| --- | --- | --- |
-| 没有选择模板 | `入库模板：未设置` | 弱化色 |
-| 正在解析默认模板 | `正在匹配推荐模板…` | 弱化色并带稳定等待状态 |
-| 自动套用成功 | `入库模板：包装质检 · 已推荐` | 正文色，`已推荐` 使用主题色软标签 |
-| 手动选择 | `入库模板：包装质检` | 正文色 |
-| 推荐模板已删除 | `推荐模板已失效` | 警告色 |
-| 模板加载失败 | `模板加载失败` | 危险色 |
-| 无模板读取权限 | `无权读取入库模板` | 警告色 |
+| 状态             | 文案                          | 颜色                              |
+| ---------------- | ----------------------------- | --------------------------------- |
+| 没有选择模板     | `入库模板：未设置`            | 弱化色                            |
+| 正在解析默认模板 | `正在匹配推荐模板…`           | 弱化色并带稳定等待状态            |
+| 自动套用成功     | `入库模板：包装质检 · 已推荐` | 正文色，`已推荐` 使用主题色软标签 |
+| 手动选择         | `入库模板：包装质检`          | 正文色                            |
+| 推荐模板已删除   | `推荐模板已失效`              | 警告色                            |
+| 模板加载失败     | `模板加载失败`                | 危险色                            |
+| 无模板读取权限   | `无权读取入库模板`            | 警告色                            |
 
 #### 操作区
 
@@ -189,16 +189,16 @@
 当前 `InboundDraftLine` 只有 `templateLoading`、`templateError`、`templateId` 和 `template`。建议增加明确来源和解析状态：
 
 ```ts
-type InboundTemplateSource = 'none' | 'recommended' | 'manual'
-type InboundTemplateState = 'idle' | 'resolving' | 'ready' | 'unresolved' | 'error'
+type InboundTemplateSource = "none" | "recommended" | "manual";
+type InboundTemplateState = "idle" | "resolving" | "ready" | "unresolved" | "error";
 
 interface InboundDraftLine {
-  templateSource: InboundTemplateSource
-  templateState: InboundTemplateState
-  recommendedTemplateId: number | null
-  templateId: number | null
-  template: InboundTemplateResponse | null
-  templateError: string
+  templateSource: InboundTemplateSource;
+  templateState: InboundTemplateState;
+  recommendedTemplateId: number | null;
+  templateId: number | null;
+  template: InboundTemplateResponse | null;
+  templateError: string;
 }
 ```
 
