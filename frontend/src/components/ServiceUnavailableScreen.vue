@@ -25,15 +25,24 @@
           }}
         </p>
       </div>
-      <button
-        v-show="!initialCheck"
-        class="primary-button service-unavailable__retry"
-        type="button"
-        :disabled="checking"
-        @click="$emit('retry')"
-      >
-        {{ checking ? "正在连接…" : "重新连接" }}
-      </button>
+      <div v-show="!initialCheck" class="service-unavailable__actions">
+        <button
+          class="secondary-button"
+          type="button"
+          :disabled="checking"
+          @click="$emit('settings')"
+        >
+          运行设置
+        </button>
+        <button
+          class="primary-button service-unavailable__retry"
+          type="button"
+          :disabled="checking"
+          @click="$emit('retry')"
+        >
+          {{ checking ? "正在连接…" : "重新连接" }}
+        </button>
+      </div>
     </section>
   </main>
 </template>
@@ -49,6 +58,8 @@ defineProps<{
 defineEmits<{
   /** 用户要求立即重新检查服务。 */
   retry: [];
+  /** 用户要求打开不依赖 API 的运行设置。 */
+  settings: [];
 }>();
 </script>
 

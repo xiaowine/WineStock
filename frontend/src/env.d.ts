@@ -1,5 +1,6 @@
 // 本文件声明 frontend 的 Vite 环境变量和平台运行时注入对象；它不读取或修改实际配置。
 import type { FrontendRuntimeConfig } from "./api/runtime-config";
+import type { ShellBridge } from "./shell/contract";
 
 interface ImportMetaEnv {
   /** 开发或 Web 部署时使用的 WineStock HTTP 服务根地址。 */
@@ -20,6 +21,8 @@ declare global {
   interface Window {
     /** Desktop、Android 或 Web shell 在应用挂载前注入的运行时配置。 */
     __WINESTOCK_RUNTIME_CONFIG__?: FrontendRuntimeConfig;
+    /** Desktop、Android 在页面脚本执行前注入的版本化 Shell Bridge。 */
+    __WINESTOCK_SHELL_BRIDGE__?: ShellBridge;
   }
 }
 

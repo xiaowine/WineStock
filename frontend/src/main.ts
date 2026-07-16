@@ -1,5 +1,5 @@
 // 本文件拥有 frontend Vue 应用装配入口，连接服务监控、鉴权会话、路由守卫、全局浮层滚动条并挂载根组件；它不拥有平台 shell 生命周期。
-import { createApp, watch } from "vue";
+import { createApp, nextTick, watch } from "vue";
 import "./styles/index.scss";
 import App from "./App.vue";
 import { apiClient } from "./api/client";
@@ -14,34 +14,66 @@ import { installOverlayScrollbars } from "./bootstrap/overlayScrollbars";
 import { router } from "./router";
 import { installAuthGuards } from "./router/guards";
 import {
+  checkServiceAvailability,
   reportServiceUnavailable,
   startServiceAvailabilityMonitor,
   successfulServiceCheckSequence,
 } from "./service/availability";
+import { activeApiBaseUrl, initializeShellRuntime, reportFrontendReady } from "./shell/runtime";
 
-apiClient.setAccessTokenProvider(getValidAccessToken);
-apiClient.setNetworkErrorHandler(reportServiceUnavailable);
-startAuthSessionSynchronization();
-startAuthSessionAutoRefresh();
-startServiceAvailabilityMonitor();
-installAuthGuards(router);
+async function bootstrapFrontend(): Promise<void> {
+  try {
+    await initializeShellRuntime();
+  } catch {
+    // Shell 初始化失败时仍挂载运行设置页，由前端展示可恢复错误。
+  }
 
-let handledServiceRecoverySequence = 0;
-watch(
-  [successfulServiceCheckSequence, authStatus],
-  ([sequence, status]) => {
-    if (status !== "unavailable" || sequence === 0 || sequence === handledServiceRecoverySequence) {
+  apiClient.setAccessTokenProvider(getValidAccessToken);
+  apiClient.setNetworkErrorHandler(reportServiceUnavailable);
+  startAuthSessionSynchronization();
+  startAuthSessionAutoRefresh();
+  installAuthGuards(router);
+
+  if (activeApiBaseUrl.value) {
+    startServiceAvailabilityMonitor();
+    void ensureAuthSessionInitialized();
+  }
+
+  watch(activeApiBaseUrl, (current, previous) => {
+    if (!current || current === previous) {
       return;
     }
-
-    handledServiceRecoverySequence = sequence;
+    startServiceAvailabilityMonitor();
+    void checkServiceAvailability();
     void ensureAuthSessionInitialized();
-  },
-  { flush: "sync" },
-);
+  });
 
-// 提前启动统一恢复 Promise；路由守卫仍会等待同一个任务后再决定是否放行。
-void ensureAuthSessionInitialized();
+  let handledServiceRecoverySequence = 0;
+  watch(
+    [successfulServiceCheckSequence, authStatus],
+    ([sequence, status]) => {
+      if (
+        status !== "unavailable" ||
+        sequence === 0 ||
+        sequence === handledServiceRecoverySequence
+      ) {
+        return;
+      }
 
-createApp(App).use(router).mount("#app");
-installOverlayScrollbars();
+      handledServiceRecoverySequence = sequence;
+      void ensureAuthSessionInitialized();
+    },
+    { flush: "sync" },
+  );
+
+  createApp(App).use(router).mount("#app");
+  installOverlayScrollbars();
+  await nextTick();
+  window.requestAnimationFrame(() => {
+    void reportFrontendReady().catch((error: unknown) => {
+      console.warn("无法向平台 Shell 报告前端就绪状态", error);
+    });
+  });
+}
+
+void bootstrapFrontend();

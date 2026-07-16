@@ -8,6 +8,7 @@ import {
   ensureAuthSessionInitialized,
   isLoggingOut,
 } from "../auth/session";
+import { hasConfiguredApiService } from "../shell/runtime";
 import { getDefaultAppRouteName } from "./navigation";
 
 let guardsInstalled = false;
@@ -20,6 +21,13 @@ export function installAuthGuards(router: Router): void {
   guardsInstalled = true;
 
   router.beforeEach(async (to) => {
+    if (to.meta.requiresService === false) {
+      return;
+    }
+    if (!hasConfiguredApiService.value) {
+      return createRuntimeSettingsRedirect(to.fullPath);
+    }
+
     const status = await ensureAuthSessionInitialized();
     if (to.meta.requiresAuth && status === "anonymous") {
       return createLoginRedirect(to.fullPath);
@@ -58,6 +66,9 @@ export function installAuthGuards(router: Router): void {
     }
 
     const currentRoute = router.currentRoute.value;
+    if (currentRoute.meta.requiresService === false) {
+      return;
+    }
     if (
       status === "authenticated" &&
       session?.user.password_change_required &&
@@ -153,5 +164,12 @@ function createPasswordChangeRedirect(fullPath: string | undefined): RouteLocati
   return {
     name: "change-password",
     query: fullPath ? { redirect: fullPath } : undefined,
+  };
+}
+
+function createRuntimeSettingsRedirect(fullPath: string): RouteLocationRaw {
+  return {
+    name: "runtime-settings",
+    query: fullPath === "/settings/runtime" ? undefined : { returnTo: fullPath },
   };
 }

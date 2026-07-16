@@ -51,6 +51,7 @@ WineStock/
     architecture.md
     runtime-networking.md
     platforms.md
+    shell-bridge.md               # UI 平台的前端配置与 Shell 运行控制契约
     project-structure.md
     agent-checklist.md
     code-map.md                  # 分层代码地图总索引
@@ -167,18 +168,22 @@ Current `core` HTTP surface:
 It must not depend on `core`, Axum, Tauri, Android shell code, or frontend build output.
 
 `desktop/tauri` owns the Tauri v2 desktop shell.
-It starts or connects to `core` based on config and packages desktop frontend assets through Tauri.
+It starts or connects to `core` based on config, packages desktop frontend assets through Tauri, and implements the desktop transport for the versioned Shell Bridge.
+It does not own a native settings UI; the shared frontend reads and applies runtime configuration through the bridge.
 
 `android/app` owns the Android native shell and WebView.
-It starts or connects to `core` based on config and packages Android frontend assets through Android.
+It starts or connects to `core` based on config, packages Android frontend assets through Android, and implements the Android transport for the versioned Shell Bridge.
+It does not own a native settings Activity or dialog; the shared frontend reads and applies runtime configuration through the bridge.
 
 `server` owns the headless server shell.
 It starts `core` based on shared config, reports service status and access URLs, handles Ctrl+C shutdown, and does not own frontend build output.
 
 `frontend` owns frontend source code.
+On UI-bearing platforms it is also the only functional UI for first-run setup, API address selection, runtime configuration, service status and startup recovery.
+It uses HTTP for business APIs and the Shell Bridge for platform runtime control.
 The selected frontend framework is a project choice, not an Axum service requirement.
 
-The root `docs/` directory owns only cross-component architecture, platform, networking, project-structure, agent-checklist, and whole-repository code-map documents.
+The root `docs/` directory owns only cross-component architecture, platform, networking, Shell Bridge, project-structure, agent-checklist, and whole-repository code-map documents.
 Component-specific documentation belongs under `core/docs/`, `shared/docs/`, `server/docs/`, `frontend/docs/`, or the corresponding future platform directory.
 
 ## Future Splits

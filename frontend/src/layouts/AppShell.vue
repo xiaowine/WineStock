@@ -61,6 +61,7 @@
             :show-user-summary="true"
             :logout-error="logoutError"
             :is-logging-out="isLoggingOut"
+            @runtime-settings="openRuntimeSettings"
             @logout="handleLogout"
           />
         </Transition>
@@ -111,7 +112,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { authSession } from "../auth/session";
 import AccountPopover from "../components/AccountPopover.vue";
 import AccountUserSummary from "../components/AccountUserSummary.vue";
@@ -125,6 +126,7 @@ const DESKTOP_QUERY = "(min-width: 768px)";
 const navOpen = ref(false);
 const navTrigger = ref<HTMLButtonElement | null>(null);
 const route = useRoute();
+const router = useRouter();
 const {
   accountMenuOpen,
   closeAccountMenu,
@@ -155,6 +157,14 @@ function toggleAccountMenu(): void {
   closeNavigation();
   logoutError.value = "";
   toggleAccountPopover();
+}
+
+function openRuntimeSettings(): void {
+  closeAccountMenu();
+  void router.push({
+    name: "runtime-settings",
+    query: { returnTo: route.fullPath },
+  });
 }
 
 /** 断点变化只关闭临时 Drawer，不切换或重挂载应用框架和路由页面。 */

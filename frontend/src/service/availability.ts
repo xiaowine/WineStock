@@ -15,6 +15,8 @@ const mutableSuccessfulCheckSequence = ref(0);
 let monitorStarted = false;
 let scheduledCheck: number | null = null;
 let checkInFlight: Promise<void> | null = null;
+let activeHealthController: AbortController | null = null;
+let runtimeGeneration = 0;
 
 /** 只读服务可用性；根应用据此决定是否阻断业务页面。 */
 export const serviceAvailabilityStatus = readonly(mutableStatus);
@@ -56,7 +58,11 @@ export function checkServiceAvailability(): Promise<void> {
 
   clearScheduledCheck();
   mutableIsChecking.value = true;
-  const task = performHealthCheck().finally(() => {
+  const generation = runtimeGeneration;
+  const task = performHealthCheck(generation).finally(() => {
+    if (generation !== runtimeGeneration) {
+      return;
+    }
     mutableIsChecking.value = false;
     checkInFlight = null;
     scheduleNextCheck();
@@ -65,18 +71,41 @@ export function checkServiceAvailability(): Promise<void> {
   return task;
 }
 
-async function performHealthCheck(): Promise<void> {
+/** API 根地址改变时取消旧探测，并从 checking 状态重新检查新服务。 */
+export function resetServiceAvailabilityForRuntimeChange(): void {
+  runtimeGeneration += 1;
+  activeHealthController?.abort();
+  activeHealthController = null;
+  clearScheduledCheck();
+  checkInFlight = null;
+  mutableStatus.value = "checking";
+  mutableIsChecking.value = false;
+  if (monitorStarted) {
+    void checkServiceAvailability();
+  }
+}
+
+async function performHealthCheck(generation: number): Promise<void> {
   const controller = new AbortController();
+  activeHealthController = controller;
   const timeout = window.setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
 
   try {
     await checkHealth(controller.signal);
+    if (generation !== runtimeGeneration) {
+      return;
+    }
     mutableStatus.value = "available";
     mutableSuccessfulCheckSequence.value += 1;
   } catch {
-    mutableStatus.value = "unavailable";
+    if (generation === runtimeGeneration) {
+      mutableStatus.value = "unavailable";
+    }
   } finally {
     window.clearTimeout(timeout);
+    if (activeHealthController === controller) {
+      activeHealthController = null;
+    }
   }
 }
 

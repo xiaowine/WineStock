@@ -65,6 +65,13 @@
         <span>首次使用，当前服务还没有用户？</span>
         <RouterLink :to="{ name: 'register' }">创建首个用户</RouterLink>
       </div>
+      <p class="auth-runtime-note">
+        当前服务：<code>{{ activeApiBaseUrl ?? "尚未配置" }}</code>
+        ·
+        <RouterLink :to="{ name: 'runtime-settings', query: { returnTo: route.fullPath } }">
+          更改
+        </RouterLink>
+      </p>
     </section>
   </main>
 </template>
@@ -83,6 +90,7 @@ import PasswordInput from "../components/PasswordInput.vue";
 import FormField from "../components/forms/FormField.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import { useFormValidation } from "../composables/useFormValidation";
+import { activeApiBaseUrl } from "../shell/runtime";
 
 const router = useRouter();
 const route = useRoute();

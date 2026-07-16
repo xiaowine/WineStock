@@ -9,6 +9,7 @@ Read:
 - `docs/architecture.md`
 - `docs/runtime-networking.md`
 - `docs/platforms.md`
+- `docs/shell-bridge.md`（涉及 UI 平台配置、Shell 生命周期、WebView 或前端启动恢复时）
 - `docs/project-structure.md`
 - `docs/code-map.md`
 - 与当前改动对应的 `docs/code-map/*.md` 或 `docs/code-map/core/*.md` 子地图
@@ -73,6 +74,14 @@ Before changing server startup or shutdown, confirm:
 
 Desktop, Android, and the server shell may have different lifecycle policies.
 They should still call the same shared service library.
+
+UI-bearing平台还必须确认：
+
+- 前端资源在 API 未配置、未启动或启动失败时仍可加载。
+- 运行配置和服务错误只由共享前端呈现，不新增原生设置 UI。
+- 业务 API 仍走 HTTP，Shell Bridge 不代理业务或携带鉴权 token。
+- 本地 `bind_host` 与前端实际 `apiBaseUrl` 分离，不能把 `0.0.0.0` 交给 WebView 访问。
+- 修改 API 地址后会停止旧请求、重置会话边界并重新初始化健康检查。
 
 ## Frontend Packaging Check
 

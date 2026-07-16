@@ -30,6 +30,7 @@ http://127.0.0.1:<vite-port>/#/templates
 http://127.0.0.1:<vite-port>/#/substitutes
 http://127.0.0.1:<vite-port>/#/events
 http://127.0.0.1:<vite-port>/#/users
+http://127.0.0.1:<vite-port>/#/settings/runtime
 ```
 
 如果后续平台 shell 明确提供可靠的 history fallback，可以重新评估是否改用 `createWebHistory`。
@@ -54,6 +55,7 @@ http://127.0.0.1:<vite-port>/#/users
 | `/substitutes`        | `substitutes`        | `AppShell`     | 是             | 全局替代关系治理页面；需要 `stock.substitute.read`，编辑需要 `stock.substitute.manage`                                                                                                  |
 | `/events`             | `events`             | `AppShell`     | 是             | 真实审计日志筛选、自动加载、三段式列表和历史 JSON 详情；需要 `audit.read`                                                                                                               |
 | `/users`              | `users`              | `AppShell`     | 是             | 用户管理真实列表和管理操作；另需 `user.read`                                                                                                                                            |
+| `/settings/runtime`   | `runtime-settings`   | 独立响应式页面 | 否             | 唯一运行配置 UI；`requiresService = false`，无 API、无鉴权或本地服务启动失败时仍可读取并应用 Shell Bridge 配置                                                                          |
 | `/login`              | `login`              | 独立响应式页面 | 否             | 桌面和移动共用真实登录表单                                                                                                                                                              |
 | `/register`           | `register`           | 独立响应式页面 | 否             | 桌面和移动共用首个用户注册及自动登录流程                                                                                                                                                |
 | `/change-password`    | `change-password`    | 独立响应式页面 | 是             | 当前用户主动改密；强制改密用户唯一允许进入的前端页面                                                                                                                                    |
@@ -61,17 +63,18 @@ http://127.0.0.1:<vite-port>/#/users
 
 ## 布局和页面边界
 
-- `App.vue` 只提供根 `RouterView`。
+- `App.vue` 提供根 `RouterView`、全局 Notice 和服务不可用覆盖层；运行设置路由明确绕过服务覆盖层。
 - `AppShell.vue` 始终保持同一棵应用框架 DOM，通过 CSS 在桌面和移动端重排，并只提供一个嵌套 `RouterView`。
 - 移动导航 Drawer 只覆盖导航节点，不包含也不销毁当前路由页面；页面组件和业务状态在断点变化时保持不变。
 - 一级导航配置集中在 `router/navigation.ts`；OpenAPI 业务域路由已补充对应侧栏入口，并继续复用现有业务/管理分组和图标样式。
 - 入库审批与出库审批路由使用同一个库存审批工作台，只由两个薄路由页注入领域差异；历史单据查询仍留在入库单、出库单页面。
-- 登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。
+- 运行设置、登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。
 
 ## 鉴权状态
 
 `frontend/src/router/guards.ts` 已经统一执行 `requiresAuth`，业务页面不再分散判断登录状态：
 
+- `requiresService = false` 的运行设置路由不等待 API 或会话初始化；其它路由缺少有效 API 地址时先跳转到运行设置并保留 `returnTo`。
 - 普通路由声明 `requiredPermission`；需要组合能力的路由声明 `requiredPermissions`，任一权限缺失时返回当前会话可访问的默认页面。
 - 该判断只用于前端导航，Axum 仍按数据库当前权限执行最终授权。
 

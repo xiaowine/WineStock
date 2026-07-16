@@ -11,6 +11,12 @@ It connects to `remote_base_url`.
 
 Use this when the device is only a client of another server.
 
+### `connect-to-remote`
+
+The app does not start a local Axum service and connects to `remote_base_url`.
+This mode preserves an explicit remote-connection profile for client-capable shells.
+UI platforms may present it in the same settings family as `client-only`, but must preserve or deliberately normalize the stored mode rather than silently changing it.
+
 ### `self-hosted`
 
 The app starts the local Axum service for its own UI.
@@ -76,7 +82,23 @@ http://192.168.1.23:17890
 
 Controls whether the platform shell should start the local Axum service automatically.
 
-This is a platform startup decision, not a UI rendering decision.
+The shared field remains available for headless server configuration and compatibility.
+UI-bearing platforms do not expose it as a setting: local modes always persist or normalize it to `true`, while remote modes do not start a local service.
+
+## UI Platform Address Selection
+
+Desktop and Android load platform-packaged frontend resources independently from the API service.
+The WebView page URL is therefore not the API URL.
+
+The platform shell returns the effective API root to the frontend through the Shell Bridge:
+
+- local modes use a loopback URL derived from the actual bound port;
+- remote modes use the validated `remote_base_url`;
+- `0.0.0.0` and `::` are never returned as browser or WebView access hosts.
+
+The frontend owns the configuration and recovery UI, while the shell persists, validates and applies configuration.
+The settings UI must remain available when the API is unconfigured, starting, stopped or failed.
+See `docs/shell-bridge.md` for the full contract.
 
 ## Address Rules
 
@@ -108,7 +130,7 @@ Use `localhost` only when there is a concrete platform reason.
 
 Use `self-hosted`.
 Bind to `127.0.0.1` unless LAN access is also enabled.
-Open the UI against `http://127.0.0.1:<port>`.
+The platform-packaged UI calls the API at `http://127.0.0.1:<port>`.
 
 ### Other devices access this app
 
@@ -136,6 +158,7 @@ Valid strategies include:
 - ask the user to choose a port
 
 Do not silently switch ports without updating the URL used by the WebView and user-facing status.
+On UI-bearing platforms, port conflicts and retry actions are presented by the frontend through Shell Bridge state rather than a native shell dialog.
 
 ## Server Shell
 

@@ -1,6 +1,6 @@
 # 项目级文档
 
-本目录只保存 WineStock 跨组件的架构、平台边界、运行网络、项目结构、代理约束和全仓库代码地图。
+本目录只保存 WineStock 跨组件的架构、平台边界、运行网络、Shell Bridge、项目结构、代理约束和全仓库代码地图。
 具体实现文档由对应组件目录负责，避免把 `core`、`shared`、`server` 或前端的局部规则误认为整个项目的统一约束。
 
 ## 项目级规范
@@ -8,6 +8,7 @@
 - [`architecture.md`](architecture.md)：整体组件与依赖边界。
 - [`runtime-networking.md`](runtime-networking.md)：运行模式、绑定地址和访问 URL 规则。
 - [`platforms.md`](platforms.md)：desktop、Android、server 和前端平台职责。
+- [`shell-bridge.md`](shell-bridge.md)：UI 平台的前端运行配置、Shell Bridge、服务生命周期和错误边界。
 - [`project-structure.md`](project-structure.md)：仓库结构和组件所有权。
 - [`agent-checklist.md`](agent-checklist.md)：实施与验证检查清单。
 - [`code-map.md`](code-map.md)：全仓库代码地图入口。

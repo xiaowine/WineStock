@@ -1,6 +1,9 @@
 // 本文件拥有 frontend API 地址和客户端元数据解析，属于运行时配置边界；它不启动或发现 Axum 服务。
 import { ApiConfigurationError } from "./errors";
 
+let runtimeApiBaseUrlConfigured = false;
+let runtimeApiBaseUrl: string | undefined;
+
 /** 登录请求允许的客户端类型。 */
 export type ApiClientKind = "desktop" | "android" | "web";
 
@@ -31,10 +34,7 @@ export interface ApiClientMetadata {
  * 平台注入值优先于 Vite 环境变量；缺失时明确失败，避免静默连接错误服务。
  */
 export function resolveApiBaseUrl(): string {
-  const configured = firstNonBlank(
-    readInjectedConfig()?.apiBaseUrl,
-    import.meta.env.VITE_API_BASE_URL,
-  );
+  const configured = runtimeApiBaseUrlConfigured ? runtimeApiBaseUrl : resolveInitialApiBaseUrl();
 
   if (!configured) {
     throw new ApiConfigurationError(
@@ -42,6 +42,29 @@ export function resolveApiBaseUrl(): string {
     );
   }
 
+  return normalizeApiBaseUrl(configured);
+}
+
+/**
+ * 使用 Shell 当前生效快照替换 API 根地址。
+ * 传入空值表示运行配置尚未完成，后续业务请求会明确失败但不会阻止 Vue 挂载。
+ */
+export function configureRuntimeApiBaseUrl(value: string | undefined): void {
+  runtimeApiBaseUrlConfigured = true;
+  runtimeApiBaseUrl = value ? normalizeApiBaseUrl(value) : undefined;
+}
+
+/** 返回平台注入或 Vite 环境提供的初始地址，供 Web fallback 创建首个运行快照。 */
+export function resolveInitialApiBaseUrl(): string | undefined {
+  const configured = firstNonBlank(
+    readInjectedConfig()?.apiBaseUrl,
+    import.meta.env.VITE_API_BASE_URL,
+  );
+  return configured ? normalizeApiBaseUrl(configured) : undefined;
+}
+
+/** 校验并规范化用户或 Shell 提供的 API 根地址。 */
+export function normalizeApiBaseUrl(configured: string): string {
   let url: URL;
   try {
     url = new URL(configured);
@@ -52,8 +75,8 @@ export function resolveApiBaseUrl(): string {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new ApiConfigurationError("WineStock 服务地址必须使用 http 或 https");
   }
-  if (url.hostname === "0.0.0.0") {
-    throw new ApiConfigurationError("0.0.0.0 只能用于服务绑定，不能作为前端访问地址");
+  if (url.hostname === "0.0.0.0" || url.hostname === "[::]" || url.hostname === "::") {
+    throw new ApiConfigurationError("全接口监听地址不能作为前端访问地址");
   }
   if (url.username || url.password || url.search || url.hash) {
     throw new ApiConfigurationError("WineStock 服务地址不能包含凭据、查询参数或 hash");

@@ -14,6 +14,14 @@
       {{ logoutError }}
     </p>
     <button
+      class="secondary-button account-popover__settings"
+      type="button"
+      :disabled="isLoggingOut"
+      @click="emit('runtimeSettings')"
+    >
+      运行设置
+    </button>
+    <button
       class="secondary-button account-popover__logout"
       type="button"
       :disabled="isLoggingOut"
@@ -46,6 +54,8 @@ withDefaults(
 );
 
 const emit = defineEmits<{
+  /** 打开不依赖业务服务的运行设置。 */
+  runtimeSettings: [];
   /** 请求所属 Shell 执行统一退出流程。 */
   logout: [];
 }>();

@@ -71,6 +71,11 @@
   &__retry {
     min-width: 120px;
   }
+
+  &__actions {
+    display: inline-flex;
+    gap: 9px;
+  }
 }
 
 @include mixins.mobile {
@@ -83,6 +88,14 @@
       min-height: 370px;
       gap: 20px;
       padding: 32px 22px;
+    }
+
+    &__actions {
+      width: 100%;
+
+      > * {
+        flex: 1 1 0;
+      }
     }
   }
 }

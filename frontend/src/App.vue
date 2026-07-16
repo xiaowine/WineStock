@@ -11,6 +11,7 @@
       :initial-check="showStableInitialCheck && !serviceUnavailable"
       :checking="isCheckingServiceAvailability"
       @retry="checkServiceAvailability"
+      @settings="openRuntimeSettings"
     />
   </template>
   <NoticeViewport />
@@ -18,6 +19,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { authStatus } from "./auth/session";
 import { waitForStableViewport } from "./bootstrap/viewport";
 import NoticeViewport from "./components/NoticeViewport.vue";
@@ -29,6 +31,9 @@ import {
   serviceAvailabilityStatus,
 } from "./service/availability";
 
+const route = useRoute();
+const router = useRouter();
+
 const isInitialServiceCheck = computed(() => serviceAvailabilityStatus.value === "checking");
 const viewportReady = ref(false);
 const showStableInitialCheck = useStablePendingIndicator(isInitialServiceCheck, {
@@ -39,7 +44,9 @@ const serviceUnavailable = computed(
   () => serviceAvailabilityStatus.value === "unavailable" || authStatus.value === "unavailable",
 );
 const showServiceUnavailableScreen = computed(
-  () => serviceUnavailable.value || showStableInitialCheck.value,
+  () =>
+    route.meta.requiresService !== false &&
+    (serviceUnavailable.value || showStableInitialCheck.value),
 );
 
 // 首次成功连接后保持路由树挂载；后续断连只显示覆盖层，不能销毁当前页面和未保存上下文。
@@ -51,13 +58,22 @@ watch(
   },
   { immediate: true },
 );
-const canRenderRoutes = computed(() => viewportReady.value && hasMountedRoutes.value);
+const canRenderRoutes = computed(
+  () => viewportReady.value && (route.meta.requiresService === false || hasMountedRoutes.value),
+);
 
 onMounted(() => {
   void waitForStableViewport().then(() => {
     viewportReady.value = true;
   });
 });
+
+function openRuntimeSettings(): void {
+  void router.push({
+    name: "runtime-settings",
+    query: { returnTo: route.fullPath },
+  });
+}
 </script>
 
 <style scoped lang="scss">

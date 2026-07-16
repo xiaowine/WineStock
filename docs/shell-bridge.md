@@ -1,0 +1,414 @@
+# Shell Bridge 与前端运行配置
+
+本文定义 WineStock UI 平台的 Shell Bridge、运行配置界面、服务生命周期和前端启动边界。
+它同时约束 `frontend`、Desktop Tauri shell、Android shell、`core` 和 `shared`，不适用于没有 UI 的 `server` shell。
+
+## 目标
+
+Desktop 和 Android 采用“薄 Shell、单一前端 UI”的结构：
+
+```text
+frontend
+  -> 唯一用户界面、首次设置、运行配置、服务状态和业务页面
+
+Shell Bridge
+  -> 前端配置意图、平台运行状态和生命周期命令
+
+desktop/android shell
+  -> WebView、配置持久化、平台路径、core 启停和平台权限
+
+core/shared
+  -> 配置模型与校验、Axum 服务、业务能力和持久化
+```
+
+Shell 不提供原生设置窗口、Android 设置 Activity、Tauri 原生配置对话框或其它功能性 UI。
+系统启动画面和前端加载前的中性占位不属于配置 UI；正常配置错误、端口冲突、服务启动失败和重试操作必须由前端呈现。
+
+## 边界
+
+### HTTP 边界
+
+以下能力始终通过 HTTP 使用 core：
+
+- 鉴权和会话。
+- 用户、权限、库存、入库、出库和审计等业务 API。
+- 文件上传和下载。
+- `/api/health` 服务可用性检查。
+
+Shell Bridge 不得复制 HTTP DTO、代理业务请求或把 Rust 内部业务函数暴露给前端。
+
+### Shell Bridge 边界
+
+以下能力通过 Shell Bridge：
+
+- 读取前端可编辑的运行配置。
+- 校验、保存和应用运行配置。
+- 启动、停止和重启本地 Axum。
+- 返回真实 API 访问地址、监听地址和稳定错误码。
+- 报告应用恢复、原生返回键和服务状态变化。
+- 接收前端首屏已渲染的就绪通知。
+- 打开经过校验的外部链接等明确平台能力。
+
+桥不得传递 access token、refresh token、密码、数据库连接、Rust 对象或无边界的任意 native method 调用。
+
+## 启动原则
+
+前端资源加载不得依赖 API 服务已经可用。
+Shell 必须先加载平台打包的前端资源，再由前端读取配置和运行状态。
+
+```text
+Shell 启动
+  -> 注册 Shell Bridge
+  -> 加载平台打包的 frontend/dist
+  -> 前端读取 RuntimeSnapshot
+  -> Shell 根据有效配置启动本地服务或选择远端地址
+  -> 前端订阅状态并启动 HTTP 健康检查
+  -> 前端挂载设置页、错误页或业务路由
+  -> 前端发送 frontendReady
+```
+
+即使发生以下情况，前端设置页面也必须能够打开：
+
+- 配置文件不存在或无法解析。
+- 端口被占用。
+- 数据库或文件目录无法创建。
+- 数据库打开或迁移失败。
+- 远端服务暂时不可访问。
+- 本地 Rust 服务未启动。
+
+只有平台打包的前端资源本身无法加载时，才允许退化为平台日志或系统级致命错误处理。
+
+## 前端可编辑配置
+
+前端不直接读写平台配置文件，也不应默认暴露平台绝对存储路径。
+桥向前端提供专门的可编辑 DTO：
+
+```ts
+interface EditableRuntimeConfig {
+  mode: "self-hosted" | "client-only" | "connect-to-remote" | "server-mode";
+  bindHost: string;
+  port: number;
+  remoteBaseUrl: string;
+}
+```
+
+字段语义必须映射到 `winestock_shared::AppConfig`，但桥 DTO 可以使用适合 TypeScript 的命名并由平台适配层转换。
+配置文件仍由各平台 Shell 决定位置，并使用 shared 的模型和校验作为权威结果。
+`auto_start_server` 不是 UI 配置项：本地模式固定映射为 `true` 并在应用启动时运行服务，远端模式不启动本地服务。
+
+### 地址区分
+
+必须区分：
+
+- `bindHost`：Axum 监听地址。
+- `remoteBaseUrl`：远端客户端模式的目标服务地址。
+- `apiBaseUrl`：Shell 计算并返回给前端的实际 HTTP API 根地址。
+
+本地模式下，前端不能自行根据 `bindHost` 拼接 `apiBaseUrl`。
+例如 `bindHost = 0.0.0.0` 时，本机前端仍应使用 `http://127.0.0.1:<port>`，不能访问或展示 `http://0.0.0.0:<port>`。
+
+只有 `client-only` 和 `connect-to-remote` 远端客户端模式允许用户直接设置远端 API 地址。
+如果产品界面暂时只展示一个“连接远端服务”选项，前端和桥必须定义稳定的规范化规则，不能在读取现有配置后丢失模式语义。
+
+## 运行快照
+
+Shell 向前端返回配置和当前生效状态的统一快照：
+
+```ts
+interface RuntimeSnapshot {
+  protocolVersion: 1;
+  platform: "web" | "desktop" | "android";
+  configStatus: "configured" | "unconfigured" | "invalid";
+  config: EditableRuntimeConfig;
+  createdDefault: boolean;
+  service: {
+    ownership: "local" | "remote";
+    phase: "stopped" | "starting" | "running" | "stopping" | "failed";
+    apiBaseUrl?: string;
+    boundAddress?: string;
+    lanAccessUrls?: string[];
+    error?: ShellRuntimeError;
+  };
+  capabilities: {
+    startLocalService: boolean;
+    stopLocalService: boolean;
+    restartLocalService: boolean;
+    nativeBack: boolean;
+    openExternal: boolean;
+    serverMode: boolean;
+  };
+}
+```
+
+`capabilities` 是前端判断平台能力的唯一依据。
+前端不得根据 `window.AndroidBridge`、`window.__TAURI__`、User-Agent 或目录结构猜测功能。
+
+## Shell Bridge v1
+
+前端统一依赖以下逻辑接口，Android 和 Tauri 只负责提供不同传输实现：
+
+```ts
+interface ShellBridge {
+  getRuntimeSnapshot(): Promise<RuntimeSnapshot>;
+  validateRuntimeConfig(config: EditableRuntimeConfig): Promise<RuntimeConfigValidationResult>;
+  applyRuntimeConfig(config: EditableRuntimeConfig): Promise<ApplyRuntimeConfigResult>;
+  startLocalService(): Promise<RuntimeSnapshot>;
+  stopLocalService(): Promise<RuntimeSnapshot>;
+  restartLocalService(): Promise<RuntimeSnapshot>;
+  frontendReady(): Promise<void>;
+  openExternal(url: string): Promise<void>;
+  onRuntimeStateChanged(listener: (snapshot: RuntimeSnapshot) => void): Promise<() => void>;
+  onAppResumed(listener: () => void): Promise<() => void>;
+}
+```
+
+普通浏览器和 Vite 开发环境必须提供 Web fallback。
+Web fallback 可以只支持读取环境变量、返回 `platform = web` 和 no-op 生命周期能力，不得让本地开发依赖原生桥。
+
+桥协议必须携带版本号。
+不兼容版本应返回 `bridge_version_mismatch`，不能静默按旧结构解释数据。
+
+## 配置校验与应用
+
+前端可以先做即时表单校验，但平台 Shell 必须使用 shared 配置模型执行权威校验。
+校验错误应返回稳定字段路径和错误码，供前端映射到表单：
+
+```ts
+interface RuntimeConfigFieldError {
+  field: "mode" | "bindHost" | "port" | "remoteBaseUrl";
+  code: string;
+  message: string;
+}
+```
+
+### 本地模式应用流程
+
+本地配置采用“验证并激活成功后提交”的策略：
+
+```text
+前端提交草稿
+  -> Shell/shared 权威校验
+  -> 记录旧配置和旧运行状态
+  -> 停止需要替换的旧服务
+  -> 使用新配置准备存储并启动 core
+  -> 绑定成功后计算实际 apiBaseUrl
+  -> 持久化新配置并发布 running 快照
+```
+
+如果新服务启动失败：
+
+- 不把失败草稿写成新的正式配置。
+- 有旧配置时尽力恢复旧服务和旧快照。
+- 没有旧配置时保持 `unconfigured` 或 `failed`，并让前端保留草稿。
+- 返回端口、配置、存储、迁移或服务错误，不弹原生对话框。
+
+存储路径或数据库迁移可能产生不可逆的外部副作用；未来允许前端编辑存储位置时，必须增加单独确认和迁移策略，不能把它当作普通地址设置。
+
+### 远端模式应用流程
+
+远端 URL 格式校验失败时禁止保存。
+远端服务暂时无法连接不应阻止保存，因为目标服务可能只是离线。
+保存后返回 `remote` 快照，由前端 HTTP 健康检查呈现“配置有效但当前不可连接”。
+
+## 前端运行状态
+
+前端应维护独立于鉴权和 HTTP 健康检查的 Shell 启动状态：
+
+```ts
+type RuntimeBootstrapStatus =
+  | "loading"
+  | "unconfigured"
+  | "config-invalid"
+  | "starting"
+  | "running"
+  | "remote-unavailable"
+  | "failed";
+```
+
+推荐呈现：
+
+```text
+loading                 -> 前端自身的中性启动屏
+unconfigured/invalid    -> 首次设置或运行设置页
+starting                -> 本地服务启动状态
+running                 -> 正常业务路由
+remote-unavailable      -> 远端断连状态，保留设置入口
+failed                  -> 精确运行错误，保留修改和重试入口
+```
+
+设置路由不得依赖 API 或鉴权，例如：
+
+```text
+/setup
+/settings/runtime
+```
+
+可以使用 `requiresService = false`、`requiresAuth = false` 等路由元数据保证服务完全不可用时仍能进入设置。
+全局服务不可用覆盖层不能遮挡这些路由。
+
+## API client 重配置
+
+当前生效 `apiBaseUrl` 发生变化时，前端必须按顺序：
+
+1. 暂停健康检查和自动刷新。
+2. 取消仍在进行的旧服务请求。
+3. 清理内存 access token 和旧服务会话状态。
+4. 使用新的 `apiBaseUrl` 重配置 API client。
+5. 恢复 `/api/health` 检查。
+6. 对新地址重新初始化鉴权会话。
+7. 根据结果进入登录页、原业务路由或运行设置页。
+
+refresh token 必须继续绑定 API 根地址，切换服务时不得把旧服务 token 发送到新服务。
+API client 应支持显式的 `unconfigured` 状态，不能因为缺少地址就在模块导入阶段阻止整个 Vue 应用挂载。
+
+## Shell 运行职责
+
+Desktop 和 Android Shell 应：
+
+- 在前端加载前注册桥传输。
+- 决定配置文件、数据库和文件目录的实际平台路径。
+- 调用 shared 加载、创建和校验配置。
+- 调用 core 启动、停止和查询本地服务。
+- 生成本机 loopback 和实际 LAN 访问地址。
+- 持久化成功激活的配置。
+- 向前端发布版本化快照和稳定错误码。
+- 在平台退出时优雅关闭本地服务。
+
+Shell 不应：
+
+- 渲染运行设置表单或业务错误对话框。
+- 根据错误文案驱动前端分支。
+- 读取或持久化浏览器鉴权 token。
+- 复制 core 路由、业务 DTO 或业务校验。
+
+## Core 服务句柄
+
+core 应逐步收敛出平台无关的运行句柄，使 Desktop 和 Android 不重复拼装 bootstrap、bind、serve 和 shutdown：
+
+```rust
+pub struct RunningLocalService {
+    // 实际 API 只需表达绑定地址、关闭和等待停止；具体字段可以调整。
+}
+
+pub async fn start_local_service(
+    config: &AppConfig,
+) -> Result<RunningLocalService, LocalServiceRuntimeError>;
+```
+
+平台 Shell 决定何时调用 start/stop；core 不监听 Activity、窗口关闭、Ctrl+C 或系统托盘事件。
+
+## Android 约束
+
+Android 应使用平台打包资源加载前端，不把业务 UI 托管给 Axum。
+推荐由 Gradle 构建任务生成 Android assets，并通过受信任的本地 WebView origin 加载。
+生成的 `frontend/dist` 不应手工复制或作为普通源码重复维护。
+
+正式桥应优先使用支持 origin 限制的 AndroidX WebKit 消息能力。
+如果暂时使用 `addJavascriptInterface`，必须同时满足：
+
+- WebView 只加载受信任的打包前端。
+- 导航到非受信任 origin 前移除或禁用桥。
+- 外部 URL 交给系统浏览器。
+- 不向桥暴露敏感数据或通用反射调用。
+
+Android `self-hosted` 服务属于应用进程，不应因为 Activity 旋转或短暂后台切换立即停止。
+需要在后台持续供其他设备访问的 `server-mode` 必须明确 Foreground Service、通知和系统限制；未实现前通过 capability 禁用该模式。
+
+Android 使用打包 HTTPS origin 调用本地或远端 HTTP API 时，必须显式处理 WebView mixed-content 和 Android cleartext policy。
+默认优先支持 loopback 自托管和 HTTPS 远端服务，不得无提示地扩大明文网络范围。
+
+原生返回键流程应允许前端先关闭 Dialog、Drawer 或执行路由返回；前端未处理或超时后，Activity 才执行系统返回。
+
+## Desktop Tauri v2 约束
+
+Tauri 使用平台打包的前端资源，不把主窗口指向 Axum API 地址。
+前端通过 `@tauri-apps/api` 的 `invoke` 和事件 API 实现 Shell Bridge 适配层。
+
+Tauri 只注册具名命令，例如：
+
+```text
+shell_get_runtime_snapshot
+shell_validate_runtime_config
+shell_apply_runtime_config
+shell_start_local_service
+shell_stop_local_service
+shell_restart_local_service
+shell_frontend_ready
+```
+
+capabilities 只允许主窗口调用必要命令，不能为方便启用宽泛 shell 执行权限。
+窗口关闭时应先阻止立即退出，等待本地 Axum 优雅停止后再结束进程。
+
+## 前端资源与 API 地址
+
+WebView 页面地址与 API 地址是两个不同概念：
+
+```text
+WebView 页面地址 -> Tauri/Android 平台打包资源
+API 地址         -> http://127.0.0.1:<port> 或 remoteBaseUrl
+```
+
+Axum 不服务 Desktop 或 Android 前端构建产物。
+平台打包资源必须能够在离线且 API 未启动时打开运行设置页。
+
+## 默认配置与首次启动
+
+平台 Shell 应继续使用缺失配置自愈策略，创建 shared 默认配置而不是要求用户手工编写文件。
+默认配置为本机自托管、loopback、固定默认端口 `17890` 和自动启动。
+
+创建默认配置后可以直接尝试启动；如果失败，前端加载失败状态和默认草稿，让用户修改后重新应用。
+首次启动不强制经过向导，但运行设置必须始终可达。
+
+## 稳定错误码
+
+第一版至少定义：
+
+```text
+bridge_version_mismatch
+invalid_bridge_payload
+config_unavailable
+config_invalid
+storage_unavailable
+database_open_failed
+migration_failed
+invalid_bind_host
+port_in_use
+service_start_failed
+service_crashed
+native_library_unavailable
+unsupported_runtime_mode
+```
+
+`message` 用于用户展示，前端分支只判断稳定 `code` 和字段路径，不解析文案。
+平台日志可以记录底层错误链，但桥返回内容不能泄漏敏感路径、凭据或内部调试信息。
+
+## 实施顺序
+
+建议分阶段实施：
+
+1. 定义 Shell Bridge v1 DTO、错误码和 Web fallback。
+2. 让前端在没有 API 地址时仍能挂载运行设置页。
+3. 使 API client、健康检查和鉴权会话支持地址切换。
+4. 在 core 增加可停止的本地服务运行句柄。
+5. 完成 Android 打包资源、受控桥传输和本地 Rust 服务。
+6. 建立正式 Tauri v2 shell 并复用相同前端接口。
+7. 再按真实需要增加配置迁移、LAN 地址、server-mode、系统托盘或自动更新。
+
+第一版不要加入原生设置 UI、任意 native invoke、业务 API 代理或无业务依据的兼容层。
+
+## 验收
+
+实现完成后至少验证：
+
+- 无配置文件时自动创建默认配置并可进入前端。
+- 配置损坏时仍能打开运行设置并修复。
+- 本地服务正常启动并返回真实 loopback API 地址。
+- 端口占用时设置页显示稳定错误并可修改重试。
+- 远端地址无法连接时配置仍可保存，设置页保持可用。
+- 切换 API 地址后不会把旧服务 token 发送到新服务。
+- 服务重启期间当前设置草稿和页面上下文不丢失。
+- Android Activity 重建不会错误停止应用级本地服务。
+- Desktop 退出会等待 Axum 优雅关闭并释放端口。
+- 平台离线启动时能够加载打包前端和运行设置。
+- 非受信任 WebView origin 无法调用 Android 桥。
+- Tauri capabilities 只开放 Shell Bridge 所需命令。

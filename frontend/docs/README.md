@@ -7,6 +7,9 @@
 Desktop Tauri shell、Android native shell、WebView 生命周期、平台权限和资源打包仍由各自平台目录负责。
 Axum 不服务前端构建产物。
 
+UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本前端统一拥有；配置持久化与服务启停通过根文档 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义的 Shell Bridge 交给平台壳执行。
+业务能力继续通过 HTTP 调用 core，Shell Bridge 不代理业务 API。
+
 ## 当前文档
 
 - `page-framework.md`：当前认可的页面框架、桌面/移动布局、导航职责和样式层级；不确认具体业务页面内容。
@@ -18,6 +21,7 @@ Axum 不服务前端构建产物。
 - `page-outbound.md`：新建出库两步工作台、批次/FIFO 分配、草稿、提交审核、响应式和验收设计。
 - `page-templates.md`：分类、物品属性模板与入库模板页面的信息架构、字段编辑、危险操作、响应式和实施验收设计。
 - `page-substitutes.md`：替代关系全局治理页面的关系分组、物品 Dialog 复用、整体保存、权限、响应式和实施验收设计。
+- `page-runtime-settings.md`：无 API 依赖的运行设置、默认端口 `17890`、模式切换、Shell Bridge 边界和恢复入口。
 - `routes.md`：当前路由、history 策略、嵌套 Shell 边界和鉴权元数据状态。
 - `api-client.md`：运行时 API 地址、统一请求、错误契约、内存会话和当前注册/登录接入状态。
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。

@@ -7,18 +7,18 @@
 ## 工程入口
 
 - `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用 pnpm。
-- `frontend/src/main.ts`：注册 token 与网络失败回调，启动服务监控、跨标签页同步、自动刷新和全局浮层滚动条，安装鉴权守卫、提前启动统一会话初始化并挂载 Vue Router。
+- `frontend/src/main.ts`：先初始化 Shell 运行快照和动态 API 地址，再按是否存在服务启动健康检查、会话恢复、跨标签页同步、自动刷新和全局浮层滚动条，安装路由守卫并挂载 Vue。
 - `frontend/src/bootstrap/overlayScrollbars.ts`：在移动与触控视口隐藏经典滚动槽后，为当前真实滚动宿主绘制可见且可拖动的浮层滑块；响应滚动、尺寸、DOM 和 Teleport 变化，不改变业务滚动容器所有权。
 - `frontend/src/bootstrap/viewport.ts`：在 Vue 挂载后等待首帧布局，检测移动 WebView 的临时宽布局视口并在业务路由挂载前纠正 viewport meta；不选择 Shell 或重挂载应用组件。
-- `frontend/src/App.vue`：前端根 `RouterView`、服务断连全屏覆盖层和全局 Notice 挂载点，不拥有具体页面布局或探测调度；首次连接完成后不销毁路由树。
-- `frontend/src/env.d.ts`：Vite 环境变量和平台运行时注入对象类型。
+- `frontend/src/App.vue`：前端根 `RouterView`、服务断连全屏覆盖层和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或断连覆盖层阻塞。
+- `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。
 
 ## 路由与布局
 
-- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、OpenAPI 业务域页面、鉴权页面、用户管理路由，以及未匹配路径返回库存总览的 catch-all 重定向；应用壳页面的 `meta` 从统一路由目录生成。
+- `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、服务无关的 `/settings/runtime`、鉴权页面和 catch-all 重定向；应用壳页面的 `meta` 从统一路由目录生成。
 - `frontend/src/router/appRouteCatalog.ts`：应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源；不创建 Router 或执行权限判断。
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、单权限 `requiredPermission`、组合权限 `requiredPermissions` 和强制改密页面放行元数据。
-- `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少单项或组合页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
+- `frontend/src/router/guards.ts`：服务无关路由绕过 API/会话初始化，其它路由缺少 API 时跳转运行设置；随后执行匿名、权限、强制改密和安全回跳判断，并监听会话变化。
 - `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话单项或组合权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
@@ -26,7 +26,7 @@
 - `frontend/src/storage/inboundDraftImageStore.ts`：入库草稿本地图片 Blob 的 IndexedDB 存取，不保存普通字段或执行上传。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
 - `frontend/src/components/AccountUserSummary.vue`：应用框架顶部账户触发区和账户弹层复用的只读用户头像和名称摘要。
-- `frontend/src/components/AccountPopover.vue`：应用框架共用的账户操作弹层；移动端通过响应式样式补充用户摘要，组件不直接读取或清理会话。
+- `frontend/src/components/AccountPopover.vue`：应用框架共用的账户操作弹层，提供运行设置和退出入口；移动端通过响应式样式补充用户摘要，组件不直接清理会话。
 - `frontend/src/components/AppNavigationList.vue`：应用框架共用的分组导航、线性图标和选中态渲染，并按入口属性隐藏移动端不展示的项目。
 - `frontend/src/components/RouteContentView.vue`：应用框架唯一的嵌套路由出口，以及复用统一 motion token 的页面切换动画；查询参数变化不强制重建页面。
 - `frontend/src/composables/useAccountPopover.ts`：应用框架共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
@@ -55,7 +55,8 @@
 - `frontend/src/components/locations/`：最多十层的库位分组树、名称与备注表单、分组/库位创建编辑 Dialog 和删除确认；只拥有库位页面局部呈现，不直接请求 API 或修改库存数量。
 - `frontend/src/components/templates/`：分类表单、模板查看与字段编辑工作区、候选项编辑、复制和三类差异化删除确认；组件不直接请求 API。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
-- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖路由内容的全屏提示和手动重试入口；不执行 HTTP 探测。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，提供手动重试和运行设置入口；不执行 HTTP 探测。
+- `frontend/src/components/runtime/RuntimeModeSelector.vue`、`RuntimeModeSelector.scss`：本机、远端和局域网服务器三种运行方式的响应式单选结构，只输出模式选择。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
 - `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。
 - `frontend/src/components/users/UserListToolbar.vue`：用户列表搜索、状态选择框筛选、结果数量、刷新图标和创建入口；不请求 API。
@@ -70,13 +71,21 @@
 ## API client 与鉴权状态
 
 - `frontend/src/api/runtime-config.ts`
-  - 解析平台注入的 `window.__WINESTOCK_RUNTIME_CONFIG__` 或 Vite 环境变量。
-  - 校验 API 根地址必须为 HTTP/HTTPS，禁止把 `0.0.0.0` 作为访问地址。
+  - 接收 Shell 当前快照的动态 API 根地址；Web fallback 首启时兼容平台注入对象或 Vite 环境变量。
+  - 校验 API 根地址必须为 HTTP/HTTPS，禁止把全接口监听地址作为访问地址。
   - 提供登录请求所需的客户端类型、设备名称和版本号。
+
+- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、快照、能力和稳定字段错误类型；前端默认端口镜像为 `17890`。
+- `frontend/src/shell/contract.ts` 同时在运行时校验协议版本、快照基础结构和注入桥具名方法，不能只依赖 TypeScript 静态类型信任平台数据。
+- `frontend/src/shell/bridge.ts`：选择平台注入桥或普通浏览器 Web fallback，不判断 User-Agent。
+- `frontend/src/shell/web.ts`：使用版本化 localStorage 实现开发/静态环境配置读取、校验和应用；损坏配置返回可修复的 invalid 快照，不管理本地 Rust 服务。
+- `frontend/src/shell/runtime.ts`：维护响应式 Shell 快照，编排配置应用和本地服务生命周期命令，并在 API 地址变化时重置健康检查与内存会话。
+- `frontend/src/shell/runtime.ts` 还公开受 capability 约束的外部链接入口；收到不兼容或损坏的 Shell 快照时保留前端设置页并进入失败状态。
 
 - `frontend/src/api/client.ts`
   - 基于原生 `fetch` 实现统一 JSON 请求、查询参数、Bearer token 注入和 204 响应处理。
   - 只允许相对 API 路径，避免 access token 被发送到外部绝对地址。
+  - Shell 切换 API 根地址时统一中止仍指向旧服务的 fetch 与 XHR 上传，调用方自己的取消信号继续有效。
   - 收到 `invalid_access_token` 时最多强制 refresh 并重试一次；不直接持久化 token，也不决定页面提示。
   - 真实网络连接失败时通知全局服务监控；调用方主动取消请求不触发断连状态。
   - 支持鉴权 Blob 响应，并通过 XHR multipart 入口报告真实上传进度和复用 token refresh。
@@ -131,7 +140,7 @@
 
 - `frontend/src/service/availability.ts`
   - 启动后立即探测服务；可用时每 15 秒、不可用时每 5 秒检查一次，并在窗口聚焦、页面恢复可见或网络恢复时补检。
-  - 公开服务状态、探测状态和成功序号；不启动 Axum、不管理 token，也不决定页面布局。
+  - API 地址变化时取消旧探测并重置状态；不启动 Axum、不管理 token，也不决定页面布局。
 
 - `frontend/src/auth/permissions.ts`
   - 定义用户管理稳定权限代码（包含 `user.delete`）和前端权限快照判断。
@@ -144,6 +153,7 @@
   - 当前用户权限被管理接口修改后，同步内存权限快照，使导航和操作立即更新。
   - 在跨标签页锁内读取最新 refresh token，执行轮换或服务端吊销；任何登出结果都会清除本地会话。
   - 监听其它同源标签页移除持久 token，并同步清除当前内存会话和进入匿名状态。
+  - Shell 切换 API 地址时增加运行代次并清理旧内存会话，旧地址的异步 refresh 结果不能覆盖新服务状态。
 
 - `frontend/src/auth/auto-refresh.ts`
   - 按 access token 预计到期时间安排一次性定时器，在到期前约 50 至 60 秒主动 refresh。
@@ -161,7 +171,8 @@
 
 ## 页面
 
-- `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标并显示本机退出警告。
+- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的运行设置工作区；编辑模式、默认端口 `17890`、远端地址和监听地址，本地模式固定随应用启动服务，并展示 Shell/健康状态、处理校验、连接测试、风险确认和响应式底部操作区。
+- `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标，并显示当前服务地址和运行设置入口。
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。

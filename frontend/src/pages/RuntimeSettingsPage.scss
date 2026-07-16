@@ -1,0 +1,394 @@
+/* 本文件拥有运行设置工作台、状态摘要、模式表单和移动固定操作栏，不定义其它页面视觉。 */
+@use "../styles/foundation/mixins" as mixins;
+
+.runtime-settings-page {
+  min-width: 320px;
+  min-height: 100dvh;
+  background: var(--color-page);
+}
+
+.runtime-settings-header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+
+  &__content {
+    display: grid;
+    grid-template-columns: minmax(168px, 1fr) auto minmax(168px, 1fr);
+    width: min(1180px, 100%);
+    min-height: 74px;
+    align-items: center;
+    gap: 22px;
+    margin: 0 auto;
+    padding: 10px 28px;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    .text-button {
+      align-self: center;
+    }
+
+    h1 {
+      font-size: 22px;
+    }
+  }
+}
+
+.runtime-platform-badge,
+.runtime-unsaved-badge {
+  justify-self: end;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.runtime-unsaved-badge {
+  border-color: rgb(138 90 18 / 24%);
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
+}
+
+.runtime-settings-workspace {
+  display: grid;
+  width: min(1080px, calc(100% - 40px));
+  gap: 18px;
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
+.runtime-service-summary {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+
+  &__indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-subtle);
+    box-shadow: 0 0 0 5px var(--color-surface-raised);
+  }
+
+  &__copy {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+
+    p:not(.eyebrow) {
+      color: var(--color-muted);
+      font-size: 13px;
+    }
+
+    code {
+      width: fit-content;
+      max-width: 100%;
+      overflow: hidden;
+      color: var(--color-text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &--success {
+    border-left-color: var(--color-teal);
+
+    .runtime-service-summary__indicator {
+      background: var(--color-teal);
+      box-shadow: 0 0 0 5px var(--color-teal-soft);
+    }
+  }
+
+  &--warning {
+    border-left-color: var(--color-warn);
+
+    .runtime-service-summary__indicator {
+      background: var(--color-warn);
+      box-shadow: 0 0 0 5px var(--color-warn-soft);
+    }
+  }
+
+  &--danger {
+    border-left-color: var(--color-danger);
+
+    .runtime-service-summary__indicator {
+      background: var(--color-danger);
+      box-shadow: 0 0 0 5px var(--color-danger-soft);
+    }
+  }
+}
+
+.runtime-settings-form {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+
+  &__modes {
+    padding: 22px 16px;
+    border-right: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+  }
+
+  &__configuration {
+    display: grid;
+    min-width: 0;
+    grid-template-rows: auto 1fr auto;
+  }
+}
+
+.runtime-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.runtime-config-fields {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  padding: 24px;
+}
+
+.runtime-fixed-behavior {
+  margin: -4px 0 0;
+  color: var(--color-subtle);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.runtime-connection-test {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+
+  &__result {
+    color: var(--color-muted);
+    font-size: 13px;
+
+    &--success {
+      color: var(--color-teal);
+    }
+
+    &--warning {
+      color: var(--color-warn);
+    }
+
+    &--danger {
+      color: var(--color-danger);
+    }
+  }
+}
+
+.runtime-address-preview {
+  display: grid;
+  gap: 6px;
+  padding: 12px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+
+  span {
+    color: var(--color-subtle);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  code {
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+}
+
+.runtime-advanced-settings {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+
+  summary {
+    padding: 12px 2px;
+    color: var(--color-accent);
+    font-size: 13px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  &__body {
+    padding: 6px 0 16px;
+  }
+}
+
+.runtime-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 24px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+
+  > p {
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
+
+  > div {
+    display: inline-flex;
+    gap: 9px;
+  }
+}
+
+.runtime-confirmation {
+  display: grid;
+  gap: 14px;
+  color: var(--color-muted);
+  font-size: 13px;
+
+  &__change {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 6px 10px;
+    padding: 11px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
+
+    span {
+      color: var(--color-subtle);
+    }
+
+    code {
+      overflow-wrap: anywhere;
+      color: var(--color-text);
+      font-family: var(--font-mono);
+    }
+  }
+}
+
+@include mixins.tablet(920px) {
+  .runtime-settings-form {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+}
+
+@include mixins.mobile {
+  .runtime-settings-header {
+    &__content {
+      grid-template-columns: 1fr auto;
+      min-height: 64px;
+      gap: 12px;
+      padding: calc(8px + env(safe-area-inset-top)) 14px 8px;
+
+      > .brand-lockup {
+        display: none;
+      }
+    }
+
+    &__title {
+      gap: 8px;
+
+      .text-button {
+        min-height: 40px;
+      }
+
+      h1 {
+        font-size: 20px;
+      }
+    }
+  }
+
+  .runtime-settings-workspace {
+    width: 100%;
+    gap: 12px;
+    padding: 12px 12px calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .runtime-service-summary {
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 12px;
+    padding: 16px;
+
+    &__actions {
+      grid-column: 1 / -1;
+      justify-content: stretch;
+
+      > * {
+        flex: 1 1 120px;
+      }
+    }
+  }
+
+  .runtime-settings-form {
+    display: block;
+    overflow: visible;
+
+    &__modes {
+      padding: 18px 14px;
+      border-right: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+  }
+
+  .runtime-config-header,
+  .runtime-config-fields {
+    padding: 18px 16px;
+  }
+
+  .runtime-settings-actions {
+    position: fixed;
+    z-index: var(--z-nav);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-border-strong);
+    box-shadow: 0 -8px 24px rgb(23 32 42 / 8%);
+
+    > p {
+      display: none;
+    }
+
+    > div {
+      width: 100%;
+
+      > * {
+        flex: 1 1 0;
+        min-height: 44px;
+      }
+    }
+  }
+}
+
+@include mixins.reduced-motion {
+  .runtime-mode-option {
+    transition: none;
+  }
+}

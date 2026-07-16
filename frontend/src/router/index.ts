@@ -97,12 +97,24 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: "/settings/runtime",
+    name: "runtime-settings",
+    component: () => import("../pages/RuntimeSettingsPage.vue"),
+    meta: {
+      title: "运行设置",
+      requiresAuth: false,
+      requiresService: false,
+      allowsPasswordChangeRequired: true,
+    },
+  },
+  {
     path: "/login",
     name: "login",
     component: () => import("../pages/LoginPage.vue"),
     meta: {
       title: "登录",
       requiresAuth: false,
+      requiresService: true,
     },
   },
   {
@@ -112,6 +124,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: "创建首个用户",
       requiresAuth: false,
+      requiresService: true,
     },
   },
   {
@@ -121,6 +134,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: "修改密码",
       requiresAuth: true,
+      requiresService: true,
       allowsPasswordChangeRequired: true,
     },
   },

@@ -86,8 +86,9 @@ It owns:
 - deciding whether to start local Axum based on shared config
 
 The desktop UI accesses Axum through HTTP.
-For local self access, the WebView should use `http://127.0.0.1:<port>`.
-For remote access, the WebView should use `remote_base_url`.
+The WebView loads frontend resources packaged by Tauri rather than opening the Axum address as its page URL.
+The packaged frontend uses `http://127.0.0.1:<port>` for local self access or `remote_base_url` for remote API access.
+All runtime configuration and service status UI belongs to the shared frontend; the desktop shell persists and applies configuration through the Shell Bridge without owning a native settings UI.
 
 ### `android shell`
 
@@ -104,7 +105,8 @@ It owns:
 - deciding whether to start local Axum based on shared config
 
 Android starts the shared Axum service through the Rust native library when config requires it.
-The Android WebView accesses Axum through HTTP.
+The Android WebView loads frontend resources packaged by Android and accesses Axum through HTTP.
+All runtime configuration and service status UI belongs to the shared frontend; the Android shell persists and applies configuration through the Shell Bridge without owning a native settings Activity or dialog.
 
 ### `server shell`
 
@@ -131,6 +133,9 @@ It does not create a separate service implementation.
 
 Frontend apps are UI assets owned by platform packaging.
 
+For UI-bearing platforms, the frontend is also the only functional UI for runtime configuration, service status, startup recovery, and connection settings.
+The platform shell exposes those operations through a narrow Shell Bridge and does not create a second native settings interface.
+
 The architecture does not require a specific frontend framework.
 A frontend may be shared between platforms if the project chooses that later.
 That sharing must still respect platform packaging boundaries.
@@ -154,6 +159,9 @@ See `docs/project-structure.md` for concrete project naming and directory layout
 UI code talks to the service over HTTP.
 A pure server shell exposes the same HTTP API without a local UI.
 
+UI-bearing platform runtime control uses a separate Shell Bridge for configuration persistence, service lifecycle, platform events, and effective API address reporting.
+The Shell Bridge must not proxy business APIs or carry authentication tokens.
+
 Do not wire desktop or Android UI directly to internal Rust business functions.
 The HTTP API is the boundary between UI and service behavior.
 
@@ -162,6 +170,9 @@ This keeps:
 - desktop behavior consistent with Android behavior
 - local mode consistent with remote mode
 - server behavior testable without a platform UI
+- runtime configuration recoverable even when the HTTP service cannot start
+
+See `docs/shell-bridge.md` for the versioned UI-platform bridge and frontend-owned settings model.
 
 ## Dependency Direction
 
@@ -176,6 +187,7 @@ desktop shell  -> core axum library
 android shell  -> core axum library
 server shell   -> core axum library
 frontend app   -> HTTP API
+frontend app   -> Shell Bridge implemented by its current desktop/android host
 ```
 
 Disallowed direction:
@@ -185,6 +197,7 @@ core axum library -> desktop shell
 core axum library -> android shell
 core axum library -> server shell
 core axum library -> frontend build output
+Shell Bridge -> core business functions or HTTP DTO duplication
 ```
 
 ## Demo Code

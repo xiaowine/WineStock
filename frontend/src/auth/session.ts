@@ -36,6 +36,7 @@ let initializationInFlight: Promise<AuthStatus> | null = null;
 let refreshInFlight: Promise<AuthSession | null> | null = null;
 let logoutInFlight: Promise<LogoutResult> | null = null;
 let stopPersistedSessionSynchronization: (() => void) | null = null;
+let runtimeGeneration = 0;
 
 /** 只读当前会话；页面不得绕过会话函数直接修改 token。 */
 export const authSession = readonly(mutableAuthSession);
@@ -113,7 +114,8 @@ export function ensureAuthSessionInitialized(): Promise<AuthStatus> {
   }
 
   mutableAuthStatus.value = "restoring";
-  const task = performInitialization().finally(() => {
+  const generation = runtimeGeneration;
+  const task = performInitialization(generation).finally(() => {
     initializationInFlight = null;
   });
   initializationInFlight = task;
@@ -147,7 +149,8 @@ export async function refreshAuthSession(): Promise<AuthSession | null> {
     return refreshInFlight;
   }
 
-  const task = performRefreshAndUpdateStatus().finally(() => {
+  const generation = runtimeGeneration;
+  const task = performRefreshAndUpdateStatus(generation).finally(() => {
     refreshInFlight = null;
   });
   refreshInFlight = task;
@@ -172,26 +175,40 @@ export function logoutAuthSession(): Promise<LogoutResult> {
   return task;
 }
 
-async function performInitialization(): Promise<AuthStatus> {
+/**
+ * API 根地址切换时清除仅属于旧服务的内存会话。
+ * 持久 refresh token 继续保留其原 API 绑定，切换回旧服务时仍可按现有规则恢复。
+ */
+export function resetAuthSessionForRuntimeChange(): void {
+  runtimeGeneration += 1;
+  mutableAuthSession.value = null;
+  mutableAuthStatus.value = "idle";
+  initializationInFlight = null;
+  refreshInFlight = null;
+}
+
+async function performInitialization(generation: number): Promise<AuthStatus> {
   try {
     await refreshAuthSession();
   } catch {
-    if (!mutableIsLoggingOut.value) {
+    if (generation === runtimeGeneration && !mutableIsLoggingOut.value) {
       mutableAuthStatus.value = "unavailable";
     }
   }
   return mutableAuthStatus.value;
 }
 
-async function performRefreshAndUpdateStatus(): Promise<AuthSession | null> {
+async function performRefreshAndUpdateStatus(generation: number): Promise<AuthSession | null> {
   try {
-    const session = await runWithAuthSessionLock(performRefreshWithLatestPersistedToken);
-    if (!mutableIsLoggingOut.value) {
+    const session = await runWithAuthSessionLock(() =>
+      performRefreshWithLatestPersistedToken(generation),
+    );
+    if (generation === runtimeGeneration && !mutableIsLoggingOut.value) {
       mutableAuthStatus.value = session ? "authenticated" : "anonymous";
     }
     return session;
   } catch (error) {
-    if (!mutableIsLoggingOut.value) {
+    if (generation === runtimeGeneration && !mutableIsLoggingOut.value) {
       mutableAuthStatus.value = "unavailable";
     }
     throw error;
@@ -201,17 +218,24 @@ async function performRefreshAndUpdateStatus(): Promise<AuthSession | null> {
 /**
  * 获得跨标签页锁后读取最新 refresh token；无锁环境遇到旧 token 时最多改用新记录重试一次。
  */
-async function performRefreshWithLatestPersistedToken(): Promise<AuthSession | null> {
+async function performRefreshWithLatestPersistedToken(
+  generation: number,
+): Promise<AuthSession | null> {
   let attemptedRefreshToken = loadPersistedRefreshToken();
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (!attemptedRefreshToken) {
-      mutableAuthSession.value = null;
+      if (generation === runtimeGeneration) {
+        mutableAuthSession.value = null;
+      }
       return null;
     }
 
     try {
       const response = await refresh({ refresh_token: attemptedRefreshToken });
+      if (generation !== runtimeGeneration) {
+        return null;
+      }
       persistRefreshToken(response.refresh_token);
       const session = toAuthSession(response);
       mutableAuthSession.value = session;
@@ -219,6 +243,9 @@ async function performRefreshWithLatestPersistedToken(): Promise<AuthSession | n
     } catch (error) {
       if (!(error instanceof ApiError) || error.code !== "invalid_refresh_token") {
         throw error;
+      }
+      if (generation !== runtimeGeneration) {
+        return null;
       }
 
       const latestRefreshToken = loadPersistedRefreshToken();

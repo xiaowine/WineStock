@@ -30,13 +30,16 @@ API client 不负责：
 
 ## API 根地址
 
-地址解析优先级：
+应用挂载后，Shell Bridge 当前快照中的 `service.apiBaseUrl` 是 HTTP client 的生效地址。
+地址发生变化时，前端先取消旧健康检查和会话恢复，再清理内存会话并用新地址重新初始化。
+
+Web fallback 创建初始快照时按以下顺序读取兼容输入：
 
 1. 平台挂载 Vue 应用前注入的 `window.__WINESTOCK_RUNTIME_CONFIG__.apiBaseUrl`。
 2. Vite 环境变量 `VITE_API_BASE_URL`。
 
-当前不提供硬编码 IP、端口或静默默认地址。
-缺少地址时请求会抛出 `ApiConfigurationError`，由页面显示明确配置提示。
+缺少地址时 Vue 应用仍会挂载并进入 `/settings/runtime`；只有真正发起业务请求时才抛出 `ApiConfigurationError`。
+本机运行的默认服务端口来自 Shell/shared 配置，当前为 `17890`，API client 不自行硬编码或猜测端口。
 
 服务地址必须：
 
@@ -57,6 +60,7 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 ```
 
 本地 Vite 开发可在不提交到仓库的 `.env.local` 中设置对应 `VITE_*` 变量。
+浏览器 fallback 会把用户应用的运行配置保存到版本化 `localStorage`；损坏记录以 `configStatus = invalid` 返回默认修复草稿，不阻止设置页加载。
 
 ## 请求行为
 
@@ -67,6 +71,7 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 - JSON 请求体与 `Content-Type: application/json`。
 - 默认 `Accept: application/json`。
 - 可选 `AbortSignal`。
+- Shell 切换 API 根地址时统一取消仍指向旧服务的 fetch 和 multipart 上传；主动取消不触发断连提示。
 - 成功响应按需读取为鉴权保护的 `Blob`。
 - 204 空响应。
 - access token provider 注入。

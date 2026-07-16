@@ -71,6 +71,7 @@ export type NetworkErrorHandler = () => void;
 export class ApiClient {
   private accessTokenProvider: AccessTokenProvider = () => null;
   private networkErrorHandler: NetworkErrorHandler = () => undefined;
+  private runtimeAbortController = new AbortController();
 
   /** 注册 access token 提供函数；client 不负责持久化 token。 */
   setAccessTokenProvider(provider: AccessTokenProvider): void {
@@ -80,6 +81,12 @@ export class ApiClient {
   /** 注册网络连接失败通知；主动取消请求不会触发。 */
   setNetworkErrorHandler(handler: NetworkErrorHandler): void {
     this.networkErrorHandler = handler;
+  }
+
+  /** API 根地址切换前取消全部仍指向旧服务的 fetch 和上传请求。 */
+  cancelRequestsForRuntimeChange(): void {
+    this.runtimeAbortController.abort();
+    this.runtimeAbortController = new AbortController();
   }
 
   /**
@@ -95,6 +102,7 @@ export class ApiClient {
       throw new ApiConfigurationError(`${method} 请求不能携带 JSON 请求体`);
     }
 
+    const requestSignal = combineAbortSignals(options.signal, this.runtimeAbortController.signal);
     const url = buildRequestUrl(resolveApiBaseUrl(), path, options.query);
     const baseHeaders = new Headers(options.headers);
     if (!baseHeaders.has("accept")) {
@@ -123,7 +131,7 @@ export class ApiClient {
           method,
           headers,
           body,
-          signal: options.signal,
+          signal: requestSignal,
           credentials: "omit",
         });
       } catch (error) {
@@ -171,12 +179,13 @@ export class ApiClient {
     if (!path.startsWith("/")) {
       throw new ApiConfigurationError("API 请求路径必须以 / 开头");
     }
+    const requestSignal = combineAbortSignals(options.signal, this.runtimeAbortController.signal);
     const url = buildRequestUrl(resolveApiBaseUrl(), path, undefined);
     let accessToken = await this.accessTokenProvider(false);
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const result = await sendMultipartRequest(
         url,
-        options,
+        { ...options, signal: requestSignal },
         accessToken,
         this.networkErrorHandler,
       );
@@ -202,6 +211,13 @@ export class ApiClient {
 
 /** 默认共享 API client 实例。 */
 export const apiClient = new ApiClient();
+
+function combineAbortSignals(
+  callerSignal: AbortSignal | undefined,
+  runtimeSignal: AbortSignal,
+): AbortSignal {
+  return callerSignal ? AbortSignal.any([callerSignal, runtimeSignal]) : runtimeSignal;
+}
 
 /** 根据运行时根地址、API 路径和查询参数构造请求 URL，避免 token 被发送到外部绝对地址。 */
 function buildRequestUrl(baseUrl: string, path: string, query: ApiQuery | undefined): URL {

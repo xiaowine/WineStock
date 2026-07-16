@@ -1,0 +1,120 @@
+/* 本文件拥有运行方式选择器的桌面与移动呈现，不定义设置页面其它区域。 */
+@use "../../styles/foundation/mixins" as mixins;
+
+.runtime-mode-selector {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+
+  legend {
+    margin-bottom: 10px;
+    color: var(--color-subtle);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+
+.runtime-mode-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 11px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    background var(--motion-duration-fast) var(--motion-ease-standard);
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &__indicator {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 50%;
+    background: var(--color-surface);
+  }
+
+  &__copy {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+
+    strong {
+      color: var(--color-text);
+      font-size: 14px;
+      font-weight: 670;
+    }
+
+    small,
+    em {
+      font-size: 12px;
+      font-style: normal;
+      line-height: 1.45;
+    }
+
+    em {
+      color: var(--color-warn);
+    }
+  }
+
+  &--selected {
+    border-color: rgb(111 42 54 / 24%);
+    background: var(--color-accent-soft);
+
+    .runtime-mode-option__indicator {
+      border-color: var(--color-accent);
+
+      &::after {
+        position: absolute;
+        inset: 3px;
+        border-radius: 50%;
+        background: var(--color-accent);
+        content: "";
+      }
+    }
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: 0.66;
+  }
+
+  &:focus-within {
+    @include mixins.focus-ring;
+  }
+}
+
+@include mixins.hover-capable {
+  .runtime-mode-option:not(.runtime-mode-option--disabled):hover {
+    border-color: var(--color-border);
+    background: var(--color-surface-raised);
+  }
+
+  .runtime-mode-option--selected:not(.runtime-mode-option--disabled):hover {
+    border-color: rgb(111 42 54 / 28%);
+    background: var(--color-accent-soft);
+  }
+}
+
+@include mixins.mobile {
+  .runtime-mode-option {
+    min-height: 66px;
+    padding: 13px 11px;
+  }
+}
