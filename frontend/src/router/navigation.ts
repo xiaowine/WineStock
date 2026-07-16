@@ -1,5 +1,5 @@
 // 本文件从应用路由目录生成主导航并按权限过滤，属于 frontend 路由层；它不重复声明页面名称或权限。
-import { hasPermission } from '../auth/permissions'
+import { hasPermission, hasPermissions } from '../auth/permissions'
 import {
   appRouteCatalog,
   type AppNavigationGroup,
@@ -21,12 +21,16 @@ export interface AppNavigationItem {
   icon: AppNavigationIcon
   /** 可选的页面读取权限；前端隐藏不替代服务端授权。 */
   requiredPermission?: string
+  /** 页面入口必须同时满足的权限组合。 */
+  requiredPermissions?: readonly string[]
   /** 是否只在桌面应用壳中展示。 */
   desktopOnly?: boolean
 }
 
 /** 应用壳当前可见的一级导航入口。 */
-export const appNavigation: readonly AppNavigationItem[] = (Object.keys(appRouteCatalog) as AppRouteName[])
+export const appNavigation: readonly AppNavigationItem[] = (
+  Object.keys(appRouteCatalog) as AppRouteName[]
+)
   .sort((left, right) => {
     const leftNavigation = appRouteCatalog[left].navigation
     const rightNavigation = appRouteCatalog[right].navigation
@@ -43,6 +47,8 @@ export const appNavigation: readonly AppNavigationItem[] = (Object.keys(appRoute
       group: entry.navigation.group,
       icon: entry.navigation.icon,
       requiredPermission: entry.requiredPermission,
+      requiredPermissions:
+        'requiredPermissions' in entry ? entry.requiredPermissions : [entry.requiredPermission],
       desktopOnly: 'desktopOnly' in entry.navigation ? entry.navigation.desktopOnly : undefined,
     }
   })
@@ -52,9 +58,11 @@ export function getVisibleAppNavigation(
   permissions: readonly string[] | undefined,
   options: { includeDesktopOnly?: boolean } = { includeDesktopOnly: true },
 ) {
-  return appNavigation.filter((item) =>
-    hasPermission(permissions, item.requiredPermission) &&
-    (options.includeDesktopOnly !== false || item.desktopOnly !== true),
+  return appNavigation.filter(
+    (item) =>
+      hasPermission(permissions, item.requiredPermission) &&
+      hasPermissions(permissions, item.requiredPermissions) &&
+      (options.includeDesktopOnly !== false || item.desktopOnly !== true),
   )
 }
 

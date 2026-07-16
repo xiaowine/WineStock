@@ -26,6 +26,8 @@ export interface AppRouteCatalogEntry {
   title: string
   /** 进入页面所需的权限代码；后端仍执行最终授权。 */
   requiredPermission: string
+  /** 进入页面还需同时具备的完整权限组合；未声明时只检查 requiredPermission。 */
+  requiredPermissions?: readonly string[]
   /** 路由在应用导航中的呈现规则。 */
   navigation: AppRouteNavigation
 }
@@ -55,7 +57,12 @@ export const appRouteCatalog = {
   outbound: {
     title: '新建出库',
     requiredPermission: stockPermissions.outboundCreate,
-    navigation: { group: 'primary', icon: 'inbound', order: 50, desktopOnly: true },
+    navigation: {
+      group: 'primary',
+      icon: 'inbound',
+      order: 50,
+      desktopOnly: true,
+    },
   },
   'outbound-orders': {
     title: '出库单',
@@ -65,11 +72,13 @@ export const appRouteCatalog = {
   'inbound-approvals': {
     title: '入库审批',
     requiredPermission: stockPermissions.inboundApprove,
+    requiredPermissions: [stockPermissions.inboundRead, stockPermissions.inboundApprove],
     navigation: { group: 'primary', icon: 'inbound', order: 70 },
   },
   'outbound-approvals': {
     title: '出库审批',
     requiredPermission: stockPermissions.outboundApprove,
+    requiredPermissions: [stockPermissions.outboundRead, stockPermissions.outboundApprove],
     navigation: { group: 'primary', icon: 'inbound', order: 80 },
   },
   locations: {
@@ -109,6 +118,8 @@ export function getAppRouteMeta(routeName: AppRouteName): RouteMeta {
     title: entry.title,
     requiresAuth: true,
     requiredPermission: entry.requiredPermission,
+    requiredPermissions:
+      'requiredPermissions' in entry ? [...entry.requiredPermissions] : [entry.requiredPermission],
     navigation: { ...entry.navigation },
   }
 }

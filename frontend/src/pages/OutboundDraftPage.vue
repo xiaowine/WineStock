@@ -412,7 +412,8 @@ import {
   type ItemOptionResponse,
 } from "../api/items";
 import { listLocations, type LocationResponse } from "../api/locations";
-import { approveOutbound, createOutbound } from "../api/outbound";
+import { createOutbound } from "../api/outbound";
+import { approveOutboundOrder } from "../api/stockApprovals";
 import { ApiError } from "../api/errors";
 import { hasPermission, stockPermissions } from "../auth/permissions";
 import { authSession } from "../auth/session";
@@ -860,7 +861,7 @@ async function confirmAction() {
     const order = await createOutbound(
       buildOutboundRequest(destination.value, notes.value, lines.value),
     );
-    if (canDirectOutbound.value) await approveOutbound(order.id);
+    if (canDirectOutbound.value) await approveOutboundOrder(order.id);
     notice.success(canDirectOutbound.value ? "出库成功" : "出库单已提交", {
       detail: canDirectOutbound.value
         ? `单号 #${order.id} 已完成出库，库存已扣减。`

@@ -38,11 +38,3 @@ export function createOutbound(request: OutboundCreateRequest) {
     json: request,
   });
 }
-
-/** 审批已创建的出库单并立即扣减库存；服务端会再次验证审批权限与库存。 */
-export function approveOutbound(id: number) {
-  return apiClient.request<OutboundCreateResponse>(
-    `/api/stock-approvals/outbound/${id}/approve`,
-    { method: "POST" },
-  );
-}

@@ -38,3 +38,14 @@ export function hasPermission(
 ): boolean {
   return requiredPermission === undefined || permissions?.includes(requiredPermission) === true
 }
+
+/** 判断权限快照是否同时包含页面或操作要求的全部权限。 */
+export function hasPermissions(
+  permissions: readonly string[] | undefined,
+  requiredPermissions: readonly string[] | undefined,
+): boolean {
+  return (
+    requiredPermissions === undefined ||
+    requiredPermissions.every((permission) => permissions?.includes(permission) === true)
+  )
+}

@@ -55,21 +55,13 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'approvals/inbound',
         name: 'inbound-approvals',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '处理待审批入库单的通过与拒绝操作。',
-          apiArea: 'POST /api/stock-approvals/inbound/{id}/approve、/reject',
-        },
+        component: () => import('../pages/InboundApprovalsPage.vue'),
         meta: getAppRouteMeta('inbound-approvals'),
       },
       {
         path: 'approvals/outbound',
         name: 'outbound-approvals',
-        component: () => import('../pages/PlaceholderPage.vue'),
-        props: {
-          description: '处理待审批出库单的通过与拒绝操作。',
-          apiArea: 'POST /api/stock-approvals/outbound/{id}/approve、/reject',
-        },
+        component: () => import('../pages/OutboundApprovalsPage.vue'),
         meta: getAppRouteMeta('outbound-approvals'),
       },
       {

@@ -17,9 +17,9 @@
 
 - `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、OpenAPI 业务域页面、鉴权页面、用户管理路由，以及未匹配路径返回库存总览的 catch-all 重定向；应用壳页面的 `meta` 从统一路由目录生成。
 - `frontend/src/router/appRouteCatalog.ts`：应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源；不创建 Router 或执行权限判断。
-- `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、`requiredPermission` 和强制改密页面放行元数据。
-- `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
-- `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
+- `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、单权限 `requiredPermission`、组合权限 `requiredPermissions` 和强制改密页面放行元数据。
+- `frontend/src/router/guards.ts`：等待会话初始化、拦截匿名和缺少单项或组合页面权限的访问、强制改密导航、安全解析登录回跳，并监听会话和权限变化。
+- `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话单项或组合权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
 - `frontend/src/composables/useInboundDraftPersistence.ts`：版本化入库草稿序列化/恢复和浏览器原生关闭提示；普通字段保存在 `localStorage`，待上传图片通过独立存储模块写入 IndexedDB。
@@ -43,6 +43,7 @@
 - `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库流程的第二步，编辑来源、备注、数量、价格和分组库位，并在主列表展示逐行完整性和入库模板摘要（推荐、待填项数、已完成、失效和候选加载错误），状态可点击打开对应抽屉。
 - `frontend/src/components/inbound/InboundOrderFiltersDialog.vue`：入库单状态和创建日期筛选草稿、校验与应用事件；不请求接口或修改路由。
 - `frontend/src/components/inbound/InboundOrderList.vue`：入库单桌面三段式行、平板过渡布局和移动单列条目的呈现；不请求分页数据或管理详情会话。
+- `frontend/src/components/approvals/`：入库与出库审批共用的日期筛选、桌面/移动待审批队列、审核 Dialog、确认阶段、入库明细、出库批次/FIFO 明细和共享响应式样式；请求和队列协调集中在 `StockApprovalWorkspace.vue`。
 - `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件；通过带视口避让和统一动效的锚定浮层选择本地文件或纯色图，已选图片使用通用组件全屏预览，并保留独立的更换与删除入口，同时完成签名预检和本地预览；不在编辑阶段上传。
 - `frontend/src/components/attributes/AttributeColorPicker.vue`：图片字段共用的无依赖 HSV/HEX 颜色选择器，提供饱和度与亮度平面、色相滑轨、HEX 输入、快捷色板和 Pointer Events/键盘交互；只输出颜色并通知应用，不生成图片。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
@@ -113,6 +114,9 @@
 - `frontend/src/api/inbound.ts`
   - 定义入库提交模式、创建响应和模板字段 DTO，复用统一库位 API，并提交待审批或直接入库请求。
 
+- `frontend/src/api/stockApprovals.ts`
+  - 集中定义入库与出库 approve/reject 写操作；成功响应复用订单 DTO，不管理队列或预测库存结果。
+
 - `frontend/src/api/locations.ts`
   - 定义库位分组树、名称唯一且可带备注的库位 CRUD 和整批次移库契约；入库页面复用同一 `LocationResponse`，不再维护重复 DTO。
 
@@ -169,12 +173,12 @@
 - `frontend/src/api/inboundOrders.ts`：入库单分页、状态/日期/关键词查询与详情 DTO，不管理页面状态或审批写入。
 - `frontend/src/pages/InboundOrdersPage.vue`、`InboundOrdersPage.scss`：`/inbound/orders` 入库单服务端分页协议下的尾部哨兵追加、关键词搜索、筛选 Dialog 编排、按需只读详情和审批路由跳转；列表呈现委托给 `InboundOrderList`，新建与审批分别保留在 `/inbound`、`/approvals/inbound`。
 - `frontend/src/api/outboundOrders.ts`、`components/outbound/OutboundOrderFiltersDialog.vue`、`pages/OutboundOrdersPage.vue`：`/outbound/orders` 出库单状态/日期/关键词查询、尾部哨兵追加、物品身份详情与审批路由跳转；新建与审批保留在 `/outbound`、`/approvals/outbound`。
+- `frontend/src/pages/InboundApprovalsPage.vue`、`OutboundApprovalsPage.vue`、`pages/approvals/catalog.ts`：两个薄审批路由页和领域目录；页面共同挂载库存审批工作台，只配置来源/去向、库存后果、查询详情和审批函数。
 - `frontend/src/pages/TemplatesPage.vue`、`TemplatesPage.scss`、`pages/templates/model.ts`：`/templates` 真实分类与模板工作区；分别编排三类资源的本地搜索、稳定刷新、三段式列表、权限 CRUD、模板复制、字段顺序、七种字段类型、单位规则和响应式编辑工作区。
 - `frontend/src/pages/EventsPage.vue`、`EventsPage.scss`、`pages/events/`：`/events` 真实审计日志页面；编排路由筛选、哨兵自动追加、稳定刷新、三段式桌面列表、移动日志项目、历史 JSON 差异和未知字段回退。
 - `frontend/src/components/events/`：审计高级筛选和只读详情 Dialog，复用通用表单、Modal、Notice 和原始 JSON 安全展示。
 - `frontend/src/pages/SubstitutesPage.vue`、`SubstitutesPage.scss`、`pages/substitutes/`：`/substitutes` 全局替代关系治理页面；按主物品分组展示已有关系，并从相同全量响应派生确定性星链网络、直接上下游和规模降级视图，提供本地搜索、稳定刷新、权限控制和共享单物品替代编辑 Dialog，不在前端伪造库存状态或孤立物品。
 - `frontend/src/composables/useSubstituteNetworkLayout.ts`：替代关系网络的确定性力导向计算、节点位置会话缓存、拖动固定和停止调度；不请求 API 或直接操作 SVG DOM。
-- `frontend/src/pages/PlaceholderPage.vue`：入库单、出库和审批共用的无数据占位页；页面标题读取路由元数据，只展示路由职责与对应 OpenAPI 范围。
 - `frontend/src/pages/inbound-draft/model.ts`：入库草稿 `lineId` 模型、模板来源与解析状态、待填项与草稿值派生、模板字段校验、file 引用、提交模式和请求构造规则。
 - `frontend/src/pages/inbound-draft/presentation.ts`：入库草稿页错误文案、网络错误映射和数值展示格式化。
 - `frontend/src/pages/items/fileCleanup.ts`：物品草稿切换、字段删除和类型变化时清理未绑定图片。
@@ -194,6 +198,7 @@
 - `frontend/docs/implementation-notes/outbound-estimated-cost.md`：出库草稿提交前基于批次快照的预计成本、FIFO 分摊、界面呈现与验收边界。
 - `frontend/docs/implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切、单列呈现重构、详情和筛选 Dialog 适配方案。
 - `frontend/docs/page-outbound-orders.md`：出库单列表、服务端筛选、触底追加、批次/FIFO 语义、详情与审批边界实施设计。
+- `frontend/docs/page-stock-approvals.md`：入库与出库审批共享工作台、组合权限、审核确认、库存影响、并发错误、响应式和验收设计。
 - `frontend/docs/page-outbound.md`：新建出库两步工作台、批次/FIFO 分配、草稿、提交审核和验收设计。
 - `frontend/docs/page-templates.md`：分类与模板页面的三业务域结构、字段编辑器、权限、危险删除、响应式和验收设计。
 - `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。
