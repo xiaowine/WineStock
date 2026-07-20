@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WineStock Android shell 的网络安全策略。
+
+  远端模式常见用法是连接局域网内以明文 HTTP 暴露的 WineStock 服务器，其 IP 事先未知，
+  无法按域名精确白名单，因此这里放行明文流量以保证远端连接可用。
+  前端页面运行在 https://winestock.internal 的 secure context，连接明文远端时的
+  mixed-content 由 WebView 的 mixedContentMode 单独放开。
+  受信任前端 origin winestock.internal 仅由 WebViewAssetLoader 从本地 assets 提供，不经网络。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

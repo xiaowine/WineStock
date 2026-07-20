@@ -9,6 +9,7 @@
 - [`runtime-networking.md`](runtime-networking.md)：运行模式、绑定地址和访问 URL 规则。
 - [`platforms.md`](platforms.md)：desktop、Android、server 和前端平台职责。
 - [`shell-bridge.md`](shell-bridge.md)：UI 平台的前端运行配置、Shell Bridge、服务生命周期和错误边界。
+- [`async-state-transitions.md`](async-state-transitions.md)：平台无关的加载、恢复、刷新稳定呈现与防闪烁规则。
 - [`project-structure.md`](project-structure.md)：仓库结构和组件所有权。
 - [`agent-checklist.md`](agent-checklist.md)：实施与验证检查清单。
 - [`code-map.md`](code-map.md)：全仓库代码地图入口。

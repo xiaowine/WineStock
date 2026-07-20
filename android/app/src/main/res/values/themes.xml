@@ -1,0 +1,17 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 应用主题：承载 WebView 内容区域的常规外观。 -->
+    <style name="Base.Theme.WineStock" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/web_background</item>
+    </style>
+
+    <style name="Theme.WineStock" parent="Base.Theme.WineStock" />
+
+    <!-- 冷启动 SplashScreen 主题：接管系统启动窗口，中性底 + 居中 logo。
+         由 core-splashscreen 提供跨版本一致行为，Activity 通过 installSplashScreen() 接管并延迟隐藏；
+         就绪后回到 postSplashScreenTheme 指向的常规主题。 -->
+    <style name="Theme.WineStock.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/web_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.WineStock</item>
+    </style>
+</resources>

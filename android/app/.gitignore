@@ -1,0 +1,4 @@
+/build
+
+# 由 frontend/dist 同步生成的 WebView 资源，不纳入版本库（见 build.gradle.kts:syncFrontendAssets）。
+/src/main/assets/frontend/

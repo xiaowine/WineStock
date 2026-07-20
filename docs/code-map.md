@@ -15,6 +15,7 @@
 - [`code-map/core.md`](code-map/core.md)：`core` Axum 服务、业务模块、持久化层和公共 HTTP 接口。
 - [`code-map/server.md`](code-map/server.md)：`server` 无头平台 shell 和启动流程。
 - [`code-map/frontend.md`](code-map/frontend.md)：`frontend` 路由、布局、API client、鉴权会话和页面。
+- [`code-map/android.md`](code-map/android.md)：`android` 原生 shell、WebView 加载、Shell Bridge 传输和运行配置。
 
 ## 顶层所有权
 
@@ -24,7 +25,7 @@ core        -> 共享 Axum 服务和业务能力
 server      -> 无头服务端平台 shell
 frontend    -> 共享前端源码，不由 Axum 服务
 desktop     -> 当前非正式脚手架，正式 Tauri shell 尚未实现
-android     -> 正式 shell 尚未实现
+android     -> 原生 WebView shell，已实现 Shell Bridge 传输与运行配置，端上本地 Axum 尚未实现
 ```
 
 详细架构边界仍以 `docs/architecture.md`、`docs/platforms.md` 和 `docs/project-structure.md` 为准。
