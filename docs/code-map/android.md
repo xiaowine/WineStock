@@ -13,8 +13,14 @@
 - `android/gradle/libs.versions.toml`：版本目录，含 `androidx.webkit`（Shell Bridge 消息通道与文档起始脚本依赖）。
 - `android/app/build.gradle.kts`
   - 声明 `:app` 构建配置、命名空间 `winestock.xiaowine.cc` 和 viewBinding。
-  - `syncFrontendAssets`（`Sync` 任务）把 `frontend/dist` 同步到 `app/src/main/assets/frontend`，挂在 `preBuild` 前；
-    `dist` 缺失时禁用任务以避免误删已打包资源。生成目录不纳入版本库，需先在 `frontend/` 执行 `pnpm build`。
+  - 从当前 `PATH` 直接执行本机 `pnpm run build:android`，不固定或下载 Node/pnpm 版本，也不读取 `frontend/dist`。
+  - 为每个 Android variant 注册前端校验、generated assets 暂存和 APK/AAB 包级验证任务；
+    `assemble<Variant>`、`bundle<Variant>` 和 `install<Variant>` 会沿任务图使用当前前端源码。
+- `android/buildSrc/src/main/kotlin/winestock/build/FrontendPackagingTasks.kt`
+  - 定义前端构建、目录校验、generated assets 暂存、legacy 目录守卫和最终归档验证任务。
+  - 构建任务只调用本机 pnpm；依赖未准备、命令失败或产物缺失时立即失败，不执行隐式安装。
+- `android/buildSrc/src/main/kotlin/winestock/build/FrontendAssetValidation.kt`
+  - 统一校验 Vite 目录与 APK/AAB 内资源的入口、manifest 引用、开发标记、绝对路径和发布 source map。
 
 ## Activity 与 WebView
 
@@ -86,6 +92,8 @@
   当前浅色前端在系统 night mode 下仍保持浅色背景。
 - `android/app/src/main/res/xml/network_security_config.xml`：放行明文流量，使远端模式可连接局域网 HTTP 服务器。
 - `android/app/src/main/AndroidManifest.xml`：INTERNET 权限、network security config 引用和 Activity 声明。
+- `android/app/build/intermediates/winestockFrontend/android/dist`：Vite Android mode 的中间输出，由 Gradle 生成和清理。
+- `android/app/build/generated/winestockFrontendAssets/<variant>/frontend`：AGP 对应 variant 消费的已验证 generated assets。
 
 ## 启动流程
 

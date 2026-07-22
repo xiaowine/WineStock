@@ -14,3 +14,5 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `unified-item-attribute-definitions.md`：统一物品模板属性与物品自定义属性定义实体的跨 core/frontend 实施方案、确认决策和测试数据库转换步骤。
 - `category-template-item-usage-counts.md`：分类与物品属性模板的物品使用数量、删除影响提示和跨 core/frontend 验收整改方案。
 - `android-webview-edge-to-edge.md`：Android WebView 全屏铺设、原生 WindowInsets 向前端安全区变量传递、系统栏外观与跨 Android/frontend 验收实施方案。
+- `android-frontend-packaging-workflow.md`：Android 自动构建、校验、暂存并验证共享前端资源的跨 Android/frontend 打包工作流方案。
+- `android-webview-native-back-navigation.md`：Android 原生返回键通过 Shell Bridge 先交给前端处理 Dialog、Drawer、页面步骤与路由，并在未处理或超时后安全回退的跨 Android/frontend 实施方案。

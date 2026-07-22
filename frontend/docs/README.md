@@ -7,6 +7,10 @@
 Desktop Tauri shell、Android native shell、WebView 生命周期、平台权限和资源打包仍由各自平台目录负责。
 Axum 不服务前端构建产物。
 
+Android 打包通过 `package.json` 的 `build:android` 调用同一份前端源码，并由 Android Gradle
+任务提供隔离输出目录、校验和 generated assets 注册。该流程直接使用本机 Node/pnpm，
+不固定或自动下载工具版本；依赖安装仍通过 frozen lockfile 显式完成。
+
 UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本前端统一拥有；配置持久化与服务启停通过根文档 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义的 Shell Bridge 交给平台壳执行。
 业务能力继续通过 HTTP 调用 core，Shell Bridge 不代理业务 API。
 

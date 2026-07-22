@@ -11,7 +11,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 传输实现要点：
 
 - 通过 `androidx.webkit` 的 `WebMessageListener` + document-start 脚本，在受信任 origin `https://winestock.internal` 上建立 JS ↔ Kotlin 消息通道。
-- 前端资源由 `WebViewAssetLoader` 从 `assets/frontend` 提供，Gradle `syncFrontendAssets` 任务从 `frontend/dist` 同步。
+- 前端资源由 `WebViewAssetLoader` 从 `assets/frontend` 提供；Gradle 使用本机 pnpm 构建当前源码，校验后注册为 variant generated assets。
 - 信封协议、方法路由和快照派生写在代码注释中（`shell/bridge.js`、`shell/ShellBridgeHost.kt`）。
 
 ## 当前边界与未实现
@@ -19,6 +19,16 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - 端上本地 Axum 尚未实现：本地模式返回 `unsupported_runtime_mode`，`startLocalService` 等能力为 `false`；远端模式为当前主用法。
 - 运行配置校验是 shared 规则的 Kotlin 镜像（对齐前端 web fallback）；端上原生 Rust 服务落地后应改为委托 `winestock_shared`。
 - 为连接局域网明文 HTTP 服务器，已放行 cleartext 与 WebView mixed-content，范围见 `network_security_config.xml` 与代码注释。
+
+## 前端资源打包
+
+- Android 构建直接从当前 `PATH` 执行本机 `pnpm run build:android`，不固定、下载或切换 Node/pnpm 版本。
+- 前端依赖需要预先通过 `pnpm --dir frontend install --frozen-lockfile` 显式准备；普通 Android 构建不联网安装依赖。
+- Vite Android mode 把产物写入 `app/build/intermediates/winestockFrontend/android/dist`，不读取 `frontend/dist`。
+- `verify<Variant>FrontendAssets` 校验入口、manifest、资源引用、开发服务器标记和路径泄漏。
+- `stage<Variant>FrontendAssets` 把通过校验的产物同步到 `app/build/generated/winestockFrontendAssets/<variant>/frontend`，并通过 AGP variant API 注册。
+- `verify<Variant>FrontendPackage` 与 `verify<Variant>FrontendBundlePackage` 分别校验 APK/AAB 内的最终资源。
+- `app/src/main/assets/frontend` 已废弃并受构建守卫禁止；`assets/shell/bridge.js` 仍是 Android 平台源码资源。
 
 ## WebView edge-to-edge 与安全区
 

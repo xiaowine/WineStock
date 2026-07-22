@@ -6,7 +6,8 @@
 
 ## 工程入口
 
-- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用 pnpm。
+- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用本机 pnpm，`build:android` 提供 Android 专用生产构建且不固定 Node/pnpm 版本。
+- `frontend/vite.config.ts`：普通 Web 构建保持默认行为；Android mode 隔离 `.env*`、接收 Gradle 提供的绝对输出目录并生成可校验 manifest。
 - `frontend/src/main.ts`：先初始化 Shell 运行快照和动态 API 地址，再按是否存在服务启动健康检查、会话恢复、跨标签页同步、自动刷新和全局浮层滚动条，安装路由守卫并挂载 Vue。
 - `frontend/src/bootstrap/overlayScrollbars.ts`：在移动与触控视口隐藏经典滚动槽后，为当前真实滚动宿主绘制可见且可拖动的浮层滑块；响应滚动、尺寸、DOM 和 Teleport 变化，不改变业务滚动容器所有权。
 - `frontend/src/bootstrap/viewport.ts`：在 Vue 挂载后等待首帧布局，检测移动 WebView 的临时宽布局视口并在业务路由挂载前纠正 viewport meta；不选择 Shell 或重挂载应用组件。

@@ -63,7 +63,7 @@ class FrontendPathHandler(context: Context) : WebViewAssetLoader.PathHandler {
             mimeType == "image/svg+xml"
 
     private companion object {
-        /** 前端产物在 assets 中的相对根目录，由 Gradle syncFrontendAssets 任务写入。 */
+        /** 前端产物在 assets 中的相对根目录，由 Gradle variant generated assets 注册并打入包内。 */
         const val ASSET_ROOT = "frontend"
     }
 }
