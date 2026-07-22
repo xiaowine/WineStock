@@ -49,6 +49,7 @@ desktop/android shell -> core/shared + packaged frontend assets
 ## 实施规则
 
 - 先确认变更归属和公共边界，再修改代码；跨组件变更要明确每一侧的职责。
+- 未明确指定交付格式时，评估、分析、设计和实施方案等报告默认生成 Markdown（`.md`）并放入所属 `docs/`；只有用户明确要求 Word/DOCX、PDF 或其它格式时才生成对应文件，不得仅因“报告”或“正式文档”等表述自行改用二进制文档格式。
 - 优先沿用现有模块、组件、token、API 契约和局部模式，不建立重复实现。
 - 引入依赖、修改数据库、删除兼容行为、更新代码地图、编写中文注释和选择验证范围时，完整执行 [`docs/agent-checklist.md`](docs/agent-checklist.md)。
 - 判断 HTTP 接口时先核对运行服务的 `/api-docs/openapi.json`，再读 core 业务文档，最后才追踪 controller/service/repository 源码。

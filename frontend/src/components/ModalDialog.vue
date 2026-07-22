@@ -8,7 +8,10 @@
       <div
         v-if="open"
         class="modal-layer"
-        :class="{ 'modal-layer--nested': nested }"
+        :class="{
+          'modal-layer--nested': nested,
+          'modal-layer--network-workspace': networkWorkspace,
+        }"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"

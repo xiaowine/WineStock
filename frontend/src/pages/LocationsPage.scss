@@ -557,8 +557,9 @@
     }
 
     &__header {
-      min-height: calc(58px + env(safe-area-inset-top));
-      padding-top: calc(10px + env(safe-area-inset-top));
+      min-height: calc(58px + var(--safe-area-top));
+      padding-top: calc(10px + var(--safe-area-top));
+      padding-left: calc(14px + var(--safe-area-left));
     }
 
     &__close {
@@ -566,7 +567,8 @@
     }
 
     &__body {
-      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      padding-bottom: calc(12px + var(--safe-area-bottom));
+      padding-left: calc(8px + var(--safe-area-left));
     }
   }
 
@@ -581,7 +583,9 @@
   }
 
   .locations-catalog {
-    min-height: calc(100dvh - var(--topbar-height-mobile) - 28px);
+    min-height: calc(
+      100dvh - var(--topbar-height-mobile) - var(--safe-area-top) - var(--safe-area-bottom) - 28px
+    );
 
     &__toolbar {
       grid-template-columns: minmax(0, 1fr);

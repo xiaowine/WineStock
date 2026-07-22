@@ -97,11 +97,11 @@ function handleFocusOut(id: string, event: FocusEvent): void {
 <style scoped lang="scss">
 .notice-viewport {
   position: fixed;
-  top: calc(10px + env(safe-area-inset-top));
-  right: 14px;
+  top: calc(10px + var(--safe-area-top));
+  right: calc(14px + var(--safe-area-right));
   z-index: var(--z-notice);
   display: grid;
-  width: min(380px, calc(100vw - 28px));
+  width: min(380px, calc(100vw - 28px - var(--safe-area-left) - var(--safe-area-right)));
   gap: 10px;
   pointer-events: none;
 }
@@ -274,8 +274,8 @@ function handleFocusOut(id: string, event: FocusEvent): void {
 
 @media (max-width: 767px) {
   .notice-viewport {
-    right: 10px;
-    width: calc(100vw - 20px);
+    right: calc(10px + var(--safe-area-right));
+    width: calc(100vw - 20px - var(--safe-area-left) - var(--safe-area-right));
   }
 }
 </style>

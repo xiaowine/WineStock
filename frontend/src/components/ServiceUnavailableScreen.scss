@@ -7,7 +7,8 @@
   display: grid;
   min-width: 320px;
   min-height: 100dvh;
-  padding: 24px;
+  padding: calc(24px + var(--safe-area-top)) calc(24px + var(--safe-area-right))
+    calc(24px + var(--safe-area-bottom)) calc(24px + var(--safe-area-left));
   background: var(--color-page);
   place-items: center;
 
@@ -80,7 +81,8 @@
 
 @include mixins.mobile {
   .service-unavailable {
-    padding: 16px;
+    padding: calc(16px + var(--safe-area-top)) calc(16px + var(--safe-area-right))
+      calc(16px + var(--safe-area-bottom)) calc(16px + var(--safe-area-left));
   }
 
   .service-unavailable {

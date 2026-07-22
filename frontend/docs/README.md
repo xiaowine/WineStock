@@ -30,6 +30,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `ui-design-guidelines.md`：后续业务页面必须遵守的页面骨架、三段式列表、工具栏、表单、浮层、响应式和例外规则。
 - `ui-consistency-checklist.md`：按业务状态、目标视口和真实尺寸验证 UI 规范是否落实的实施与量化验收清单。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。
+- `mobile-interactions.md`：浏览器/Android WebView 安全区变量、full-bleed 背景、固定操作区和移动端验收规则。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
 - `implementation-notes/inbound-template-usability-remediation.md`：入库模板可发现性、权限耦合、主列表状态、模板切换保护和分阶段整改方案。
 - `implementation-notes/outbound-estimated-cost.md`：新建出库提交前的批次成本预估、FIFO 分摊、界面呈现、错误边界与验收方案。
@@ -51,5 +52,4 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 ## 后续建议拆分
 
 - `components.md`：按钮、输入框、表格、列表、抽屉、Dialog 等通用组件约定。
-- `mobile-interactions.md`：Android/WebView 触控、安全区、返回键和移动端页面操作规则。
 - `page-inventory.md`、`page-users.md` 等：复杂业务页面的内容结构、字段、操作和交互记录。

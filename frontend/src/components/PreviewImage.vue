@@ -34,6 +34,7 @@
     <Transition name="image-viewer" appear @after-leave="restoreFocus">
       <div
         v-if="viewerOpen"
+        ref="viewer"
         class="image-viewer"
         role="dialog"
         aria-modal="true"
@@ -83,6 +84,7 @@ const props = withDefaults(
 
 const attrs = useAttrs();
 const trigger = ref<HTMLElement | null>(null);
+const viewer = ref<HTMLElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
 const viewerOpen = ref(false);
 const imageFailed = ref(false);
@@ -174,10 +176,13 @@ function rectStyle(rect: DOMRect): CSSProperties {
 /** 按原图比例计算视口内的最终矩形，保证共享元素动画结束后完整展示图片。 */
 function expandedImageStyle(): CSSProperties {
   const sourceImage = trigger.value?.querySelector("img");
-  const horizontalPadding = window.innerWidth < 768 ? 12 : 20;
-  const topPadding = 56;
-  const bottomPadding = 20;
-  const availableWidth = Math.max(1, window.innerWidth - horizontalPadding * 2);
+  const viewerStyle = viewer.value ? getComputedStyle(viewer.value) : undefined;
+  const fallbackHorizontalPadding = window.innerWidth < 768 ? 12 : 20;
+  const topPadding = resolvedCssPixel(viewerStyle?.paddingTop, 56);
+  const rightPadding = resolvedCssPixel(viewerStyle?.paddingRight, fallbackHorizontalPadding);
+  const bottomPadding = resolvedCssPixel(viewerStyle?.paddingBottom, 20);
+  const leftPadding = resolvedCssPixel(viewerStyle?.paddingLeft, fallbackHorizontalPadding);
+  const availableWidth = Math.max(1, window.innerWidth - leftPadding - rightPadding);
   const availableHeight = Math.max(1, window.innerHeight - topPadding - bottomPadding);
   const sourceRect = sourceImage?.getBoundingClientRect();
   const naturalWidth = sourceImage?.naturalWidth || sourceRect?.width || 1;
@@ -186,12 +191,18 @@ function expandedImageStyle(): CSSProperties {
   const width = naturalWidth * scale;
   const height = naturalHeight * scale;
   return {
-    left: `${(window.innerWidth - width) / 2}px`,
+    left: `${leftPadding + (availableWidth - width) / 2}px`,
     top: `${topPadding + (availableHeight - height) / 2}px`,
     width: `${width}px`,
     height: `${height}px`,
     borderRadius: "0px",
   };
+}
+
+/** 读取浏览器已解析的 CSS px，使图片终点与 env/shell 合并后的实际安全区保持一致。 */
+function resolvedCssPixel(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseFloat(value ?? "");
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function updateExpandedRect(): void {

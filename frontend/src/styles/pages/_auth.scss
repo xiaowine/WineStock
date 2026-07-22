@@ -2,9 +2,10 @@
 @use "../foundation/mixins" as mixins;
 .auth-page {
   display: grid;
-  min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
-  padding: 40px;
+  padding: calc(40px + var(--safe-area-top)) calc(40px + var(--safe-area-right))
+    calc(40px + var(--safe-area-bottom)) calc(40px + var(--safe-area-left));
   background: var(--color-page);
 }
 
@@ -99,7 +100,8 @@
 @include mixins.mobile {
   .auth-page {
     align-items: start;
-    padding: calc(18px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));
+    padding: calc(18px + var(--safe-area-top)) calc(14px + var(--safe-area-right))
+      calc(18px + var(--safe-area-bottom)) calc(14px + var(--safe-area-left));
   }
 
   .auth-panel {

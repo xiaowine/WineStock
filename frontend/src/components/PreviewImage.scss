@@ -72,14 +72,25 @@
   inset: 0;
   z-index: calc(var(--z-notice) - 1);
   display: grid;
+  isolation: isolate;
   place-items: center;
-  padding: max(56px, calc(20px + env(safe-area-inset-top))) 20px
-    max(20px, env(safe-area-inset-bottom));
-  background: rgb(11 15 20 / 70%);
-  backdrop-filter: blur(1.8px);
+  padding: max(56px, calc(20px + var(--safe-area-top))) calc(20px + var(--safe-area-right))
+    max(20px, var(--safe-area-bottom)) calc(20px + var(--safe-area-left));
+  background: var(--color-page);
+
+  /* 深色预览层只覆盖安全绘制矩形，系统栏区域保留浅色背景以匹配深色图标。 */
+  &::before {
+    position: absolute;
+    z-index: 0;
+    inset: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
+    background: rgb(11 15 20 / 70%);
+    backdrop-filter: blur(1.8px);
+    content: "";
+  }
 
   > img {
     position: fixed;
+    z-index: 1;
     display: block;
     object-fit: contain;
     user-select: none;
@@ -94,8 +105,9 @@
 
   &__close {
     position: absolute;
-    top: max(14px, env(safe-area-inset-top));
-    right: 14px;
+    z-index: 1;
+    top: max(14px, var(--safe-area-top));
+    right: calc(14px + var(--safe-area-right));
     width: 40px;
     height: 40px;
     border-color: rgb(255 255 255 / 24%);
@@ -129,7 +141,7 @@
 
 @include mixins.mobile {
   .image-viewer {
-    padding-right: 12px;
-    padding-left: 12px;
+    padding-right: calc(12px + var(--safe-area-right));
+    padding-left: calc(12px + var(--safe-area-left));
   }
 }

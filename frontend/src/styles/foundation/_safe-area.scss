@@ -1,0 +1,19 @@
+/* 本文件拥有平台安全区的统一变量入口，不定义具体页面或组件的避让方式。 */
+:root {
+  /*
+   * Android shell 发布的是 WebView WindowInsets 换算后的 CSS 值；
+   * 浏览器 env() 作为其它运行环境的补充来源，取较大值避免双重相加。
+   */
+  --shell-safe-area-inset-top: 0px;
+  --shell-safe-area-inset-right: 0px;
+  --shell-safe-area-inset-bottom: 0px;
+  --shell-safe-area-inset-left: 0px;
+
+  --safe-area-top: max(env(safe-area-inset-top, 0px), var(--shell-safe-area-inset-top, 0px));
+  --safe-area-right: max(env(safe-area-inset-right, 0px), var(--shell-safe-area-inset-right, 0px));
+  --safe-area-bottom: max(
+    env(safe-area-inset-bottom, 0px),
+    var(--shell-safe-area-inset-bottom, 0px)
+  );
+  --safe-area-left: max(env(safe-area-inset-left, 0px), var(--shell-safe-area-inset-left, 0px));
+}

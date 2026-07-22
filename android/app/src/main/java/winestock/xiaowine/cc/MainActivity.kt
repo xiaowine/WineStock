@@ -1,7 +1,6 @@
 package winestock.xiaowine.cc
 
 import android.annotation.SuppressLint
-import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -17,19 +16,19 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import winestock.xiaowine.cc.databinding.ActivityMainBinding
 import winestock.xiaowine.cc.shell.ShellBridgeHost
 import winestock.xiaowine.cc.web.FrontendPathHandler
+import winestock.xiaowine.cc.web.WebViewportInsetsPublisher
 
 /**
  * WineStock Android shell 的唯一 Activity。
  *
  * 职责：创建并配置 WebView、通过 WebViewAssetLoader 从受信任 origin 加载打包前端、
- * 在加载前安装 Shell Bridge、管理冷启动 SplashScreen 的保持与隐藏、处理返回键、在恢复时通知桥。
+ * 在加载前安装 Shell Bridge、保持 edge-to-edge 并向前端发布安全区、管理冷启动 SplashScreen、
+ * 处理返回键并在恢复时通知桥。
  * 它不渲染运行设置或业务 UI，不实现本地 Axum 服务，配置与业务能力分别由前端经 Shell Bridge 和 HTTP 使用。
  */
 class MainActivity : AppCompatActivity() {
@@ -37,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var assetLoader: WebViewAssetLoader
     private var shellBridge: ShellBridgeHost? = null
+    private var viewportInsetsPublisher: WebViewportInsetsPublisher? = null
 
     /** 前端首屏是否就绪；SplashScreen 在此之前一直保持，就绪后系统冷启动窗口才退场。 */
     private var frontendReady = false
@@ -59,7 +59,12 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         applyStatusBarAppearance()
-        applySystemBarInsets()
+        viewportInsetsPublisher =
+            WebViewportInsetsPublisher(
+                insetTarget = binding.root,
+                webView = binding.webView,
+                trustedOrigin = AppConfig.TRUSTED_ORIGIN,
+            ).also { it.install() }
 
         assetLoader =
             WebViewAssetLoader.Builder()
@@ -76,20 +81,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyStatusBarAppearance() {
-        val isNightMode = (resources.configuration.uiMode and
-            Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         WindowInsetsControllerCompat(window, binding.root).apply {
-            // 浅色背景用深色图标，深色背景用浅色图标。
-            isAppearanceLightStatusBars = !isNightMode
-            isAppearanceLightNavigationBars = !isNightMode
-        }
-    }
-
-    private fun applySystemBarInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
+            // 前端当前固定为浅色主题，系统栏使用深色图标；不跟随系统夜间模式切换。
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
         }
     }
 
@@ -107,8 +102,14 @@ class MainActivity : AppCompatActivity() {
                     request: WebResourceRequest,
                 ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
 
+                override fun onPageCommitVisible(view: WebView?, url: String?) {
+                    super.onPageCommitVisible(view, url)
+                    viewportInsetsPublisher?.onPageVisible(url)
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    viewportInsetsPublisher?.onPageVisible(url)
                     // 兜底：真正的就绪信号来自前端，但 SPA 首屏未绘制时也不应长期保持启动画面。
                     markFrontendReady()
                 }
@@ -162,12 +163,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewportInsetsPublisher?.refresh()
         // 通知前端应用恢复，触发服务可用性补检；桥未安装时为 no-op。
         shellBridge?.notifyAppResumed()
     }
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(splashTimeout)
+        viewportInsetsPublisher?.dispose()
+        viewportInsetsPublisher = null
         super.onDestroy()
     }
 

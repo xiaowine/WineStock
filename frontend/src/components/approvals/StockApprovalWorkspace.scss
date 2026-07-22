@@ -494,7 +494,4 @@
   .approval-detail-lines article dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .modal-actions:has(.approval-reject-button) {
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  }
 }

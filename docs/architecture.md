@@ -218,6 +218,9 @@ The root Cargo workspace currently contains:
 `core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, Garde, SeaORM/SQLx SQLite bootstrap dependencies, and `shared`.
 `shared` contains the platform-neutral JSON startup config model, config parsing errors, and primitive text validation helpers.
 
-Desktop and Android platform shells are not implemented yet.
+The formal Desktop Tauri shell is not implemented yet. The repository contains an Android
+WebView shell with packaged frontend loading, Shell Bridge transport, and edge-to-edge
+WindowInsets publication; shared Rust service integration and on-device local Axum remain
+incomplete, so it is not yet the complete formal Android architecture.
 
 The formal server shell exists under `server/` and starts the shared Axum service from JSON config.

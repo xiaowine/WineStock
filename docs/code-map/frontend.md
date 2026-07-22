@@ -198,9 +198,13 @@
 ## 样式和文档
 
 - `frontend/src/styles/index.scss`：全局 SCSS 入口，仅装配 foundation、shared 和认证页面族样式。
-- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染、全局滚动条、减少动态效果适配，以及断点、输入方式、焦点和 SVG 图标的共享 SCSS mixin。
+- `frontend/src/styles/foundation/`：浅色视觉与 motion token、基础渲染、全局滚动条、统一安全区变量、
+  减少动态效果适配，以及断点、输入方式、焦点和 SVG 图标的共享 SCSS mixin。
+- `frontend/src/styles/foundation/_safe-area.scss`：合并浏览器 `env()` 与平台 shell 发布值，
+  输出 `--safe-area-top/right/bottom/left`；业务样式不得绕过此入口直接读取原始 env。
 - `frontend/src/styles/shared/`：品牌、控件、表单、页面骨架和用户对话框共享视觉原语。
 - `frontend/src/layouts/AppShell.scss`：稳定应用框架的桌面/移动布局、导航 Drawer 和顶部栏断点规则。
+- `frontend/docs/mobile-interactions.md`：移动端 WebView 安全区、full-bleed 背景、固定操作区和验收规则。
 - `frontend/src/components/**/*.scss`：导航、账户、模态框和用户管理组件各自拥有的外观与响应式规则。
 - `frontend/src/pages/*.scss`：具体业务页面拥有的表格、移动列表、状态和分页样式。
 - `frontend/docs/page-framework.md`：页面框架和桌面/移动所有权。

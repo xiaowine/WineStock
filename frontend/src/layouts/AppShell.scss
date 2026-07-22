@@ -15,11 +15,12 @@
   top: 0;
   z-index: var(--z-nav);
   display: grid;
-  flex: 0 0 var(--nav-height-desktop);
+  flex: 0 0 calc(var(--nav-height-desktop) + var(--safe-area-top));
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  height: var(--nav-height-desktop);
-  padding: 0 16px;
+  height: calc(var(--nav-height-desktop) + var(--safe-area-top));
+  padding: var(--safe-area-top) calc(16px + var(--safe-area-right)) 0
+    calc(16px + var(--safe-area-left));
   border-bottom: 1px solid var(--color-border);
   background: #fbfbfc;
 
@@ -72,7 +73,7 @@
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
-  padding: 12px 10px;
+  padding: 12px 10px calc(12px + var(--safe-area-bottom)) calc(10px + var(--safe-area-left));
   border-right: 1px solid var(--color-nav-border);
   background: var(--color-nav);
 
@@ -88,7 +89,7 @@
   flex-direction: column;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  padding: 18px 22px 22px;
+  padding: 18px calc(22px + var(--safe-area-right)) calc(22px + var(--safe-area-bottom)) 22px;
   background: var(--color-surface);
 }
 
@@ -99,7 +100,8 @@
 
 @include mixins.tablet {
   .app-topbar {
-    padding: 0 14px;
+    padding: var(--safe-area-top) calc(14px + var(--safe-area-right)) 0
+      calc(14px + var(--safe-area-left));
   }
 
   .brand-lockup {
@@ -113,10 +115,11 @@
 
 @include mixins.mobile {
   .app-topbar {
-    flex-basis: calc(var(--topbar-height-mobile) + env(safe-area-inset-top));
+    flex-basis: calc(var(--topbar-height-mobile) + var(--safe-area-top));
     grid-template-columns: minmax(0, 1fr) auto;
-    height: calc(var(--topbar-height-mobile) + env(safe-area-inset-top));
-    padding: env(safe-area-inset-top) 12px 0;
+    height: calc(var(--topbar-height-mobile) + var(--safe-area-top));
+    padding: var(--safe-area-top) calc(12px + var(--safe-area-right)) 0
+      calc(12px + var(--safe-area-left));
     background: rgb(251 251 252 / 94%);
     box-shadow: 0 1px 10px rgb(23 32 42 / 4%);
     backdrop-filter: blur(14px);
@@ -214,7 +217,7 @@
 
   .app-content-pane {
     height: 100%;
-    padding: 10px 0 18px;
+    padding: 10px var(--safe-area-right) calc(18px + var(--safe-area-bottom)) var(--safe-area-left);
   }
 
   .app-navigation-pane {
@@ -225,7 +228,8 @@
     width: min(82vw, 304px);
     min-height: 100dvh;
     gap: 18px;
-    padding: calc(14px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom));
+    padding: calc(14px + var(--safe-area-top)) 10px calc(14px + var(--safe-area-bottom))
+      calc(10px + var(--safe-area-left));
     border-right: 1px solid var(--color-nav-border);
     background: var(--color-nav);
     box-shadow: var(--shadow-menu);

@@ -452,7 +452,9 @@
     border-radius: 0;
   }
   .items-catalog {
-    min-height: calc(100dvh - var(--topbar-height-mobile) - 28px);
+    min-height: calc(
+      100dvh - var(--topbar-height-mobile) - var(--safe-area-top) - var(--safe-area-bottom) - 28px
+    );
   }
   .items-catalog__toolbar {
     grid-template-columns: minmax(0, 1fr);

@@ -446,7 +446,7 @@
     &__summary {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
-      padding: 9px 10px calc(9px + env(safe-area-inset-bottom));
+      padding: 9px 10px;
     }
 
     &__metrics {

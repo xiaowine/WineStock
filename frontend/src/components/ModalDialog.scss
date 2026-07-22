@@ -6,7 +6,8 @@
   z-index: var(--z-dialog);
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: calc(20px + var(--safe-area-top)) calc(20px + var(--safe-area-right))
+    calc(20px + var(--safe-area-bottom)) calc(20px + var(--safe-area-left));
   background: rgb(23 32 42 / 42%);
 
   &--nested {
@@ -148,11 +149,16 @@
   .modal-layer {
     align-items: end;
     padding: 0;
+
+    &--network-workspace {
+      padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom)
+        var(--safe-area-left);
+    }
   }
 
   .modal-panel {
     width: 100%;
-    max-height: calc(92vh - env(safe-area-inset-top));
+    max-height: calc(92vh - var(--safe-area-top));
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
@@ -163,7 +169,7 @@
     &--network-workspace,
     &--compact {
       width: 100%;
-      max-height: calc(92vh - env(safe-area-inset-top));
+      max-height: calc(92vh - var(--safe-area-top));
       border-right: 0;
       border-bottom: 0;
       border-left: 0;
@@ -171,12 +177,12 @@
     }
 
     &--compact {
-      max-height: calc(88vh - env(safe-area-inset-top));
+      max-height: calc(88vh - var(--safe-area-top));
     }
 
     &--network-workspace {
-      height: calc(100dvh - env(safe-area-inset-top));
-      max-height: calc(100dvh - env(safe-area-inset-top));
+      height: 100%;
+      max-height: 100%;
       border-radius: 0;
     }
   }
@@ -187,7 +193,9 @@
   }
 
   .modal-actions {
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding-right: calc(18px + var(--safe-area-right));
+    padding-bottom: calc(12px + var(--safe-area-bottom));
+    padding-left: calc(18px + var(--safe-area-left));
   }
 
   .modal-context {

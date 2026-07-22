@@ -13,3 +13,4 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `item-catalog-structured-filters.md`：物品目录分类、模板、单位、库位和可搜索模板属性的结构化筛选契约、前端面板与验收方案。
 - `unified-item-attribute-definitions.md`：统一物品模板属性与物品自定义属性定义实体的跨 core/frontend 实施方案、确认决策和测试数据库转换步骤。
 - `category-template-item-usage-counts.md`：分类与物品属性模板的物品使用数量、删除影响提示和跨 core/frontend 验收整改方案。
+- `android-webview-edge-to-edge.md`：Android WebView 全屏铺设、原生 WindowInsets 向前端安全区变量传递、系统栏外观与跨 Android/frontend 验收实施方案。

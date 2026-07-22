@@ -20,6 +20,24 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - 运行配置校验是 shared 规则的 Kotlin 镜像（对齐前端 web fallback）；端上原生 Rust 服务落地后应改为委托 `winestock_shared`。
 - 为连接局域网明文 HTTP 服务器，已放行 cleartext 与 WebView mixed-content，范围见 `network_security_config.xml` 与代码注释。
 
+## WebView edge-to-edge 与安全区
+
+Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView 覆盖完整可绘制窗口；
+`MainActivity` 不再给根容器统一添加 `systemBars` padding。统一避让由前端按内容语义完成，
+避免状态栏/导航栏区域使用与前端不同的原生背景。
+
+`web/WebViewportInsetsPublisher.kt` 负责：
+
+- 读取 `systemBars | displayCutout`，不消费 WindowInsets；
+- 依据当前 display density 把 Android 物理像素转换为 CSS 像素；
+- 只向受信任 origin `https://winestock.internal` 发布
+  `--shell-safe-area-inset-top/right/bottom/left`；
+- 对相同数值去重，并在页面提交可见、加载完成、恢复或 inset 变化后重发；
+- Activity 销毁时解除监听，不把 inset 扩展为 Shell Bridge v1 业务契约。
+
+系统栏图标固定使用与当前浅色前端匹配的深色图标。夜间系统资源仍使用浅色
+`web_background`，避免 SplashScreen、Window 和 WebView 空白期出现深色断层。
+
 ## 相关文档
 
 - [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md)：Shell Bridge v1 契约与边界（权威）。

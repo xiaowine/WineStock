@@ -1,6 +1,8 @@
 /* 本文件是 frontend 全局 SCSS 入口，只装配基础、共享控件和跨页面模式，不承载具体组件实现。 */
 @use "./foundation/tokens";
 
+@use "./foundation/safe-area";
+
 @use "./foundation/base";
 
 @use "./shared/brand";
