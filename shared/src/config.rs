@@ -11,6 +11,16 @@ use crate::{
     text_validation::validate_not_blank,
 };
 
+/// 平台适配层可消费的结构化配置校验问题。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigValidationIssue {
+    /// shared 配置字段路径，例如 `server.bind_host`。
+    pub path: String,
+
+    /// garde 规则返回的校验说明。
+    pub message: String,
+}
+
 /// WineStock v1 启动配置，只包含服务启动和本地存储两类信息。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, garde::Validate)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +45,20 @@ impl AppConfig {
     /// 输出稳定的 JSON 配置文本，便于平台壳创建默认配置文件。
     pub fn to_json_string_pretty(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
+    }
+
+    /// 返回平台可映射到自身 DTO 的结构化校验问题，不产生持久化或启动副作用。
+    pub fn validation_issues(&self) -> Vec<ConfigValidationIssue> {
+        match Validate::validate(self) {
+            Ok(()) => Vec::new(),
+            Err(report) => report
+                .iter()
+                .map(|(path, error)| ConfigValidationIssue {
+                    path: path.to_string(),
+                    message: error.message().to_owned(),
+                })
+                .collect(),
+        }
     }
 }
 

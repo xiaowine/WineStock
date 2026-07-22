@@ -8,6 +8,7 @@ WineStock 的正式产品目标是多平台，但当前 Rust 实现范围是 ser
 
 当前正式 Rust 工作区成员：
 
+- `android/native`
 - `core`
 - `server`
 - `shared`
@@ -16,7 +17,7 @@ WineStock 的正式产品目标是多平台，但当前 Rust 实现范围是 ser
 
 - `frontend` 是 Vue/Vite 共享前端源码区域，不由 Axum 服务。
 - `desktop` 是普通 Rust 脚手架，不是工作区成员，也不是正式 Tauri shell。
-- 正式 Android shell 代码目前不存在。
+- `android` 是正式原生 WebView shell；其中 `android/native` 是唯一 JNI Rust 适配 crate。
 
 ## 根目录
 
@@ -33,6 +34,7 @@ WineStock 的正式产品目标是多平台，但当前 Rust 实现范围是 ser
 - `core/`：共享 Rust/Axum 服务库。
 - `shared/`：平台无关运行配置、配置解析错误和基础文本校验。
 - `server/`：运行共享服务的无头服务端 shell。
+- `android/`：Application/Activity、WebView、Shell Bridge、ARM64 JNI 构建和 APK 打包。
 - `frontend/`：共享前端源码和 pnpm 工程。
 - `desktop/`：非正式普通 Rust 脚手架。
 
@@ -43,6 +45,8 @@ WineStock 的正式产品目标是多平台，但当前 Rust 实现范围是 ser
 ```text
 server -> core -> shared
 server -> shared
+android/native -> core -> shared
+android app -> packaged frontend assets + android/native
 frontend -> HTTP API
 ```
 
@@ -52,6 +56,7 @@ frontend -> HTTP API
 shared -> core
 core   -> server
 core   -> desktop/android/frontend platform assets
+core   -> android/native
 ```
 
 ## 测试布局
@@ -66,6 +71,7 @@ Rust 单元测试统一放在各 crate 的 `src/tests/` 目录中，源码文件
 - persistence 连接、repository 和服务绑定。
 - server shell 生命周期与配置。
 - shared 配置解析和基础规则。
+- Android native JSON/config contract、Application 级配置事务、回滚和页面 generation。
 
 ## 验证入口
 
@@ -84,6 +90,16 @@ cargo +stable check --workspace --all-targets
 cargo +stable test --workspace
 cargo +stable build -p winestock-server
 ```
+
+Android ARM64/APK 验证：
+
+```text
+cargo ndk -t arm64-v8a -P 26 check -p winestock-android-native --locked
+cd android
+gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:lintDebug --no-daemon
+```
+
+当前只验收 APK，且仅允许 `arm64-v8a`；AAB、32 位和 x86 ABI 不属于当前发布面。
 
 Rust 格式检查：
 

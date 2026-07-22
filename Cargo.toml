@@ -2,6 +2,7 @@
 resolver = "2"
 # 根目录只作为 Cargo 工作区，不承载应用或库代码。
 members = [
+  "android/native",
   "core",
   "server",
   "shared",
@@ -20,6 +21,8 @@ base64 = "0.22"
 getrandom = "0.4.3"
 garde = { version = "0.23.0", features = ["derive"] }
 jsonwebtoken = { version = "10.4.0", default-features = false, features = ["rust_crypto"] }
+jni = "0.22.4"
+log = "0.4"
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio", "sqlx-sqlite"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }
@@ -27,10 +30,12 @@ serde_json = "1"
 sha2 = "0.11.0"
 sqlx = { version = "0.8.4", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tempfile = "3"
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tower = "0.5.3"
 utoipa = "5"
 utoipa-axum = "0.2"
-utoipa-swagger-ui = { version = "9", features = ["axum"] }
+# vendored 避免全新 Android/CI target 在 build.rs 中联网下载 Swagger UI。
+utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
+url = "2.5.8"
 winestock-core = { path = "core" }
 winestock-shared = { path = "shared" }

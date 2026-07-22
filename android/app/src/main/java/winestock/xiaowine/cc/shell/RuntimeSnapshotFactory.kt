@@ -1,132 +1,62 @@
 package winestock.xiaowine.cc.shell
 
-import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 构造 Shell Bridge v1 运行快照。
- *
- * 输出的 JSON 必须通过 frontend/src/shell/contract.ts 的 assertCompatibleRuntimeSnapshot 校验：
- * protocolVersion 固定为 1，platform 为 "android"，capabilities 六个布尔字段齐全。
- * 本文件不管理服务生命周期，只根据配置状态派生前端可消费的快照结构。
- */
-object RuntimeSnapshotFactory {
+data class RuntimeServiceSnapshot(
+    val ownership: String,
+    val phase: String,
+    val apiBaseUrl: String? = null,
+    val boundAddress: String? = null,
+    val error: ShellRuntimeError? = null,
+)
 
+data class AndroidRuntimeSnapshot(
+    val configStatus: String,
+    val config: EditableRuntimeConfig,
+    val createdDefault: Boolean,
+    val service: RuntimeServiceSnapshot,
+    /** native 加载成功才开放本地生命周期 capability；server-mode 仍保持禁用。 */
+    val nativeAvailable: Boolean,
+)
+
+/** 把 Application 级 manager 状态投影为 Shell Bridge v1 JSON。 */
+object RuntimeSnapshotFactory {
     const val PROTOCOL_VERSION = 1
     const val PLATFORM = "android"
 
-    /**
-     * Android 传输层当前能力。
-     *
-     * 端上原生 Axum 尚未实现，因此本地服务启停能力为 false，serverMode 也禁用；
-     * 待 core 提供可停止的本地服务句柄后再放开这些能力。
-     * nativeBack 由 ShellBridgeHost 的真实安装结果传入；只有消息通道、document-start shim 与
-     * NativeBackRequestBroker 全部可用时才声明能力，页面是否 ready 由 Activity 生命周期另行控制。
-     */
-    private fun capabilities(nativeBackSupported: Boolean): JSONObject =
-        JSONObject()
-            .put("startLocalService", false)
-            .put("stopLocalService", false)
-            .put("restartLocalService", false)
-            .put("nativeBack", nativeBackSupported)
-            .put("openExternal", true)
-            .put("serverMode", false)
-
-    /** 已配置且校验通过的运行快照。 */
-    fun configured(config: EditableRuntimeConfig, nativeBackSupported: Boolean = false): JSONObject {
-        val remote = RuntimeModes.isRemote(config.mode)
-        val apiBaseUrl =
-            if (remote) {
-                RuntimeConfigValidator.normalizeApiBaseUrl(config.remoteBaseUrl)
-            } else {
-                "http://127.0.0.1:${config.port}"
-            }
+    fun toJson(snapshot: AndroidRuntimeSnapshot, nativeBackSupported: Boolean): JSONObject {
+        val localLifecycleAvailable =
+            snapshot.nativeAvailable && snapshot.service.ownership == "local"
         val service =
             JSONObject()
-                .put("ownership", if (remote) "remote" else "local")
-                .put("phase", "running")
-        if (apiBaseUrl != null) {
-            service.put("apiBaseUrl", apiBaseUrl)
-        }
-        if (!remote) {
-            service.put("boundAddress", "${config.bindHost}:${config.port}")
-        }
-        return baseSnapshot(
-            "configured",
-            config,
-            createdDefault = false,
-            service = service,
-            nativeBackSupported = nativeBackSupported,
-        )
-    }
+                .put("ownership", snapshot.service.ownership)
+                .put("phase", snapshot.service.phase)
+        snapshot.service.apiBaseUrl?.let { service.put("apiBaseUrl", it) }
+        snapshot.service.boundAddress?.let { service.put("boundAddress", it) }
+        snapshot.service.error?.let { service.put("error", errorJson(it)) }
 
-    /** 配置无效但保留用户草稿，让前端进入设置页修复。 */
-    fun invalid(
-        config: EditableRuntimeConfig,
-        message: String,
-        nativeBackSupported: Boolean = false,
-    ): JSONObject {
-        val service =
-            JSONObject()
-                .put("ownership", if (RuntimeModes.isRemote(config.mode)) "remote" else "local")
-                .put("phase", "stopped")
-                .put(
-                    "error",
-                    JSONObject()
-                        .put("code", ShellErrorCodes.CONFIG_INVALID)
-                        .put("message", message),
-                )
-        return baseSnapshot(
-            "invalid",
-            config,
-            createdDefault = false,
-            service = service,
-            nativeBackSupported = nativeBackSupported,
-        )
-    }
-
-    /** 从未配置，等待首次设置。 */
-    fun unconfigured(nativeBackSupported: Boolean = false): JSONObject {
-        val service =
-            JSONObject()
-                .put("ownership", "local")
-                .put("phase", "stopped")
-        return baseSnapshot(
-            configStatus = "unconfigured",
-            config = DEFAULT_RUNTIME_CONFIG,
-            createdDefault = false,
-            service = service,
-            nativeBackSupported = nativeBackSupported,
-        )
-    }
-
-    /**
-     * 在现有快照基础上附加一次性运行错误，用于本地模式不支持等场景。
-     * 不改变配置状态，只补充 service.error。
-     */
-    fun withError(snapshot: JSONObject, code: String, message: String): JSONObject {
-        val next = JSONObject(snapshot.toString())
-        val service = next.getJSONObject("service")
-        service.put(
-            "error",
-            JSONObject().put("code", code).put("message", message),
-        )
-        return next
-    }
-
-    private fun baseSnapshot(
-        configStatus: String,
-        config: EditableRuntimeConfig,
-        createdDefault: Boolean,
-        service: JSONObject,
-        nativeBackSupported: Boolean,
-    ): JSONObject =
-        JSONObject()
+        return JSONObject()
             .put("protocolVersion", PROTOCOL_VERSION)
             .put("platform", PLATFORM)
-            .put("configStatus", configStatus)
-            .put("config", config.toJson())
-            .put("createdDefault", createdDefault)
+            .put("configStatus", snapshot.configStatus)
+            .put("config", snapshot.config.toJson())
+            .put("createdDefault", snapshot.createdDefault)
             .put("service", service)
-            .put("capabilities", capabilities(nativeBackSupported))
+            .put(
+                "capabilities",
+                JSONObject()
+                    .put("startLocalService", localLifecycleAvailable)
+                    .put("stopLocalService", localLifecycleAvailable)
+                    .put("restartLocalService", localLifecycleAvailable)
+                    .put("nativeBack", nativeBackSupported)
+                    .put("openExternal", true)
+                    .put("serverMode", false),
+            )
+    }
+
+    fun errorJson(error: ShellRuntimeError): JSONObject =
+        JSONObject()
+            .put("code", error.code)
+            .put("message", error.message)
+            .also { json -> error.field?.let { json.put("field", it) } }
 }

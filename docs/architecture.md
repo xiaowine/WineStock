@@ -211,6 +211,7 @@ Do not preserve demo JNI, UI, package, or Gradle structure unless the user expli
 
 The root Cargo workspace currently contains:
 
+- `android/native` as package `winestock-android-native`, crate `winestock_android_native`
 - `core` as package `winestock-core`, crate `winestock_core`
 - `server` as package `winestock-server`
 - `shared` as package `winestock-shared`, crate `winestock_shared`
@@ -218,9 +219,9 @@ The root Cargo workspace currently contains:
 `core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, Garde, SeaORM/SQLx SQLite bootstrap dependencies, and `shared`.
 `shared` contains the platform-neutral JSON startup config model, config parsing errors, and primitive text validation helpers.
 
-The formal Desktop Tauri shell is not implemented yet. The repository contains an Android
-WebView shell with packaged frontend loading, Shell Bridge transport, and edge-to-edge
-WindowInsets publication; shared Rust service integration and on-device local Axum remain
-incomplete, so it is not yet the complete formal Android architecture.
+The formal Desktop Tauri shell is not implemented yet. The repository Android shell now includes
+packaged frontend loading, Shell Bridge transport, edge-to-edge WindowInsets publication, an
+Application-level runtime manager, and the `android/native -> core -> shared` local Axum path.
+Host, ARM64, and APK verification are complete; real-device lifecycle and WebView HTTP smoke remain pending.
 
 The formal server shell exists under `server/` and starts the shared Axum service from JSON config.

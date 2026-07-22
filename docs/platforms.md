@@ -1,175 +1,166 @@
-# Platforms
+# 平台职责
 
-This document defines platform responsibilities for the formal project.
+本文定义正式项目中各平台的职责与公共边界。
 
-## Desktop
+## 桌面端
 
-Desktop uses Tauri v2.
+桌面端使用 Tauri v2。
 
-The desktop shell owns:
+桌面 Shell 负责：
 
-- Tauri configuration
-- window creation
-- WebView URL selection
-- frontend asset packaging
-- desktop permissions and OS integration
-- starting and stopping the shared Axum service
-- discovering local and LAN URLs and returning them to the frontend
-- persisting and applying runtime configuration requested by the frontend
+- Tauri 配置；
+- 窗口创建；
+- WebView 页面地址选择；
+- 前端资源打包；
+- 桌面权限与操作系统集成；
+- 启动和停止共享 Axum 服务；
+- 发现本机与局域网访问地址并返回前端；
+- 持久化并应用前端请求的运行配置。
 
-At startup, the desktop shell registers the Shell Bridge and loads the frontend packaged by Tauri even when configuration or the API service is unavailable.
-The frontend is the only runtime settings and service-status UI.
-The shell reads, validates, persists and applies shared config at the frontend's request.
-Local modes always start the shared Axum service in the background when the application starts; this is not a user-configurable UI option. `client-only` does not start Axum.
+启动时，桌面 Shell 必须先注册 Shell Bridge，再加载 Tauri 打包的前端资源；即使配置或 API 服务不可用，前端仍应能打开。
+运行设置和服务状态只由前端呈现。Shell 根据前端请求读取、校验、持久化并应用共享配置。
+本地模式启动应用时始终在后台启动共享 Axum 服务，不把该行为暴露为可关闭的普通 UI 选项；`client-only` 不启动 Axum。
 
-The WebView opens Tauri-packaged frontend resources.
-The frontend then accesses one of these API roots:
+WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地址之一：
 
-- `http://127.0.0.1:<port>` for local self access
-- `remote_base_url` for remote access
+- 本机自用：`http://127.0.0.1:<port>`；
+- 连接远端：`remote_base_url`。
 
-The desktop shell must handle:
+桌面 Shell 必须处理：
 
-- port conflict reporting
-- graceful shutdown
-- service status reporting to the frontend
-- restart after config changes, if supported
-- firewall or OS permission guidance, if needed
-- versioned Shell Bridge commands, events and Tauri capabilities
+- 端口冲突提示；
+- 优雅关闭；
+- 向前端报告服务状态；
+- 支持时在配置变化后重启服务；
+- 必要的防火墙或系统权限指引；
+- 版本化 Shell Bridge 命令、事件和 Tauri capabilities。
 
-The desktop shell must not implement a native settings window or proxy business HTTP APIs.
+桌面 Shell 不得实现原生设置窗口，也不得代理业务 HTTP API。
 
-Desktop frontend resources are packaged by Tauri.
-They are not served by the Axum crate.
+桌面前端资源由 Tauri 打包，不由 Axum crate 提供。
 
-Current status:
+当前状态：
 
-- the formal Tauri shell is not implemented yet
-- `desktop/tauri` does not exist yet
-- any existing plain Rust scaffold under `desktop/` is not the formal desktop architecture
+- 正式 Tauri Shell 尚未实现；
+- `desktop/tauri` 尚不存在；
+- `desktop/` 下现有普通 Rust 脚手架不是正式桌面架构。
 
 ## Android
 
-Android uses a native shell plus WebView.
+Android 使用原生 Shell 与 WebView。
 
-The Android shell owns:
+Android Shell 负责：
 
-- Activity lifecycle
-- WebView configuration
-- Android permissions
-- native Rust library loading
-- starting and stopping the shared Axum service
-- foreground/background policy
-- Android asset packaging
-- discovering local and LAN URLs and returning them to the frontend
-- persisting and applying runtime configuration requested by the frontend
+- Activity 生命周期；
+- WebView 配置；
+- Android 权限；
+- native Rust library 加载；
+- 启动和停止共享 Axum 服务；
+- 前后台运行策略；
+- Android 前端与 native 资源打包；
+- 发现本机与局域网地址并返回前端；
+- 持久化并应用前端请求的运行配置。
 
-At startup, the Android shell registers the Shell Bridge and loads Android-packaged frontend resources even when configuration or the API service is unavailable.
-The frontend is the only runtime settings and service-status UI.
-The shell reads, validates, persists and applies shared config at the frontend's request.
-Local modes always start the shared Axum Android native library when the application starts; this is not a user-configurable UI option. `client-only` does not start Axum.
+启动时，Android Shell 必须先注册 Shell Bridge，再加载 Android 打包的前端资源；即使配置或 API 服务不可用，前端仍应能打开。
+运行设置和服务状态只由前端呈现。Shell 根据前端请求读取、校验、持久化并应用共享配置。
+本地模式启动应用时始终启动共享 Axum Android native library；`client-only` 不启动 Axum。
 
-The WebView opens Android-packaged frontend resources from a trusted local origin.
-The frontend then accesses one of these API roots:
+WebView 从受信任本地 origin 打开 Android 打包的前端资源，随后前端访问以下 API 根地址之一：
 
-- `http://127.0.0.1:<port>` for local self access
-- `remote_base_url` for remote access
+- 本机自用：`http://127.0.0.1:<port>`；
+- 连接远端：`remote_base_url`。
 
-The Android shell must handle:
+Android Shell 必须处理：
 
-- network permission declarations
-- cleartext HTTP policy if HTTP is used
-- lifecycle transitions
-- service shutdown
-- port conflict reporting
-- foreground service requirements, if long-running background service is needed
-- origin-restricted Shell Bridge messaging and external navigation handling
-- capability-gated native-back requests with one pending request, a 400 ms timeout, page-generation
-  invalidation, and lifecycle-safe WebView/Activity fallback
-- edge-to-edge Window configuration and publishing `systemBars | displayCutout` as CSS safe-area values;
-  the WebView fills the Activity window and the frontend consumes insets semantically
+- 网络权限声明；
+- 使用 HTTP 时的 cleartext policy；
+- 生命周期切换；
+- 服务关闭；
+- 端口冲突提示；
+- 需要长期后台运行时的 Foreground Service 要求；
+- 限定 origin 的 Shell Bridge 消息与外部导航；
+- capability 控制的原生返回请求：同时只有一个 pending、400 ms 超时、页面 generation 失效，以及安全的 WebView/Activity fallback；
+- edge-to-edge Window 配置，并把 `systemBars | displayCutout` 发布为 CSS 安全区变量；WebView 铺满 Activity Window，前端按内容语义消费 inset。
 
-The Android shell must not implement a native settings Activity or dialog, and must not expose the bridge to untrusted WebView origins.
+Android Shell 不得实现原生设置 Activity 或 Dialog，也不得向不受信任的 WebView origin 暴露 Bridge。
 
-Android frontend resources are packaged by Android.
-They are not served by the Axum crate.
+Android 前端资源由 Android 打包，不由 Axum crate 提供。
 
-Current status:
+当前状态：
 
-- the repository Android shell now implements packaged WebView loading, Shell Bridge transport,
-  edge-to-edge WebView layout, origin-restricted CSS inset publication, and frontend-first native-back
-  negotiation
-- shared Rust service integration and on-device local Axum remain incomplete; the current shell
-  must still be aligned with this document before it is treated as the complete formal shell
+- 已实现打包 WebView、Shell Bridge、edge-to-edge、受限 origin 的 CSS inset 发布和前端优先的原生返回协商；
+- `WineStockApplication` 持有进程级唯一 `LocalCoreRuntimeManager`，Activity 重建不会停止或重建 Rust Runtime 与本地 Axum；
+- `android/native` 是唯一 JNI 适配层，复用 `core -> shared`，业务调用仍为 WebView -> HTTP；
+- Android `self-hosted` 仅允许 `127.0.0.1`；Foreground Service 与通知策略完成前继续禁用 `server-mode`；
+- 当前构建和交付只支持 APK 与 `arm64-v8a`，AAB、32 位 ARM 和 x86 ABI 不属于当前阶段；
+- 主机测试、ARM64 交叉构建、Debug/Release APK 构建和包级检查已完成；ARM64 真机已验证 Debug APK
+  安装、JNI 加载和本地 `/api/health`，WebView 冷启动恢复、旋转、后台恢复、force-stop 与完整业务 smoke 仍待测试。
 
 ## Server
 
-The server shell is a headless process with no frontend.
+Server Shell 是不带前端的无头进程。
 
-The server shell owns:
+Server Shell 负责：
 
-- process lifecycle
-- config loading
-- logging and startup status output
-- starting and stopping the shared Axum service
-- graceful shutdown
-- presenting bound addresses for local or LAN access
+- 进程生命周期；
+- 配置加载；
+- 日志与启动状态输出；
+- 启动和停止共享 Axum 服务；
+- 优雅关闭；
+- 展示本机或局域网实际绑定地址。
 
-At startup, the server shell reads shared config.
-For API-only hosting it starts the shared Axum service with explicit `bind_host` and `port`.
-`remote_base_url` is not required just to expose its own API.
+启动时，Server Shell 读取共享配置。作为纯 API 服务运行时，它使用明确的 `bind_host` 和 `port` 启动共享 Axum 服务；仅暴露自身 API 时不要求配置 `remote_base_url`。
 
-The server shell does not use a WebView and does not package frontend assets.
+Server Shell 不使用 WebView，也不打包前端资源。
 
-Current status:
+当前状态：
 
-- the formal server shell exists under `server/`
-- it always reads or creates `data/config.json` next to the server executable
-- it does not accept a config path argument
-- it reads JSON config, starts the shared Axum service, reports access URLs, and handles Ctrl+C shutdown
+- 正式 Server Shell 位于 `server/`；
+- 固定读取或创建可执行文件旁的 `data/config.json`；
+- 不接受配置路径参数；
+- 使用 JSON 配置启动共享服务、输出访问地址并处理 Ctrl+C 优雅关闭。
 
-## Shared Axum Service
+## 共享 Axum 服务
 
-Desktop, Android, and the server shell call into the same Rust service library.
+桌面端、Android 和 Server Shell 必须调用同一个 Rust 服务库。
 
-The service library should expose platform-neutral functions for:
+服务库提供平台无关能力：
 
-- creating the router
-- starting the server
-- stopping the server
-- reporting bind address and port
-- reporting startup errors
+- 创建 Router；
+- 启动服务；
+- 停止服务；
+- 报告实际绑定地址和端口；
+- 报告启动和运行错误。
 
-The service library must not know whether it was started by Tauri, Android, or the server shell.
+当前实现通过 `start_local_service()` 和 `RunningLocalService` 统一以下生命周期：先绑定端口、再 bootstrap、报告实际地址、观察任务意外退出并执行优雅关闭。Server Shell 与 Android JNI 适配层均复用该 API。
 
-## WebView Contract for UI Platforms
+服务库不得感知自身由 Tauri、Android 还是 Server Shell 启动。
 
-All UI-bearing platforms use HTTP to access the service.
+## UI 平台的 WebView 契约
 
-The WebView page URL points to platform-packaged frontend resources, not to the Axum API root.
-The API root is selected from runtime config and service startup results, then returned to the frontend through the Shell Bridge.
-The API root must never use `0.0.0.0` or `::` as its access host.
+所有带 UI 的平台都通过 HTTP 使用服务。
 
-The frontend must load before API availability is known and must provide configuration, loading, retry and failure UI.
-Platform shells publish state and execute lifecycle operations without implementing a second functional UI.
+WebView 页面地址指向平台打包的前端资源，不指向 Axum API 根地址。
+平台 Shell 根据运行配置和服务启动结果选择 API 根地址，并通过 Shell Bridge 返回前端。
+API 根地址不得使用 `0.0.0.0` 或 `::` 作为访问主机。
 
-Business operations continue over HTTP.
-Only runtime configuration, service lifecycle, effective addresses and platform events use the Shell Bridge.
-See `docs/shell-bridge.md`.
+前端必须在 API 可用性尚未确定时也能加载，并提供配置、启动、重试和失败界面。
+平台 Shell 只发布状态并执行生命周期命令，不实现第二套功能 UI。
 
-## Frontend Packaging
+业务操作继续通过 HTTP；只有运行配置、服务生命周期、实际地址和平台事件使用 Shell Bridge。详见 `docs/shell-bridge.md`。
 
-Each platform packages frontend resources using its own framework.
-The server shell does not package frontend resources.
+## 前端资源打包
 
-Allowed:
+每个带 UI 的平台使用自己的框架打包前端资源；Server Shell 不打包前端。
 
-- Tauri packaging for desktop frontend files
-- Android asset packaging for Android frontend files
-- shared frontend source if the build output is copied into platform packages
+允许：
 
-Disallowed:
+- Tauri 打包桌面前端文件；
+- Android assets 打包 Android 前端文件；
+- 各平台从同一份 frontend 源码构建自己的产物。
 
-- placing platform frontend build output in the Axum crate
-- making Axum responsible for Tauri asset serving
-- making Axum responsible for Android WebView asset serving
+禁止：
+
+- 把平台前端构建产物放入 Axum crate；
+- 让 Axum 负责 Tauri 资源服务；
+- 让 Axum 负责 Android WebView 资源服务。

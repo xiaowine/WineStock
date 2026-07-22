@@ -10,7 +10,7 @@
 
 - `server/src/lib.rs`
   - 编排服务端生命周期。
-  - 加载固定配置、校验运行模式、准备存储目录、启动 core、绑定服务并等待 Ctrl+C。
+  - 加载固定配置、校验运行模式、准备存储目录，通过 core 统一运行句柄启动服务并等待 Ctrl+C。
   - 打印 API、OpenAPI 和 Swagger UI 地址。
   - 绑定所有接口时只展示 loopback URL，不把 `0.0.0.0` 作为可打开地址。
 
@@ -21,7 +21,7 @@
   - 确保 server shell 只运行本地服务模式，并在 core 打开 SQLite 前创建存储目录。
 
 - `server/src/error.rs`
-  - 定义 `ServerShellError`，集中配置、存储准备、core 启动和服务启动错误。
+  - 定义 `ServerShellError`，集中配置、存储准备和统一 local-service 运行错误。
 
 - `server/src/tests/`
   - `lib.rs` 覆盖 shell 生命周期相关行为。
@@ -36,10 +36,11 @@ server/src/main.rs
   -> config::load_config()
   -> config::ensure_server_runtime()
   -> config::prepare_storage_dirs()
-  -> winestock_core::bootstrap_from_config().await
-  -> winestock_core::bind_server()
-  -> BoundServer::serve_local_with_shutdown()
-  -> winestock_core::build_router_with_local_service()
+  -> winestock_core::start_local_service()
+     -> bind_server（先占用端口）
+     -> bootstrap_from_config
+     -> serve_local_with_shutdown
+  -> RunningLocalService::shutdown()（Ctrl+C）
 ```
 
 固定配置位置是运行时可执行文件同目录下的 `data/config.json`。

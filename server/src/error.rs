@@ -5,7 +5,7 @@
 
 use std::{error::Error, fmt, io, path::PathBuf};
 
-use winestock_core::{CoreBootstrapError, ServerStartError};
+use winestock_core::LocalServiceRuntimeError;
 use winestock_shared::{ConfigFileError, RuntimeMode};
 
 /// 服务端 shell 自身的配置、生命周期和启动错误。
@@ -32,9 +32,6 @@ pub enum ServerShellError {
     /// 服务端 shell 不支持远端-only 运行模式。
     UnsupportedRuntimeMode(RuntimeMode),
 
-    /// core 没有返回本地服务启动依赖。
-    LocalServiceNotInitialized,
-
     /// 准备数据库目录或文件目录失败。
     PrepareStorage {
         /// 创建失败的路径。
@@ -44,11 +41,8 @@ pub enum ServerShellError {
         source: io::Error,
     },
 
-    /// core 初始化失败。
-    CoreBootstrap(CoreBootstrapError),
-
-    /// Axum 绑定或运行失败。
-    Start(ServerStartError),
+    /// core 本地服务启动、运行或关闭失败。
+    LocalService(LocalServiceRuntimeError),
 }
 
 impl fmt::Display for ServerShellError {
@@ -66,12 +60,10 @@ impl fmt::Display for ServerShellError {
             Self::UnsupportedRuntimeMode(mode) => {
                 write!(f, "服务端 shell 不支持远端客户端模式: {mode:?}")
             }
-            Self::LocalServiceNotInitialized => write!(f, "core 未初始化本地服务依赖"),
             Self::PrepareStorage { path, .. } => {
                 write!(f, "创建存储目录失败: {}", path.display())
             }
-            Self::CoreBootstrap(source) => write!(f, "core 初始化失败: {source}"),
-            Self::Start(source) => write!(f, "启动 Axum 服务失败: {source}"),
+            Self::LocalService(source) => write!(f, "本地 Axum 服务失败: {source}"),
         }
     }
 }
@@ -82,12 +74,10 @@ impl Error for ServerShellError {
             Self::ResolveExecutablePath { source } => Some(source),
             Self::LoadConfigFile(source) => Some(source),
             Self::PrepareStorage { source, .. } => Some(source),
-            Self::CoreBootstrap(source) => Some(source),
-            Self::Start(source) => Some(source),
+            Self::LocalService(source) => Some(source),
             Self::MissingExecutableDirectory { .. }
             | Self::AutoStartDisabled
-            | Self::UnsupportedRuntimeMode(_)
-            | Self::LocalServiceNotInitialized => None,
+            | Self::UnsupportedRuntimeMode(_) => None,
         }
     }
 }

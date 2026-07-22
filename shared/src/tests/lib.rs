@@ -129,6 +129,21 @@ fn json_config_validation_rejects_invalid_field_values() {
 }
 
 #[test]
+fn exposes_structured_validation_issue_paths() {
+    let mut config = AppConfig::default();
+    config.server.bind_host = "localhost".to_owned();
+    config.storage.database_path = " ".to_owned();
+
+    let issues = config.validation_issues();
+
+    assert!(issues.iter().any(|issue| issue.path == "server.bind_host"));
+    assert!(issues
+        .iter()
+        .any(|issue| issue.path == "storage.database_path"));
+    assert!(issues.iter().all(|issue| !issue.message.is_empty()));
+}
+
+#[test]
 fn creates_caller_default_json_config_when_missing() {
     let temp = tempdir().expect("temp dir should exist");
     let config_path = temp.path().join("nested").join("config.json");

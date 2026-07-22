@@ -13,6 +13,8 @@
   - 定义 `AppConfig`、`ServerConfig`、`StorageConfig` 和 `RuntimeMode`。
   - 使用 `garde` 定义 JSON 启动配置约束，并提供解析和序列化辅助函数。
   - `AppConfig::from_json_str()` 在反序列化后执行校验。
+  - `AppConfig::validation_issues()` 返回带稳定字段路径的结构化问题，供 JNI/平台适配层映射表单字段；
+    平台不需要解析 `garde::Report` 展示文本。
   - `ServerConfig` 不包含独立 `enabled` 开关；是否使用本地服务由运行模式决定。
 
 - `shared/src/config_file.rs`

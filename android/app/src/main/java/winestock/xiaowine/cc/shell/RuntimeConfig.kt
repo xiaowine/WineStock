@@ -7,7 +7,8 @@ import org.json.JSONObject
  *
  * 本文件属于 Shell Bridge 传输层，镜像 frontend/src/shell/contract.ts 的字段语义，
  * 也对应 winestock_shared::AppConfig 的运行参数。它不启动 Axum、不读取业务数据。
- * 当端上原生 Rust 服务落地后，权威校验应改为委托 shared，而不是继续在此镜像。
+ * 权威校验由 android/native -> winestock_shared 执行；Kotlin 只保留传输 DTO 与 native
+ * 不可用时连接远端所需的最小降级规则。
  */
 
 /** frontend 可编辑并交给 Shell 应用的运行配置四字段。 */
@@ -56,7 +57,7 @@ data class EditableRuntimeConfig(
     }
 }
 
-/** shared 默认配置在 Android 表单中的稳定镜像。 */
+/** native 尚不可加载时用于保持设置页可打开的应急默认值；正常路径使用 shared 返回的默认配置。 */
 val DEFAULT_RUNTIME_CONFIG =
     EditableRuntimeConfig(
         mode = RuntimeModes.SELF_HOSTED,
@@ -83,8 +84,17 @@ object RuntimeModes {
 
 /** Shell Bridge v1 稳定错误码，与 docs/shell-bridge.md 保持一致。 */
 object ShellErrorCodes {
+    const val BRIDGE_VERSION_MISMATCH = "bridge_version_mismatch"
     const val CONFIG_UNAVAILABLE = "config_unavailable"
     const val CONFIG_INVALID = "config_invalid"
+    const val STORAGE_UNAVAILABLE = "storage_unavailable"
+    const val DATABASE_OPEN_FAILED = "database_open_failed"
+    const val MIGRATION_FAILED = "migration_failed"
+    const val INVALID_BIND_HOST = "invalid_bind_host"
+    const val PORT_IN_USE = "port_in_use"
+    const val SERVICE_START_FAILED = "service_start_failed"
+    const val SERVICE_CRASHED = "service_crashed"
+    const val NATIVE_LIBRARY_UNAVAILABLE = "native_library_unavailable"
     const val UNSUPPORTED_RUNTIME_MODE = "unsupported_runtime_mode"
     const val INVALID_BRIDGE_PAYLOAD = "invalid_bridge_payload"
 }
@@ -96,3 +106,18 @@ object RuntimeConfigFields {
     const val PORT = "port"
     const val REMOTE_BASE_URL = "remoteBaseUrl"
 }
+
+/** Shell Bridge v1 字段校验结果。 */
+data class RuntimeConfigValidationResult(
+    val fieldErrors: Map<String, List<String>>,
+    val normalizedConfig: EditableRuntimeConfig? = null,
+) {
+    val valid: Boolean get() = fieldErrors.isEmpty()
+}
+
+/** Shell Bridge 可安全返回的稳定运行错误。 */
+data class ShellRuntimeError(
+    val code: String,
+    val message: String,
+    val field: String? = null,
+)

@@ -22,6 +22,7 @@ Initial Rust crates:
 Current additional Rust crate:
 
 - package `winestock-server`, binary/library crate `winestock_server`
+- package `winestock-android-native`, library crate `winestock_android_native`
 
 ## Naming Rules
 
@@ -77,6 +78,7 @@ WineStock/
     tauri/
   android/
     app/
+    native/                        # current JNI Rust adapter crate
   server/                        # current winestock-server headless shell crate
     Cargo.toml
     docs/                        # server shell 配置、部署和生命周期文档
@@ -97,13 +99,14 @@ The initial root workspace should include the Rust crates only.
 [workspace]
 resolver = "2"
 members = [
+  "android/native",
   "core",
   "server",
   "shared",
 ]
 ```
 
-Add desktop Tauri Rust crates, Android Rust bridge crates, or a server executable crate as workspace members only when those crates exist.
+Add desktop Tauri Rust crates or other platform crates as workspace members only when those crates exist. The Android JNI bridge now exists as `android/native` and is a current member.
 
 Current workspace dependencies:
 
@@ -174,6 +177,9 @@ It does not own a native settings UI; the shared frontend reads and applies runt
 `android/app` owns the Android native shell and WebView.
 It starts or connects to `core` based on config, packages Android frontend assets through Android, and implements the Android transport for the versioned Shell Bridge.
 It does not own a native settings Activity or dialog; the shared frontend reads and applies runtime configuration through the bridge.
+
+`android/native` owns only JNI JSON adaptation, Android-specific config policy, the process-level Tokio runtime, and the shared core service handle.
+It depends on `core` and `shared`, does not expose business methods through JNI, and does not own WebView or Android resources.
 
 `server` owns the headless server shell.
 It starts `core` based on shared config, reports service status and access URLs, handles Ctrl+C shutdown, and does not own frontend build output.

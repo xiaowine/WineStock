@@ -11,7 +11,7 @@ mod config_validation;
 pub mod error;
 pub mod text_validation;
 
-pub use config::{AppConfig, RuntimeMode, ServerConfig, StorageConfig};
+pub use config::{AppConfig, ConfigValidationIssue, RuntimeMode, ServerConfig, StorageConfig};
 pub use config_file::{load_or_create_json_config, LoadedJsonConfig};
 pub use error::{ConfigFileError, ConfigParseError};
 

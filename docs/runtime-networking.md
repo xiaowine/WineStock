@@ -1,42 +1,35 @@
-# Runtime Networking
+# 运行模式与网络
 
-This document defines the runtime network model for the formal project.
+本文定义正式项目的运行模式、地址选择和网络边界。
 
-## Runtime Modes
+## 运行模式
 
 ### `client-only`
 
-The app does not start a local Axum service.
-It connects to `remote_base_url`.
+应用不启动本地 Axum 服务，连接 `remote_base_url`。
 
-Use this when the device is only a client of another server.
+适用于当前设备只作为其它服务端客户端的场景。
 
 ### `connect-to-remote`
 
-The app does not start a local Axum service and connects to `remote_base_url`.
-This mode preserves an explicit remote-connection profile for client-capable shells.
-UI platforms may present it in the same settings family as `client-only`, but must preserve or deliberately normalize the stored mode rather than silently changing it.
+应用不启动本地 Axum 服务，连接 `remote_base_url`。
+该模式为可作为客户端的平台保留显式远端连接配置。UI 可以把它与 `client-only` 放在同一设置区域，但必须保留已存模式，或明确执行规范化，不能静默改写。
 
 ### `self-hosted`
 
-The app starts the local Axum service for its own UI.
-The UI connects to `http://127.0.0.1:<port>`.
+应用为自身 UI 启动本地 Axum 服务，UI 连接 `http://127.0.0.1:<port>`。
 
-This is the default local application mode.
-It does not require LAN exposure.
+这是本地应用的默认模式，不要求局域网暴露。
 
 ### `server-mode`
 
-The app starts Axum so other clients can connect to it.
-The service binds to an explicit `bind_host` and `port`.
+应用启动 Axum，允许其它客户端连接，并绑定明确的 `bind_host` 与 `port`。
 
-Use this when the device should be reachable from other devices.
-This is the natural mode for a pure server shell.
+适用于当前设备需要被其它设备访问的场景，也是纯 Server Shell 的自然运行模式。
 
-## Config Keys
+## 配置字段
 
-The shared config model should include these keys.
-A pure server shell may use only the server-side subset at runtime.
+共享配置模型包含以下字段；纯 Server Shell 在运行时可以只使用服务端子集。
 
 ```toml
 [server]
@@ -49,30 +42,27 @@ remote_base_url = ""
 
 ### `mode`
 
-Controls whether this runtime profile starts a local Axum service or connects to a remote one.
-Do not add a separate `server.enabled` flag; that duplicates `mode` and allows contradictory config.
+决定当前配置启动本地 Axum，还是连接远端服务。
+不得增加独立 `server.enabled` 开关，否则会与 `mode` 重复并产生矛盾配置。
 
 ### `bind_host`
 
-Controls the address Axum listens on.
+决定 Axum 监听地址。
 
-Use `127.0.0.1` for local self access.
-Use a specific LAN IP or `0.0.0.0` only when accepting external connections is intended.
+- 本机自用使用 `127.0.0.1`；
+- 只有明确允许外部连接时才使用具体局域网 IP 或 `0.0.0.0`。
 
 ### `port`
 
-Controls the service port.
+决定服务端口。
 
-Do not hard-code this in platform code.
-Handle port conflicts explicitly.
+平台代码不得硬编码端口，并必须显式处理端口冲突。
 
 ### `remote_base_url`
 
-Controls the remote service URL for client modes.
-A pure server-only host does not need `remote_base_url` just to expose its own API.
+决定客户端模式连接的远端服务地址。纯服务端进程仅暴露自身 API 时不要求该字段。
 
-It must include scheme, host, and port when required.
-Example:
+地址必须按需要包含 scheme、host 和 port，例如：
 
 ```text
 http://192.168.1.23:17890
@@ -80,109 +70,105 @@ http://192.168.1.23:17890
 
 ### `auto_start_server`
 
-Controls whether the platform shell should start the local Axum service automatically.
+决定平台 Shell 是否自动启动本地 Axum 服务。
 
-The shared field remains available for headless server configuration and compatibility.
-UI-bearing platforms do not expose it as a setting: local modes always persist or normalize it to `true`, while remote modes do not start a local service.
+该共享字段继续用于无头 Server 配置和兼容。带 UI 的平台不把它作为普通设置项：本地模式始终持久化或规范化为 `true`，远端模式不启动本地服务。
 
-## UI Platform Address Selection
+## UI 平台地址选择
 
-Desktop and Android load platform-packaged frontend resources independently from the API service.
-The WebView page URL is therefore not the API URL.
+桌面端和 Android 独立加载平台打包的前端资源，因此 WebView 页面地址不是 API 地址。
 
-The platform shell returns the effective API root to the frontend through the Shell Bridge:
+平台 Shell 通过 Shell Bridge 返回实际 API 根地址：
 
-- local modes use a loopback URL derived from the actual bound port;
-- remote modes use the validated `remote_base_url`;
-- `0.0.0.0` and `::` are never returned as browser or WebView access hosts.
+- 本地模式使用实际绑定端口派生的 loopback URL；
+- 远端模式使用校验后的 `remote_base_url`；
+- `0.0.0.0` 和 `::` 永远不能作为浏览器或 WebView 访问主机返回。
 
-The frontend owns the configuration and recovery UI, while the shell persists, validates and applies configuration.
-The settings UI must remain available when the API is unconfigured, starting, stopped or failed.
-See `docs/shell-bridge.md` for the full contract.
+前端拥有配置和恢复 UI，Shell 负责持久化、校验和应用配置。
+API 未配置、正在启动、已停止或失败时，运行设置仍必须可用。完整契约见 `docs/shell-bridge.md`。
 
-## Address Rules
+### Android 当前策略
 
-`0.0.0.0` is a listen address only.
-Do not use it as a WebView URL.
-Do not show it as a URL users should open.
+- Android `self-hosted` 只接受 `127.0.0.1`，native/shared 校验拒绝局域网绑定；
+- Application 级 manager 在 Activity 拥有 WebView 之前启动持久化配置或默认本地配置；
+- WebView 使用 core 返回的实际 `http://127.0.0.1:<bound-port>`，不使用监听通配地址；
+- 切换远端模式时，先停止 manager 拥有的本地服务，再提交远端配置；
+- 候选本地配置只有在 bind/bootstrap 成功后才持久化；激活或持久化失败时尽力恢复旧服务；
+- Foreground Service 要求实现前，Android `server-mode` 保持不可用。
 
-When `bind_host = "0.0.0.0"`, do not show `0.0.0.0` as an access URL.
-The server shell may show a loopback URL for local access.
-For LAN access, use the host machine's actual LAN IP address, such as:
+## 地址规则
+
+`0.0.0.0` 只能作为监听地址，不能作为 WebView URL，也不能显示为用户应打开的地址。
+
+当 `bind_host = "0.0.0.0"` 时：
+
+- Server Shell 可以显示本机 loopback URL；
+- 局域网访问必须显示主机真实 IP，例如：
 
 ```text
 http://192.168.1.23:17890
 http://10.0.0.8:17890
 ```
 
-For local self access, always prefer:
+本机自用始终优先：
 
 ```text
 http://127.0.0.1:<port>
 ```
 
-Use `localhost` only when there is a concrete platform reason.
-`127.0.0.1` is the default because it avoids name resolution differences.
+只有存在明确平台原因时才使用 `localhost`；默认使用 `127.0.0.1`，避免名称解析差异。
 
-## Access Patterns
+## 访问模式
 
-### App accesses itself
+### 应用访问自身
 
-Use `self-hosted`.
-Bind to `127.0.0.1` unless LAN access is also enabled.
-The platform-packaged UI calls the API at `http://127.0.0.1:<port>`.
+使用 `self-hosted`，默认绑定 `127.0.0.1`。平台打包 UI 访问 `http://127.0.0.1:<port>`。
 
-### Other devices access this app
+### 其它设备访问当前应用
 
-Use `server-mode`.
-Bind to an explicit LAN IP or `0.0.0.0`.
-If bound to all interfaces, tell users to use the host machine's actual LAN IP for other-device access.
-Make sure platform firewalls and permissions are handled by the platform shell.
-This is the main access pattern for a pure server shell.
+使用 `server-mode`，绑定明确局域网 IP 或 `0.0.0.0`。
+如果绑定全部接口，应提示其它设备使用当前主机真实局域网 IP，并由平台 Shell 处理防火墙与权限。
+这是纯 Server Shell 的主要访问模式。
 
-### App accesses another device
+### 应用访问其它设备
 
-Use `client-only`.
-Set `remote_base_url`.
-Do not start the local service.
-This mainly applies to UI-bearing or client-capable platforms.
+使用 `client-only` 或 `connect-to-remote`，设置 `remote_base_url`，不启动本地服务。
+该场景主要适用于带 UI 或具备客户端能力的平台。
 
-## Port Conflicts
+## 端口冲突
 
-Port conflict behavior must be deliberate.
+端口冲突行为必须明确，可选策略包括：
 
-Valid strategies include:
+- 返回清晰错误；
+- 使用用户明确配置的其它端口；
+- 要求用户选择端口。
 
-- fail with a clear error
-- select another configured port
-- ask the user to choose a port
-
-Do not silently switch ports without updating the URL used by the WebView and user-facing status.
-On UI-bearing platforms, port conflicts and retry actions are presented by the frontend through Shell Bridge state rather than a native shell dialog.
+不得静默切换端口而不更新 WebView 实际 URL 与用户可见状态。
+带 UI 的平台通过 Shell Bridge 状态在前端呈现冲突和重试，不弹原生 Shell 对话框。
 
 ## Server Shell
 
-`server/` contains the formal headless shell for validating and running the shared Axum core.
-It always reads JSON config from `data/config.json` next to the server executable.
-It does not accept a config path argument.
-If that fixed JSON config file does not exist, it creates a default config file first and then continues startup.
-Relative storage paths are resolved from that `data` directory, so the default database and file store live next to the config file.
-It initializes core, binds to `server.bind_host` and `server.port`, and prints the actual access URLs after binding.
+`server/` 是运行共享 Axum core 的正式无头 Shell。
 
-It exposes:
+- 固定读取可执行文件旁的 `data/config.json`；
+- 不接受配置路径参数；
+- 配置不存在时先创建默认 JSON，再继续启动；
+- 相对存储路径以 `data` 目录为基准，因此默认数据库和文件仓与配置文件同目录；
+- 初始化 core，绑定 `server.bind_host` 与 `server.port`，并在绑定后输出实际访问地址。
+
+服务暴露：
 
 ```text
 /api-docs/openapi.json
 /swagger-ui
 ```
 
-When `bind_host = "0.0.0.0"`, the server shell prints a local loopback URL.
-It must not print `0.0.0.0` as a URL to open.
+当 `bind_host = "0.0.0.0"` 时，Server Shell 输出本机 loopback URL，不把 `0.0.0.0` 输出为可打开地址。
 
-## Security Notes
+## 安全说明
 
-LAN exposure is a separate choice from local self access.
+局域网暴露与本机自用是两个独立选择。
 
-Do not bind to `0.0.0.0` by default.
-Do not expose server mode without an explicit config or user action.
-Do not assume Android or desktop firewall behavior is the same.
+- 默认不得绑定 `0.0.0.0`；
+- 未经明确配置或用户操作不得启用 server mode；
+- 不得假设 Android、桌面端和 Server 主机的防火墙行为一致。

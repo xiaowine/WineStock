@@ -136,6 +136,8 @@ class MainActivity : AppCompatActivity() {
         val bridge =
             ShellBridgeHost(
                 context = this,
+                runtimeManager =
+                    (application as WineStockApplication).localCoreRuntimeManager,
                 deviceName = resolveDeviceName(),
                 appVersion = resolveAppVersion(),
                 nativeBackResponseTimeoutMs = AppConfig.NATIVE_BACK_RESPONSE_TIMEOUT_MS,

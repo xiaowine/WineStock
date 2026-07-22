@@ -17,3 +17,4 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `android-frontend-packaging-workflow.md`：Android 自动构建、校验、暂存并验证共享前端资源的跨 Android/frontend 打包工作流方案。
 - `android-webview-native-back-navigation.md`：Android 原生返回键通过 Shell Bridge 先交给前端处理 Dialog、Drawer、页面步骤与路由，并在未处理或超时后安全回退的跨 Android/frontend 实施方案。
 - `server-mode-lan-access-discovery.md`：server mode 当前设备真实局域网地址的 Shell 所有权、本机运行设置与头像双入口、地址清理、响应式 Dialog 和分阶段验收方案。
+- `android-embedded-core-integration.md`：Android 通过独立 JNI Rust 适配层引入共享 core、建立应用级本地 Axum 生命周期、配置事务、存储、ABI 打包与验收的跨 shared/core/server/android 详细实施方案。

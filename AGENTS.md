@@ -25,7 +25,7 @@
 - [`server/docs/README.md`](server/docs/README.md)：无头 server shell、固定配置位置、启动与关闭。
 - [`frontend/docs/README.md`](frontend/docs/README.md)：前端路由、API client、页面、交互、视觉和响应式规则。
 
-正式 desktop Tauri shell 与 Android shell 尚未实现；相关工作必须先依据 [`docs/platforms.md`](docs/platforms.md) 和 [`docs/project-structure.md`](docs/project-structure.md) 明确所有权，不能复制当前 demo 或脚手架结构作为正式架构。
+正式 desktop Tauri shell 尚未实现；Android shell 已实现 Application 级本地 core/JNI 与 APK 打包，但真实设备验收仍待完成。平台工作必须先依据 [`docs/platforms.md`](docs/platforms.md) 和 [`docs/project-structure.md`](docs/project-structure.md) 明确所有权，不能复制 demo 或脚手架结构作为正式架构。
 
 ## 项目所有权
 

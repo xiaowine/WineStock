@@ -1,0 +1,27 @@
+[package]
+name = "winestock-android-native"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+# Android 只打包 cdylib；rlib 用于宿主机 contract/config 单元测试。
+name = "winestock_android_native"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+jni = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }
+winestock-core = { workspace = true }
+winestock-shared = { workspace = true }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.15.1"
+
+[dev-dependencies]
+tempfile = { workspace = true }

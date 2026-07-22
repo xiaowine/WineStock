@@ -3,9 +3,9 @@
 `android` 是 Android 原生 shell，拥有 Activity 生命周期、WebView、打包前端资源加载和 Shell Bridge 传输实现。
 它通过 HTTP 使用 core，通过 Shell Bridge 交换运行配置和服务状态，不拥有业务 API、不复制 core 业务实现，也不把业务 UI 托管给 Axum。
 
-当前实现范围是 **Shell Bridge 传输层 + 远端优先**：桥读写运行配置、返回运行快照、推送状态、恢复与原生返回事件，
-并支持连接远端服务。端上本地 Axum 尚未实现，本地服务模式返回稳定的 `unsupported_runtime_mode`，
-相关 capability 为 `false`。运行配置校验是 `winestock_shared` 规则的 Kotlin 镜像；端上原生 Rust 服务落地后应改为委托 shared。
+当前实现范围是 **打包前端 + Application 级本地 core + 远端降级**：Android 默认可在进程内启动共享
+Axum/core，桥读写运行配置、返回运行快照、异步管理服务并保留恢复与原生返回事件。权威配置校验来自
+`android/native -> winestock_shared`；native library 不可用时仍能打开设置页并连接远端。
 
 ## 工程入口
 
@@ -14,13 +14,21 @@
 - `android/app/build.gradle.kts`
   - 声明 `:app` 构建配置、命名空间 `winestock.xiaowine.cc` 和 viewBinding。
   - 从当前 `PATH` 直接执行本机 `pnpm run build:android`，不固定或下载 Node/pnpm 版本，也不读取 `frontend/dist`。
-  - 为每个 Android variant 注册前端校验、generated assets 暂存和 APK/AAB 包级验证任务；
-    `assemble<Variant>`、`bundle<Variant>` 和 `install<Variant>` 会沿任务图使用当前前端源码。
+  - 固定 NDK `30.0.14904198` 与唯一 ABI `arm64-v8a`，注册 variant-aware Rust JNI 构建、ELF 校验、
+    generated jniLibs 和 APK 包级验证。
+  - 为每个 Android variant 注册前端校验、generated assets 暂存和 APK 包级验证；当前没有 AAB
+    校验或 bundle 挂钩，交付物只支持 APK。
 - `android/buildSrc/src/main/kotlin/winestock/build/FrontendPackagingTasks.kt`
   - 定义前端构建、目录校验、generated assets 暂存、legacy 目录守卫和最终归档验证任务。
   - 构建任务只调用本机 pnpm；依赖未准备、命令失败或产物缺失时立即失败，不执行隐式安装。
 - `android/buildSrc/src/main/kotlin/winestock/build/FrontendAssetValidation.kt`
-  - 统一校验 Vite 目录与 APK/AAB 内资源的入口、manifest 引用、开发标记、绝对路径和发布 source map。
+  - 统一校验 Vite 目录与 APK 内资源的入口、manifest 引用、开发标记、绝对路径和发布 source map。
+
+- `android/buildSrc/src/main/kotlin/winestock/build/RustNativePackagingTasks.kt`
+  - `RustNativeBuildTask` 以 `cargo-ndk 4.1.2`、`--locked --offline` 构建 Debug 或 Release ARM64 `.so`；
+    Release 使用 Cargo `--release`，因此 core/shared 传递依赖也按 release profile 编译。
+  - `RustNativeVerifyTask` 检查 ELF64/AArch64、8 个具名 JNI 导出、允许的系统动态库和 profile marker。
+  - `RustNativeApkVerifyTask` 检查最终 APK 只含 `lib/arm64-v8a/libwinestock_android_native.so`。
 
 ## Activity 与 WebView
 
@@ -33,7 +41,30 @@
   - 主页面开始加载、Activity pause/stop/destroy 时同步推进或清理原生返回生命周期；`onResume` 恢复协商、
     刷新安全区并通知桥应用恢复。
   - 放开 WebView mixed content，使运行在 `https://winestock.internal` 的前端能连接明文 HTTP 远端服务。
-  - 不渲染运行设置或业务 UI，不实现本地 Axum。
+  - 从 `WineStockApplication` 取得进程级 manager，只绑定 Bridge/WebView，不拥有或停止本地 Axum。
+
+- `android/app/src/main/java/winestock/xiaowine/cc/WineStockApplication.kt`
+  - 在 Application 创建时初始化唯一 `LocalCoreRuntimeManager`；Activity 重建不替换 core runtime。
+
+## Application 级 core 与 JNI
+
+- `android/app/src/main/java/winestock/xiaowine/cc/core/LocalCoreRuntimeManager.kt`
+  - 单线程后台 executor 串行执行 JNI、配置校验、启动/停止/重启和 SharedPreferences 提交。
+  - 默认/持久化本地配置自动启动；候选配置先激活后提交，启动或保存失败时恢复旧服务。
+  - 持有权威快照并向 Bridge 订阅者推送；Activity 生命周期不触发 shutdown。
+- `core/NativeLibraryLoader.kt`、`NativeCoreClient.kt`、`NativeCoreBridge.kt`
+  - 安全、幂等加载 `libwinestock_android_native.so`，封装具名静态 JNI 方法和 native protocol v1 调用。
+  - load/JNI 失败映射 `native_library_unavailable`，不在类初始化时让应用崩溃。
+- `core/NativeContract.kt`
+  - 编解码 native v1 请求/响应、字段错误、规范化配置和实际服务地址；拒绝协议版本不匹配。
+- `core/AndroidStoragePaths.kt`
+  - 固定使用 `noBackupFilesDir/winestock/data`，预创建数据库父目录与文件仓目录。
+
+- `android/native/`
+  - Cargo `cdylib`/测试 crate，是 Android 唯一 Rust 适配层；依赖 `winestock-core` 和 `winestock-shared`。
+  - `ffi.rs` 使用 jni-rs 0.22 `EnvUnowned.with_env()`，每个 JNI 入口只交换 JSON 并阻止 panic 越过 FFI。
+  - `engine.rs` 持有双 worker Tokio Runtime 和 `RunningLocalService`，提供 start/stop/restart/state。
+  - `config.rs` 使用 shared 权威校验并额外限制 Android self-hosted 仅 `127.0.0.1`、禁用 server-mode。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/AppConfig.kt`
   - 集中 Android shell 常量：受信任 host `winestock.internal`（ICANN 保留、永不进入公网 DNS）、
@@ -67,10 +98,11 @@
 - `android/app/src/main/java/winestock/xiaowine/cc/shell/ShellBridgeHost.kt`
   - 原生分发：在受信任 origin 上注册 `WebMessageListener` 通道并注入文档起始脚本；对 `WEB_MESSAGE_LISTENER`
     和 `DOCUMENT_START_SCRIPT` 做能力检测。
-  - 解析请求信封，路由到配置读取/校验/应用与本地服务生命周期处理，通过 `JavaScriptReplyProxy` 回复。
+  - 解析请求信封，把配置与本地服务生命周期异步路由到 Application manager，通过主线程
+    `JavaScriptReplyProxy` 回复；页面 generation 变化后丢弃迟到结果。
   - 管理可信主页面代次、ready proxy 和 Activity 可交互状态；发布 `nativeBackRequested`，校验
     `resolveNativeBack` 并把一次性结算交给 broker。
-  - 远端模式格式合法即持久化并推送 `configured` 快照；本地模式返回 `unsupported_runtime_mode`，不持久化。
+  - manager 发布的本地/远端快照会转成 `runtimeStateChanged`；Bridge 不复制配置事务或 JNI 逻辑。
   - `openExternal` 只放行不含凭据的 http/https 并交系统浏览器；`frontendReady` 触发遮罩隐藏回调。
   - 只处理具名平台能力，不代理业务 HTTP、不传递 token、不暴露通用 native 调用。
 
@@ -84,18 +116,18 @@
   - `EditableRuntimeConfig` 四字段模型与 JSON 序列化、默认配置镜像、`RuntimeModes`、`ShellErrorCodes` 和字段名常量。
   - 字段语义对齐 `contract.ts` 和 `winestock_shared::AppConfig`。
 
-- `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeConfigValidator.kt`
-  - `winestock_shared` 校验规则的 Kotlin 镜像：mode 枚举、端口范围、远端 URL 规范化、bindHost IP，
-    以及 `normalizeApiBaseUrl`；语义对齐 `web.ts` 与 `api/runtime-config.ts`。
+- `android/app/src/main/java/winestock/xiaowine/cc/shell/RemoteRuntimeConfigFallbackValidator.kt`
+  - 仅在 native 不可用时校验/规范化远端 http(s) 地址，不校验本地模式，不作为 shared 规则镜像。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeConfigStore.kt`
   - 版本化 SharedPreferences 持久化，读取分 missing / invalid / present 三态，与 `web.ts` 的 `loadPersistedConfig` 一致。
   - 只保存运行配置，不保存 token 或业务数据。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeSnapshotFactory.kt`
-  - 构造 Shell Bridge v1 运行快照，通过 `contract.ts` 的 `assertCompatibleRuntimeSnapshot` 校验：
-    `platform:"android"`、六个 capability 布尔字段齐全，远端模式派生 `apiBaseUrl`。
-  - `nativeBack` 只随 `ShellBridgeHost.install()` 的真实成功结果开启；页面是否 ready 不改变 capability。
+  - 把 manager 状态构造为 Shell Bridge v1 快照；本地生命周期 capability 只在 native 可用且当前
+    ownership 为 local 时开启，`serverMode` 固定 false。
+- `shell/AsyncBridgeReplyGate.kt`
+  - 独立保存页面 generation；刷新、导航或 destroy 后拒绝旧异步调用的迟到回复。
 
 ## 资源与配置
 
@@ -111,11 +143,14 @@
 
 ```text
 MainActivity.onCreate
+  -> WineStockApplication.LocalCoreRuntimeManager（进程级异步初始化/默认本地 core）
   -> WebViewAssetLoader（域名 winestock.internal，/ -> assets/frontend）
   -> ShellBridgeHost.install（WebMessageListener + document-start shim，限受信任 origin）
   -> WebView.loadUrl(https://winestock.internal/)
   -> 前端读取 window.__WINESTOCK_SHELL_BRIDGE__ 和 __WINESTOCK_RUNTIME_CONFIG__
   -> 前端 getRuntimeSnapshot / applyRuntimeConfig
+     -> ShellBridgeHost 异步调用 LocalCoreRuntimeManager
+     -> JNI -> android/native -> core RunningLocalService
   -> 前端按 apiBaseUrl 通过 HTTP 使用 core
   -> 前端挂载 nativeBack handler registry 并完成事件订阅
   -> 前端 frontendReady -> 允许原生返回协商并隐藏 SplashScreen
@@ -126,4 +161,5 @@ MainActivity.onCreate
 - 受信任 origin `https://winestock.internal` 仅由 `WebViewAssetLoader` 从本地 assets 提供，不经网络。
 - Shell Bridge 消息通道和文档起始脚本都限定该 origin，非受信任 origin 无法调用桥。
 - 业务能力通过 HTTP 使用 core；桥只承载运行配置、服务生命周期、真实地址和具名平台事件。
-- 端上本地 Axum 与 `server-mode` 前台服务尚未实现，通过对应 capability 关闭；原生返回协商已经实现。
+- 本地 self-hosted Axum 已接入；`server-mode` 前台服务仍未实现并通过 capability 关闭。
+- 当前只构建/验收 ARM64 APK；真实设备的加载、HTTP、旋转、后台与 force-stop 恢复仍待测试。

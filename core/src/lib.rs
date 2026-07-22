@@ -10,6 +10,7 @@ mod auth;
 mod bootstrap;
 mod files;
 mod http;
+mod local_service;
 mod persistence;
 mod rbac;
 mod security;
@@ -29,6 +30,9 @@ pub use bootstrap::{
 };
 pub use files::FileCleanupError;
 pub use http::{build_router, build_router_with_local_service, OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
+pub use local_service::{
+    start_local_service, LocalServiceInfo, LocalServiceRuntimeError, RunningLocalService,
+};
 pub use persistence::{StorageBootstrapError, StorageRuntime};
 pub use rbac::RbacBootstrapError;
 pub use security::{AuthApiError, CurrentUser};

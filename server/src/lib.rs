@@ -2,7 +2,7 @@
 
 //! WineStock 无头服务端 shell 的生命周期编排。
 //!
-//! 本模块属于 `server shell` 层，负责固定配置文件定位、调用 core 初始化、
+//! 本模块属于 `server shell` 层，负责固定配置文件定位、调用 core 统一运行句柄、
 //! 启动共享 Axum 服务、打印控制台状态和处理 Ctrl+C 关闭。
 //! 它不拥有 API 路由、业务逻辑、桌面/Android UI 或前端打包产物。
 
@@ -11,7 +11,7 @@ mod error;
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use winestock_core::{bind_server, bootstrap_from_config, OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
+use winestock_core::{start_local_service, OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
 
 pub use error::ServerShellError;
 
@@ -26,28 +26,22 @@ pub async fn run() -> Result<(), ServerShellError> {
     config::ensure_server_runtime(&config)?;
     config::prepare_storage_dirs(&config.storage)?;
 
-    let bootstrap = bootstrap_from_config(&config)
+    let running = start_local_service(&config)
         .await
-        .map_err(ServerShellError::CoreBootstrap)?;
-    let local = bootstrap
-        .local_service
-        .as_ref()
-        .ok_or(ServerShellError::LocalServiceNotInitialized)?;
+        .map_err(ServerShellError::LocalService)?;
+    let info = running.info();
 
     println!("WineStock server 配置文件: {}", config_path.display());
     if loaded_config.created_default {
         println!("已创建默认配置文件: {}", config_path.display());
     }
-    println!("数据库: {}", local.storage.database_path.display());
-    println!("文件目录: {}", local.storage.files_dir.display());
-    if local.auth.admin_setup_required {
+    println!("数据库: {}", info.database_path.display());
+    println!("文件目录: {}", info.files_dir.display());
+    if info.admin_setup_required {
         println!("首次管理员尚未初始化；管理员创建流程尚未实现。");
     }
 
-    let bound = bind_server(&config.server)
-        .await
-        .map_err(ServerShellError::Start)?;
-    let bound_addr = bound.bound_addr();
+    let bound_addr = info.bound_addr;
     let access_url = access_url(bound_addr);
     println!("监听地址: {}", display_bind_addr(bound_addr));
     println!("访问地址: {access_url}");
@@ -55,10 +49,11 @@ pub async fn run() -> Result<(), ServerShellError> {
     println!("Swagger UI: {access_url}{SWAGGER_UI_PATH}");
 
     println!("按 Ctrl+C 停止服务。");
-    bound
-        .serve_local_with_shutdown(local, shutdown_signal())
+    shutdown_signal().await;
+    running
+        .shutdown()
         .await
-        .map_err(ServerShellError::Start)?;
+        .map_err(ServerShellError::LocalService)?;
     println!("WineStock server 已停止。");
 
     Ok(())

@@ -3,6 +3,9 @@ import winestock.build.FrontendArchiveVerifyTask
 import winestock.build.FrontendBuildTask
 import winestock.build.FrontendStageTask
 import winestock.build.FrontendVerifyTask
+import winestock.build.RustNativeApkVerifyTask
+import winestock.build.RustNativeBuildTask
+import winestock.build.RustNativeVerifyTask
 import winestock.build.VerifyNoLegacyFrontendAssetsTask
 
 plugins {
@@ -11,6 +14,7 @@ plugins {
 
 android {
     namespace = "winestock.xiaowine.cc"
+    ndkVersion = "30.0.14904198"
     compileSdk {
         version = release(37)
     }
@@ -21,6 +25,11 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        ndk {
+            // 当前发布面只支持真实 ARM64 设备；不生成 32 位或模拟器 ABI。
+            abiFilters += "arm64-v8a"
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,7 +50,10 @@ android {
     }
     dependenciesInfo {
         includeInApk = false
-        includeInBundle = false
+    }
+    lint {
+        // 当前产品范围明确只支持 ARM64 Android 真实设备，不承诺 ChromeOS x86 ABI。
+        disable += "ChromeOsAbiSupport"
     }
 }
 
@@ -70,6 +82,24 @@ val frontendSourceFiles =
             "tsconfig*.json",
             "vite.config.ts",
         )
+    }
+
+// Rust Android 构建只观察 core/shared/native 的受控源码；target/build 等生成目录不属于输入。
+val rustNativeSourceFiles =
+    fileTree(repositoryDirectory) {
+        include(
+            "Cargo.toml",
+            "Cargo.lock",
+            "rust-toolchain.toml",
+            ".cargo/**",
+            "android/native/Cargo.toml",
+            "android/native/src/**",
+            "core/Cargo.toml",
+            "core/src/**",
+            "shared/Cargo.toml",
+            "shared/src/**",
+        )
+        exclude("**/target/**", "android/**/build/**")
     }
 
 val verifyNoLegacyFrontendAssets =
@@ -128,6 +158,65 @@ androidComponents {
             FrontendStageTask::outputDirectory,
         )
 
+        val buildRustNativeLibraries =
+            tasks.register<RustNativeBuildTask>("build${variantTaskSuffix}RustNativeLibraries") {
+                group = "build"
+                description = "离线构建 $variantName variant 的 arm64-v8a Rust JNI 库"
+                sourceFiles.from(rustNativeSourceFiles)
+                repositoryDirectory.set(rootProject.layout.projectDirectory.dir(".."))
+                ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+                cargoExecutable.set("cargo")
+                cargoNdkVersion.set("4.1.2")
+                cargoPackage.set("winestock-android-native")
+                targetAbi.set("arm64-v8a")
+                minApi.set(26)
+                release.set(variant.buildType == "release")
+                cargoTargetDirectory.set(
+                    layout.buildDirectory.dir("intermediates/winestockRust/$variantName/cargo-target"),
+                )
+                outputDirectory.set(
+                    layout.buildDirectory.dir("generated/winestockRustJniLibs/$variantName"),
+                )
+            }
+
+        val verifyRustNativeLibraries =
+            tasks.register<RustNativeVerifyTask>("verify${variantTaskSuffix}RustNativeLibraries") {
+                group = "verification"
+                description = "验证 $variantName variant 的 ARM64 ELF、JNI 导出和动态依赖"
+                inputDirectory.set(buildRustNativeLibraries.flatMap { it.outputDirectory })
+                ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+                targetAbi.set("arm64-v8a")
+                libraryFileName.set("libwinestock_android_native.so")
+                buildProfile.set(if (variant.buildType == "release") "release" else "debug")
+                expectedJniSymbols.set(
+                    listOf(
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeInitialize",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeDefaultRuntimeConfig",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeValidateRuntimeConfig",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeStartLocalService",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeStopLocalService",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeRestartLocalService",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeGetRuntimeState",
+                        "Java_winestock_xiaowine_cc_core_NativeCoreBridge_nativeShutdownEngine",
+                    ),
+                )
+                allowedNeededLibraries.set(listOf("liblog.so", "libdl.so", "libm.so", "libc.so"))
+                verificationMarker.set(
+                    layout.buildDirectory.file(
+                        "intermediates/winestockRust/$variantName/verification.properties",
+                    ),
+                )
+            }
+
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(
+            buildRustNativeLibraries,
+            RustNativeBuildTask::outputDirectory,
+        )
+
+        // native merge 必须先通过 ELF 验收，不能只依赖 .so 文件存在。
+        tasks.matching { task -> task.name == "merge${variantTaskSuffix}NativeLibs" }
+            .configureEach { dependsOn(verifyRustNativeLibraries) }
+
         val stagedManifest =
             stageFrontendAssets.flatMap { task -> task.outputDirectory }
                 .map { directory -> directory.file("frontend/asset-manifest.json") }
@@ -153,27 +242,36 @@ androidComponents {
                 )
             }
 
-        val verifyBundlePackage =
-            tasks.register<FrontendArchiveVerifyTask>("verify${variantTaskSuffix}FrontendBundlePackage") {
+        val verifyRustNativeApkPackage =
+            tasks.register<RustNativeApkVerifyTask>("verify${variantTaskSuffix}RustNativeApkPackage") {
                 group = "verification"
-                description = "验证 $variantName AAB 中实际打包的前端资源"
-                archiveFiles.from(variant.artifacts.get(SingleArtifact.BUNDLE))
-                expectedManifest.set(stagedManifest)
-                assetsPrefix.set("base/assets")
-                allowArchiveWithoutFrontend.set(false)
-                strict.set(strictVerification)
-                forbiddenAbsolutePaths.set(forbiddenFrontendPaths)
+                description = "验证 $variantName APK 只包含 arm64-v8a WineStock JNI 库"
+                dependsOn(verifyRustNativeLibraries)
+                apkFiles.from(
+                    variant.artifacts.get(SingleArtifact.APK).map { apkDirectory ->
+                        apkDirectory.asFileTree.matching { include("**/*.apk") }
+                    },
+                )
+                targetAbi.set("arm64-v8a")
+                libraryFileName.set("libwinestock_android_native.so")
+                buildProfile.set(if (variant.buildType == "release") "release" else "debug")
                 reportFile.set(
                     layout.buildDirectory.file(
-                        "reports/winestockFrontend/$variantName/bundle-verification.properties",
+                        "reports/winestockRust/$variantName/apk-verification.properties",
                     ),
                 )
             }
 
         tasks.matching { task -> task.name == "assemble$variantTaskSuffix" }
-            .configureEach { dependsOn(verifyApkPackage) }
-        tasks.matching { task -> task.name == "bundle$variantTaskSuffix" }
-            .configureEach { dependsOn(verifyBundlePackage) }
+            .configureEach {
+                dependsOn(verifyApkPackage)
+                dependsOn(verifyRustNativeApkPackage)
+            }
+        tasks.matching { task -> task.name == "install$variantTaskSuffix" }
+            .configureEach {
+                dependsOn(verifyApkPackage)
+                dependsOn(verifyRustNativeApkPackage)
+            }
     }
 }
 
@@ -186,6 +284,7 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.material)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }

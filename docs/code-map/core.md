@@ -13,7 +13,7 @@
 ## 顶层入口
 
 - `core/src/lib.rs`
-  - 声明 `auth`、`bootstrap`、`http`、`persistence`、`rbac`、`security`、`server`、`state`、`stock` 和 `users`。
+  - 声明 `auth`、`bootstrap`、`http`、`local_service`、`persistence`、`rbac`、`security`、`server`、`state`、`stock` 和 `users`。
   - 重新导出公共启动入口、HTTP 构建入口、鉴权公开类型和运行时错误。
   - 重新导出 `winestock_shared`，但不直接承担 Router 细节。
 
@@ -43,10 +43,17 @@
   - 负责按共享配置绑定 socket、报告端口冲突和优雅运行 Axum。
   - 不拥有平台进程生命周期或用户展示文本。
 
+- `core/src/local_service.rs`
+  - 定义 `start_local_service()`、`RunningLocalService`、`LocalServiceInfo` 和
+    `LocalServiceRuntimeError`，统一平台 shell 的 bootstrap/bind/serve/shutdown 编排。
+  - 先绑定端口再执行有副作用的 bootstrap，因此端口占用不会提前打开数据库或执行 migration。
+  - 运行句柄报告实际绑定地址、管理员初始化状态、任务意外结束，并支持显式 graceful shutdown。
+
 ## 测试
 
 - `core/src/tests/support.rs`：共享测试搭建。
 - `core/src/tests/bootstrap.rs`、`server.rs`、`http_openapi.rs`：启动、服务和 HTTP 外壳。
+- `core/src/tests/local_service.rs`：统一运行句柄的远端模式拒绝、端口冲突、实际地址和关闭后端口释放。
 - `core/src/tests/security_authorization.rs`：授权中间件。
 - `core/src/tests/auth_*.rs`、`users_*.rs`：鉴权和用户域。
 - `core/src/tests/stock_*.rs`：库存业务。
