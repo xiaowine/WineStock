@@ -1,6 +1,7 @@
 package winestock.xiaowine.cc
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -102,6 +103,11 @@ class MainActivity : AppCompatActivity() {
                     request: WebResourceRequest,
                 ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
 
+                override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    shellBridge?.onPageStarted(url)
+                }
+
                 override fun onPageCommitVisible(view: WebView?, url: String?) {
                     super.onPageCommitVisible(view, url)
                     viewportInsetsPublisher?.onPageVisible(url)
@@ -132,11 +138,14 @@ class MainActivity : AppCompatActivity() {
                 context = this,
                 deviceName = resolveDeviceName(),
                 appVersion = resolveAppVersion(),
+                nativeBackResponseTimeoutMs = AppConfig.NATIVE_BACK_RESPONSE_TIMEOUT_MS,
                 // 前端首屏就绪的准确信号，早于或替代 onPageFinished 兜底。
                 onFrontendReady = { markFrontendReady() },
             )
         if (bridge.install(binding.webView)) {
             shellBridge = bridge
+        } else {
+            bridge.destroy()
         }
         // 桥不可用时前端会通过降级桥进入可修复失败态，Activity 仍加载前端资源。
     }
@@ -151,25 +160,58 @@ class MainActivity : AppCompatActivity() {
     private fun installBackNavigation() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.webView.canGoBack()) {
-                    binding.webView.goBack()
-                } else {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
+                when (
+                    shellBridge?.requestNativeBack(binding.webView.canGoBack()) { handled ->
+                        if (!handled) performNativeFallback(this)
+                    }
+                ) {
+                    ShellBridgeHost.NativeBackDispatchResult.DISPATCHED,
+                    ShellBridgeHost.NativeBackDispatchResult.ALREADY_PENDING -> return
+                    ShellBridgeHost.NativeBackDispatchResult.UNAVAILABLE,
+                    null -> performNativeFallback(this)
                 }
             }
         })
     }
 
+    /** 协商未处理、超时或不可用时重新读取 WebView history，再安全交回 dispatcher。 */
+    private fun performNativeFallback(callback: OnBackPressedCallback) {
+        if (isFinishing || isDestroyed) return
+        if (binding.webView.canGoBack()) {
+            binding.webView.goBack()
+            return
+        }
+
+        callback.isEnabled = false
+        try {
+            onBackPressedDispatcher.onBackPressed()
+        } finally {
+            if (!isFinishing && !isDestroyed) callback.isEnabled = true
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        shellBridge?.onActivityResumed()
         viewportInsetsPublisher?.refresh()
         // 通知前端应用恢复，触发服务可用性补检；桥未安装时为 no-op。
         shellBridge?.notifyAppResumed()
     }
 
+    override fun onPause() {
+        shellBridge?.onActivityPaused()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        shellBridge?.onActivityPaused()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         mainHandler.removeCallbacks(splashTimeout)
+        shellBridge?.destroy()
+        shellBridge = null
         viewportInsetsPublisher?.dispose()
         viewportInsetsPublisher = null
         super.onDestroy()

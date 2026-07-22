@@ -18,7 +18,8 @@
   }
 
   var META =
-    typeof window.__WINESTOCK_BRIDGE_META__ === "object" && window.__WINESTOCK_BRIDGE_META__
+    typeof window.__WINESTOCK_BRIDGE_META__ === "object" &&
+    window.__WINESTOCK_BRIDGE_META__
       ? window.__WINESTOCK_BRIDGE_META__
       : {};
 
@@ -30,8 +31,12 @@
   // 由原生登录元数据派生前端运行配置注入对象；不设置 apiBaseUrl，实际访问地址以 Shell 快照为准。
   window.__WINESTOCK_RUNTIME_CONFIG__ = {
     clientKind: "android",
-    deviceName: typeof META.deviceName === "string" ? META.deviceName : "WineStock Android",
-    appVersion: typeof META.appVersion === "string" ? META.appVersion : "unknown",
+    deviceName:
+      typeof META.deviceName === "string"
+        ? META.deviceName
+        : "WineStock Android",
+    appVersion:
+      typeof META.appVersion === "string" ? META.appVersion : "unknown",
   };
 
   var channel = window[channelName];
@@ -47,6 +52,7 @@
   var pendingRequests = Object.create(null);
   var runtimeStateListeners = new Set();
   var appResumedListeners = new Set();
+  var nativeBackListeners = new Set();
 
   channel.onmessage = function (event) {
     var envelope = parseEnvelope(event && event.data);
@@ -82,6 +88,10 @@
     } else if (envelope.event === "appResumed") {
       appResumedListeners.forEach(function (listener) {
         safeInvoke(listener);
+      });
+    } else if (envelope.event === "nativeBackRequested") {
+      nativeBackListeners.forEach(function (listener) {
+        safeInvoke(listener, envelope.payload);
       });
     }
   }
@@ -136,11 +146,17 @@
     openExternal: function (url) {
       return call("openExternal", { url: url });
     },
+    resolveNativeBack: function (resolution) {
+      return call("resolveNativeBack", resolution);
+    },
     onRuntimeStateChanged: function (listener) {
       return subscribe(runtimeStateListeners, listener);
     },
     onAppResumed: function (listener) {
       return subscribe(appResumedListeners, listener);
+    },
+    onNativeBackRequested: function (listener) {
+      return subscribe(nativeBackListeners, listener);
     },
   };
 
@@ -158,7 +174,9 @@
 
   function toBridgeError(error) {
     var message =
-      error && typeof error.message === "string" ? error.message : "Shell Bridge 调用失败";
+      error && typeof error.message === "string"
+        ? error.message
+        : "Shell Bridge 调用失败";
     var bridgeError = new Error(message);
     if (error && typeof error.code === "string") {
       bridgeError.code = error.code;
@@ -194,10 +212,14 @@
         return Promise.resolve();
       },
       openExternal: rejected,
+      resolveNativeBack: rejected,
       onRuntimeStateChanged: function () {
         return Promise.resolve(function () {});
       },
       onAppResumed: function () {
+        return Promise.resolve(function () {});
+      },
+      onNativeBackRequested: function () {
         return Promise.resolve(function () {});
       },
     };

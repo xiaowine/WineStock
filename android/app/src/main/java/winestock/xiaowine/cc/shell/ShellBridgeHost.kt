@@ -2,6 +2,8 @@ package winestock.xiaowine.cc.shell
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.webkit.WebView
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
@@ -14,10 +16,11 @@ import java.io.IOException
  * Android shell 的 Shell Bridge v1 原生分发。
  *
  * 职责：在受信任 origin 上注册 WebMessageListener 通道、在文档起始注入 assets/shell/bridge.js，
- * 解析前端请求信封并路由到运行配置读取/校验/应用与本地服务生命周期处理，通过 JavaScriptReplyProxy
- * 回复，并向前端推送运行状态和应用恢复事件。
+ * 解析前端请求信封并路由到运行配置、具名平台能力与本地服务生命周期处理，通过 JavaScriptReplyProxy
+ * 回复，并向前端推送运行状态、应用恢复和原生返回事件。
  *
- * 边界：只处理运行配置与服务生命周期，不代理业务 HTTP、不传递 token、不暴露通用 native 调用。
+ * 边界：只处理运行配置、服务生命周期和具名平台事件，不代理业务 HTTP、不传递 token、
+ * 不暴露通用 native 调用。
  * 本地 Axum 端上服务尚未实现，本类对本地模式返回稳定的 unsupported_runtime_mode。
  *
  * 传输协议与 assets/shell/bridge.js 对齐：
@@ -29,19 +32,50 @@ class ShellBridgeHost(
     context: Context,
     private val deviceName: String,
     private val appVersion: String,
+    private val nativeBackResponseTimeoutMs: Long,
     /** 前端报告首屏就绪时回调，用于隐藏加载遮罩；在主线程调用。 */
     private val onFrontendReady: () -> Unit = {},
 ) {
     private val appContext = context.applicationContext
     private val store = RuntimeConfigStore(appContext)
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val nativeBackBroker =
+        NativeBackRequestBroker(
+            responseTimeoutMs = nativeBackResponseTimeoutMs,
+            scheduler =
+                NativeBackRequestBroker.TimeoutScheduler { delayMs, action ->
+                    val runnable = Runnable(action)
+                    mainHandler.postDelayed(runnable, delayMs)
+                    NativeBackRequestBroker.TimeoutHandle {
+                        mainHandler.removeCallbacks(runnable)
+                    }
+                },
+        )
 
     /** 保存最近的回复代理，用于向当前页面推送事件。页面导航或重建时会被替换。 */
     private var replyProxy: JavaScriptReplyProxy? = null
+
+    /** 当前页面完成 frontendReady 后确认的代理；native back 事件只通过该代理发送。 */
+    private var readyReplyProxy: JavaScriptReplyProxy? = null
+
+    private var installed = false
+    private var currentPageTrusted = false
+    private var currentPageGeneration = 0L
+    private var frontendReady = false
+    private var activityResumed = false
+    private var destroyed = false
 
     /** 平台能否安装消息通道与文档起始脚本；任一能力缺失则桥不可用。 */
     val isSupported: Boolean =
         WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) &&
             WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)
+
+    /** Activity 对一次返回提交的分发结果。 */
+    enum class NativeBackDispatchResult {
+        DISPATCHED,
+        ALREADY_PENDING,
+        UNAVAILABLE,
+    }
 
     /**
      * 在加载前端前安装桥。必须在 WebView.loadUrl 之前调用，保证 document-start 脚本
@@ -57,7 +91,12 @@ class ShellBridgeHost(
             setOf(TRUSTED_ORIGIN),
         ) { _, message, sourceOrigin, isMainFrame, proxy ->
             // 再次确认来源：只接受受信任 origin 主框架的消息。
-            if (!isMainFrame || !isTrustedOrigin(sourceOrigin)) {
+            if (
+                destroyed ||
+                !currentPageTrusted ||
+                !isMainFrame ||
+                !isTrustedOrigin(sourceOrigin)
+            ) {
                 return@addWebMessageListener
             }
             replyProxy = proxy
@@ -69,12 +108,110 @@ class ShellBridgeHost(
             buildBootstrapScript(),
             setOf(TRUSTED_ORIGIN),
         )
+        installed = true
         return true
+    }
+
+    /** 主框架开始加载时进入新页面代次，并取消旧页面尚未结算的 native back 请求。 */
+    fun onPageStarted(url: String?) {
+        if (destroyed) return
+        currentPageGeneration = nativeBackBroker.beginPage()
+        currentPageTrusted = isTrustedPageUrl(url)
+        frontendReady = false
+        replyProxy = null
+        readyReplyProxy = null
+    }
+
+    /** Activity 恢复可交互状态；页面仍需 frontendReady 后才能接收 native back。 */
+    fun onActivityResumed() {
+        if (!destroyed) activityResumed = true
+    }
+
+    /** Activity 离开前台时静默取消 pending，防止后台 timeout 再触发 fallback。 */
+    fun onActivityPaused() {
+        activityResumed = false
+        nativeBackBroker.cancelPending()
+    }
+
+    /** 销毁 Bridge 生命周期；之后不再发事件、执行结算回调或接受新请求。 */
+    fun destroy() {
+        if (destroyed) return
+        destroyed = true
+        installed = false
+        activityResumed = false
+        frontendReady = false
+        currentPageTrusted = false
+        replyProxy = null
+        readyReplyProxy = null
+        nativeBackBroker.destroy()
+    }
+
+    /**
+     * 向已 ready 的当前可信页面发起一次原生返回协商。
+     * handled=false 或超时只回调 Activity 一次；等待期间的重复返回由 broker 直接消费。
+     */
+    fun requestNativeBack(
+        canGoBack: Boolean,
+        onResolved: (handled: Boolean) -> Unit,
+    ): NativeBackDispatchResult {
+        val proxy = readyReplyProxy
+        if (
+            destroyed ||
+            !installed ||
+            !activityResumed ||
+            !currentPageTrusted ||
+            !frontendReady ||
+            proxy == null
+        ) {
+            return NativeBackDispatchResult.UNAVAILABLE
+        }
+
+        val requestGeneration = currentPageGeneration
+        val beginResult =
+            nativeBackBroker.beginRequest(canGoBack) { handled ->
+                mainHandler.post {
+                    if (
+                        !destroyed &&
+                        installed &&
+                        activityResumed &&
+                        currentPageTrusted &&
+                        frontendReady &&
+                        requestGeneration == currentPageGeneration
+                    ) {
+                        onResolved(handled)
+                    }
+                }
+            }
+        return when (beginResult) {
+            NativeBackRequestBroker.BeginResult.AlreadyPending ->
+                NativeBackDispatchResult.ALREADY_PENDING
+            NativeBackRequestBroker.BeginResult.Destroyed -> NativeBackDispatchResult.UNAVAILABLE
+            is NativeBackRequestBroker.BeginResult.Started -> {
+                val request = beginResult.request
+                val envelope =
+                    JSONObject()
+                        .put("type", "event")
+                        .put("event", "nativeBackRequested")
+                        .put(
+                            "payload",
+                            JSONObject()
+                                .put("requestId", request.requestId)
+                                .put("canGoBack", request.canGoBack),
+                        )
+                try {
+                    postEnvelope(proxy, envelope)
+                    NativeBackDispatchResult.DISPATCHED
+                } catch (_: Exception) {
+                    nativeBackBroker.cancelRequest(request.requestId)
+                    NativeBackDispatchResult.UNAVAILABLE
+                }
+            }
+        }
     }
 
     /** 通知前端应用从后台恢复，触发服务可用性补检。 */
     fun notifyAppResumed() {
-        val proxy = replyProxy ?: return
+        val proxy = readyReplyProxy ?: return
         val envelope =
             JSONObject()
                 .put("type", "event")
@@ -102,7 +239,7 @@ class ShellBridgeHost(
         val params = envelope.optJSONObject("params")
 
         try {
-            val result = dispatch(method, params)
+            val result = dispatch(method, params, proxy)
             replySuccess(proxy, id, result)
         } catch (error: BridgeException) {
             replyError(proxy, id, error.code, error.message ?: "Shell Bridge 调用失败")
@@ -117,7 +254,11 @@ class ShellBridgeHost(
     }
 
     /** 路由方法调用，返回值将作为 reply.result 序列化。 */
-    private fun dispatch(method: String, params: JSONObject?): Any? =
+    private fun dispatch(
+        method: String,
+        params: JSONObject?,
+        proxy: JavaScriptReplyProxy,
+    ): Any? =
         when (method) {
             "getRuntimeSnapshot" -> loadInitialSnapshot()
             "validateRuntimeConfig" -> validateConfig(requireConfig(params))
@@ -127,9 +268,12 @@ class ShellBridgeHost(
             "stopLocalService",
             "restartLocalService" -> unsupportedLocalService()
             "frontendReady" -> {
+                frontendReady = true
+                readyReplyProxy = proxy
                 onFrontendReady()
                 null
             }
+            "resolveNativeBack" -> resolveNativeBack(params)
             "openExternal" -> {
                 openExternal(requireString(params, "url"))
                 null
@@ -147,11 +291,15 @@ class ShellBridgeHost(
             is RuntimeConfigStore.Loaded.Present -> {
                 val validation = RuntimeConfigValidator.validate(loaded.config)
                 if (validation.valid) {
-                    RuntimeSnapshotFactory.configured(loaded.config)
+                    RuntimeSnapshotFactory.configured(
+                        loaded.config,
+                        nativeBackSupported = installed,
+                    )
                 } else {
                     RuntimeSnapshotFactory.invalid(
                         loaded.config,
                         "已保存的运行配置无效，请修正后重新应用",
+                        nativeBackSupported = installed,
                     )
                 }
             }
@@ -159,8 +307,10 @@ class ShellBridgeHost(
                 RuntimeSnapshotFactory.invalid(
                     loaded.fallback,
                     "已保存的运行配置无法解析，请重新应用默认配置",
+                    nativeBackSupported = installed,
                 )
-            RuntimeConfigStore.Loaded.Missing -> RuntimeSnapshotFactory.unconfigured()
+            RuntimeConfigStore.Loaded.Missing ->
+                RuntimeSnapshotFactory.unconfigured(nativeBackSupported = installed)
         }
 
     private fun validateConfig(config: EditableRuntimeConfig): JSONObject {
@@ -215,7 +365,7 @@ class ShellBridgeHost(
             )
         }
 
-        val snapshot = RuntimeSnapshotFactory.configured(config)
+        val snapshot = RuntimeSnapshotFactory.configured(config, nativeBackSupported = installed)
         publishSnapshot(snapshot)
         return applyResultJson(
             validation = validation,
@@ -231,6 +381,29 @@ class ShellBridgeHost(
             ShellErrorCodes.UNSUPPORTED_RUNTIME_MODE,
             "当前 Android 版本不能直接管理本地 WineStock 服务",
         )
+
+    /** 结算当前 native back 请求；未知、重复、迟到或旧页面 requestId 稳定返回 accepted=false。 */
+    private fun resolveNativeBack(params: JSONObject?): JSONObject {
+        val requestId = requireNativeBackRequestId(params)
+        val handledValue = params?.opt("handled")
+        if (handledValue !is Boolean) {
+            throw BridgeException(
+                ShellErrorCodes.INVALID_BRIDGE_PAYLOAD,
+                "原生返回应答缺少 handled 布尔值",
+            )
+        }
+        val reason = params.opt("reason")
+        if (reason !is String || reason !in NATIVE_BACK_REASONS) {
+            throw BridgeException(
+                ShellErrorCodes.INVALID_BRIDGE_PAYLOAD,
+                "原生返回应答 reason 无效",
+            )
+        }
+        return JSONObject().put(
+            "accepted",
+            nativeBackBroker.resolve(requestId = requestId, handled = handledValue),
+        )
+    }
 
     /** 通过系统浏览器打开经过校验的外部链接；只允许不含凭据的 http/https。 */
     private fun openExternal(url: String) {
@@ -266,7 +439,7 @@ class ShellBridgeHost(
     }
 
     private fun publishSnapshot(snapshot: JSONObject) {
-        val proxy = replyProxy ?: return
+        val proxy = readyReplyProxy ?: replyProxy ?: return
         val envelope =
             JSONObject()
                 .put("type", "event")
@@ -341,6 +514,17 @@ class ShellBridgeHost(
         return value
     }
 
+    private fun requireNativeBackRequestId(params: JSONObject?): String {
+        val requestId = params?.opt("requestId")
+        if (requestId !is String || requestId.isBlank() || requestId.length > 64) {
+            throw BridgeException(
+                ShellErrorCodes.INVALID_BRIDGE_PAYLOAD,
+                "原生返回应答 requestId 无效",
+            )
+        }
+        return requestId
+    }
+
     private fun validationResultJson(result: RuntimeConfigValidator.Result): JSONObject {
         val fieldErrors = JSONObject()
         for ((field, messages) in result.fieldErrors) {
@@ -376,6 +560,17 @@ class ShellBridgeHost(
     private fun isTrustedOrigin(origin: Uri): Boolean =
         origin.toString().trimEnd('/') == TRUSTED_ORIGIN.trimEnd('/')
 
+    private fun isTrustedPageUrl(url: String?): Boolean {
+        val uri = try {
+            Uri.parse(url ?: return false)
+        } catch (_: Exception) {
+            return false
+        }
+        return uri.scheme.equals("https", ignoreCase = true) &&
+            uri.host.equals("winestock.internal", ignoreCase = true) &&
+            uri.port == -1
+    }
+
     /** 稳定错误码 + 可选字段的运行错误。 */
     private data class ShellError(val code: String, val message: String, val field: String?)
 
@@ -390,5 +585,19 @@ class ShellBridgeHost(
         const val TRUSTED_ORIGIN = "https://winestock.internal"
 
         private const val SHIM_ASSET_PATH = "shell/bridge.js"
+
+        private val NATIVE_BACK_REASONS =
+            setOf(
+                "transient-overlay",
+                "image-preview",
+                "dialog",
+                "busy-dialog",
+                "drawer",
+                "popover",
+                "page-state",
+                "route-history",
+                "handler-error",
+                "unhandled",
+            )
     }
 }

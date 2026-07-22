@@ -8,7 +8,7 @@
 
 - `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用本机 pnpm，`build:android` 提供 Android 专用生产构建且不固定 Node/pnpm 版本。
 - `frontend/vite.config.ts`：普通 Web 构建保持默认行为；Android mode 隔离 `.env*`、接收 Gradle 提供的绝对输出目录并生成可校验 manifest。
-- `frontend/src/main.ts`：先初始化 Shell 运行快照和动态 API 地址，再按是否存在服务启动健康检查、会话恢复、跨标签页同步、自动刷新和全局浮层滚动条，安装路由守卫并挂载 Vue。
+- `frontend/src/main.ts`：先初始化 Shell 运行快照和动态 API 地址，再按是否存在服务启动健康检查、会话恢复、跨标签页同步、自动刷新和全局浮层滚动条，安装路由守卫并挂载 Vue；挂载后先安装 native-back 订阅，最后才报告 `frontendReady`。
 - `frontend/src/bootstrap/overlayScrollbars.ts`：在移动与触控视口隐藏经典滚动槽后，为当前真实滚动宿主绘制可见且可拖动的浮层滑块；响应滚动、尺寸、DOM 和 Teleport 变化，不改变业务滚动容器所有权。
 - `frontend/src/bootstrap/viewport.ts`：在 Vue 挂载后等待首帧布局，检测移动 WebView 的临时宽布局视口并在业务路由挂载前纠正 viewport meta；不选择 Shell 或重挂载应用组件。
 - `frontend/src/App.vue`：前端根 `RouterView`、服务断连全屏覆盖层和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或断连覆盖层阻塞。
@@ -21,21 +21,23 @@
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、单权限 `requiredPermission`、组合权限 `requiredPermissions` 和强制改密页面放行元数据。
 - `frontend/src/router/guards.ts`：服务无关路由绕过 API/会话初始化，其它路由缺少 API 时跳转运行设置；随后执行匿名、权限、强制改密和安全回跳判断，并监听会话变化。
 - `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话单项或组合权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
+- `frontend/src/navigation/nativeBack.ts`：Android 原生返回的纯 handler registry；按 priority 降序、同级最近激活优先调度，异常安全消费，最后一级通过 `router.back()` 提交 history 返回并立即结算，不等待异步离开守卫。
+- `frontend/src/composables/useNativeBackHandler.ts`：把响应式 active 状态注册到 native-back registry；关闭、重新打开和组件销毁时自动注销/重注册，使同级 LIFO 反映真实打开顺序。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
 - `frontend/src/composables/useInboundDraftPersistence.ts`：版本化入库草稿序列化/恢复和浏览器原生关闭提示；普通字段保存在 `localStorage`，待上传图片通过独立存储模块写入 IndexedDB。
 - `frontend/src/storage/inboundDraftImageStore.ts`：入库草稿本地图片 Blob 的 IndexedDB 存取，不保存普通字段或执行上传。
-- `frontend/src/layouts/AppShell.vue`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
+- `frontend/src/layouts/AppShell.vue`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排；移动导航 Drawer 接入原生返回并恢复触发控件焦点。
 - `frontend/src/components/AccountUserSummary.vue`：应用框架顶部账户触发区和账户弹层复用的只读用户头像和名称摘要。
 - `frontend/src/components/AccountPopover.vue`：应用框架共用的账户操作弹层，提供运行设置和退出入口；移动端通过响应式样式补充用户摘要，组件不直接清理会话。
 - `frontend/src/components/AppNavigationList.vue`：应用框架共用的分组导航、线性图标和选中态渲染，并按入口属性隐藏移动端不展示的项目。
 - `frontend/src/components/RouteContentView.vue`：应用框架唯一的嵌套路由出口，以及复用统一 motion token 的页面切换动画；查询参数变化不强制重建页面。
-- `frontend/src/composables/useAccountPopover.ts`：应用框架共用的账户弹层状态、路由变化关闭和 Escape 关闭逻辑。
+- `frontend/src/composables/useAccountPopover.ts`：应用框架共用的账户弹层状态、路由变化、Escape 与原生返回关闭逻辑。
 - `frontend/src/composables/useShellLogout.ts`：应用框架共用的退出编排、错误反馈和登录页跳转。
-- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画；支持业务 Dialog 内二级设置窗口使用独立嵌套层级、较浅遮罩和紧凑尺寸。
+- `frontend/src/components/ModalDialog.vue`：通用模态结构、关闭行为、基础焦点进入与返回，以及复用统一 motion token 的打开和关闭动画；统一接入原生返回，同级按最近打开顺序关闭，busy 时消费但保持；支持业务 Dialog 内二级设置窗口使用独立嵌套层级、较浅遮罩和紧凑尺寸。
 - `frontend/src/components/PasswordInput.vue`：登录、注册、改密和用户管理共用的密码输入呈现控件，统一显示/隐藏、焦点恢复和无障碍状态，不校验或持久化密码。
 - `frontend/src/components/SearchField.vue`：目录页面共用的自动搜索输入，统一搜索图标、输入草稿、防抖触发和清空恢复；不请求数据或管理分页。
-- `frontend/src/components/forms/SelectControl.vue`：项目级底层选择控件，使用 Teleport listbox 统一触发器、展开浮层、键盘操作、焦点、错误和禁用状态，并保留数字、布尔值与空值的绑定类型；不拥有字段标题或业务选项。
+- `frontend/src/components/forms/SelectControl.vue`：项目级底层选择控件，使用 Teleport listbox 统一触发器、展开浮层、键盘操作、焦点、错误和禁用状态，并保留数字、布尔值与空值的绑定类型；listbox 以最高浮层优先级处理原生返回并恢复触发器焦点；不拥有字段标题或业务选项。
 - `frontend/src/components/forms/DateTimeField.vue`、`DateTimeField.scss`：项目通用日期时间字段，复用嵌套 `ModalDialog` 提供日历和时分秒选择，不依赖浏览器原生日期弹层。
 - `frontend/src/components/forms/`：通用 `FormField`、`FormInput`、`FormSelect` 和 `FormTextarea` 字段组件；`FormSelect` 组合 `SelectControl`，统一标题、必填标记、提示、红框错误状态和不占布局的无障碍错误说明，不包含业务校验规则。
 - `frontend/src/composables/useFormValidation.ts`：为当前表单组件子树注册字段位置、清理单字段错误并自动滚动聚焦首个错误；校验结果仍由页面、会话或业务模型产生。
@@ -45,10 +47,10 @@
 - `frontend/src/components/inbound/InboundOrderFiltersDialog.vue`：入库单状态和创建日期筛选草稿、校验与应用事件；不请求接口或修改路由。
 - `frontend/src/components/inbound/InboundOrderList.vue`：入库单桌面三段式行、平板过渡布局和移动单列条目的呈现；不请求分页数据或管理详情会话。
 - `frontend/src/components/approvals/`：入库与出库审批共用的日期筛选、桌面/移动待审批队列、审核 Dialog、确认阶段、入库明细、出库批次/FIFO 明细和共享响应式样式；请求和队列协调集中在 `StockApprovalWorkspace.vue`。
-- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件；通过带视口避让和统一动效的锚定浮层选择本地文件或纯色图，已选图片使用通用组件全屏预览，并保留独立的更换与删除入口，同时完成签名预检和本地预览；不在编辑阶段上传。
+- `frontend/src/components/attributes/AttributeImageField.vue`：物品与入库共用的单张图片属性控件；通过带视口避让和统一动效的锚定浮层选择本地文件或纯色图，已选图片使用通用组件全屏预览，并保留独立的更换与删除入口，同时完成签名预检和本地预览；原生返回先关闭颜色子层，再关闭图片来源浮层；不在编辑阶段上传。
 - `frontend/src/components/attributes/AttributeColorPicker.vue`：图片字段共用的无依赖 HSV/HEX 颜色选择器，提供饱和度与亮度平面、色相滑轨、HEX 输入、快捷色板和 Pointer Events/键盘交互；只输出颜色并通知应用，不生成图片。
 - `frontend/src/components/attributes/imageDraft.ts`：统一图片草稿状态、随机色板、Canvas 纯色 PNG 生成和表单提交阶段的批量上传。
-- `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件；可关闭查看能力以统一渲染静态缩略图，在缺少地址或加载失败时显示统一图形占位，拥有遮罩、关闭、焦点返回和背景滚动锁定，不请求文件或编辑图片。
+- `frontend/src/components/PreviewImage.vue`：普通图片与全屏查看两态通用组件；可关闭查看能力以统一渲染静态缩略图，在缺少地址或加载失败时显示统一图形占位，拥有遮罩、关闭、焦点返回、背景滚动锁定和高于 Dialog 的原生返回处理，不请求文件或编辑图片。
 - `frontend/src/components/attributes/AuthenticatedImage.vue`：通过鉴权文件接口加载只读物品主图并管理 Blob URL，可按调用方要求组合通用全屏预览。
 - `frontend/src/components/items/`：物品基础资料、主图、可选属性模板、任意属性编辑控件和替代关系；已有物品工作区使用资料/库存/替代关系多页 Dialog，库存和替代关系均按需加载，新建会话只挂载资料编辑器。
 - `frontend/src/components/substitutes/`：全局替代关系的三段式关系组、主物品选择、共享单物品编辑 Dialog，以及只读星链网络 Dialog、SVG 画布和悬浮节点详情；不复制替代优先级或整体保存逻辑。
@@ -76,12 +78,12 @@
   - 校验 API 根地址必须为 HTTP/HTTPS，禁止把全接口监听地址作为访问地址。
   - 提供登录请求所需的客户端类型、设备名称和版本号。
 
-- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、快照、能力和稳定字段错误类型；前端默认端口镜像为 `17890`。
-- `frontend/src/shell/contract.ts` 同时在运行时校验协议版本、快照基础结构和注入桥具名方法，不能只依赖 TypeScript 静态类型信任平台数据。
+- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、快照、能力、原生返回 request/resolution/ack 和稳定字段错误类型；前端默认端口镜像为 `17890`。
+- `frontend/src/shell/contract.ts` 同时在运行时校验协议版本、快照基础结构、注入桥具名方法，以及 capability 开启后的 native-back 可选扩展，不能只依赖 TypeScript 静态类型信任平台数据。
 - `frontend/src/shell/bridge.ts`：选择平台注入桥或普通浏览器 Web fallback，不判断 User-Agent。
 - `frontend/src/shell/web.ts`：使用版本化 localStorage 实现开发/静态环境配置读取、校验和应用；损坏配置返回可修复的 invalid 快照，不管理本地 Rust 服务。
 - `frontend/src/shell/runtime.ts`：维护响应式 Shell 快照，编排配置应用和本地服务生命周期命令，并在 API 地址变化时重置健康检查与内存会话。
-- `frontend/src/shell/runtime.ts` 还公开受 capability 约束的外部链接入口；收到不兼容或损坏的 Shell 快照时保留前端设置页并进入失败状态。
+- `frontend/src/shell/runtime.ts` 还公开受 capability 约束的外部链接和 native-back 订阅/应答薄包装；收到不兼容或损坏的 Shell 快照时保留前端设置页并进入失败状态。
 
 - `frontend/src/api/client.ts`
   - 基于原生 `fetch` 实现统一 JSON 请求、查询参数、Bearer token 注入和 204 响应处理。
@@ -180,8 +182,9 @@
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。关键词、库存状态、高级结构化筛选、计数、排序和分页来自服务端；所有具备 `stock.item.read` 的用户可从目录行或详情图标进入资料和库存详情，只有 `stock.item.manage` 用户才能看到新建、删除和保存入口，详情 Dialog 才可编辑。
 - `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
-- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、基于轻量选品响应的推荐入库模板解析、带请求版本防竞态的模板加载、模板切换破坏性确认、动态模板、图片上传、提交确认和后端错误定位。
-- `frontend/src/pages/OutboundDraftPage.vue`、`OutboundDraftPage.scss`、`pages/outbound-draft/model.ts`、`api/outbound.ts`、`composables/useOutboundDraftPersistence.ts`：`/outbound` 两步待审批出库工作台；物品选取、FIFO/指定批次、可选库位、版本化本地草稿、离开保护及提交确认均留在前端，不审批或扣减库存。
+- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、基于轻量选品响应的推荐入库模板解析、带请求版本防竞态的模板加载、模板切换破坏性确认、动态模板、图片上传、提交确认和后端错误定位；原生返回先关闭明细 Drawer，再从填写步骤回到选品步骤。
+- `frontend/src/pages/OutboundDraftPage.vue`、`OutboundDraftPage.scss`、`pages/outbound-draft/model.ts`、`api/outbound.ts`、`composables/useOutboundDraftPersistence.ts`：`/outbound` 两步待审批出库工作台；物品选取、FIFO/指定批次、可选库位、版本化本地草稿、异步 `ModalDialog` 离开保护及提交确认均留在前端；原生返回从填写步骤回到选品步骤，不审批或扣减库存。
+- `frontend/src/pages/LocationsPage.vue`、`LocationsPage.scss`：`/locations` 库位分组树、列表和 CRUD 请求编排；移动分组 Drawer 处理原生返回并恢复分组触发器焦点。
 - `frontend/src/api/inboundOrders.ts`：入库单分页、状态/日期/关键词查询与详情 DTO，不管理页面状态或审批写入。
 - `frontend/src/pages/InboundOrdersPage.vue`、`InboundOrdersPage.scss`：`/inbound/orders` 入库单服务端分页协议下的尾部哨兵追加、关键词搜索、筛选 Dialog 编排、按需只读详情和审批路由跳转；列表呈现委托给 `InboundOrderList`，新建与审批分别保留在 `/inbound`、`/approvals/inbound`。
 - `frontend/src/api/outboundOrders.ts`、`components/outbound/OutboundOrderFiltersDialog.vue`、`pages/OutboundOrdersPage.vue`：`/outbound/orders` 出库单状态/日期/关键词查询、尾部哨兵追加、物品身份详情与审批路由跳转；新建与审批保留在 `/outbound`、`/approvals/outbound`。

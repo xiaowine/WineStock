@@ -20,20 +20,20 @@ object RuntimeSnapshotFactory {
      *
      * 端上原生 Axum 尚未实现，因此本地服务启停能力为 false，serverMode 也禁用；
      * 待 core 提供可停止的本地服务句柄后再放开这些能力。
-     * nativeBack 暂为 false：本次未实现“前端优先处理返回键”的协商协议，
-     * Activity 侧仍自行处理 WebView 返回，不声明未兑现的能力。
+     * nativeBack 由 ShellBridgeHost 的真实安装结果传入；只有消息通道、document-start shim 与
+     * NativeBackRequestBroker 全部可用时才声明能力，页面是否 ready 由 Activity 生命周期另行控制。
      */
-    private fun capabilities(): JSONObject =
+    private fun capabilities(nativeBackSupported: Boolean): JSONObject =
         JSONObject()
             .put("startLocalService", false)
             .put("stopLocalService", false)
             .put("restartLocalService", false)
-            .put("nativeBack", false)
+            .put("nativeBack", nativeBackSupported)
             .put("openExternal", true)
             .put("serverMode", false)
 
     /** 已配置且校验通过的运行快照。 */
-    fun configured(config: EditableRuntimeConfig): JSONObject {
+    fun configured(config: EditableRuntimeConfig, nativeBackSupported: Boolean = false): JSONObject {
         val remote = RuntimeModes.isRemote(config.mode)
         val apiBaseUrl =
             if (remote) {
@@ -51,11 +51,21 @@ object RuntimeSnapshotFactory {
         if (!remote) {
             service.put("boundAddress", "${config.bindHost}:${config.port}")
         }
-        return baseSnapshot("configured", config, createdDefault = false, service = service)
+        return baseSnapshot(
+            "configured",
+            config,
+            createdDefault = false,
+            service = service,
+            nativeBackSupported = nativeBackSupported,
+        )
     }
 
     /** 配置无效但保留用户草稿，让前端进入设置页修复。 */
-    fun invalid(config: EditableRuntimeConfig, message: String): JSONObject {
+    fun invalid(
+        config: EditableRuntimeConfig,
+        message: String,
+        nativeBackSupported: Boolean = false,
+    ): JSONObject {
         val service =
             JSONObject()
                 .put("ownership", if (RuntimeModes.isRemote(config.mode)) "remote" else "local")
@@ -66,11 +76,17 @@ object RuntimeSnapshotFactory {
                         .put("code", ShellErrorCodes.CONFIG_INVALID)
                         .put("message", message),
                 )
-        return baseSnapshot("invalid", config, createdDefault = false, service = service)
+        return baseSnapshot(
+            "invalid",
+            config,
+            createdDefault = false,
+            service = service,
+            nativeBackSupported = nativeBackSupported,
+        )
     }
 
     /** 从未配置，等待首次设置。 */
-    fun unconfigured(): JSONObject {
+    fun unconfigured(nativeBackSupported: Boolean = false): JSONObject {
         val service =
             JSONObject()
                 .put("ownership", "local")
@@ -80,6 +96,7 @@ object RuntimeSnapshotFactory {
             config = DEFAULT_RUNTIME_CONFIG,
             createdDefault = false,
             service = service,
+            nativeBackSupported = nativeBackSupported,
         )
     }
 
@@ -102,6 +119,7 @@ object RuntimeSnapshotFactory {
         config: EditableRuntimeConfig,
         createdDefault: Boolean,
         service: JSONObject,
+        nativeBackSupported: Boolean,
     ): JSONObject =
         JSONObject()
             .put("protocolVersion", PROTOCOL_VERSION)
@@ -110,5 +128,5 @@ object RuntimeSnapshotFactory {
             .put("config", config.toJson())
             .put("createdDefault", createdDefault)
             .put("service", service)
-            .put("capabilities", capabilities())
+            .put("capabilities", capabilities(nativeBackSupported))
 }

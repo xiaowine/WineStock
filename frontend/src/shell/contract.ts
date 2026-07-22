@@ -139,6 +139,47 @@ export function assertApplyRuntimeConfigResult(
 /** 取消 Shell 状态事件订阅。 */
 export type StopShellSubscription = () => void;
 
+/** Android 提交的一次原生返回请求。 */
+export interface NativeBackRequest {
+  /** 由 Native 页面代次与单调序号组成的一次性标识。 */
+  requestId: string;
+  /** Android 在提交瞬间观察到的 WebView history 提示。 */
+  canGoBack: boolean;
+}
+
+/** 前端处理原生返回后的诊断原因；Android 只依据 handled 决定是否 fallback。 */
+export type NativeBackReason =
+  | "transient-overlay"
+  | "image-preview"
+  | "dialog"
+  | "busy-dialog"
+  | "drawer"
+  | "popover"
+  | "page-state"
+  | "route-history"
+  | "handler-error"
+  | "unhandled";
+
+/** 前端对一次原生返回请求的最终结算。 */
+export interface NativeBackResolution {
+  requestId: string;
+  handled: boolean;
+  reason: NativeBackReason;
+}
+
+/** Native 对应答的幂等确认；false 表示请求已失效或已经结算。 */
+export interface NativeBackResolutionAck {
+  accepted: boolean;
+}
+
+/** 仅在 capabilities.nativeBack=true 时必须完整存在的 Shell Bridge v1 可选扩展。 */
+export interface NativeBackShellBridgeExtension {
+  onNativeBackRequested(
+    listener: (request: NativeBackRequest) => void,
+  ): Promise<StopShellSubscription>;
+  resolveNativeBack(resolution: NativeBackResolution): Promise<NativeBackResolutionAck>;
+}
+
 /** 前端依赖的统一 Shell Bridge；平台适配层不得扩展为任意 native invoke。 */
 export interface ShellBridge {
   /** 读取当前运行配置和服务状态。 */
@@ -163,6 +204,10 @@ export interface ShellBridge {
   ): Promise<StopShellSubscription>;
   /** 订阅应用从后台恢复事件。 */
   onAppResumed(listener: () => void): Promise<StopShellSubscription>;
+  /** capability-gated 的 Android 原生返回事件订阅。 */
+  onNativeBackRequested?: NativeBackShellBridgeExtension["onNativeBackRequested"];
+  /** capability-gated 的 Android 原生返回应答。 */
+  resolveNativeBack?: NativeBackShellBridgeExtension["resolveNativeBack"];
 }
 
 /** 初始快照版本通过后，确认注入桥完整实现 v1 所有具名方法。 */
@@ -187,6 +232,49 @@ export function assertCompleteShellBridge(value: unknown): asserts value is Shel
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
       `Shell Bridge v1 缺少方法：${missing.join("、")}`,
+    );
+  }
+}
+
+/** nativeBack capability 开启后，收窄并校验两个可选扩展方法。 */
+export function assertNativeBackShellBridgeExtension(
+  value: ShellBridge,
+): asserts value is ShellBridge & NativeBackShellBridgeExtension {
+  if (
+    typeof value.onNativeBackRequested !== "function" ||
+    typeof value.resolveNativeBack !== "function"
+  ) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 声明 nativeBack 能力但缺少订阅或应答方法",
+    );
+  }
+}
+
+/** 校验 Native 发布的原生返回请求，避免无效事件进入 UI handler registry。 */
+export function assertNativeBackRequest(value: unknown): asserts value is NativeBackRequest {
+  if (
+    !isRecord(value) ||
+    typeof value.requestId !== "string" ||
+    value.requestId.length < 1 ||
+    value.requestId.length > 64 ||
+    typeof value.canGoBack !== "boolean"
+  ) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 发布了无效的原生返回请求",
+    );
+  }
+}
+
+/** 校验 Native 对原生返回应答的幂等确认。 */
+export function assertNativeBackResolutionAck(
+  value: unknown,
+): asserts value is NativeBackResolutionAck {
+  if (!isRecord(value) || typeof value.accepted !== "boolean") {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 返回了无效的原生返回确认",
     );
   }
 }

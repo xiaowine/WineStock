@@ -302,19 +302,23 @@
       :title="
         confirmMode === 'clear'
           ? '清空出库草稿？'
-          : canDirectOutbound
-            ? '确认直接出库？'
-            : '确认提交审核？'
+          : confirmMode === 'leave'
+            ? '离开当前页面？'
+            : canDirectOutbound
+              ? '确认直接出库？'
+              : '确认提交审核？'
       "
       :description="
         confirmMode === 'submit'
           ? canDirectOutbound
             ? '确认后会立即扣减库存并写入出库流水。'
             : '提交后进入待审批，库存不会立即扣减。'
-          : '所有未提交内容将从本机删除。'
+          : confirmMode === 'leave'
+            ? '当前草稿已自动保存在本机，离开后仍可恢复。'
+            : '所有未提交内容将从本机删除。'
       "
       :busy="submitting"
-      @close="confirmMode = null"
+      @close="cancelConfirmation"
       ><template v-if="confirmMode === 'submit'"
         ><dl class="outbound-confirm">
           <div>
@@ -330,8 +334,12 @@
             <dd>{{ confirmCostLabel }}</dd>
           </div>
         </dl></template
-      ><template #actions
-        ><button class="secondary-button" :disabled="submitting" @click="confirmMode = null">
+      >
+      <p v-else>
+        {{ confirmMode === "leave" ? "确认离开当前出库流程吗？" : "此操作无法撤销。" }}
+      </p>
+      <template #actions
+        ><button class="secondary-button" :disabled="submitting" @click="cancelConfirmation">
           {{ confirmMode === "submit" ? "返回检查" : "取消" }}</button
         ><button
           :class="confirmMode === 'clear' ? 'danger-button' : 'primary-button'"
@@ -343,9 +351,11 @@
               ? "正在提交…"
               : confirmMode === "clear"
                 ? "确认清空"
-                : canDirectOutbound
-                  ? "确认直接出库"
-                  : "确认提交审核"
+                : confirmMode === "leave"
+                  ? "确认离开"
+                  : canDirectOutbound
+                    ? "确认直接出库"
+                    : "确认提交审核"
           }}
         </button></template
       ></ModalDialog
@@ -370,8 +380,10 @@ import AuthenticatedImage from "../components/attributes/AuthenticatedImage.vue"
 import ModalDialog from "../components/ModalDialog.vue";
 import SearchField from "../components/SearchField.vue";
 import { useInboundItemCatalog } from "../composables/useInboundItemCatalog";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useOutboundDraftPersistence } from "../composables/useOutboundDraftPersistence";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
+import { NativeBackPriority } from "../navigation/nativeBack";
 import { notice } from "../notices/notice";
 import {
   buildOutboundRequest,
@@ -401,7 +413,7 @@ const router = useRouter(),
   lines = ref<OutboundDraftLine[]>([]),
   validation = ref(false),
   submitting = ref(false),
-  confirmMode = ref<"clear" | "submit" | null>(null),
+  confirmMode = ref<"clear" | "submit" | "leave" | null>(null),
   destinationInput = ref<HTMLInputElement | null>(null),
   locations = ref<LocationResponse[]>([]),
   locationError = ref(""),
@@ -418,6 +430,7 @@ const router = useRouter(),
   batchPages = ref(0),
   costBatchSnapshots = ref<Record<number, CostBatchSnapshot>>({});
 let batchController: AbortController | null = null;
+let pendingLeaveResolution: ((allowed: boolean) => void) | null = null;
 const costBatchControllers = new Map<number, AbortController>();
 const canReadItems = computed(() =>
     hasPermission(authSession.value?.user.permissions, stockPermissions.outboundCreate),
@@ -488,6 +501,17 @@ const canReadItems = computed(() =>
 const canDirectOutbound = computed(() =>
   hasPermission(authSession.value?.user.permissions, stockPermissions.outboundApprove),
 );
+
+useNativeBackHandler({
+  id: "outbound-draft-step",
+  active: () => step.value === "draft",
+  priority: NativeBackPriority.PageState,
+  handle: () => {
+    if (step.value !== "draft") return { handled: false };
+    step.value = "catalog";
+    return { handled: true, reason: "page-state" };
+  },
+});
 const {
   items,
   searchInput,
@@ -526,10 +550,16 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   batchController?.abort();
   costBatchControllers.forEach((controller) => controller.abort());
+  pendingLeaveResolution?.(false);
+  pendingLeaveResolution = null;
 });
-onBeforeRouteLeave(() =>
-  hasDraft.value ? window.confirm("当前出库草稿已自动保存在本机，确认离开吗？") : true,
-);
+onBeforeRouteLeave(() => {
+  if (!hasDraft.value) return true;
+  confirmMode.value = "leave";
+  return new Promise<boolean>((resolve) => {
+    pendingLeaveResolution = resolve;
+  });
+});
 watch(
   () => allocationDraft.value.mode,
   (mode) => {
@@ -765,7 +795,22 @@ async function review() {
   }
   confirmMode.value = "submit";
 }
+
+function cancelConfirmation() {
+  if (submitting.value) return;
+  if (confirmMode.value === "leave") pendingLeaveResolution?.(false);
+  pendingLeaveResolution = null;
+  confirmMode.value = null;
+}
+
 async function confirmAction() {
+  if (confirmMode.value === "leave") {
+    const resolve = pendingLeaveResolution;
+    pendingLeaveResolution = null;
+    confirmMode.value = null;
+    resolve?.(true);
+    return;
+  }
   if (confirmMode.value === "clear") {
     destination.value = "";
     notes.value = "";

@@ -11,6 +11,7 @@ import {
   startAuthSessionSynchronization,
 } from "./auth/session";
 import { installOverlayScrollbars } from "./bootstrap/overlayScrollbars";
+import { installNativeBackNavigation } from "./navigation/nativeBack";
 import { router } from "./router";
 import { installAuthGuards } from "./router/guards";
 import {
@@ -20,6 +21,8 @@ import {
   successfulServiceCheckSequence,
 } from "./service/availability";
 import { activeApiBaseUrl, initializeShellRuntime, reportFrontendReady } from "./shell/runtime";
+
+let stopNativeBackNavigation: (() => void) | null = null;
 
 async function bootstrapFrontend(): Promise<void> {
   try {
@@ -69,6 +72,13 @@ async function bootstrapFrontend(): Promise<void> {
   createApp(App).use(router).mount("#app");
   installOverlayScrollbars();
   await nextTick();
+  try {
+    stopNativeBackNavigation = await installNativeBackNavigation(router);
+  } catch (error) {
+    // capability 声明与订阅不一致时保持页面未 ready，让 Android 直接使用 native fallback。
+    console.warn("无法安装平台原生返回订阅", error);
+    return;
+  }
   window.requestAnimationFrame(() => {
     void reportFrontendReady().catch((error: unknown) => {
       console.warn("无法向平台 Shell 报告前端就绪状态", error);
@@ -77,3 +87,10 @@ async function bootstrapFrontend(): Promise<void> {
 }
 
 void bootstrapFrontend();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    stopNativeBackNavigation?.();
+    stopNativeBackNavigation = null;
+  });
+}

@@ -276,6 +276,8 @@ import { deleteImage } from "../api/files";
 import { ApiError } from "../api/errors";
 import { useInboundDraftPersistence } from "../composables/useInboundDraftPersistence";
 import { useInboundItemCatalog } from "../composables/useInboundItemCatalog";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
+import { NativeBackPriority } from "../navigation/nativeBack";
 import { notice } from "../notices/notice";
 import { authSession } from "../auth/session";
 import { hasPermission, stockPermissions } from "../auth/permissions";
@@ -334,6 +336,28 @@ let pendingStepTransition: { step: InboundDraftStepName; resolve: () => void } |
 const templateAbortControllers = new Map<string, AbortController>();
 const templateRequestVersions = new Map<string, number>();
 const templateCache = new Map<number, InboundTemplateResponse>();
+
+useNativeBackHandler({
+  id: "inbound-line-editor-drawer",
+  active: () => selectedLineId.value !== null,
+  priority: NativeBackPriority.Drawer,
+  handle: () => {
+    if (selectedLineId.value === null) return { handled: false };
+    closeLineEditor();
+    return { handled: true, reason: "drawer" };
+  },
+});
+
+useNativeBackHandler({
+  id: "inbound-draft-step",
+  active: () => currentStep.value === "draft",
+  priority: NativeBackPriority.PageState,
+  handle: () => {
+    if (currentStep.value !== "draft") return { handled: false };
+    void continueAddingItems();
+    return { handled: true, reason: "page-state" };
+  },
+});
 
 const {
   items,

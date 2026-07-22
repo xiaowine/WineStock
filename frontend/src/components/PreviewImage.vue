@@ -60,7 +60,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useAttrs, watch, type CSSProperties } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  useAttrs,
+  useId,
+  watch,
+  type CSSProperties,
+} from "vue";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
+import { NativeBackPriority } from "../navigation/nativeBack";
 
 defineOptions({ inheritAttrs: false });
 
@@ -100,6 +111,17 @@ const viewerImageStyle = ref<CSSProperties>({});
 let previousBodyOverflow = "";
 let animationFrame = 0;
 let closing = false;
+
+useNativeBackHandler({
+  id: `image-preview:${useId()}`,
+  active: viewerOpen,
+  priority: NativeBackPriority.ImagePreview,
+  handle: () => {
+    if (!viewerOpen.value) return { handled: false };
+    closeViewer();
+    return { handled: true, reason: "image-preview" };
+  },
+});
 
 watch(
   () => props.src,

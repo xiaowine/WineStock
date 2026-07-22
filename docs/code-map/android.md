@@ -3,7 +3,7 @@
 `android` 是 Android 原生 shell，拥有 Activity 生命周期、WebView、打包前端资源加载和 Shell Bridge 传输实现。
 它通过 HTTP 使用 core，通过 Shell Bridge 交换运行配置和服务状态，不拥有业务 API、不复制 core 业务实现，也不把业务 UI 托管给 Axum。
 
-当前实现范围是 **Shell Bridge 传输层 + 远端优先**：桥读写运行配置、返回运行快照、推送状态与恢复事件，
+当前实现范围是 **Shell Bridge 传输层 + 远端优先**：桥读写运行配置、返回运行快照、推送状态、恢复与原生返回事件，
 并支持连接远端服务。端上本地 Axum 尚未实现，本地服务模式返回稳定的 `unsupported_runtime_mode`，
 相关 capability 为 `false`。运行配置校验是 `winestock_shared` 规则的 Kotlin 镜像；端上原生 Rust 服务落地后应改为委托 shared。
 
@@ -28,14 +28,16 @@
   - 唯一 Activity；创建配置 WebView、通过 `WebViewAssetLoader` 从受信任 origin 加载打包前端。
   - 在 `loadUrl` 前安装 Shell Bridge，保证 document-start 脚本先于页面脚本注入。
   - 保持 edge-to-edge，让 WebView 覆盖完整 Activity Window；不再给根容器统一添加系统栏 padding。
-  - 管理与浅色前端一致的系统栏图标、页面可见后的 inset 重发、SplashScreen 和 WebView 返回键；
-    `onResume` 刷新安全区并通知桥应用恢复。
+  - 管理与浅色前端一致的系统栏图标、页面可见后的 inset 重发和 SplashScreen；系统返回先交给
+    Shell Bridge 协商，未处理、超时或页面未 ready 时才重新判断 WebView history 并交回 dispatcher。
+  - 主页面开始加载、Activity pause/stop/destroy 时同步推进或清理原生返回生命周期；`onResume` 恢复协商、
+    刷新安全区并通知桥应用恢复。
   - 放开 WebView mixed content，使运行在 `https://winestock.internal` 的前端能连接明文 HTTP 远端服务。
   - 不渲染运行设置或业务 UI，不实现本地 Axum。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/AppConfig.kt`
   - 集中 Android shell 常量：受信任 host `winestock.internal`（ICANN 保留、永不进入公网 DNS）、
-    前端入口 URL、Shell Bridge 允许 origin 和加载遮罩超时/淡出时长。
+    前端入口 URL、Shell Bridge 允许 origin、SplashScreen 超时和原生返回 400ms 应答超时。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/web/FrontendPathHandler.kt`
   - `WebViewAssetLoader.PathHandler`，把受信任 origin 根路径映射到 `assets/frontend`，根路径回退到 `index.html`。
@@ -57,7 +59,8 @@
   - 注入 WebView 的传输 shim（属于 Android 平台传输层，不是前端源码）。
   - 构造 `window.__WINESTOCK_SHELL_BRIDGE__`，把 `frontend/src/shell/contract.ts` 的 v1 逻辑接口映射到原生消息通道。
   - 请求信封 `{ type:"call", id, method, params }`，按 id 匹配回复 `{ type:"reply", id, ok, result?, error? }`；
-    事件 `{ type:"event", event, payload? }` 驱动 `onRuntimeStateChanged` 和 `onAppResumed`。
+    事件 `{ type:"event", event, payload? }` 驱动 `onRuntimeStateChanged`、`onAppResumed` 和
+    `onNativeBackRequested`；`resolveNativeBack` 把前端结算送回 Native。
   - 同时注入 `window.__WINESTOCK_RUNTIME_CONFIG__`（`clientKind:"android"` 与设备/版本元数据）。
   - 消息通道缺失时暴露降级桥，让前端进入可修复失败态。
 
@@ -65,9 +68,17 @@
   - 原生分发：在受信任 origin 上注册 `WebMessageListener` 通道并注入文档起始脚本；对 `WEB_MESSAGE_LISTENER`
     和 `DOCUMENT_START_SCRIPT` 做能力检测。
   - 解析请求信封，路由到配置读取/校验/应用与本地服务生命周期处理，通过 `JavaScriptReplyProxy` 回复。
+  - 管理可信主页面代次、ready proxy 和 Activity 可交互状态；发布 `nativeBackRequested`，校验
+    `resolveNativeBack` 并把一次性结算交给 broker。
   - 远端模式格式合法即持久化并推送 `configured` 快照；本地模式返回 `unsupported_runtime_mode`，不持久化。
   - `openExternal` 只放行不含凭据的 http/https 并交系统浏览器；`frontendReady` 触发遮罩隐藏回调。
-  - 只处理运行配置与服务生命周期，不代理业务 HTTP、不传递 token、不暴露通用 native 调用。
+  - 只处理具名平台能力，不代理业务 HTTP、不传递 token、不暴露通用 native 调用。
+
+- `android/app/src/main/java/winestock/xiaowine/cc/shell/NativeBackRequestBroker.kt`
+  - 纯状态机地拥有页面代次、单 pending requestId、400ms timeout、重复/迟到应答拒绝和生命周期取消；
+    不依赖 Activity、WebView 或 Bridge JSON，因此由 JVM 单元测试覆盖竞态。
+- `android/app/src/test/java/winestock/xiaowine/cc/shell/NativeBackRequestBrokerTest.kt`
+  - 覆盖 handled、unhandled、timeout、等待期重复返回、duplicate/late resolution、页面换代和 destroy。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeConfig.kt`
   - `EditableRuntimeConfig` 四字段模型与 JSON 序列化、默认配置镜像、`RuntimeModes`、`ShellErrorCodes` 和字段名常量。
@@ -84,6 +95,7 @@
 - `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeSnapshotFactory.kt`
   - 构造 Shell Bridge v1 运行快照，通过 `contract.ts` 的 `assertCompatibleRuntimeSnapshot` 校验：
     `platform:"android"`、六个 capability 布尔字段齐全，远端模式派生 `apiBaseUrl`。
+  - `nativeBack` 只随 `ShellBridgeHost.install()` 的真实成功结果开启；页面是否 ready 不改变 capability。
 
 ## 资源与配置
 
@@ -105,12 +117,13 @@ MainActivity.onCreate
   -> 前端读取 window.__WINESTOCK_SHELL_BRIDGE__ 和 __WINESTOCK_RUNTIME_CONFIG__
   -> 前端 getRuntimeSnapshot / applyRuntimeConfig
   -> 前端按 apiBaseUrl 通过 HTTP 使用 core
-  -> 前端 frontendReady -> 隐藏加载遮罩
+  -> 前端挂载 nativeBack handler registry 并完成事件订阅
+  -> 前端 frontendReady -> 允许原生返回协商并隐藏 SplashScreen
 ```
 
 ## 边界
 
 - 受信任 origin `https://winestock.internal` 仅由 `WebViewAssetLoader` 从本地 assets 提供，不经网络。
 - Shell Bridge 消息通道和文档起始脚本都限定该 origin，非受信任 origin 无法调用桥。
-- 业务能力通过 HTTP 使用 core；桥只承载运行配置、服务生命周期、真实地址和平台事件。
-- 端上本地 Axum、`server-mode` 前台服务和原生返回键协商尚未实现，通过 capability 关闭。
+- 业务能力通过 HTTP 使用 core；桥只承载运行配置、服务生命周期、真实地址和具名平台事件。
+- 端上本地 Axum 与 `server-mode` 前台服务尚未实现，通过对应 capability 关闭；原生返回协商已经实现。

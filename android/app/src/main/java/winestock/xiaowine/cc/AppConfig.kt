@@ -20,4 +20,7 @@ internal object AppConfig {
 
     /** 无就绪信号时放行冷启动 SplashScreen 的兜底超时，避免异常时永久卡在启动画面。 */
     const val SPLASH_TIMEOUT_MS = 8_000L
+
+    /** Android 等待前端结算一次原生返回请求的最长时间；超时后重新读取 WebView history 并 fallback。 */
+    const val NATIVE_BACK_RESPONSE_TIMEOUT_MS = 400L
 }

@@ -84,6 +84,8 @@ The Android shell must handle:
 - port conflict reporting
 - foreground service requirements, if long-running background service is needed
 - origin-restricted Shell Bridge messaging and external navigation handling
+- capability-gated native-back requests with one pending request, a 400 ms timeout, page-generation
+  invalidation, and lifecycle-safe WebView/Activity fallback
 - edge-to-edge Window configuration and publishing `systemBars | displayCutout` as CSS safe-area values;
   the WebView fills the Activity window and the frontend consumes insets semantically
 
@@ -95,7 +97,8 @@ They are not served by the Axum crate.
 Current status:
 
 - the repository Android shell now implements packaged WebView loading, Shell Bridge transport,
-  edge-to-edge WebView layout and origin-restricted CSS inset publication
+  edge-to-edge WebView layout, origin-restricted CSS inset publication, and frontend-first native-back
+  negotiation
 - shared Rust service integration and on-device local Axum remain incomplete; the current shell
   must still be aligned with this document before it is treated as the complete formal shell
 

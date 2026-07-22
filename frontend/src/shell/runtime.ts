@@ -9,12 +9,19 @@ import {
   assertCompleteShellBridge,
   assertApplyRuntimeConfigResult,
   assertCompatibleRuntimeSnapshot,
+  assertNativeBackRequest,
+  assertNativeBackResolutionAck,
+  assertNativeBackShellBridgeExtension,
   cloneRuntimeSnapshot,
   type ApplyRuntimeConfigResult,
   type EditableRuntimeConfig,
   type RuntimeConfigValidationResult,
   type RuntimeSnapshot,
   type ShellBridge,
+  type NativeBackRequest,
+  type NativeBackResolution,
+  type NativeBackResolutionAck,
+  type NativeBackShellBridgeExtension,
   type StopShellSubscription,
   assertRuntimeConfigValidationResult,
 } from "./contract";
@@ -111,6 +118,38 @@ export async function reportFrontendReady(): Promise<void> {
   await requireBridge().frontendReady();
 }
 
+/**
+ * 订阅 Android 原生返回请求。普通浏览器或 capability=false 时返回稳定 no-op，且不调用可选扩展。
+ */
+export async function subscribeNativeBackRequested(
+  listener: (request: NativeBackRequest) => void,
+): Promise<StopShellSubscription> {
+  const snapshot = await initializeShellRuntime();
+  if (!snapshot.capabilities.nativeBack) return () => undefined;
+  const extension = requireNativeBackBridge();
+  const stop = await extension.onNativeBackRequested((request) => {
+    assertNativeBackRequest(request);
+    listener(request);
+  });
+  if (typeof stop !== "function") {
+    throw new Error("Shell Bridge 原生返回订阅没有返回取消函数");
+  }
+  return stop;
+}
+
+/** 向 Android 结算一次原生返回；仅在 capability=true 时允许调用。 */
+export async function resolveNativeBack(
+  resolution: NativeBackResolution,
+): Promise<NativeBackResolutionAck> {
+  const snapshot = await initializeShellRuntime();
+  if (!snapshot.capabilities.nativeBack) {
+    throw new Error("当前平台未启用原生返回协商");
+  }
+  const result = await requireNativeBackBridge().resolveNativeBack(resolution);
+  assertNativeBackResolutionAck(result);
+  return result;
+}
+
 /** 通过当前平台的受控能力打开外部 HTTP/HTTPS 地址。 */
 export async function openExternal(url: string): Promise<void> {
   const snapshot = await initializeShellRuntime();
@@ -123,8 +162,12 @@ export async function openExternal(url: string): Promise<void> {
 async function performInitialization(): Promise<RuntimeSnapshot> {
   try {
     const initialSnapshot = await requireBridge().getRuntimeSnapshot();
-    applySnapshot(initialSnapshot);
+    assertCompatibleRuntimeSnapshot(initialSnapshot);
     assertCompleteShellBridge(requireBridge());
+    if (initialSnapshot.capabilities.nativeBack) {
+      assertNativeBackShellBridgeExtension(requireBridge());
+    }
+    applySnapshot(initialSnapshot);
     stopRuntimeStateSubscription = await requireBridge().onRuntimeStateChanged((nextSnapshot) => {
       try {
         applySnapshot(nextSnapshot, activeApiBaseUrl.value);
@@ -183,6 +226,12 @@ function requireBridge(): ShellBridge {
     throw new Error("Shell Bridge 尚未初始化");
   }
   return bridge;
+}
+
+function requireNativeBackBridge(): ShellBridge & NativeBackShellBridgeExtension {
+  const current = requireBridge();
+  assertNativeBackShellBridgeExtension(current);
+  return current;
 }
 
 if (import.meta.hot) {

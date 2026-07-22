@@ -82,6 +82,8 @@ import {
   type CSSProperties,
   type VNode,
 } from "vue";
+import { useNativeBackHandler } from "../../composables/useNativeBackHandler";
+import { NativeBackPriority } from "../../navigation/nativeBack";
 
 interface NormalizedOption {
   key: string;
@@ -123,6 +125,17 @@ const open = ref(false);
 const activeIndex = ref(-1);
 const optionElements = new Map<number, HTMLButtonElement>();
 const popoverStyle = ref<CSSProperties>({});
+
+useNativeBackHandler({
+  id: `select-control:${uid}`,
+  active: open,
+  priority: NativeBackPriority.TransientOverlay,
+  handle: () => {
+    if (!open.value) return { handled: false };
+    close(true);
+    return { handled: true, reason: "transient-overlay" };
+  },
+});
 
 const triggerAttrs = computed(() =>
   Object.fromEntries(

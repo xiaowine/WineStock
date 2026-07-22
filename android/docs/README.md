@@ -14,11 +14,26 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - 前端资源由 `WebViewAssetLoader` 从 `assets/frontend` 提供；Gradle 使用本机 pnpm 构建当前源码，校验后注册为 variant generated assets。
 - 信封协议、方法路由和快照派生写在代码注释中（`shell/bridge.js`、`shell/ShellBridgeHost.kt`）。
 
+## WebView 原生返回协商
+
+- `capabilities.nativeBack` 只在 AndroidX 消息通道、document-start shim 和 broker 成功安装后为 `true`。
+- `MainActivity` 继续只通过生命周期感知的 `OnBackPressedDispatcher` 接收返回提交，不另建平台回调链。
+- `ShellBridgeHost` 仅向当前可信、已调用 `frontendReady` 且 Activity 处于 resumed 的页面发送
+  `nativeBackRequested { requestId, canGoBack }`；前端以 `resolveNativeBack` 一次性结算。
+- `NativeBackRequestBroker` 同时最多保存一个 pending；等待期间重复返回直接消费，400ms 超时、
+  `handled=false` 或发送失败时由 Activity 重新读取 `WebView.canGoBack()` 后 fallback。
+- 主页面开始加载会推进 requestId 页面代次并清除旧 proxy；页面刷新、Activity pause/stop/destroy
+  会取消 pending 且不额外 fallback，迟到或重复应答返回 `accepted=false`。
+- 前端必须先完成 handler registry 与事件订阅，再调用 `frontendReady`。当前普通 Web fallback 保持
+  `nativeBack=false`，不模拟 Android 系统行为。
+
 ## 当前边界与未实现
 
 - 端上本地 Axum 尚未实现：本地模式返回 `unsupported_runtime_mode`，`startLocalService` 等能力为 `false`；远端模式为当前主用法。
 - 运行配置校验是 shared 规则的 Kotlin 镜像（对齐前端 web fallback）；端上原生 Rust 服务落地后应改为委托 `winestock_shared`。
 - 为连接局域网明文 HTTP 服务器，已放行 cleartext 与 WebView mixed-content，范围见 `network_security_config.xml` 与代码注释。
+- 真实设备的手势导航、三键导航、旋转和后台恢复矩阵需要在有在线 Android 设备时统一执行；
+  JVM、lint 与 assemble 不能替代该 smoke。
 
 ## 前端资源打包
 

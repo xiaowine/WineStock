@@ -150,17 +150,38 @@ interface RuntimeSnapshot {
 ```ts
 interface ShellBridge {
   getRuntimeSnapshot(): Promise<RuntimeSnapshot>;
-  validateRuntimeConfig(config: EditableRuntimeConfig): Promise<RuntimeConfigValidationResult>;
-  applyRuntimeConfig(config: EditableRuntimeConfig): Promise<ApplyRuntimeConfigResult>;
+  validateRuntimeConfig(
+    config: EditableRuntimeConfig,
+  ): Promise<RuntimeConfigValidationResult>;
+  applyRuntimeConfig(
+    config: EditableRuntimeConfig,
+  ): Promise<ApplyRuntimeConfigResult>;
   startLocalService(): Promise<RuntimeSnapshot>;
   stopLocalService(): Promise<RuntimeSnapshot>;
   restartLocalService(): Promise<RuntimeSnapshot>;
   frontendReady(): Promise<void>;
   openExternal(url: string): Promise<void>;
-  onRuntimeStateChanged(listener: (snapshot: RuntimeSnapshot) => void): Promise<() => void>;
+  onRuntimeStateChanged(
+    listener: (snapshot: RuntimeSnapshot) => void,
+  ): Promise<() => void>;
   onAppResumed(listener: () => void): Promise<() => void>;
+  onNativeBackRequested?(
+    listener: (request: NativeBackRequest) => void,
+  ): Promise<() => void>;
+  resolveNativeBack?(
+    resolution: NativeBackResolution,
+  ): Promise<{ accepted: boolean }>;
 }
 ```
+
+`nativeBack` 是 v1 内 capability-gated 的可选扩展，不要求普通 Web fallback 或旧平台桥实现：
+
+- `capabilities.nativeBack = false` 时，前端不得调用两个可选方法；
+- `capabilities.nativeBack = true` 时，两个方法必须同时存在，否则按 `invalid_bridge_payload` 处理；
+- Android 发送 `nativeBackRequested { requestId, canGoBack }`，前端以
+  `resolveNativeBack { requestId, handled, reason }` 结算；`accepted = false` 表示请求已经超时、取消、结算或属于旧页面；
+- `requestId` 由 Native 生成并携带页面代次；`reason` 只用于诊断，Android 只依据 `handled` 决定是否 fallback；
+- 前端必须先安装订阅，再调用 `frontendReady()`。页面刷新、Activity pause 或销毁会取消 pending，且不额外执行 fallback。
 
 普通浏览器和 Vite 开发环境必须提供 Web fallback。
 Web fallback 可以只支持读取环境变量、返回 `platform = web` 和 no-op 生命周期能力，不得让本地开发依赖原生桥。
@@ -317,7 +338,11 @@ Android `self-hosted` 服务属于应用进程，不应因为 Activity 旋转或
 Android 使用打包 HTTPS origin 调用本地或远端 HTTP API 时，必须显式处理 WebView mixed-content 和 Android cleartext policy。
 默认优先支持 loopback 自托管和 HTTPS 远端服务，不得无提示地扩大明文网络范围。
 
-原生返回键流程应允许前端先关闭 Dialog、Drawer 或执行路由返回；前端未处理或超时后，Activity 才执行系统返回。
+Android 原生返回由生命周期感知的 `OnBackPressedDispatcher` 作为唯一入口。Activity 同时最多维护一个请求，
+等待期间的重复返回直接消费、不排队；前端优先关闭临时浮层、页面内步骤或调用 Vue Router 返回。
+前端返回 `handled = false` 或 400ms 未应答时，Activity 必须重新读取 `WebView.canGoBack()`：可返回则调用
+`WebView.goBack()`，否则临时禁用当前 callback 并把返回交回 dispatcher。刷新、pause 和 destroy 只取消旧请求，
+避免应用已离开前台后由迟到 timeout 再触发返回。
 
 ## Desktop Tauri v2 约束
 

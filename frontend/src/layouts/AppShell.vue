@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { authSession } from "../auth/session";
 import AccountPopover from "../components/AccountPopover.vue";
@@ -119,7 +119,9 @@ import AccountUserSummary from "../components/AccountUserSummary.vue";
 import AppNavigationList from "../components/AppNavigationList.vue";
 import RouteContentView from "../components/RouteContentView.vue";
 import { useAccountPopover } from "../composables/useAccountPopover";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useShellLogout } from "../composables/useShellLogout";
+import { NativeBackPriority } from "../navigation/nativeBack";
 import { getVisibleAppNavigation } from "../router/navigation";
 
 const DESKTOP_QUERY = "(min-width: 768px)";
@@ -142,6 +144,18 @@ const userInitials = computed(() =>
   Array.from(userDisplayName.value.trim()).slice(0, 2).join("").toUpperCase(),
 );
 let desktopMediaQuery: MediaQueryList | undefined;
+
+useNativeBackHandler({
+  id: "app-navigation-drawer",
+  active: navOpen,
+  priority: NativeBackPriority.Drawer,
+  handle: () => {
+    if (!navOpen.value) return { handled: false };
+    closeNavigation();
+    void nextTick(() => navTrigger.value?.focus());
+    return { handled: true, reason: "drawer" };
+  },
+});
 
 function openNavigation(): void {
   navTrigger.value?.blur();

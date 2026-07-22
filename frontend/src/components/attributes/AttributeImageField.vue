@@ -150,6 +150,8 @@ import {
 } from "../../api/errors";
 import { notice } from "../../notices/notice";
 import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import { useNativeBackHandler } from "../../composables/useNativeBackHandler";
+import { NativeBackPriority } from "../../navigation/nativeBack";
 import PreviewImage from "../PreviewImage.vue";
 import {
   createPendingImageDraft,
@@ -191,6 +193,34 @@ const pickerStyle = computed(() => ({
   left: `${pickerPosition.value.left}px`,
   width: `${pickerPosition.value.width}px`,
 }));
+
+useNativeBackHandler({
+  id: `image-color-picker:${pickerId}`,
+  active: colorPickerOpen,
+  priority: NativeBackPriority.TransientOverlay,
+  handle: () => {
+    if (!colorPickerOpen.value) return { handled: false };
+    colorPickerOpen.value = false;
+    void nextTick(() => {
+      positionPicker();
+      pickerPopover.value
+        ?.querySelector<HTMLElement>(".image-picker-popover__color-option")
+        ?.focus();
+    });
+    return { handled: true, reason: "transient-overlay" };
+  },
+});
+
+useNativeBackHandler({
+  id: `image-source-picker:${pickerId}`,
+  active: pickerOpen,
+  priority: NativeBackPriority.TransientOverlay,
+  handle: () => {
+    if (!pickerOpen.value) return { handled: false };
+    closePicker(true);
+    return { handled: true, reason: "transient-overlay" };
+  },
+});
 
 watch(
   value,

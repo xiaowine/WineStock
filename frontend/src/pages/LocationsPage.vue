@@ -103,6 +103,7 @@
         <div class="locations-catalog__toolbar">
           <div class="locations-catalog__context">
             <button
+              ref="groupPanelTrigger"
               class="secondary-button locations-catalog__group-trigger"
               type="button"
               title="选择分组"
@@ -380,7 +381,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import {
   createLocation,
   createLocationGroup,
@@ -405,7 +406,9 @@ import LocationGroupDialog from "../components/locations/LocationGroupDialog.vue
 import LocationGroupTree from "../components/locations/LocationGroupTree.vue";
 import type { LocationDeleteTarget, LocationGroupOption } from "../components/locations/types";
 import SearchField from "../components/SearchField.vue";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
+import { NativeBackPriority } from "../navigation/nativeBack";
 import { notice } from "../notices/notice";
 import "./LocationsPage.scss";
 
@@ -424,6 +427,7 @@ const locationsLoading = ref(false);
 const treeError = ref("");
 const locationError = ref("");
 const groupPanelOpen = ref(false);
+const groupPanelTrigger = ref<HTMLButtonElement | null>(null);
 const groupDialogOpen = ref(false);
 const locationDialogOpen = ref(false);
 const editingGroup = ref<LocationGroupResponse | null>(null);
@@ -483,6 +487,18 @@ const showTreeLoading = useStablePendingIndicator(treeLoading, {
 const showLocationLoading = useStablePendingIndicator(locationsLoading, {
   showDelayMs: 200,
   minimumVisibleMs: 350,
+});
+
+useNativeBackHandler({
+  id: "locations-group-drawer",
+  active: groupPanelOpen,
+  priority: NativeBackPriority.Drawer,
+  handle: () => {
+    if (!groupPanelOpen.value) return { handled: false };
+    groupPanelOpen.value = false;
+    void nextTick(() => groupPanelTrigger.value?.focus());
+    return { handled: true, reason: "drawer" };
+  },
 });
 
 onMounted(() => {

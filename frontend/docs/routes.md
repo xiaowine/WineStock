@@ -35,6 +35,18 @@ http://127.0.0.1:<vite-port>/#/settings/runtime
 
 如果后续平台 shell 明确提供可靠的 history fallback，可以重新评估是否改用 `createWebHistory`。
 
+### Android 原生返回与 history
+
+Android 通过 Shell Bridge v1 的 `nativeBack` 可选扩展先把返回提交交给前端。Dialog、预览、Select、
+Drawer、Popover 和页面内步骤都未处理时，registry 的最后一级 handler 才检查 Native 提供的
+`canGoBack`：为 true 时调用 `router.back()`，为 false 时回复未处理并交给 Activity fallback。
+
+`router.back()` 返回 `void`，且离开守卫可能异步打开确认 Dialog，因此前端在提交调用后立即回复
+`handled=true`，不等待 `afterEach` 或守卫 Promise 完成。这样未保存草稿的第一次返回会由 Vue Router
+触发异步 `ModalDialog`，第二次返回只关闭该确认层，不会因超过 Android 400ms 超时而再执行一次
+`WebView.goBack()`。入库、物品、替代关系、物品新建和出库草稿均沿用这一规则；出库草稿不再使用
+阻塞式 `window.confirm()`。
+
 ## 当前路由
 
 应用壳一级页面的名称、权限和导航呈现集中声明在 `src/router/appRouteCatalog.ts`。路由 `meta`、桌面侧栏、移动 Drawer、移动 Header 和页面主标题均读取同一份元数据，不得在组件或导航配置中再次硬编码页面名称。
@@ -95,4 +107,4 @@ http://127.0.0.1:<vite-port>/#/settings/runtime
 
 - 用户权限变化后的导航可见性与接口 `403` 状态。
 - 页面参数、详情页层级、编辑页是独立页面还是面板。
-- Android 返回键和平台深链接行为。
+- 平台深链接行为。

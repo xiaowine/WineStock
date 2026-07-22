@@ -68,6 +68,8 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
+import { NativeBackPriority } from "../navigation/nativeBack";
 
 const props = withDefaults(
   defineProps<{
@@ -105,6 +107,19 @@ const panel = ref<HTMLElement | null>(null);
 let returnFocusElement: HTMLElement | null = null;
 let previousBodyOverflow = "";
 let previousDocumentOverflow = "";
+
+useNativeBackHandler({
+  id: `modal-dialog:${dialogId}`,
+  active: () => props.open,
+  priority: NativeBackPriority.Dialog,
+  handle: () => {
+    // registry 已按最近激活顺序选择最上层 Dialog；不等待离场 DOM 从 Transition 中移除。
+    if (!props.open) return { handled: false };
+    if (props.busy) return { handled: true, reason: "busy-dialog" };
+    requestClose();
+    return { handled: true, reason: "dialog" };
+  },
+});
 
 watch(
   () => props.open,
