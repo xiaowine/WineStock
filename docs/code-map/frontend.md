@@ -6,7 +6,7 @@
 
 ## 工程入口
 
-- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用本机 pnpm，`build:android` 提供 Android 专用生产构建且不固定 Node/pnpm 版本。
+- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用本机 pnpm，`build:android` 提供 Android 专用生产构建且不固定 Node/pnpm 版本，`test:native-back` 使用现有 TypeScript 与 Node test runner 验证原生返回纯逻辑。
 - `frontend/vite.config.ts`：普通 Web 构建保持默认行为；Android mode 隔离 `.env*`、接收 Gradle 提供的绝对输出目录并生成可校验 manifest。
 - `frontend/src/main.ts`：先初始化 Shell 运行快照和动态 API 地址，再按是否存在服务启动健康检查、会话恢复、跨标签页同步、自动刷新和全局浮层滚动条，安装路由守卫并挂载 Vue；挂载后先安装 native-back 订阅，最后才报告 `frontendReady`。
 - `frontend/src/bootstrap/overlayScrollbars.ts`：在移动与触控视口隐藏经典滚动槽后，为当前真实滚动宿主绘制可见且可拖动的浮层滑块；响应滚动、尺寸、DOM 和 Teleport 变化，不改变业务滚动容器所有权。
@@ -21,7 +21,9 @@
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、单权限 `requiredPermission`、组合权限 `requiredPermissions` 和强制改密页面放行元数据。
 - `frontend/src/router/guards.ts`：服务无关路由绕过 API/会话初始化，其它路由缺少 API 时跳转运行设置；随后执行匿名、权限、强制改密和安全回跳判断，并监听会话变化。
 - `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话单项或组合权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
-- `frontend/src/navigation/nativeBack.ts`：Android 原生返回的纯 handler registry；按 priority 降序、同级最近激活优先调度，异常安全消费，最后一级通过 `router.back()` 提交 history 返回并立即结算，不等待异步离开守卫。
+- `frontend/src/navigation/nativeBackCore.ts`：平台无关的原生返回 registry 与请求协调；按 priority 降序、同级最近激活优先调度，异常安全消费、requestId 去重，并通过注入的订阅、应答和路由函数保持可测试。
+- `frontend/src/navigation/nativeBack.ts`：把全局 core 实例接到 Shell Bridge 与 Vue Router；最后一级通过 `router.back()` 提交 history 返回并立即结算，不等待异步离开守卫。
+- `frontend/tests/nativeBackCore.test.mjs`：不新增测试依赖，使用 Node test runner 与现有 TypeScript 转译纯 core，覆盖 priority/LIFO、inactive、false 继续、busy、异常、单次结算、route fallback、订阅失败和 dispose。
 - `frontend/src/composables/useNativeBackHandler.ts`：把响应式 active 状态注册到 native-back registry；关闭、重新打开和组件销毁时自动注销/重注册，使同级 LIFO 反映真实打开顺序。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。

@@ -6,7 +6,7 @@
 > 适用范围：Android API 26 及以上，当前 `targetSdk = 36`
 
 > 实施记录：Android broker、页面代次、400ms 超时、Bridge 事件/应答、Activity fallback、前端
-> priority/LIFO registry、通用浮层与主要页面接入、出库异步离开确认均已落地。本文第 2 节保留的
+> priority/LIFO registry、通用浮层与主要页面接入、出库异步离开确认、前端 core 自动化测试均已落地。本文第 2 节保留的
 > “当前实现”证据是实施前基线；完成定义中的真实设备手势/三键导航验收将在有在线设备时统一执行。
 
 ## 1. 结论
@@ -788,9 +788,9 @@ Vue Router 的 history traversal 方法不提供可直接等待的导航 Promise
 
 ### 15.2 前端 registry 测试
 
-当前 frontend 没有测试 runner。推荐为纯 registry 模块引入 Vitest，但该依赖应按项目 checklist 单独审核并只作为 devDependency。
-
-若本次不引入测试依赖，至少通过可注入的纯函数设计和浏览器/设备 smoke 覆盖以下行为：
+frontend 仍不引入额外测试依赖。本任务把平台无关逻辑拆到 `navigation/nativeBackCore.ts`，并通过
+`tests/nativeBackCore.test.mjs` 使用本机 Node test runner 与项目已有 TypeScript 执行 `pnpm test:native-back`。
+自动化测试覆盖：
 
 - priority 降序；
 - 同 priority LIFO；
@@ -801,7 +801,11 @@ Vue Router 的 history traversal 方法不提供可直接等待的导航 Promise
 - 同一 request 只 resolve 一次；
 - capability false 时不安装订阅；
 - route fallback 只在 `canGoBack` 为 true 时调用；
-- dispose 后不再处理事件。
+- dispose 后不再处理事件或结算 in-flight handler；
+- 订阅安装失败时清理 route handler。
+
+`capability=false` 不调用平台可选扩展仍由 `shell/runtime.ts` 的运行期门控和普通 Web 构建覆盖；真实
+Dialog、Drawer、路由守卫与 Android 生命周期组合继续纳入设备 smoke。
 
 ### 15.3 真实交互验收
 
@@ -843,6 +847,7 @@ Vue Router 的 history traversal 方法不提供可直接等待的导航 Promise
 ```powershell
 Set-Location frontend
 pnpm format:check
+pnpm test:native-back
 pnpm build
 
 Set-Location ..\android
