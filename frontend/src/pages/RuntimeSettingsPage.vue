@@ -3,8 +3,8 @@
   它不读写平台文件、不直接启动 Rust，也不代理库存或鉴权业务 API。
 -->
 <template>
-  <main class="runtime-settings-page">
-    <header class="runtime-settings-header">
+  <main ref="pageRoot" class="runtime-settings-page">
+    <header ref="pageHeader" class="runtime-settings-header">
       <div class="runtime-settings-header__content">
         <div class="brand-lockup">
           <span class="brand-mark">W</span>
@@ -258,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { authSession, authStatus } from "../auth/session";
 import ModalDialog from "../components/ModalDialog.vue";
@@ -302,6 +302,8 @@ type RemoteTestTone = "success" | "warning" | "danger";
 
 const router = useRouter();
 const route = useRoute();
+const pageRoot = ref<HTMLElement | null>(null);
+const pageHeader = ref<HTMLElement | null>(null);
 const draft = ref<EditableRuntimeConfig>(cloneRuntimeConfig(defaultRuntimeConfig));
 const fieldErrors = ref<Partial<Record<RuntimeConfigField, readonly string[]>>>({});
 const pageError = ref("");
@@ -312,6 +314,19 @@ const testingRemote = ref(false);
 const remoteTestMessage = ref("");
 const remoteTestTone = ref<RemoteTestTone>("warning");
 useFormValidation(fieldErrors);
+
+/** 同步页头高度给移动端粘滞模式 tab，避免安全区或返回按钮把 tab 顶偏。 */
+let stickyHeaderObserver: ResizeObserver | null = null;
+
+function syncStickyHeaderOffset(): void {
+  const root = pageRoot.value;
+  const header = pageHeader.value;
+  if (!root || !header) return;
+  root.style.setProperty(
+    "--runtime-settings-sticky-header-height",
+    `${Math.ceil(header.getBoundingClientRect().height)}px`,
+  );
+}
 
 const snapshot = computed(() => runtimeSnapshot.value);
 const remoteMode = computed(() => isRemoteRuntimeMode(draft.value.mode));
@@ -444,7 +459,23 @@ watch(
 );
 
 onMounted(() => {
+  void nextTick(() => {
+    syncStickyHeaderOffset();
+    if (typeof ResizeObserver !== "undefined" && pageHeader.value) {
+      stickyHeaderObserver = new ResizeObserver(() => {
+        syncStickyHeaderOffset();
+      });
+      stickyHeaderObserver.observe(pageHeader.value);
+    }
+    window.addEventListener("resize", syncStickyHeaderOffset, { passive: true });
+  });
   void initializeShellRuntime().catch(() => undefined);
+});
+
+onBeforeUnmount(() => {
+  stickyHeaderObserver?.disconnect();
+  stickyHeaderObserver = null;
+  window.removeEventListener("resize", syncStickyHeaderOffset);
 });
 
 function fieldError(field: RuntimeConfigField): string {
