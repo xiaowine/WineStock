@@ -29,17 +29,17 @@
     display: none;
   }
 
+  &__settings,
+  &__lan-access,
   &__logout {
     width: 100%;
+  }
 
+  &__logout {
     &:disabled {
       cursor: wait;
       opacity: 0.68;
     }
-  }
-
-  &__settings {
-    width: 100%;
   }
 
   &__error {

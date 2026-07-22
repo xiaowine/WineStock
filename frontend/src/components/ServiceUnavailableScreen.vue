@@ -32,7 +32,7 @@
           :disabled="checking"
           @click="$emit('settings')"
         >
-          运行设置
+          本机运行设置
         </button>
         <button
           class="primary-button service-unavailable__retry"

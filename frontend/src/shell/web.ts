@@ -185,10 +185,6 @@ function createConfiguredSnapshot(
       phase: "running",
       apiBaseUrl,
       boundAddress: remote ? undefined : `${config.bindHost}:${config.port}`,
-      lanAccessUrls:
-        config.mode === "server-mode" && config.bindHost !== "127.0.0.1"
-          ? [`http://<局域网地址>:${config.port}`]
-          : undefined,
     },
     capabilities: createWebCapabilities(),
   };

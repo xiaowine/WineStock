@@ -127,7 +127,7 @@ AppShell
 
 - 左侧导航按钮。
 - 当前页面标题。
-- 右侧当前用户头像；点击后显示名称和退出入口的紧凑弹层。
+- 右侧当前用户头像；点击后显示名称、“本机运行设置”、条件化“本机局域网地址”和退出操作的紧凑弹层，避免把当前设备选项误解为账号或远端服务设置。
 - 搜索、新增等少量高频动作的位置。
 
 顶部栏不放完整模块导航。
@@ -248,7 +248,8 @@ frontend/src/pages/*.scss
 - `frontend/src/components/AppNavigationList.vue`：桌面侧栏与移动 Drawer 共用的分组导航列表和线性图标。
 - `frontend/src/components/RouteContentView.vue`：应用框架唯一的嵌套路由出口与页面切换动画；按路由身份重建页面，查询参数变化不强制销毁页面实例。
 - `frontend/src/components/AccountUserSummary.vue`：应用框架顶部账户触发区与账户弹层复用的当前用户头像和名称展示。
-- `frontend/src/components/AccountPopover.vue`：应用框架共用的紧凑账户信息与退出入口弹层。
+- `frontend/src/components/AccountPopover.vue`：应用框架共用的紧凑账户与本机操作弹层；只按 prop 显示本机局域网地址快捷入口，不读取运行快照。
+- `frontend/src/components/runtime/LanAccessDialog.vue`：本机运行设置与账户弹层共用的当前设备局域网地址列表、复制图标操作和安全提示。
 - `frontend/src/composables/useShellLogout.ts`：应用框架共用的退出操作和反馈编排。
 - `frontend/src/api/`：运行时服务地址、通用 HTTP 请求、统一错误和注册/登录接口契约。
 - `frontend/src/auth/session.ts`：当前登录 token、用户摘要、启动恢复和串行 refresh 轮换。

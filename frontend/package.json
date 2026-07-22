@@ -8,6 +8,7 @@
     "build": "vue-tsc -b && vite build",
     "build:android": "vue-tsc -b && vite build --mode android",
     "preview": "vite preview",
+    "test:lan-access": "node --test tests/lanAccess.test.mjs",
     "test:native-back": "node --test tests/nativeBackCore.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

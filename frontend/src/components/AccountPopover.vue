@@ -1,9 +1,9 @@
 <!--
   本文件拥有应用壳共用的紧凑账户弹层，属于 frontend 通用交互组件。
-  它按端侧需要展示用户摘要与退出入口，但不读取会话、不执行退出请求，也不管理弹层开关。
+  它按端侧需要展示用户摘要与账户操作，但不读取会话、运行快照，也不管理弹层开关。
 -->
 <template>
-  <section class="account-popover" aria-label="账户信息">
+  <section class="account-popover" aria-label="账户与本机">
     <AccountUserSummary
       v-if="showUserSummary"
       class="account-popover__summary"
@@ -19,7 +19,16 @@
       :disabled="isLoggingOut"
       @click="emit('runtimeSettings')"
     >
-      运行设置
+      本机运行设置
+    </button>
+    <button
+      v-if="showLanAccess"
+      class="secondary-button account-popover__lan-access"
+      type="button"
+      :disabled="isLoggingOut"
+      @click="emit('lanAccess')"
+    >
+      本机局域网地址
     </button>
     <button
       class="secondary-button account-popover__logout"
@@ -43,6 +52,8 @@ withDefaults(
     displayName: string;
     /** 是否在弹层中补充头像和用户名；触发区已显示完整信息时应关闭。 */
     showUserSummary?: boolean;
+    /** 当前 Shell 是否存在可向其它设备展示的真实局域网地址。 */
+    showLanAccess?: boolean;
     /** 退出操作的可展示错误；空字符串表示没有错误。 */
     logoutError: string;
     /** 是否正在执行统一退出流程。 */
@@ -50,12 +61,15 @@ withDefaults(
   }>(),
   {
     showUserSummary: true,
+    showLanAccess: false,
   },
 );
 
 const emit = defineEmits<{
-  /** 打开不依赖业务服务的运行设置。 */
+  /** 打开当前设备独立于业务服务的运行设置。 */
   runtimeSettings: [];
+  /** 打开当前设备的局域网连接地址。 */
+  lanAccess: [];
   /** 请求所属 Shell 执行统一退出流程。 */
   logout: [];
 }>();

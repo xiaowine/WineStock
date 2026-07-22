@@ -6,7 +6,7 @@
 
 ## 工程入口
 
-- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用本机 pnpm，`build:android` 提供 Android 专用生产构建且不固定 Node/pnpm 版本，`test:native-back` 使用现有 TypeScript 与 Node test runner 验证原生返回纯逻辑。
+- `frontend/package.json`：Vue、Vite、Vue Router 和 `sass-embedded` 依赖；安装和脚本统一使用本机 pnpm，`build:android` 提供 Android 专用生产构建且不固定 Node/pnpm 版本，`test:native-back` 与 `test:lan-access` 使用现有 TypeScript 和 Node test runner 验证 Shell 纯逻辑。
 - `frontend/vite.config.ts`：普通 Web 构建保持默认行为；Android mode 隔离 `.env*`、接收 Gradle 提供的绝对输出目录并生成可校验 manifest。
 - `frontend/src/main.ts`：先初始化 Shell 运行快照和动态 API 地址，再按是否存在服务启动健康检查、会话恢复、跨标签页同步、自动刷新和全局浮层滚动条，安装路由守卫并挂载 Vue；挂载后先安装 native-back 订阅，最后才报告 `frontendReady`。
 - `frontend/src/bootstrap/overlayScrollbars.ts`：在移动与触控视口隐藏经典滚动槽后，为当前真实滚动宿主绘制可见且可拖动的浮层滑块；响应滚动、尺寸、DOM 和 Teleport 变化，不改变业务滚动容器所有权。
@@ -24,6 +24,7 @@
 - `frontend/src/navigation/nativeBackCore.ts`：平台无关的原生返回 registry 与请求协调；按 priority 降序、同级最近激活优先调度，异常安全消费、requestId 去重，并通过注入的订阅、应答和路由函数保持可测试。
 - `frontend/src/navigation/nativeBack.ts`：把全局 core 实例接到 Shell Bridge 与 Vue Router；最后一级通过 `router.back()` 提交 history 返回并立即结算，不等待异步离开守卫。
 - `frontend/tests/nativeBackCore.test.mjs`：不新增测试依赖，使用 Node test runner 与现有 TypeScript 转译纯 core，覆盖 priority/LIFO、inactive、false 继续、busy、异常、单次结算、route fallback、订阅失败和 dispose。
+- `frontend/tests/lanAccess.test.mjs`：不新增测试依赖，覆盖局域网 URL 规范化、去重、wildcard/loopback/占位值拒绝和 server-mode 展示条件。
 - `frontend/src/composables/useNativeBackHandler.ts`：把响应式 active 状态注册到 native-back registry；关闭、重新打开和组件销毁时自动注销/重注册，使同级 LIFO 反映真实打开顺序。
 - `frontend/src/composables/useStablePendingIndicator.ts`：把即时异步等待转换为延迟显示和最短展示的稳定视觉状态，不执行具体请求。
 - `frontend/src/composables/useInboundItemCatalog.ts`：入库物品目录的搜索取消、服务端滚动分页、ID 去重、到底和重试状态。
@@ -31,7 +32,7 @@
 - `frontend/src/storage/inboundDraftImageStore.ts`：入库草稿本地图片 Blob 的 IndexedDB 存取，不保存普通字段或执行上传。
 - `frontend/src/layouts/AppShell.vue`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排；移动导航 Drawer 接入原生返回并恢复触发控件焦点。
 - `frontend/src/components/AccountUserSummary.vue`：应用框架顶部账户触发区和账户弹层复用的只读用户头像和名称摘要。
-- `frontend/src/components/AccountPopover.vue`：应用框架共用的账户操作弹层，提供运行设置和退出入口；移动端通过响应式样式补充用户摘要，组件不直接清理会话。
+- `frontend/src/components/AccountPopover.vue`：应用框架共用的账户与本机操作弹层，提供本机运行设置、条件化本机局域网地址和退出入口；移动端通过响应式样式补充用户摘要，组件不读取快照或直接清理会话。
 - `frontend/src/components/AppNavigationList.vue`：应用框架共用的分组导航、线性图标和选中态渲染，并按入口属性隐藏移动端不展示的项目。
 - `frontend/src/components/RouteContentView.vue`：应用框架唯一的嵌套路由出口，以及复用统一 motion token 的页面切换动画；查询参数变化不强制重建页面。
 - `frontend/src/composables/useAccountPopover.ts`：应用框架共用的账户弹层状态、路由变化、Escape 与原生返回关闭逻辑。
@@ -60,8 +61,9 @@
 - `frontend/src/components/locations/`：最多十层的库位分组树、名称与备注表单、分组/库位创建编辑 Dialog 和删除确认；只拥有库位页面局部呈现，不直接请求 API 或修改库存数量。
 - `frontend/src/components/templates/`：分类表单、模板查看与字段编辑工作区、候选项编辑、复制和三类差异化删除确认；组件不直接请求 API。
 - `frontend/src/components/NoticeViewport.vue`：右上角 Notice 视口、类型状态色竖条、关闭按钮、倒计时条、统一 motion token 动画及悬浮或键盘聚焦暂停交互。
-- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，提供手动重试和运行设置入口；不执行 HTTP 探测。
+- `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，提供手动重试和本机运行设置入口；不执行 HTTP 探测。
 - `frontend/src/components/runtime/RuntimeModeSelector.vue`、`RuntimeModeSelector.scss`：本机、远端和局域网服务器三种运行方式的响应式单选结构，只输出模式选择。
+- `frontend/src/components/runtime/LanAccessDialog.vue`、`LanAccessDialog.scss`：本机运行设置与账户快捷入口共用的当前设备真实局域网 URL 列表、复制图标按钮、网络与明文风险提示；不读取快照或枚举网卡。
 - `frontend/src/components/users/`：创建用户、权限编辑、临时密码、启停和软删除确认表单。
 - `frontend/src/components/users/UserPermissionsDialog.vue`：分类权限选择器；编辑当前账号时锁定权限管理和权限定义读取两项关键权限，不调用权限 API。
 - `frontend/src/components/users/UserListToolbar.vue`：用户列表搜索、状态选择框筛选、结果数量、刷新图标和创建入口；不请求 API。
@@ -84,6 +86,7 @@
 - `frontend/src/shell/contract.ts` 同时在运行时校验协议版本、快照基础结构、注入桥具名方法，以及 capability 开启后的 native-back 可选扩展，不能只依赖 TypeScript 静态类型信任平台数据。
 - `frontend/src/shell/bridge.ts`：选择平台注入桥或普通浏览器 Web fallback，不判断 User-Agent。
 - `frontend/src/shell/web.ts`：使用版本化 localStorage 实现开发/静态环境配置读取、校验和应用；损坏配置返回可修复的 invalid 快照，不管理本地 Rust 服务。
+- `frontend/src/shell/lanAccess.ts`：从只读运行快照派生可展示的真实局域网 URL，统一检查 server-mode 能力与服务状态，并过滤 wildcard、loopback、占位值和无效根地址；不发现网卡。
 - `frontend/src/shell/runtime.ts`：维护响应式 Shell 快照，编排配置应用和本地服务生命周期命令，并在 API 地址变化时重置健康检查与内存会话。
 - `frontend/src/shell/runtime.ts` 还公开受 capability 约束的外部链接和 native-back 订阅/应答薄包装；收到不兼容或损坏的 Shell 快照时保留前端设置页并进入失败状态。
 
@@ -176,8 +179,8 @@
 
 ## 页面
 
-- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的运行设置工作区；编辑模式、默认端口 `17890`、远端地址和监听地址，本地模式固定随应用启动服务，并展示 Shell/健康状态、处理校验、连接测试、风险确认和响应式底部操作区。
-- `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标，并显示当前服务地址和运行设置入口。
+- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的本机运行设置工作区；编辑当前设备的模式、默认端口 `17890`、远端地址和监听地址，本地模式固定随应用启动服务，并展示 Shell/健康状态、本机真实局域网地址主入口、校验、连接测试、风险确认和响应式底部操作区。
+- `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标，并显示当前服务地址和本机运行设置入口。
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。

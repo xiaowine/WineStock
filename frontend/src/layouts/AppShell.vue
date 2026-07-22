@@ -36,11 +36,12 @@
 
       <div v-if="userDisplayName" class="app-account">
         <button
+          ref="accountTrigger"
           class="app-account__trigger"
           type="button"
           :aria-expanded="accountMenuOpen"
           aria-controls="app-account-popover"
-          :aria-label="`查看当前用户 ${userDisplayName} 的账户信息`"
+          :aria-label="`查看当前用户 ${userDisplayName} 的账户与本机选项`"
           @click="toggleAccountMenu"
         >
           <AccountUserSummary :initials="userInitials" :display-name="userDisplayName" />
@@ -49,7 +50,7 @@
           v-if="accountMenuOpen"
           class="account-popover-backdrop"
           type="button"
-          aria-label="关闭账户信息"
+          aria-label="关闭账户与本机选项"
           @click="closeAccountMenu"
         />
         <Transition name="account-popover">
@@ -59,9 +60,11 @@
             :initials="userInitials"
             :display-name="userDisplayName"
             :show-user-summary="true"
+            :show-lan-access="lanAccessUrls.length > 0"
             :logout-error="logoutError"
             :is-logging-out="isLoggingOut"
             @runtime-settings="openRuntimeSettings"
+            @lan-access="openLanAccessDialog"
             @logout="handleLogout"
           />
         </Transition>
@@ -107,6 +110,12 @@
         @click="closeNavigation"
       />
     </Transition>
+
+    <LanAccessDialog
+      :open="lanAccessDialogOpen"
+      :urls="lanAccessUrls"
+      @close="closeLanAccessDialog"
+    />
   </div>
 </template>
 
@@ -118,15 +127,20 @@ import AccountPopover from "../components/AccountPopover.vue";
 import AccountUserSummary from "../components/AccountUserSummary.vue";
 import AppNavigationList from "../components/AppNavigationList.vue";
 import RouteContentView from "../components/RouteContentView.vue";
+import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import { useAccountPopover } from "../composables/useAccountPopover";
 import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useShellLogout } from "../composables/useShellLogout";
 import { NativeBackPriority } from "../navigation/nativeBack";
 import { getVisibleAppNavigation } from "../router/navigation";
+import { getUsableLanAccessUrls } from "../shell/lanAccess";
+import { runtimeSnapshot } from "../shell/runtime";
 
 const DESKTOP_QUERY = "(min-width: 768px)";
 const navOpen = ref(false);
 const navTrigger = ref<HTMLButtonElement | null>(null);
+const accountTrigger = ref<HTMLButtonElement | null>(null);
+const lanAccessDialogOpen = ref(false);
 const route = useRoute();
 const router = useRouter();
 const {
@@ -143,6 +157,7 @@ const userDisplayName = computed(() => authSession.value?.user.username ?? "");
 const userInitials = computed(() =>
   Array.from(userDisplayName.value.trim()).slice(0, 2).join("").toUpperCase(),
 );
+const lanAccessUrls = computed(() => getUsableLanAccessUrls(runtimeSnapshot.value));
 let desktopMediaQuery: MediaQueryList | undefined;
 
 useNativeBackHandler({
@@ -181,6 +196,17 @@ function openRuntimeSettings(): void {
   });
 }
 
+async function openLanAccessDialog(): Promise<void> {
+  closeAccountMenu();
+  await nextTick();
+  accountTrigger.value?.focus();
+  lanAccessDialogOpen.value = true;
+}
+
+function closeLanAccessDialog(): void {
+  lanAccessDialogOpen.value = false;
+}
+
 /** 断点变化只关闭临时 Drawer，不切换或重挂载应用框架和路由页面。 */
 function handleDesktopQueryChange(event: MediaQueryListEvent): void {
   if (event.matches) closeNavigation();
@@ -191,7 +217,17 @@ function handleEscape(event: KeyboardEvent): void {
   if (event.key === "Escape") closeNavigation();
 }
 
-watch(() => route.fullPath, closeNavigation);
+watch(lanAccessUrls, (urls) => {
+  if (!urls.length) closeLanAccessDialog();
+});
+
+watch(
+  () => route.fullPath,
+  () => {
+    closeNavigation();
+    closeLanAccessDialog();
+  },
+);
 
 onMounted(() => {
   document.addEventListener("keydown", handleEscape);

@@ -1,0 +1,73 @@
+/* 本文件只拥有本机局域网地址 Dialog 的列表布局，不定义通用 Modal 或按钮外观。 */
+@use "../../styles/foundation/mixins" as mixins;
+
+.lan-access-dialog {
+  display: grid;
+  gap: 14px;
+
+  &__list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 34px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
+  }
+
+  &__address {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    user-select: text;
+  }
+
+  &__copy {
+    svg {
+      @include mixins.svg-icon();
+    }
+  }
+
+  &__empty,
+  &__guidance {
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  &__empty {
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
+  }
+
+  &__warning {
+    margin: 0;
+  }
+}
+
+@include mixins.mobile {
+  .lan-access-dialog {
+    &__item {
+      grid-template-columns: minmax(0, 1fr) 40px;
+    }
+
+    &__copy {
+      width: 40px;
+      height: 40px;
+    }
+  }
+}

@@ -20,8 +20,8 @@
             ← 返回应用
           </button>
           <div>
-            <p class="eyebrow">平台运行</p>
-            <h1>运行设置</h1>
+            <p class="eyebrow">当前设备</p>
+            <h1>本机运行设置</h1>
           </div>
         </div>
         <span class="runtime-platform-badge">{{ platformLabel }}</span>
@@ -42,6 +42,14 @@
           <code v-if="activeAddress">{{ activeAddress }}</code>
         </div>
         <div class="runtime-service-summary__actions">
+          <button
+            v-if="lanAccessUrls.length"
+            class="secondary-button"
+            type="button"
+            @click="lanAccessDialogOpen = true"
+          >
+            本机局域网地址
+          </button>
           <button
             v-if="canRetryActiveService"
             class="secondary-button"
@@ -254,6 +262,12 @@
         </button>
       </template>
     </ModalDialog>
+
+    <LanAccessDialog
+      :open="lanAccessDialogOpen"
+      :urls="lanAccessUrls"
+      @close="lanAccessDialogOpen = false"
+    />
   </main>
 </template>
 
@@ -264,6 +278,7 @@ import { authSession, authStatus } from "../auth/session";
 import ModalDialog from "../components/ModalDialog.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import RuntimeModeSelector from "../components/runtime/RuntimeModeSelector.vue";
+import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import { useFormValidation } from "../composables/useFormValidation";
 import { notice } from "../notices/notice";
 import { getDefaultAppRouteName } from "../router/navigation";
@@ -278,6 +293,7 @@ import {
   stopLocalService,
   validateRuntimeConfig,
 } from "../shell/runtime";
+import { getUsableLanAccessUrls } from "../shell/lanAccess";
 import {
   cloneRuntimeConfig,
   defaultRuntimeConfig,
@@ -310,6 +326,7 @@ const pageError = ref("");
 const applying = ref(false);
 const runtimeActionPending = ref(false);
 const confirmationOpen = ref(false);
+const lanAccessDialogOpen = ref(false);
 const testingRemote = ref(false);
 const remoteTestMessage = ref("");
 const remoteTestTone = ref<RemoteTestTone>("warning");
@@ -333,6 +350,7 @@ const remoteMode = computed(() => isRemoteRuntimeMode(draft.value.mode));
 const serverMode = computed(() => draft.value.mode === "server-mode");
 const previewAddress = computed(() => previewApiBaseUrl(draft.value));
 const activeAddress = computed(() => snapshot.value?.service.apiBaseUrl ?? "");
+const lanAccessUrls = computed(() => getUsableLanAccessUrls(snapshot.value));
 const dirty = computed(
   () =>
     !snapshot.value ||
@@ -457,6 +475,10 @@ watch(
     remoteTestMessage.value = "";
   },
 );
+
+watch(lanAccessUrls, (urls) => {
+  if (!urls.length) lanAccessDialogOpen.value = false;
+});
 
 onMounted(() => {
   void nextTick(() => {
