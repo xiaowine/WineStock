@@ -26,6 +26,9 @@ import {
   type StopShellSubscription,
   assertRuntimeConfigValidationResult,
 } from "./contract";
+import { isRuntimeSetupFinished as isRuntimeSetupFinishedSnapshot } from "./runtimeReadiness";
+
+export { isRuntimeServiceReady, isRuntimeSetupFinished } from "./runtimeReadiness";
 
 /** 前端读取 Shell 初始快照的状态。 */
 export type ShellRuntimeStatus = "idle" | "loading" | "ready" | "failed";
@@ -50,8 +53,13 @@ export const shellRuntimeError = readonly(mutableRuntimeError);
 /** 当前可供 HTTP client 使用的 API 根地址。 */
 export const activeApiBaseUrl = computed(() => mutableRuntimeSnapshot.value?.service.apiBaseUrl);
 
-/** 当前是否已经存在可供业务路由使用的 API 根地址。 */
-export const hasConfiguredApiService = computed(() => Boolean(activeApiBaseUrl.value));
+/**
+ * 启动漏斗设置是否已确认完成（服务可 HTTP 且非 createdDefault）。
+ * 用户须通过「保存设置」apply 后，Shell 才会清除 createdDefault。
+ */
+export const runtimeSetupFinished = computed(() =>
+  isRuntimeSetupFinishedSnapshot(mutableRuntimeSnapshot.value),
+);
 
 /** 初始化一次 Shell Bridge，并在业务模块启动前写入有效 API 根地址。 */
 export function initializeShellRuntime(): Promise<RuntimeSnapshot> {

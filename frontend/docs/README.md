@@ -41,6 +41,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切的原因、单列条目重构、Dialog 适配与验收方案。
 - `implementation-notes/substitute-network-visualization.md`：替代关系星链网络的入口、力导向布局、交互、响应式、性能和分阶段实施方案。
 - `implementation-notes/runtime-tabs-consistency-remediation.md`：运行设置模式切换与全站 tab / 工作区导航 / 分段控件不一致的盘点与分阶段整改方案。
+- `implementation-notes/runtime-first-startup-funnel.md`：启动漏斗方案 B——保留 Shell 自动 `apiBaseUrl`，`createdDefault` 表示设置未确认；完成后统一进 `/auth`。
 
 ## UI 文档使用顺序
 

@@ -8,12 +8,12 @@
       <div class="simple-runtime-header__inner">
         <div class="simple-runtime-header__side simple-runtime-header__side--start">
           <button
-            v-if="showReturnAction"
+            v-if="showLeaveAction"
             class="text-button"
             type="button"
-            @click="returnToApplication"
+            @click="leaveRuntimeSettings"
           >
-            ← 返回应用
+            {{ leaveActionLabel }}
           </button>
         </div>
         <div class="simple-runtime-header__title"><h1>运行设置</h1></div>
@@ -76,7 +76,8 @@
         <section class="simple-runtime-settings" aria-labelledby="simple-runtime-settings-title">
           <div class="simple-runtime-section-heading">
             <h2 id="simple-runtime-settings-title">{{ modeTitle }}</h2>
-            <span v-if="dirty">有未保存的更改</span>
+            <span v-if="!setupFinished">请保存以确认运行方式</span>
+            <span v-else-if="dirty">有未保存的更改</span>
           </div>
 
           <template v-if="remoteMode">
@@ -175,7 +176,7 @@
           >
             取消
           </button>
-          <button class="primary-button" type="submit" :disabled="applying || !dirty">
+          <button class="primary-button" type="submit" :disabled="applying || !canSave">
             {{ applying ? "正在保存…" : remoteMode ? "连接服务器" : "保存设置" }}
           </button>
         </footer>
@@ -225,9 +226,9 @@ import { useFormValidation } from "../composables/useFormValidation";
 import { notice } from "../notices/notice";
 import { getDefaultAppRouteName } from "../router/navigation";
 import {
-  activeApiBaseUrl,
   applyRuntimeConfig,
   initializeShellRuntime,
+  isRuntimeSetupFinished,
   runtimeSnapshot,
   shellRuntimeError,
   validateRuntimeConfig,
@@ -245,6 +246,10 @@ import {
   isCheckingServiceAvailability,
   serviceAvailabilityStatus,
 } from "../service/availability";
+import {
+  isSafeInternalPath,
+  resolveRuntimeSettingsLeave,
+} from "./runtime-settings/leave";
 import {
   applyRuntimeModeDefaults,
   isRemoteRuntimeMode,
@@ -296,8 +301,19 @@ const enablingLanAccess = computed(
 );
 const checkingActiveService = computed(() => isCheckingServiceAvailability.value);
 const canRetryActiveService = computed(() => Boolean(activeAddress.value));
-const showReturnAction = computed(
-  () => Boolean(activeApiBaseUrl.value) || authStatus.value === "authenticated",
+/** 用户已通过「保存设置」确认（Shell 已清除 createdDefault）。 */
+const setupFinished = computed(() => isRuntimeSetupFinished(snapshot.value));
+/**
+ * 未确认（createdDefault）时即使表单与草稿一致也允许保存，
+ * 由保存按钮触发 apply，把确认权收在保存路径上。
+ */
+const canSave = computed(() => dirty.value || !setupFinished.value);
+/** 仅设置已确认后才展示离开；未确认必须先「保存设置」。 */
+const showLeaveAction = computed(
+  () => setupFinished.value || authStatus.value === "authenticated",
+);
+const leaveActionLabel = computed(() =>
+  authStatus.value === "authenticated" ? "← 返回应用" : "继续",
 );
 const modeTitle = computed(() =>
   remoteMode.value ? "连接已有服务器" : serverMode.value ? "允许其他设备连接" : "在本机使用",
@@ -433,6 +449,7 @@ async function applyConfirmed(): Promise<void> {
 async function executeApply(): Promise<void> {
   applying.value = true;
   pageError.value = "";
+  const wasSetupFinished = setupFinished.value;
   try {
     const result = await applyRuntimeConfig(draft.value);
     fieldErrors.value = result.fieldErrors;
@@ -443,6 +460,14 @@ async function executeApply(): Promise<void> {
     }
     draft.value = cloneRuntimeConfig(result.snapshot.config);
     notice.success("运行设置已保存");
+    // 设置从「未完成」变为「已确认」且仍匿名时，自动进入认证入口。
+    if (
+      !wasSetupFinished &&
+      isRuntimeSetupFinished(result.snapshot) &&
+      authStatus.value !== "authenticated"
+    ) {
+      await navigateAfterSetup(true);
+    }
   } catch (error) {
     pageError.value = error instanceof Error ? error.message : "设置保存失败";
     notice.error("设置保存失败", { detail: pageError.value });
@@ -484,22 +509,64 @@ async function retryActiveService(): Promise<void> {
   await checkServiceAvailability();
 }
 
-async function returnToApplication(): Promise<void> {
-  const returnTo = typeof route.query.returnTo === "string" ? route.query.returnTo : "";
-  if (returnTo.startsWith("/") && !returnTo.startsWith("//") && !returnTo.includes("\\")) {
-    const resolved = router.resolve(returnTo);
-    if (
-      resolved.matched.length &&
-      !["runtime-settings", "home-fallback"].includes(String(resolved.name))
-    ) {
-      await router.replace({ path: resolved.fullPath });
-      return;
-    }
+/**
+ * 配置阶段结束：已登录回业务，匿名统一进入 /auth。
+ * 不在此处 apply：createdDefault 的清除只允许走「保存设置」。
+ */
+async function leaveRuntimeSettings(): Promise<void> {
+  if (authStatus.value !== "authenticated" && !setupFinished.value) {
+    pageError.value = "请先保存运行设置，再继续。";
+    return;
   }
-  if (authStatus.value === "authenticated") {
-    await router.replace({ name: getDefaultAppRouteName(authSession.value?.user.permissions) });
-  } else if (activeApiBaseUrl.value) {
-    await router.replace({ name: "login" });
+  await navigateAfterSetup();
+}
+
+/** 在设置已确认（或已登录）的前提下执行离开导航。 */
+async function navigateAfterSetup(setupFinishedOverride?: boolean): Promise<void> {
+  const returnTo = typeof route.query.returnTo === "string" ? route.query.returnTo : undefined;
+  const finished =
+    setupFinishedOverride === true ||
+    setupFinished.value ||
+    authStatus.value === "authenticated";
+  const target = resolveRuntimeSettingsLeave({
+    returnTo,
+    setupFinished: finished,
+    authenticated: authStatus.value === "authenticated",
+    returnToRouteValid: isReturnToRouteValid(returnTo),
+  });
+
+  if (target.kind === "stay") {
+    return;
+  }
+  if (target.kind === "path") {
+    const resolved = router.resolve(target.path);
+    await router.replace({ path: resolved.fullPath });
+    return;
+  }
+  if (target.kind === "default-app") {
+    await router.replace({
+      name: getDefaultAppRouteName(authSession.value?.user.permissions),
+    });
+    return;
+  }
+  await router.replace({
+    name: "auth-entry",
+    query: target.redirect ? { redirect: target.redirect } : undefined,
+  });
+}
+
+function isReturnToRouteValid(returnTo: string | undefined): boolean {
+  if (!returnTo || !isSafeInternalPath(returnTo)) {
+    return false;
+  }
+  try {
+    const resolved = router.resolve(returnTo);
+    return (
+      resolved.matched.length > 0 &&
+      !["runtime-settings", "home-fallback"].includes(String(resolved.name))
+    );
+  } catch {
+    return false;
   }
 }
 

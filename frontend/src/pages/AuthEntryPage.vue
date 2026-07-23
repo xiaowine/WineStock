@@ -15,6 +15,7 @@
       <p v-if="checking" class="auth-runtime-note" role="status">正在检查服务状态…</p>
       <div v-else class="auth-page-actions">
         <button class="primary-button" type="button" @click="resolveEntry">重试</button>
+        <!-- returnTo 使用完整 fullPath（含 redirect），便于设置完成后桥接回业务目标。 -->
         <RouterLink
           class="secondary-button"
           :to="{ name: 'runtime-settings', query: { returnTo: route.fullPath } }"

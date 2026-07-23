@@ -67,8 +67,8 @@ Drawer、Popover 和页面内步骤都未处理时，registry 的最后一级 ha
 | `/substitutes`        | `substitutes`        | `AppShell`     | 是             | 全局替代关系治理页面；需要 `stock.substitute.read`，编辑需要 `stock.substitute.manage`                                                                                                  |
 | `/events`             | `events`             | `AppShell`     | 是             | 真实审计日志筛选、自动加载、三段式列表和历史 JSON 详情；需要 `audit.read`                                                                                                               |
 | `/users`              | `users`              | `AppShell`     | 是             | 用户管理真实列表和管理操作；另需 `user.read`                                                                                                                                            |
-| `/settings/runtime`   | `runtime-settings`   | 独立响应式页面 | 否             | 简化运行配置 UI；`requiresService = false`，无 API、无鉴权或本地服务启动失败时仍可读取并应用 Shell Bridge 配置                                                                          |
-| `/auth`               | `auth-entry`         | 独立响应式页面 | 否             | 匿名统一认证入口；查询 bootstrap 状态后将空服务转入 `register`、已初始化服务转入 `login`，查询失败时保留重试和运行设置入口                                                              |
+| `/settings/runtime`   | `runtime-settings`   | 独立响应式页面 | 否             | 启动漏斗第一步（配置未就绪时强制进入）；`requiresService = false`；匿名离开统一进 `/auth`，已登录回业务；侧入口仍可从账户弹层等打开                                                          |
+| `/auth`               | `auth-entry`         | 独立响应式页面 | 否             | 启动漏斗第二步：查询 bootstrap 后转入 `register` 或 `login`；登出落地与运行设置完成出口；失败时保留重试和运行设置入口（`returnTo` 带完整 fullPath）                                        |
 | `/login`              | `login`              | 独立响应式页面 | 否             | 桌面和移动共用真实登录表单；进入时查询首用户状态，空服务自动转入 `register`                                                                                                             |
 | `/register`           | `register`           | 独立响应式页面 | 否             | 首用户注册及自动登录流程；已有用户时按 bootstrap 状态返回 `login`                                                                                                                       |
 | `/change-password`    | `change-password`    | 独立响应式页面 | 是             | 当前用户主动改密；强制改密用户唯一允许进入的前端页面                                                                                                                                    |
@@ -83,26 +83,42 @@ Drawer、Popover 和页面内步骤都未处理时，registry 的最后一级 ha
 - 入库审批与出库审批路由使用同一个库存审批工作台，只由两个薄路由页注入领域差异；历史单据查询仍留在入库单、出库单页面。
 - 运行设置、统一认证入口、登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。
 
+## 启动界面顺序
+
+用户可见的启动漏斗（**设置未完成**时）：
+
+```text
+运行设置（/settings/runtime）→ 统一认证入口（/auth）→ 注册或登录 → 业务页
+```
+
+- **设置未完成**（方案 B）：`configStatus` 非 `configured`、无有效 `apiBaseUrl`，或 Shell `createdDefault === true`（自动默认尚未由用户确认）。
+- **设置已完成**：`configured` + 有效 `apiBaseUrl` 且 `createdDefault !== true` 时跳过运行设置，直接会话恢复与认证。
+- Shell 仍可自动注入/启服并填写 `apiBaseUrl`；前端用 `createdDefault` 区分「能连」与「已确认」，**不**删除平台默认地址。
+- 运行设置用 `returnTo`；认证用 `redirect`；从设置进入 `/auth` 时桥接二者。
+
 ## 鉴权状态
 
-`frontend/src/router/guards.ts` 已经统一执行 `requiresAuth`，业务页面不再分散判断登录状态：
+`frontend/src/router/guards.ts` 已经统一执行设置完成判定与 `requiresAuth`，业务页面不再分散判断登录状态：
 
-- `requiresService = false` 的运行设置路由不等待 API 或会话初始化；其它路由缺少有效 API 地址时先跳转到运行设置并保留 `returnTo`。
-- 普通路由声明 `requiredPermission`；需要组合能力的路由声明 `requiredPermissions`，任一权限缺失时返回当前会话可访问的默认页面。
-- 该判断只用于前端导航，Axum 仍按数据库当前权限执行最终授权。
+1. `requiresService = false` 的运行设置路由不等待 API 或会话初始化，直接放行。
+2. 其它路由在 `runtimeSetupFinished` 为假时 replace 到运行设置并保留 `returnTo`。
+3. 再 `ensureAuthSessionInitialized()`，执行匿名/已认证、强制改密和权限回落。
+4. 只有明确 `anonymous` 才把受保护页面 replace 到 `/auth?redirect=<内部路径>`。
 
-- 初始导航等待会话层的同一个初始化 Promise，避免恢复完成前闪跳登录页。
-- 只有明确 `anonymous` 才把受保护页面 replace 到 `/auth?redirect=<内部路径>`，再由统一认证入口判断应进入登录还是首用户注册。
+其余规则：
+
+- 普通路由声明 `requiredPermission`；需要组合能力的路由声明 `requiredPermissions`，任一权限缺失时返回当前会话可访问的默认页面。该判断只用于前端导航，Axum 仍按数据库当前权限执行最终授权。
+- 初始导航等待会话层的同一个初始化 Promise，避免恢复完成前闪跳认证页。
 - `unavailable` 保留目标页面和持久 token，由应用壳显示服务连接异常。
-- 已登录访问登录页时进入 dashboard。
+- 已登录访问认证相关页时进入默认业务路由。
 - 登录或 refresh 返回 `password_change_required = true` 时，守卫只允许进入修改密码页；原受保护目标保存在 `redirect` query 中。
-- 停留期间恢复出强制改密状态时，监听器也会离开当前业务页面并进入修改密码页。
-- 修改密码成功后清除当前会话用户摘要中的强制改密标记，并恢复合法内部目标或进入 dashboard。
+- 登出与运行设置匿名离开统一落到 `/auth`（`logout=local_only` 等 query 透传到 login）。
 - 登录成功后只接受以 `/` 开头、非 `//`、无反斜杠且能匹配现有路由的内部 redirect；其它值进入 dashboard。
-- 会话在停留期间变为 `anonymous` 时，监听器会把当前受保护页面 replace 到登录页。
+- 会话在停留期间变为 `anonymous` 时，监听器会把当前受保护页面 replace 到 `/auth`；运行设置页（`requiresService === false`）不被该监听器抢走。
 - 一个标签页退出后，其它标签页通过 storage 事件清理内存会话并触发相同导航。
 
 完整状态模型、登出竞态和验收记录见 [`auth-logout-and-route-guards.md`](auth-logout-and-route-guards.md)。
+启动漏斗细节见 [`implementation-notes/runtime-first-startup-funnel.md`](implementation-notes/runtime-first-startup-funnel.md)。
 
 ## 尚未确认
 

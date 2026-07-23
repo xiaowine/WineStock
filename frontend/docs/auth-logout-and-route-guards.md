@@ -13,8 +13,9 @@
 - 会话层公开五态初始化模型，网络不可用和凭据失效不会混为一谈。
 - access token 会在预计到期前自动 refresh，并在页面唤醒或网络恢复时补检。
 - `meta.requiresAuth` 已由全局异步前置守卫执行。
+- 守卫在会话初始化之前先检查 `runtimeSetupFinished`（服务可 HTTP 且非 `createdDefault`）；未完成时导向运行设置。Shell 自动默认 `apiBaseUrl` 保留，由 `createdDefault` 触发首次确认。
 - `password_change_required` 已由独立修改密码页面和全局守卫执行，受限会话不能进入其它前端页面。
-- 桌面应用壳已经提供登出入口、进行状态和本机退出警告。
+- 桌面应用壳已经提供登出入口、进行状态和本机退出警告；登出落地统一为 `/auth`（与运行设置完成出口一致）。
 
 ## 实现目标
 
@@ -204,11 +205,11 @@ logout 必须与 refresh 使用同一个 Web Locks 锁名，避免下面的竞�
 - 移动端只在顶部右侧保留头像，点击后在紧凑账户弹层中显示用户名和“退出登录”按钮。
 - 点击后立即执行，不增加确认弹窗。
 - 请求期间禁用按钮并显示“正在退出…”。
-- 完成后使用 `router.replace({ name: 'login' })`，避免后退重新显示受保护页面。
+- 完成后使用 `router.replace({ name: 'auth-entry' })`（可带 `logout=local_only`），避免后退重新显示受保护页面；认证入口再分流到 login/register 并透传 query。
 - `local_only` 时登录页显示固定提示：“本机已退出，但服务端会话吊销未确认”。
 - UI 不显示后端原始 token、请求体或敏感错误详情。
 
-`useShellLogout.ts` 统一组织两个 Shell 的退出、错误反馈和登录页跳转；两个入口都调用同一个 `logoutAuthSession()`，不实现平台专用 token 清理逻辑。
+`useShellLogout.ts` 统一组织两个 Shell 的退出、错误反馈和认证入口跳转；两个入口都调用同一个 `logoutAuthSession()`，不实现平台专用 token 清理逻辑。
 
 ## 全局路由守卫
 
@@ -217,15 +218,22 @@ logout 必须与 refresh 使用同一个 Web Locks 锁名，避免下面的竞�
 
 ### 前置守卫
 
-伪代码：
+顺序（与启动漏斗一致）：
 
 ```ts
 router.beforeEach(async (to) => {
+  if (to.meta.requiresService === false) {
+    return; // 运行设置等
+  }
+  if (!runtimeSetupFinished.value) {
+    return { name: "runtime-settings", query: { returnTo: to.fullPath } };
+  }
+
   const status = await ensureAuthSessionInitialized();
 
   if (to.meta.requiresAuth && status === "anonymous") {
     return {
-      name: "login",
+      name: "auth-entry",
       query: { redirect: to.fullPath },
     };
   }
@@ -238,8 +246,11 @@ router.beforeEach(async (to) => {
     return { name: "change-password" };
   }
 
-  if (to.name === "login" && status === "authenticated") {
-    return { name: "dashboard" };
+  if (
+    status === "authenticated" &&
+    (to.name === "auth-entry" || to.name === "login" || to.name === "register")
+  ) {
+    return { name: "dashboard" /* 或权限默认页 */ };
   }
 });
 ```
@@ -247,20 +258,22 @@ router.beforeEach(async (to) => {
 守卫要求：
 
 - 可以异步等待初始化。
-- 只在明确 `anonymous` 时把受保护页面重定向到登录页。
-- `unavailable` 不重定向登录页，避免把服务暂时不可用误报为凭据失效。
-- 登录页自身不能再次重定向到登录页，避免死循环。
+- 设置未完成（含 Shell `createdDefault`）时不得先进入认证或业务页。
+- 只在明确 `anonymous` 时把受保护页面重定向到 `/auth`。
+- `unavailable` 不重定向认证页，避免把服务暂时不可用误报为凭据失效。
+- 运行设置页（`requiresService === false`）在会话变 anonymous 时不被监听器抢走。
 - 注册页继续保持公开；服务端仍负责限制“首个用户”或后续注册权限。
 - 强制改密用户只允许进入 `allowsPasswordChangeRequired = true` 的修改密码页。
-- 未匹配路径直接重定向到总览；未登录时再由总览的鉴权要求进入登录页。
+- 未匹配路径直接重定向到总览；未登录时再由总览的鉴权要求进入 `/auth`。
 
 ### 登录后回跳
 
 未登录访问 `/items` 时保存内部目标：
 
 ```text
-/login?redirect=/items
+/auth?redirect=/items
 ```
+（认证入口分流到 login/register 时保留同一 `redirect` query。）
 
 登录成功后：
 

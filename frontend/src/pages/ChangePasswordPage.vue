@@ -212,7 +212,7 @@ async function handleLogout(): Promise<void> {
   }
 
   await router.replace({
-    name: "login",
+    name: "auth-entry",
     query: result === "local_only" ? { logout: "local_only" } : undefined,
   });
   if (result === "local_only") {

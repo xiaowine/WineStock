@@ -23,7 +23,7 @@ class LocalCoreRuntimeManagerTest {
     }
 
     @Test
-    fun missingConfigAutomaticallyAllocatesAndCommitsActualPort() {
+    fun missingConfigStartsDefaultWithoutPersistingUntilUserApply() {
         val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Missing)
         val native = FakeNativeCoreClient()
         val manager = manager(native, store)
@@ -33,13 +33,22 @@ class LocalCoreRuntimeManagerTest {
         assertEquals("configured", snapshot.configStatus)
         assertEquals("running", snapshot.service.phase)
         assertTrue(snapshot.createdDefault)
-        assertEquals(DEFAULT_RUNTIME_CONFIG.copy(port = 49152), store.current)
+        // 自动默认只起服、不写盘；用户保存后才有 Present 配置。
+        assertEquals(null, store.current)
         assertEquals(49152, snapshot.config.port)
         assertEquals("127.0.0.1:49152", snapshot.service.boundAddress)
         assertEquals("http://127.0.0.1:49152", snapshot.service.apiBaseUrl)
         assertFalse(snapshot.service.apiBaseUrl.orEmpty().endsWith(":0"))
         assertEquals(1, native.startCalls)
         assertEquals(listOf(0), native.startConfigs.map(EditableRuntimeConfig::port))
+
+        val applied =
+            manager
+                .applyRuntimeConfig(snapshot.config)
+                .await()
+        assertTrue(applied.applied)
+        assertFalse(applied.snapshot.createdDefault)
+        assertEquals(snapshot.config, store.current)
     }
 
     @Test

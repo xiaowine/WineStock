@@ -8,7 +8,7 @@ import {
   ensureAuthSessionInitialized,
   isLoggingOut,
 } from "../auth/session";
-import { hasConfiguredApiService } from "../shell/runtime";
+import { runtimeSetupFinished } from "../shell/runtime";
 import { getDefaultAppRouteName } from "./navigation";
 
 let guardsInstalled = false;
@@ -21,13 +21,16 @@ export function installAuthGuards(router: Router): void {
   guardsInstalled = true;
 
   router.beforeEach(async (to) => {
+    // 1. 运行设置等无服务依赖路由直接放行。
     if (to.meta.requiresService === false) {
       return;
     }
-    if (!hasConfiguredApiService.value) {
+    // 2. 设置未完成（无服务地址或 Shell 自动默认未确认）时先进入运行设置。
+    if (!runtimeSetupFinished.value) {
       return createRuntimeSettingsRedirect(to.fullPath);
     }
 
+    // 3. 会话初始化后再执行匿名/已认证与强制改密规则。
     const status = await ensureAuthSessionInitialized();
     if (to.meta.requiresAuth && status === "anonymous") {
       return createAuthEntryRedirect(to.fullPath);

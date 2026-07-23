@@ -7,7 +7,7 @@ import { notice } from "../notices/notice";
 
 /**
  * 为应用壳提供统一退出行为。
- * 调用会吊销或清除当前会话并跳转登录页；失败时保留可展示错误，服务端吊销未确认时仍完成本机退出。
+ * 调用会吊销或清除当前会话并跳转统一认证入口；失败时保留可展示错误，服务端吊销未确认时仍完成本机退出。
  */
 export function useShellLogout() {
   const router = useRouter();
@@ -28,8 +28,9 @@ export function useShellLogout() {
       return;
     }
 
+    // 与守卫、运行设置出口一致：匿名统一进 /auth，query 透传到 login/register。
     await router.replace({
-      name: "login",
+      name: "auth-entry",
       query: result === "local_only" ? { logout: "local_only" } : undefined,
     });
     if (result === "local_only") {

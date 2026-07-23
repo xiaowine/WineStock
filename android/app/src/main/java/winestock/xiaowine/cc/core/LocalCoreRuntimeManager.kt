@@ -174,6 +174,11 @@ class LocalCoreRuntimeManager(
             }
         }
 
+    /**
+     * 无持久配置时可用默认本机模式先起服，但**不落盘**。
+     * 仅用户在前端点「保存设置」走 apply 后才持久化并清除 createdDefault，
+     * 避免“什么都没保存就重启进登录”。
+     */
     private fun activateMissingDefault(): AndroidRuntimeSnapshot {
         val attempt = authorityValidate(sharedDefaultConfig)
         if (!attempt.validation.valid) {
@@ -181,9 +186,7 @@ class LocalCoreRuntimeManager(
         }
         val config = attempt.validation.normalizedConfig ?: sharedDefaultConfig
         if (RuntimeModes.isRemote(config.mode)) {
-            if (!safeSaveConfig(config)) {
-                return publish(unconfiguredSnapshot(config, configUnavailable()))
-            }
+            // 远端默认也不自动写盘；须用户保存确认。
             return publish(remoteSnapshot(config, createdDefault = true, nativeAvailable = localAvailable()))
         }
 
@@ -196,12 +199,8 @@ class LocalCoreRuntimeManager(
                 publish(unconfiguredSnapshot(localCandidate, started.error))
             is NativeCallResult.Success -> {
                 val effectiveConfig = effectiveLocalConfig(localCandidate, started.value)
-                if (!safeSaveConfig(effectiveConfig)) {
-                    nativeClient.stopLocalService()
-                    publish(unconfiguredSnapshot(effectiveConfig, configUnavailable()))
-                } else {
-                    publish(localRunningSnapshot(effectiveConfig, started.value, createdDefault = true))
-                }
+                // 故意不 safeSaveConfig：配置文件保持 Missing，冷启动仍会 createdDefault。
+                publish(localRunningSnapshot(effectiveConfig, started.value, createdDefault = true))
             }
         }
     }
