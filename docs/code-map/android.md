@@ -42,6 +42,8 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
     刷新安全区并通知桥应用恢复。
   - 放开 WebView mixed content，使运行在 `https://winestock.internal` 的前端能连接明文 HTTP 远端服务。
   - 从 `WineStockApplication` 取得进程级 manager，只绑定 Bridge/WebView，不拥有或停止本地 Axum。
+  - 通过 `WebChromeClient.onShowFileChooser` + Activity Result 启动系统文件选择器（`FileChooserParams.createIntent`
+    / SAF），把选定的 `content://` URI 交回 WebView；不申请存储/媒体/相机权限。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/WineStockApplication.kt`
   - 在 Application 创建时初始化唯一 `LocalCoreRuntimeManager`；Activity 重建不替换 core runtime。
@@ -85,6 +87,15 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
   - 仅在受信任 origin 上通过受控 JavaScript 写入
     `--shell-safe-area-inset-top/right/bottom/left`，页面提交、加载完成或恢复时重发。
   - inset 属于 WebView 渲染环境，不扩展 Shell Bridge v1 业务契约。
+
+- `android/app/src/main/java/winestock/xiaowine/cc/web/WebViewFileChooserSession.kt`
+  - 纯状态机地拥有 HTML 文件选择的单 pending `ValueCallback`、supersede 时 null 结算、
+    cancel/destroy 一次结算，以及 ClipData/单 URI/取消的结果映射。
+  - 与 MainActivity 单个 ActivityResultLauncher 配套：supersede 后的唯一结果结算新 pending，
+    不用 stale 丢弃计数（避免把二次选择结果当过期丢掉导致 WebView 挂起）。
+  - 不启动 Intent、不依赖 WebView，不做 `content://` 路径反查；由 JVM 单元测试覆盖竞态。
+- `android/app/src/test/java/winestock/xiaowine/cc/web/WebViewFileChooserSessionTest.kt`
+  - 覆盖 deliver、cancel、空结果、supersede 后单次 deliver 结算新回调、destroy 与 mapChooserResult。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/web/LoadingOverlayController.kt`
   - 拥有加载遮罩生命周期：启动兜底超时，收到首个就绪信号后淡出。`hide` 幂等且线程安全。
@@ -140,7 +151,8 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
 - `android/app/src/main/res/values*/colors.xml`、`themes.xml`：Window、SplashScreen 与 WebView 加载前背景；
   当前浅色前端在系统 night mode 下仍保持浅色背景。
 - `android/app/src/main/res/xml/network_security_config.xml`：放行明文流量，使远端模式可连接局域网 HTTP 服务器。
-- `android/app/src/main/AndroidManifest.xml`：INTERNET 权限、network security config 引用和 Activity 声明。
+- `android/app/src/main/AndroidManifest.xml`：仅 `INTERNET` 权限、network security config 引用和 Activity 声明；
+  WebView 文件选择走系统选择器，不声明存储/媒体/相机/全文件访问权限。
 - `android/app/build/intermediates/winestockFrontend/android/dist`：Vite Android mode 的中间输出，由 Gradle 生成和清理。
 - `android/app/build/generated/winestockFrontendAssets/<variant>/frontend`：AGP 对应 variant 消费的已验证 generated assets。
 

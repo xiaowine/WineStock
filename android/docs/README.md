@@ -75,6 +75,17 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
   `verify<Variant>RustNativeApkPackage` 再检查最终 APK 只包含目标 ABI 和目标 `.so`。
 - 当前交付物只支持 APK，不构建、不校验、不发布 AAB。
 
+## WebView 文件选择
+
+- HTML `<input type="file">` 由 `MainActivity` 的 `WebChromeClient.onShowFileChooser` 承接。
+- 使用 `FileChooserParams.createIntent()`（失败时回退 `ACTION_GET_CONTENT`）启动系统选择器 / SAF；
+  经 Activity Result 把 `content://` URI（含多选 ClipData）交回 WebView `ValueCallback`。
+- `web/WebViewFileChooserSession` 拥有单 pending 回调：新请求 supersede、取消、destroy 均以 `null`
+  结算一次；与单个 Activity Result launcher 配套，supersede 后的唯一结果结算新回调（不丢弃）。
+- 不申请 `READ_EXTERNAL_STORAGE`、`READ_MEDIA_*`、`CAMERA` 或 `MANAGE_EXTERNAL_STORAGE`；
+  仅依赖系统对用户所选 URI 的临时读取授权。相机 Intent / `getUserMedia` 不在当前范围。
+- 通用权限与 URI 策略提示见 [`webview-file-selection-permissions.md`](webview-file-selection-permissions.md)。
+
 ## WebView edge-to-edge 与安全区
 
 Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView 覆盖完整可绘制窗口；

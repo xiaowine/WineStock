@@ -1,18 +1,25 @@
 package winestock.xiaowine.cc
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -22,6 +29,7 @@ import androidx.webkit.WebViewAssetLoader
 import winestock.xiaowine.cc.databinding.ActivityMainBinding
 import winestock.xiaowine.cc.shell.ShellBridgeHost
 import winestock.xiaowine.cc.web.FrontendPathHandler
+import winestock.xiaowine.cc.web.WebViewFileChooserSession
 import winestock.xiaowine.cc.web.WebViewportInsetsPublisher
 
 /**
@@ -29,7 +37,7 @@ import winestock.xiaowine.cc.web.WebViewportInsetsPublisher
  *
  * 职责：创建并配置 WebView、通过 WebViewAssetLoader 从受信任 origin 加载打包前端、
  * 在加载前安装 Shell Bridge、保持 edge-to-edge 并向前端发布安全区、管理冷启动 SplashScreen、
- * 处理返回键并在恢复时通知桥。
+ * 处理返回键并在恢复时通知桥、承接 HTML 文件选择（系统 SAF/chooser，无存储权限）。
  * 它不渲染运行设置或业务 UI，不实现本地 Axum 服务，配置与业务能力分别由前端经 Shell Bridge 和 HTTP 使用。
  */
 class MainActivity : AppCompatActivity() {
@@ -38,6 +46,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var assetLoader: WebViewAssetLoader
     private var shellBridge: ShellBridgeHost? = null
     private var viewportInsetsPublisher: WebViewportInsetsPublisher? = null
+
+    /**
+     * WebView `<input type="file">` 的单 pending 回调会话。
+     * Intent 启动在本 Activity；URI 所有权与一次结算在 [WebViewFileChooserSession]。
+     */
+    private val fileChooserSession = WebViewFileChooserSession()
+
+    /**
+     * 系统文件选择器结果入口。必须在 STARTED 前 register；结果经 session 映射后只结算一次 ValueCallback。
+     */
+    private val fileChooserLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val uriStrings =
+                WebViewFileChooserSession.mapChooserResult(
+                    resultOk = result.resultCode == Activity.RESULT_OK,
+                    dataUri = result.data?.data?.toString(),
+                    clipUris = extractClipUris(result.data),
+                )
+            fileChooserSession.deliver(uriStrings)
+        }
 
     /** 前端首屏是否就绪；SplashScreen 在此之前一直保持，就绪后系统冷启动窗口才退场。 */
     private var frontendReady = false
@@ -120,6 +148,19 @@ class MainActivity : AppCompatActivity() {
                     markFrontendReady()
                 }
             }
+            // HTML <input type="file"> 需要宿主实现 onShowFileChooser；不声明存储/媒体权限，
+            // 仅用系统选择器返回的 content URI 临时授权完成上传。
+            webChromeClient =
+                object : WebChromeClient() {
+                    override fun onShowFileChooser(
+                        webView: WebView?,
+                        filePathCallback: ValueCallback<Array<Uri>>?,
+                        fileChooserParams: FileChooserParams?,
+                    ): Boolean {
+                        if (filePathCallback == null) return false
+                        return launchSystemFileChooser(filePathCallback, fileChooserParams)
+                    }
+                }
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -129,6 +170,61 @@ class MainActivity : AppCompatActivity() {
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
         }
+    }
+
+    /**
+     * 登记 pending ValueCallback 并启动系统文件选择器。
+     * 返回 true 表示宿主已接管选择流程（含启动失败时的 null 结算），WebView 不再走默认路径。
+     */
+    private fun launchSystemFileChooser(
+        filePathCallback: ValueCallback<Array<Uri>>,
+        fileChooserParams: WebChromeClient.FileChooserParams?,
+    ): Boolean {
+        val accepted =
+            fileChooserSession.begin { uriStrings ->
+                val uris = uriStrings?.map(Uri::parse)?.toTypedArray()
+                filePathCallback.onReceiveValue(uris)
+            }
+        if (!accepted) {
+            // session 已 destroy：begin 已对 WebView 回调 null，勿再 launch。
+            return true
+        }
+
+        val intent =
+            try {
+                fileChooserParams?.createIntent()
+                    ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "*/*"
+                    }
+            } catch (_: Exception) {
+                fileChooserSession.cancel()
+                return true
+            }
+
+        return try {
+            fileChooserLauncher.launch(intent)
+            true
+        } catch (_: ActivityNotFoundException) {
+            fileChooserSession.cancel()
+            true
+        } catch (_: Exception) {
+            fileChooserSession.cancel()
+            true
+        }
+    }
+
+    /** 从选择器 Intent 提取多选 ClipData URI；无 ClipData 时返回空列表，交 mapChooserResult 使用 data URI。 */
+    private fun extractClipUris(data: Intent?): List<String> {
+        val clip = data?.clipData ?: return emptyList()
+        val uris = ArrayList<String>(clip.itemCount)
+        for (index in 0 until clip.itemCount) {
+            val uri = clip.getItemAt(index)?.uri?.toString()
+            if (!uri.isNullOrBlank()) {
+                uris += uri
+            }
+        }
+        return uris
     }
 
     /** 在加载前端前安装 Shell Bridge，保证 document-start 脚本先于页面脚本注入。 */
@@ -212,6 +308,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(splashTimeout)
+        // 必须以 null 结算未完成的文件选择回调，避免 WebView 挂起或泄漏 ValueCallback。
+        fileChooserSession.destroy()
         shellBridge?.destroy()
         shellBridge = null
         viewportInsetsPublisher?.dispose()
