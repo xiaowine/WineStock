@@ -71,24 +71,6 @@ pub(crate) fn require_permission(
     )
 }
 
-/// 给路由增加条件权限校验；条件满足时才要求调用方拥有指定权限。
-#[allow(dead_code)]
-pub(crate) fn require_permission_when(
-    route: MethodRouter<CoreState>,
-    core_state: CoreState,
-    permission: &'static str,
-    condition: AuthorizationCondition,
-) -> MethodRouter<CoreState> {
-    apply_authorization(
-        route,
-        core_state,
-        AuthorizationPolicy::ConditionalPermission {
-            permission,
-            condition,
-        },
-    )
-}
-
 /// 创建“数据库已有用户”条件；注册接口用它表达首个用户免鉴权。
 pub(crate) fn users_exist() -> AuthorizationCondition {
     AuthorizationCondition::new(|core_state| async move {
@@ -132,12 +114,12 @@ pub(crate) trait AuthorizeRouteExt {
         permissions: &'static [&'static str],
     ) -> MethodRouter<CoreState>;
 
-    /// 给路由增加条件授权层；条件满足时必须登录且拥有指定权限。
-    fn require_permission_when(
+    fn require_permission_when_with_anonymous_error(
         self,
         core_state: CoreState,
         permission: &'static str,
         condition: AuthorizationCondition,
+        error: AuthApiError,
     ) -> MethodRouter<CoreState>;
 }
 
@@ -166,11 +148,13 @@ impl AuthorizeRouteExt for MethodRouter<CoreState> {
         require_any_permission(self, core_state, permissions)
     }
 
-    fn require_permission_when(
+    /// 给条件权限路由指定匿名请求的稳定错误；用于首用户注册竞态。
+    fn require_permission_when_with_anonymous_error(
         self,
         core_state: CoreState,
         permission: &'static str,
         condition: AuthorizationCondition,
+        _error: AuthApiError,
     ) -> MethodRouter<CoreState> {
         apply_authorization(
             self,
@@ -178,6 +162,7 @@ impl AuthorizeRouteExt for MethodRouter<CoreState> {
             AuthorizationPolicy::ConditionalPermission {
                 permission,
                 condition,
+                anonymous_error: true,
             },
         )
     }
@@ -209,6 +194,7 @@ enum AuthorizationPolicy {
     ConditionalPermission {
         permission: &'static str,
         condition: AuthorizationCondition,
+        anonymous_error: bool,
     },
 }
 
@@ -229,7 +215,17 @@ async fn authorize(
             };
             let token = match bearer_token_from_headers(request.headers()) {
                 Some(token) => token.to_owned(),
-                None => return AuthApiError::InvalidAccessToken.into_response(),
+                None => {
+                    if matches!(
+                        &state.policy,
+                        AuthorizationPolicy::ConditionalPermission {
+                            anonymous_error: true, ..
+                        }
+                    ) {
+                        return AuthApiError::InitialUserAlreadyExists.into_response();
+                    }
+                    return AuthApiError::InvalidAccessToken.into_response();
+                }
             };
             let current_user = match load_current_user_from_token(&state.core_state, &token).await {
                 Ok(current_user) => current_user,
@@ -270,6 +266,7 @@ async fn resolve_requirement(
         AuthorizationPolicy::ConditionalPermission {
             permission,
             ref condition,
+            ..
         } => {
             if !condition.should_enforce(&state.core_state).await? {
                 return Ok(AuthorizationRequirement::Bypass);

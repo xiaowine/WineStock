@@ -16,7 +16,11 @@
         </div>
       </header>
 
-      <form class="auth-form" novalidate @submit.prevent="submitLogin">
+      <p v-if="checkingBootstrapStatus" class="auth-runtime-note" role="status">
+        正在检查服务状态…
+      </p>
+
+      <form v-else class="auth-form" novalidate @submit.prevent="submitLogin">
         <div v-if="logoutWarning" class="form-warning" role="status">
           {{ logoutWarning }}
         </div>
@@ -61,11 +65,7 @@
         </button>
       </form>
 
-      <div class="auth-page-switch">
-        <span>首次使用，当前服务还没有用户？</span>
-        <RouterLink :to="{ name: 'register' }">创建首个用户</RouterLink>
-      </div>
-      <p class="auth-runtime-note">
+      <p v-if="!checkingBootstrapStatus" class="auth-runtime-note">
         当前服务：<code>{{ activeApiBaseUrl ?? "尚未配置" }}</code>
         ·
         <RouterLink :to="{ name: 'runtime-settings', query: { returnTo: route.fullPath } }">
@@ -77,9 +77,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { login } from "../api/auth";
+import { getAuthBootstrapStatus, login } from "../api/auth";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import { resolveApiClientMetadata } from "../api/runtime-config";
 import { establishAuthSession } from "../auth/session";
@@ -97,6 +97,7 @@ const route = useRoute();
 const username = ref("");
 const password = ref("");
 const isSubmitting = ref(false);
+const checkingBootstrapStatus = ref(true);
 const errorMessage = ref("");
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({});
 useFormValidation(fieldErrors);
@@ -106,6 +107,20 @@ const passwordError = computed(() => fieldErrors.value.password?.[0]);
 const logoutWarning = computed(() =>
   route.query.logout === "local_only" ? "本机已退出，但服务端会话吊销未确认" : "",
 );
+
+onMounted(async () => {
+  try {
+    const status = await getAuthBootstrapStatus();
+    if (status.requires_initial_user && route.name === "login") {
+      await router.replace({ name: "register", query: route.query });
+      return;
+    }
+  } catch {
+    await router.replace({ name: "auth-entry", query: route.query });
+  } finally {
+    checkingBootstrapStatus.value = false;
+  }
+});
 
 /** 校验并提交登录表单；失败时保留输入并映射统一 API 错误。 */
 async function submitLogin(): Promise<void> {

@@ -68,7 +68,7 @@ async fn register_user_transactionally(
 
     if has_users {
         let Some(current_user) = current_user else {
-            return Err(AuthApiError::InvalidAccessToken);
+            return Err(AuthApiError::InitialUserAlreadyExists);
         };
         if !current_user.has_permission(REGISTER_USER_PERMISSION) {
             return Err(AuthApiError::PermissionDenied);

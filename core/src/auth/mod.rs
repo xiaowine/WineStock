@@ -3,7 +3,7 @@
 //! 本模块属于 `core axum library` 的业务层，负责登录、刷新、登出和鉴权启动初始化。
 //! 它依赖 `security` 提供 JWT 与令牌工具，但自身不是全局安全前置层。
 
-use axum::{routing::post, Router};
+use axum::{routing::{get, post}, Router};
 
 use crate::state::CoreState;
 
@@ -17,7 +17,7 @@ pub use bootstrap::{
 };
 pub use contract::{
     AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
-    AuthTokenResponse, AuthUserResponse,
+    AuthBootstrapStatus, AuthTokenResponse, AuthUserResponse,
 };
 
 pub(crate) use bootstrap::bootstrap_auth;
@@ -30,6 +30,7 @@ pub(crate) fn router() -> Router<CoreState> {
     Router::new().nest(
         AUTH_BASE_PATH,
         Router::new()
+            .route("/bootstrap-status", get(controller::bootstrap_status))
             .route("/login", post(controller::login))
             .route("/refresh", post(controller::refresh))
             .route("/logout", post(controller::logout)),

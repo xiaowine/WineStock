@@ -30,7 +30,15 @@ export function installAuthGuards(router: Router): void {
 
     const status = await ensureAuthSessionInitialized();
     if (to.meta.requiresAuth && status === "anonymous") {
-      return createLoginRedirect(to.fullPath);
+      return createAuthEntryRedirect(to.fullPath);
+    }
+    if (
+      status === "authenticated" &&
+      (to.name === "auth-entry" || to.name === "register" || to.name === "login")
+    ) {
+      return {
+        name: getDefaultAppRouteName(authSession.value?.user.permissions),
+      };
     }
     if (
       status === "authenticated" &&
@@ -106,7 +114,7 @@ export function installAuthGuards(router: Router): void {
       return;
     }
 
-    void router.replace(createLoginRedirect(currentRoute.fullPath)).catch((error: unknown) => {
+    void router.replace(createAuthEntryRedirect(currentRoute.fullPath)).catch((error: unknown) => {
       console.warn("会话失效后无法跳转到登录页", error);
     });
   });
@@ -153,9 +161,9 @@ export function resolvePostLoginLocation(router: Router, redirect: unknown): Rou
   }
 }
 
-function createLoginRedirect(fullPath: string): RouteLocationRaw {
+function createAuthEntryRedirect(fullPath: string): RouteLocationRaw {
   return {
-    name: "login",
+    name: "auth-entry",
     query: { redirect: fullPath },
   };
 }

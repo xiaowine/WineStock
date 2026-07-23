@@ -82,7 +82,7 @@
   - 校验 API 根地址必须为 HTTP/HTTPS，禁止把全接口监听地址作为访问地址。
   - 提供登录请求所需的客户端类型、设备名称和版本号。
 
-- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、快照、能力、原生返回 request/resolution/ack 和稳定字段错误类型；前端默认端口镜像为 `17890`。
+- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、快照、能力、原生返回 request/resolution/ack 和稳定字段错误类型；Web fallback 保留 `17890` 兼容默认值，UI Shell 的 self-hosted 实际端口由 Shell 分配并回写。
 - `frontend/src/shell/contract.ts` 同时在运行时校验协议版本、快照基础结构、注入桥具名方法，以及 capability 开启后的 native-back 可选扩展，不能只依赖 TypeScript 静态类型信任平台数据。
 - `frontend/src/shell/bridge.ts`：选择平台注入桥或普通浏览器 Web fallback，不判断 User-Agent。
 - `frontend/src/shell/web.ts`：使用版本化 localStorage 实现开发/静态环境配置读取、校验和应用；损坏配置返回可修复的 invalid 快照，不管理本地 Rust 服务。
@@ -179,10 +179,12 @@
 
 ## 页面
 
-- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的简化运行设置工作区；编辑当前设备的运行模式、端口、远端地址和监听地址，以单列任务语言呈现连接状态、必要字段、风险确认和稳定尺寸的响应式操作区。
+- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的简化运行设置工作区；self-hosted 隐藏端口和监听地址并由 Shell 自动分配，server-mode 编辑固定端口和监听地址，远端编辑服务地址，以单列任务语言呈现连接状态、必要字段、风险确认和稳定尺寸的响应式操作区。
 - `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标，并显示当前服务地址和本机运行设置入口。
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
+- `frontend/src/api/auth.ts`：认证登录、注册、刷新、登出和首用户 bootstrap 状态请求契约；bootstrap 结果按 API 根地址保存在会话内存中，运行地址变化时失效。
+- `frontend/src/pages/AuthEntryPage.vue`、`LoginPage.vue`、`RegisterPage.vue`：统一匿名认证入口及两类认证表单；状态查询失败停留在可重试入口，空用户服务进入首用户注册，已有用户服务进入登录。
 - `frontend/src/pages/DashboardPage.vue`：库存摘要、趋势周期、后台刷新、呆滞物品和错误状态编排，只展示服务端真实统计。
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。关键词、库存状态、高级结构化筛选、计数、排序和分页来自服务端；所有具备 `stock.item.read` 的用户可从目录行或详情图标进入资料和库存详情，只有 `stock.item.manage` 用户才能看到新建、删除和保存入口，详情 Dialog 才可编辑。

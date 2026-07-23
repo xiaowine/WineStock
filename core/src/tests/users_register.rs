@@ -1,6 +1,8 @@
 //! users 模块注册相关测试。
 
+use axum::{body::Body, http::Request};
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+use tower::ServiceExt;
 
 use crate::{
     auth::{AuthRegisterRequest, AuthUserResponse},
@@ -70,13 +72,95 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
 }
 
 #[tokio::test]
+async fn concurrent_initial_registration_creates_exactly_one_user() {
+    let app = empty_app().await;
+
+    let (first, second) = tokio::join!(
+        raw_register_request(&app, "first-racer", "password", None),
+        raw_register_request(&app, "second-racer", "password", None),
+    );
+    let responses = [first, second];
+    assert_eq!(
+        responses
+            .iter()
+            .filter(|response| response.status() == axum::http::StatusCode::CREATED)
+            .count(),
+        1
+    );
+
+    let rejected = responses
+        .into_iter()
+        .find(|response| response.status() != axum::http::StatusCode::CREATED)
+        .expect("one concurrent registration should be rejected");
+    assert_eq!(rejected.status(), axum::http::StatusCode::CONFLICT);
+    assert_eq!(error_code(rejected).await, "initial_user_already_exists");
+
+    let users = UserRepository::new(app.state.database());
+    let created_count = usize::from(
+        users
+            .find_by_username("first-racer")
+            .await
+            .expect("first user should load")
+            .is_some(),
+    ) + usize::from(
+        users
+            .find_by_username("second-racer")
+            .await
+            .expect("second user should load")
+            .is_some(),
+    );
+    assert_eq!(created_count, 1);
+}
+
+#[tokio::test]
+async fn bootstrap_status_distinguishes_empty_and_initialized_services() {
+    let app = empty_app().await;
+    let empty = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/bootstrap-status")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+    assert_eq!(empty.status(), axum::http::StatusCode::OK);
+    let empty_body = axum::body::to_bytes(empty.into_body(), usize::MAX)
+        .await
+        .expect("response body should read");
+    assert_eq!(empty_body.as_ref(), br#"{"requires_initial_user":true}"#);
+
+    seed_plain_user(&app.state.database(), "admin", "password").await;
+    let initialized = app
+        .router
+        .oneshot(
+            Request::builder()
+                .uri("/api/auth/bootstrap-status")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+    let initialized_body = axum::body::to_bytes(initialized.into_body(), usize::MAX)
+        .await
+        .expect("response body should read");
+    assert_eq!(initialized_body.as_ref(), br#"{"requires_initial_user":false}"#);
+}
+
+#[tokio::test]
 async fn registration_requires_register_permission_after_first_user_exists() {
     let app = empty_app().await;
     let first = raw_register_request(&app, "admin", "password", None).await;
     assert_eq!(first.status(), axum::http::StatusCode::CREATED);
 
     let missing_token = raw_register_request(&app, "staff", "password", None).await;
-    assert_eq!(missing_token.status(), axum::http::StatusCode::UNAUTHORIZED);
+    assert_eq!(missing_token.status(), axum::http::StatusCode::CONFLICT);
+    let missing_token_body = axum::body::to_bytes(missing_token.into_body(), usize::MAX)
+        .await
+        .expect("response body should read");
+    assert!(String::from_utf8_lossy(&missing_token_body).contains("initial_user_already_exists"));
 
     seed_plain_user(app.state.database(), "plain", "password").await;
     let plain_login = login_request(&app, "plain", "password").await;
@@ -133,7 +217,7 @@ async fn registration_service_rechecks_first_user_bypass_inside_transaction() {
     .expect_err("stale first-user bypass should be rejected");
     assert!(matches!(
         missing_current_user,
-        AuthApiError::InvalidAccessToken
+        AuthApiError::InitialUserAlreadyExists
     ));
 
     let stale_current_user = CurrentUser {

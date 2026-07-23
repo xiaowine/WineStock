@@ -16,7 +16,11 @@
         </div>
       </header>
 
-      <form class="auth-form" novalidate @submit.prevent="submitRegistration">
+      <p v-if="checkingBootstrapStatus" class="auth-runtime-note" role="status">
+        正在检查服务状态…
+      </p>
+
+      <form v-else class="auth-form" novalidate @submit.prevent="submitRegistration">
         <FormInput
           v-model="username"
           label="用户名"
@@ -77,20 +81,22 @@
         </button>
       </form>
 
-      <div class="auth-page-switch">
-        <span>服务中已经存在用户？</span>
-        <RouterLink :to="{ name: 'login' }">返回登录</RouterLink>
-      </div>
-
-      <p class="auth-runtime-note">注册成功后会使用同一组凭据自动登录当前服务。</p>
+      <p v-if="!checkingBootstrapStatus" class="auth-runtime-note">
+        注册成功后会使用同一组凭据自动登录当前服务。
+      </p>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
-import { login, registerInitialUser } from "../api/auth";
+import { computed, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  getAuthBootstrapStatus,
+  login,
+  markAuthBootstrapInitialized,
+  registerInitialUser,
+} from "../api/auth";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import { resolveApiClientMetadata } from "../api/runtime-config";
 import { establishAuthSession } from "../auth/session";
@@ -102,10 +108,12 @@ import FormInput from "../components/forms/FormInput.vue";
 import { useFormValidation } from "../composables/useFormValidation";
 
 const router = useRouter();
+const route = useRoute();
 const username = ref("");
 const password = ref("");
 const passwordConfirmation = ref("");
 const isSubmitting = ref(false);
+const checkingBootstrapStatus = ref(true);
 const errorMessage = ref("");
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({});
 useFormValidation(fieldErrors);
@@ -113,6 +121,19 @@ useFormValidation(fieldErrors);
 const usernameError = computed(() => fieldErrors.value.username?.[0]);
 const passwordError = computed(() => fieldErrors.value.password?.[0]);
 const passwordConfirmationError = computed(() => fieldErrors.value.password_confirmation?.[0]);
+
+onMounted(async () => {
+  try {
+    const status = await getAuthBootstrapStatus();
+    if (!status.requires_initial_user) {
+      await router.replace({ name: "login", query: route.query });
+    }
+  } catch {
+    await router.replace({ name: "auth-entry", query: route.query });
+  } finally {
+    checkingBootstrapStatus.value = false;
+  }
+});
 
 /** 创建首个用户后立即登录；注册成功但登录失败时提示改用登录页，避免重复注册。 */
 async function submitRegistration(): Promise<void> {
@@ -134,6 +155,7 @@ async function submitRegistration(): Promise<void> {
       username: normalizedUsername,
       password: password.value,
     });
+    markAuthBootstrapInitialized();
     registrationCompleted = true;
 
     const metadata = resolveApiClientMetadata();
@@ -149,7 +171,7 @@ async function submitRegistration(): Promise<void> {
     await router.replace({ name: "dashboard" });
     notice.success("首个用户已创建并登录");
   } catch (error) {
-    applyRegistrationError(error, registrationCompleted);
+    await applyRegistrationError(error, registrationCompleted);
   } finally {
     isSubmitting.value = false;
   }
@@ -175,7 +197,10 @@ function validateRegistrationInput(
   return errors;
 }
 
-function applyRegistrationError(error: unknown, registrationCompleted: boolean): void {
+async function applyRegistrationError(
+  error: unknown,
+  registrationCompleted: boolean,
+): Promise<void> {
   if (registrationCompleted && error instanceof AuthPersistenceError) {
     errorMessage.value = "用户已创建，但无法保存登录状态，请检查浏览器存储权限后返回登录";
     notice.error(errorMessage.value);
@@ -189,8 +214,15 @@ function applyRegistrationError(error: unknown, registrationCompleted: boolean):
 
   if (error instanceof ApiError) {
     fieldErrors.value = error.fieldErrors;
-    if (error.code === "invalid_access_token" || error.code === "permission_denied") {
+    if (
+      error.code === "initial_user_already_exists" ||
+      error.code === "invalid_access_token" ||
+      error.code === "permission_denied"
+    ) {
       errorMessage.value = "当前服务已经存在用户，请返回登录页";
+      notice.error("首个账户已创建，请使用登录");
+      await router.replace({ name: "login", query: route.query });
+      return;
     } else if (error.code === "username_taken") {
       errorMessage.value = "该用户名已存在，请更换用户名或返回登录";
     } else {

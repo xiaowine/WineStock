@@ -1,6 +1,7 @@
 // 本文件拥有 frontend 的 Shell 运行快照、配置应用和 API 根地址切换；它不实现平台传输或业务页面。
 import { computed, readonly, ref, shallowRef } from "vue";
 import { apiClient } from "../api/client";
+import { resetAuthBootstrapStatus } from "../api/auth";
 import { configureRuntimeApiBaseUrl } from "../api/runtime-config";
 import { resetAuthSessionForRuntimeChange } from "../auth/session";
 import { resetServiceAvailabilityForRuntimeChange } from "../service/availability";
@@ -188,6 +189,7 @@ function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): 
 
   if (apiBaseUrlChanged) {
     apiClient.cancelRequestsForRuntimeChange();
+    resetAuthBootstrapStatus();
     resetAuthSessionForRuntimeChange();
   }
 

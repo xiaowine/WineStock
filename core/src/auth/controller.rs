@@ -6,13 +6,31 @@
 use axum::{extract::State, http::StatusCode, Json};
 
 use crate::{
-    auth::{AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse},
+    auth::{AuthBootstrapStatus, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse},
+    persistence::repository::AuthRepository,
     http::ValidatedJson,
     security::AuthApiError,
     state::CoreState,
 };
 
 use super::service;
+
+#[utoipa::path(
+    get,
+    path = "/api/auth/bootstrap-status",
+    tag = "auth",
+    responses(
+        (status = 200, description = "Authentication bootstrap status", body = AuthBootstrapStatus),
+        (status = 500, description = "Authentication service error", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 返回认证入口是否需要创建服务的首个用户；不返回用户数量或用户资料。
+pub(crate) async fn bootstrap_status(
+    State(state): State<CoreState>,
+) -> Result<Json<AuthBootstrapStatus>, AuthApiError> {
+    let requires_initial_user = !AuthRepository::new(state.database()).has_any_user().await?;
+    Ok(Json(AuthBootstrapStatus { requires_initial_user }))
+}
 
 #[utoipa::path(
     post,

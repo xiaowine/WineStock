@@ -5,7 +5,7 @@
 
 use super::{health::HealthResponse, ApiErrorResponse};
 use crate::auth::{
-    AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
     AuthTokenResponse, AuthUserResponse,
 };
 use axum::Router;
@@ -39,6 +39,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::http::health::health,
         crate::users::controller::register,
         crate::auth::controller::login,
+        crate::auth::controller::bootstrap_status,
         crate::auth::controller::refresh,
         crate::auth::controller::logout,
         crate::users::controller::me,
@@ -110,6 +111,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
     ),
     components(schemas(
         AuthRegisterRequest,
+        AuthBootstrapStatus,
         AuthClientKind,
         AuthLoginRequest,
         AuthRefreshRequest,

@@ -23,6 +23,9 @@ pub enum AuthApiError {
     /// 用户名已经存在。
     UsernameTaken,
 
+    /// 首个用户已经由其它请求创建。
+    InitialUserAlreadyExists,
+
     /// 指定用户不存在。
     UserNotFound,
 
@@ -83,6 +86,11 @@ impl IntoResponse for AuthApiError {
                 "注册请求无效",
             ),
             Self::UsernameTaken => (StatusCode::CONFLICT, "username_taken", "用户名已存在"),
+            Self::InitialUserAlreadyExists => (
+                StatusCode::CONFLICT,
+                "initial_user_already_exists",
+                "首个用户已经创建",
+            ),
             Self::UserNotFound => (StatusCode::NOT_FOUND, "user_not_found", "用户不存在"),
             Self::PermissionNotFound => {
                 (StatusCode::NOT_FOUND, "permission_not_found", "权限不存在")

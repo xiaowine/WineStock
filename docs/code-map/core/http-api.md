@@ -4,6 +4,7 @@
 
 ## 鉴权与用户
 
+- `GET /api/auth/bootstrap-status`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`

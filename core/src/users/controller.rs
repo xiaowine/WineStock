@@ -165,7 +165,7 @@ pub(crate) struct PermissionResponse {
         (status = 400, description = "Invalid register request", body = crate::http::ApiErrorResponse),
         (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
         (status = 403, description = "Register permission required", body = crate::http::ApiErrorResponse),
-        (status = 409, description = "Username already exists", body = crate::http::ApiErrorResponse)
+        (status = 409, description = "Username or initial user already exists", body = crate::http::ApiErrorResponse)
     )
 )]
 /// 注册新用户；首个用户免鉴权并自动获得全部内置权限，之后必须拥有注册用户权限。

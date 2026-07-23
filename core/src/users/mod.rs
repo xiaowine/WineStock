@@ -9,7 +9,7 @@ use axum::{
 };
 
 use crate::{
-    security::{users_exist, AuthorizeRouteExt},
+    security::{users_exist, AuthApiError, AuthorizeRouteExt},
     state::CoreState,
 };
 
@@ -28,10 +28,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
     Router::new()
         .route(
             "/api/auth/register",
-            post(controller::register).require_permission_when(
+            post(controller::register).require_permission_when_with_anonymous_error(
                 state.clone(),
                 REGISTER_USER_PERMISSION,
                 users_exist(),
+                AuthApiError::InitialUserAlreadyExists,
             ),
         )
         .route(

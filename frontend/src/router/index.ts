@@ -108,6 +108,16 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: "/auth",
+    name: "auth-entry",
+    component: () => import("../pages/AuthEntryPage.vue"),
+    meta: {
+      title: "准备连接",
+      requiresAuth: false,
+      requiresService: true,
+    },
+  },
+  {
     path: "/login",
     name: "login",
     component: () => import("../pages/LoginPage.vue"),

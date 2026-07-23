@@ -7,6 +7,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::validation::{validate_code_list, validate_not_blank};
 
+/// 未鉴权认证入口用于选择首用户注册或普通登录的状态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AuthBootstrapStatus {
+    /// 当前服务尚未创建任何用户时为 true。
+    pub requires_initial_user: bool,
+}
+
 /// 登录客户端类型，限制登录请求只能来自正式平台端。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]

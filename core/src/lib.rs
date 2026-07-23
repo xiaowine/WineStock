@@ -21,7 +21,7 @@ mod users;
 mod validation;
 
 pub use auth::{
-    AuthBootstrap, AuthBootstrapError, AuthClientKind, AuthLoginRequest, AuthLogoutRequest,
+    AuthBootstrap, AuthBootstrapError, AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest,
     AuthRefreshRequest, AuthRegisterRequest, AuthSettings, AuthSigningKey, AuthTokenResponse,
     AuthUserResponse, SigningKeyStatus,
 };

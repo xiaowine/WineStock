@@ -1,6 +1,8 @@
 // 本文件拥有 frontend 鉴权 HTTP 契约和请求函数；它不保存会话或决定登录后的页面导航。
 import { apiClient } from "./client";
-import type { ApiClientKind } from "./runtime-config";
+import { resolveApiBaseUrl, type ApiClientKind } from "./runtime-config";
+
+const bootstrapStatusCache = new Map<string, AuthBootstrapStatus>();
 
 /** 用户名密码登录请求。 */
 export interface AuthLoginRequest {
@@ -22,6 +24,45 @@ export interface AuthRegisterRequest {
   username: string;
   /** 明文密码，只允许发送到注册接口。 */
   password: string;
+}
+
+/** 未鉴权认证入口用于选择首用户注册或普通登录的状态。 */
+export interface AuthBootstrapStatus {
+  requires_initial_user: boolean;
+}
+
+/** 查询当前服务是否仍需要创建首个用户。 */
+export function getAuthBootstrapStatus(): Promise<AuthBootstrapStatus> {
+  let apiBaseUrl: string;
+  try {
+    apiBaseUrl = resolveApiBaseUrl();
+  } catch (error) {
+    return Promise.reject(error);
+  }
+  const cached = bootstrapStatusCache.get(apiBaseUrl);
+  if (cached) return Promise.resolve(cached);
+  return apiClient
+    .request<AuthBootstrapStatus>("/api/auth/bootstrap-status", { authenticated: false })
+    .then((status) => {
+      if (typeof status.requires_initial_user !== "boolean") {
+        throw new Error("bootstrap status response is invalid");
+      }
+      bootstrapStatusCache.set(apiBaseUrl, status);
+      return status;
+    });
+}
+
+/** 运行地址切换后清除旧服务的初始化判断；首用户注册成功后可直接标记已初始化。 */
+export function resetAuthBootstrapStatus(): void {
+  bootstrapStatusCache.clear();
+}
+
+export function markAuthBootstrapInitialized(): void {
+  try {
+    bootstrapStatusCache.set(resolveApiBaseUrl(), { requires_initial_user: false });
+  } catch {
+    // 未配置服务地址时没有可写入的缓存键。
+  }
 }
 
 /** refresh token 换取新 token 包的请求。 */
