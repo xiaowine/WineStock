@@ -70,9 +70,9 @@
   touch-action: pan-y;
 }
 
+.dashboard-trend-chart svg:focus,
 .dashboard-trend-chart svg:focus-visible {
-  outline: 3px solid rgb(111 42 54 / 24%);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .dashboard-trend-chart__grid line {
