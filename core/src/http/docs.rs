@@ -1,7 +1,7 @@
-//! core 全局 OpenAPI/Swagger 装配。
+//! core 全局 OpenAPI 与开发期 Swagger UI 装配。
 //!
-//! 本模块属于 `core axum library` 层，只负责接口文档元信息和 Swagger UI 路由。
-//! 它不决定具体业务实现，也不承载桌面或 Android 的平台前端资源。
+//! 本模块属于 `core axum library` 层，只负责接口文档元信息和文档路由。
+//! Release 构建只保留 OpenAPI JSON，不注册或链接 Swagger UI；它也不承载平台前端资源。
 
 use super::{health::HealthResponse, ApiErrorResponse};
 use crate::auth::{
@@ -9,6 +9,8 @@ use crate::auth::{
     AuthTokenResponse, AuthUserResponse,
 };
 use axum::Router;
+#[cfg(not(debug_assertions))]
+use axum::{routing::get, Json};
 use utoipa::{
     openapi::{
         content::Content,
@@ -20,12 +22,14 @@ use utoipa::{
     },
     Modify, OpenApi,
 };
+#[cfg(debug_assertions)]
 use utoipa_swagger_ui::SwaggerUi;
 
 /// OpenAPI JSON 文档的服务路径。
 pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
 
-/// Swagger UI 的服务路径。
+/// Debug 构建中 Swagger UI 的服务路径。
+#[cfg(debug_assertions)]
 pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 
 // 这里集中声明接口文档元信息，具体路径由带 #[utoipa::path] 的处理函数收集。
@@ -285,10 +289,26 @@ fn api_error_response(description: &'static str) -> Response {
     response
 }
 
-/// 挂载 Swagger UI 和 OpenAPI JSON 输出。
+/// Debug 构建挂载 Swagger UI，并由其同时提供 OpenAPI JSON。
+#[cfg(debug_assertions)]
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
     Router::new().merge(SwaggerUi::new(SWAGGER_UI_PATH).url(OPENAPI_JSON_PATH, ApiDoc::openapi()))
+}
+
+/// Release 构建只挂载 OpenAPI JSON，避免把 Swagger UI 静态资源链接进最终制品。
+#[cfg(not(debug_assertions))]
+pub(crate) fn router<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new().route(OPENAPI_JSON_PATH, get(openapi_json))
+}
+
+/// 在不依赖 Swagger UI 的情况下返回动态生成的 OpenAPI 文档。
+#[cfg(not(debug_assertions))]
+async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
+    Json(ApiDoc::openapi())
 }

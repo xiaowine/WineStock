@@ -21,7 +21,7 @@
 
 - `GET /api/health`
 - `GET /api-docs/openapi.json`
-- `/swagger-ui`
+- `/swagger-ui`（仅 Debug；Release 返回统一 JSON 404）
 
 ## 受控图片文件
 

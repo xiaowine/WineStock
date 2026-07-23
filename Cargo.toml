@@ -34,7 +34,7 @@ tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal
 tower = "0.5.3"
 utoipa = "5"
 utoipa-axum = "0.2"
-# vendored 避免全新 Android/CI target 在 build.rs 中联网下载 Swagger UI。
+# vendored 为 Debug Swagger UI 提供本地资源；Release 不引用或链接这些资源。
 utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
 url = "2.5.8"
 winestock-core = { path = "core" }

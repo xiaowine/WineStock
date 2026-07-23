@@ -59,7 +59,8 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `build<Variant>RustNativeLibraries` 使用预先准备的 `cargo-ndk 4.1.2` 和 NDK `30.0.14904198`，
   以 `--locked --offline` 构建；Debug 使用 Cargo debug profile，Release 使用 `--release`，因此
   `winestock-android-native -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
-- `utoipa-swagger-ui` 使用 vendored 资源，普通 APK 构建不会由 Rust build script 联网下载 Swagger UI。
+- `utoipa-swagger-ui` 使用 vendored 资源，Debug 构建无需联网取得 Swagger UI；Release core 不注册 UI 路由，
+  最终 `.so` 和 APK 不链接或打包 Swagger UI 静态资源，但继续提供 `/api-docs/openapi.json`。
 - `.so` 只进入 `app/build/generated/winestockRustJniLibs/<variant>/arm64-v8a`，不写入源码树 `src/main/jniLibs`。
 - `verify<Variant>RustNativeLibraries` 校验 ELF64/AArch64、JNI 导出、`DT_NEEDED` 和 profile marker；
   `verify<Variant>RustNativeApkPackage` 再检查最终 APK 只包含目标 ABI 和目标 `.so`。
@@ -85,6 +86,7 @@ Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView �
 
 ## 相关文档
 
+- [`release-package-size-analysis.md`](release-package-size-analysis.md)：Release APK/native library 实测组成、Swagger UI 移除结果与后续压缩方向。
 - [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md)：Shell Bridge v1 契约与边界（权威）。
 - [`../../docs/code-map/android.md`](../../docs/code-map/android.md)：Android shell 源码结构。
 - [`../../docs/platforms.md`](../../docs/platforms.md)：Android 平台职责。

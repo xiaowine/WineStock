@@ -5,13 +5,15 @@ use axum::{
     http::{
         header::{
             ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
-            ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_MAX_AGE, ORIGIN,
+            ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_MAX_AGE, CONTENT_TYPE, ORIGIN,
         },
         Request,
     },
 };
 use tower::ServiceExt;
 
+#[cfg(debug_assertions)]
+use crate::SWAGGER_UI_PATH;
 use crate::{
     test_support::{empty_app, error_code, json_body},
     OPENAPI_JSON_PATH,
@@ -259,6 +261,46 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_operation_response(&value, "/api/events", "get", "400");
     assert_no_operation_response(&value, "/api/health", "get", "400");
     assert_location_tree_schema(&value);
+}
+
+#[cfg(debug_assertions)]
+#[tokio::test]
+async fn swagger_ui_is_available_in_debug_builds() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("{SWAGGER_UI_PATH}/"))
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    assert!(response.headers()[CONTENT_TYPE]
+        .to_str()
+        .expect("content type should be valid")
+        .starts_with("text/html"));
+}
+
+#[cfg(not(debug_assertions))]
+#[tokio::test]
+async fn swagger_ui_is_not_available_in_release_builds() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/swagger-ui/")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(response.headers()[CONTENT_TYPE], "application/json");
+    assert_eq!(error_code(response).await, "not_found");
 }
 
 #[tokio::test]

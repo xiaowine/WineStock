@@ -1366,7 +1366,8 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-android-native --locked
 - Gradle 已固定 NDK `30.0.14904198`、`cargo-ndk 4.1.2`、唯一 ABI `arm64-v8a`。
 - Debug 使用 Cargo debug profile；Release 明确使用 `cargo ndk ... --release`，因此
   `winestock-android-native -> winestock-core -> winestock-shared` 整条依赖链均按 release profile 编译。
-- `utoipa-swagger-ui` 启用 vendored 资源，普通 APK 构建不再由 Rust build script 联网下载 Swagger UI。
+- `utoipa-swagger-ui` 启用 vendored 资源供 Debug 使用；Release core 不注册 UI 路由，最终 `.so` 与 APK
+  不链接或打包 Swagger UI 静态资源，但继续提供 `/api-docs/openapi.json`。
 - 当前只存在 APK 包级验证，不存在自定义 AAB 校验或 bundle 挂钩。
 
 ### 22.2 已执行验证

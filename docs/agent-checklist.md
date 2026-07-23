@@ -236,7 +236,7 @@ cargo +stable run -p winestock-server
 ```
 
 The server shell creates `data/config.json` next to the executable with default values if it does not exist.
-Then open the printed `/api-docs/openapi.json` and `/swagger-ui` URLs.
+Debug builds print and expose both `/api-docs/openapi.json` and `/swagger-ui`; Release builds expose only the OpenAPI JSON endpoint.
 
 ## Stop Conditions
 

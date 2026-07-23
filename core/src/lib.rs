@@ -29,7 +29,9 @@ pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };
 pub use files::FileCleanupError;
-pub use http::{build_router, build_router_with_local_service, OPENAPI_JSON_PATH, SWAGGER_UI_PATH};
+#[cfg(debug_assertions)]
+pub use http::SWAGGER_UI_PATH;
+pub use http::{build_router, build_router_with_local_service, OPENAPI_JSON_PATH};
 pub use local_service::{
     start_local_service, LocalServiceInfo, LocalServiceRuntimeError, RunningLocalService,
 };

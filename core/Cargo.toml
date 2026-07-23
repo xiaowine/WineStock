@@ -11,7 +11,7 @@ path = "src/lib.rs"
 crate-type = ["lib"]
 
 [dependencies]
-# core 拥有 Axum 接口、OpenAPI 文档和 Swagger UI，不拥有平台前端产物。
+# core 拥有 Axum 接口、OpenAPI 文档和仅供 Debug 使用的 Swagger UI，不拥有平台前端产物。
 axum = { workspace = true }
 argon2 = { workspace = true }
 base64 = { workspace = true }

@@ -146,7 +146,7 @@ Current `core` API surface:
 - `bootstrap_from_config()`
 - `bind_server()`
 - `OPENAPI_JSON_PATH`
-- `SWAGGER_UI_PATH`
+- `SWAGGER_UI_PATH`（仅 Debug 构建导出）
 
 Current `core` HTTP surface:
 
@@ -165,7 +165,7 @@ Current `core` HTTP surface:
 - `POST /api/users/{id}/password`
 - `GET /api/permissions`
 - `GET /api-docs/openapi.json`
-- Swagger UI under `/swagger-ui`
+- Debug 构建在 `/swagger-ui` 提供 Swagger UI；Release 构建不注册该路由，也不链接 UI 静态资源
 
 `shared` owns the shared runtime configuration model, platform-neutral startup contracts, and primitive text validation helpers.
 It must not depend on `core`, Axum, Tauri, Android shell code, or frontend build output.
