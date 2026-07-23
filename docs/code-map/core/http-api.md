@@ -21,8 +21,8 @@
 ## 全局 HTTP
 
 - `GET /api/health`
-- `GET /api-docs/openapi.json`
-- `/swagger-ui`（仅 Debug；Release 返回统一 JSON 404）
+- `GET /api-docs/openapi.json`（仅 Debug；Release 返回统一 JSON 404）
+- `/swagger-ui`（仅 Debug 且启用 Swagger UI feature；Release 返回统一 JSON 404）
 
 ## 受控图片文件
 

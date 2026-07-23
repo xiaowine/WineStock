@@ -159,11 +159,11 @@ http://127.0.0.1:<port>
 服务暴露：
 
 ```text
-/api-docs/openapi.json
-/swagger-ui                # 仅 Debug 构建
+/api-docs/openapi.json     # 仅 Debug 构建
+/swagger-ui                # 仅 Debug 构建且启用 Swagger UI feature
 ```
 
-Release 构建只保留 OpenAPI JSON；`/swagger-ui` 不注册并返回统一 JSON 404，最终制品不链接 Swagger UI 静态资源。
+Release 构建不注册 OpenAPI JSON 或 Swagger UI，并返回统一 JSON 404；最终制品不编译或链接 Swagger UI。
 
 当 `bind_host = "0.0.0.0"` 时，Server Shell 输出本机 loopback URL，不把 `0.0.0.0` 输出为可打开地址。
 

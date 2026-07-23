@@ -63,8 +63,13 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `build<Variant>RustNativeLibraries` 使用预先准备的 `cargo-ndk 4.1.2` 和 NDK `30.0.14904198`，
   以 `--locked --offline` 构建；Debug 使用 Cargo debug profile，Release 使用 `--release`，因此
   `winestock-android-native -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
-- `utoipa-swagger-ui` 使用 vendored 资源，Debug 构建无需联网取得 Swagger UI；Release core 不注册 UI 路由，
-  最终 `.so` 和 APK 不链接或打包 Swagger UI 静态资源，但继续提供 `/api-docs/openapi.json`。
+- Debug 构建启用 `debug-swagger-ui` feature 并使用 vendored Swagger UI 资源；Release 不启用该 feature，
+  不编译或链接 `utoipa-swagger-ui`，也不注册 `/api-docs/openapi.json` 或 `/swagger-ui`。
+- Release 构建通过 `LIBSQLITE3_FLAGS` 取消 SQLite bundled FTS3/FTS5，以移除当前业务未使用的全文索引代码。
+- Release APK 启用 R8 minify、optimize 与 resource shrink；`src/main/keepRules/rules.keep` 只保留 JNI
+  入口等平台边界需要稳定二进制名称的类/方法。
+- Release APK 通过 packaging resources exclude 移除 `kotlinx-coroutines` 调试探针资源
+  `DebugProbesKt.bin`；不排除 Kotlin builtins 元数据。
 - `.so` 只进入 `app/build/generated/winestockRustJniLibs/<variant>/arm64-v8a`，不写入源码树 `src/main/jniLibs`。
 - `verify<Variant>RustNativeLibraries` 校验 ELF64/AArch64、JNI 导出、`DT_NEEDED` 和 profile marker；
   `verify<Variant>RustNativeApkPackage` 再检查最终 APK 只包含目标 ABI 和目标 `.so`。

@@ -5,7 +5,7 @@
 ## 全局 HTTP 外壳
 
 - `core/src/http/cors.rs`：统一 CORS 响应头和 OPTIONS 预检，不拥有前端资源；middleware 在所有业务 Router merge 完成后挂载，确保 auth、users 和 stock 路由都被覆盖。
-- `core/src/http/docs.rs`：OpenAPI 路径、元信息和业务 tag；Debug 挂载 Swagger UI，Release 只保留 OpenAPI JSON，避免链接 UI 静态资源。
+- `core/src/http/docs.rs`：Debug OpenAPI 路径、元信息和业务 tag；启用 Swagger UI feature 时挂载开发期 UI，Release 不注册文档路由并避免编译 Swagger UI。
 - `core/src/http/error_response.rs`：统一 `{ error: { code, message, details } }` 非 2xx JSON 契约及 404/405。
 - `core/src/http/health.rs`：无状态 `/api/health`。
 - `core/src/http/router.rs`：组装文档、健康检查、auth、users 和 stock Router，并注入 `CoreState`。

@@ -1,16 +1,19 @@
-//! core 全局 OpenAPI 与开发期 Swagger UI 装配。
+//! core 全局 Debug API 文档与开发期 Swagger UI 装配。
 //!
-//! 本模块属于 `core axum library` 层，只负责接口文档元信息和文档路由。
-//! Release 构建只保留 OpenAPI JSON，不注册或链接 Swagger UI；它也不承载平台前端资源。
+//! 本模块属于 `core axum library` 层，只负责 Debug 接口文档元信息和文档路由。
+//! Release 构建不注册 OpenAPI JSON 或 Swagger UI，也不编译 Swagger UI 依赖；它不承载平台前端资源。
 
+#[cfg(debug_assertions)]
 use super::{health::HealthResponse, ApiErrorResponse};
+#[cfg(debug_assertions)]
 use crate::auth::{
-    AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
-    AuthTokenResponse, AuthUserResponse,
+    AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest,
+    AuthRegisterRequest, AuthTokenResponse, AuthUserResponse,
 };
 use axum::Router;
-#[cfg(not(debug_assertions))]
+#[cfg(debug_assertions)]
 use axum::{routing::get, Json};
+#[cfg(debug_assertions)]
 use utoipa::{
     openapi::{
         content::Content,
@@ -22,17 +25,19 @@ use utoipa::{
     },
     Modify, OpenApi,
 };
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 use utoipa_swagger_ui::SwaggerUi;
 
 /// OpenAPI JSON 文档的服务路径。
+#[cfg(debug_assertions)]
 pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
 
 /// Debug 构建中 Swagger UI 的服务路径。
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 
 // 这里集中声明接口文档元信息，具体路径由带 #[utoipa::path] 的处理函数收集。
+#[cfg(debug_assertions)]
 #[derive(OpenApi)]
 #[openapi(
     paths(
@@ -225,8 +230,10 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 )]
 struct ApiDoc;
 
+#[cfg(debug_assertions)]
 struct SecurityAddon;
 
+#[cfg(debug_assertions)]
 impl Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         let components = openapi.components.get_or_insert_with(Default::default);
@@ -244,6 +251,7 @@ impl Modify for SecurityAddon {
 }
 
 /// 为所有接口补齐统一 400 错误响应文档，避免新增 extractor 后 OpenAPI 漏掉解析错误。
+#[cfg(debug_assertions)]
 fn apply_default_bad_request_responses(openapi: &mut utoipa::openapi::OpenApi) {
     for path_item in openapi.paths.paths.values_mut() {
         for operation in path_item_operations(path_item) {
@@ -259,6 +267,7 @@ fn apply_default_bad_request_responses(openapi: &mut utoipa::openapi::OpenApi) {
     }
 }
 
+#[cfg(debug_assertions)]
 fn path_item_operations(path_item: &mut PathItem) -> impl Iterator<Item = &mut Operation> {
     [
         path_item.get.as_mut(),
@@ -274,6 +283,7 @@ fn path_item_operations(path_item: &mut PathItem) -> impl Iterator<Item = &mut O
     .flatten()
 }
 
+#[cfg(debug_assertions)]
 fn operation_has_parseable_input(operation: &Operation) -> bool {
     operation.request_body.is_some()
         || operation
@@ -282,6 +292,7 @@ fn operation_has_parseable_input(operation: &Operation) -> bool {
             .is_some_and(|parameters| !parameters.is_empty())
 }
 
+#[cfg(debug_assertions)]
 fn api_error_response(description: &'static str) -> Response {
     let mut response = Response::new(description);
     response.content.insert(
@@ -291,8 +302,8 @@ fn api_error_response(description: &'static str) -> Response {
     response
 }
 
-/// Debug 构建挂载 Swagger UI，并由其同时提供 OpenAPI JSON。
-#[cfg(debug_assertions)]
+/// Debug 构建启用 Swagger UI feature 时挂载 Swagger UI，并由其同时提供 OpenAPI JSON。
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -300,8 +311,8 @@ where
     Router::new().merge(SwaggerUi::new(SWAGGER_UI_PATH).url(OPENAPI_JSON_PATH, ApiDoc::openapi()))
 }
 
-/// Release 构建只挂载 OpenAPI JSON，避免把 Swagger UI 静态资源链接进最终制品。
-#[cfg(not(debug_assertions))]
+/// Debug 构建未启用 Swagger UI feature 时只挂载 OpenAPI JSON。
+#[cfg(all(debug_assertions, not(feature = "swagger-ui")))]
 pub(crate) fn router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
@@ -309,8 +320,17 @@ where
     Router::new().route(OPENAPI_JSON_PATH, get(openapi_json))
 }
 
-/// 在不依赖 Swagger UI 的情况下返回动态生成的 OpenAPI 文档。
+/// Release 构建不挂载 API 文档，避免把 OpenAPI 生成代码链接进最终制品。
 #[cfg(not(debug_assertions))]
+pub(crate) fn router<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new()
+}
+
+/// 在不依赖 Swagger UI 的情况下返回动态生成的 OpenAPI 文档。
+#[cfg(debug_assertions)]
 async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
     Json(ApiDoc::openapi())
 }

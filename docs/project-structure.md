@@ -127,7 +127,7 @@ Current workspace dependencies:
 - `tower`
 - `utoipa`
 - `utoipa-axum`
-- `utoipa-swagger-ui`
+- `utoipa-swagger-ui`（可选 Debug Swagger UI feature）
 - `winestock-core`
 - `winestock-shared`
 
@@ -145,8 +145,8 @@ Current `core` API surface:
 - `build_router_with_local_service()`
 - `bootstrap_from_config()`
 - `bind_server()`
-- `OPENAPI_JSON_PATH`
-- `SWAGGER_UI_PATH`（仅 Debug 构建导出）
+- `OPENAPI_JSON_PATH`（仅 Debug 构建导出）
+- `SWAGGER_UI_PATH`（仅 Debug 构建且启用 Swagger UI feature 时导出）
 
 Current `core` HTTP surface:
 
@@ -164,8 +164,9 @@ Current `core` HTTP surface:
 - `PUT /api/users/{id}/permissions`
 - `POST /api/users/{id}/password`
 - `GET /api/permissions`
-- `GET /api-docs/openapi.json`
-- Debug 构建在 `/swagger-ui` 提供 Swagger UI；Release 构建不注册该路由，也不链接 UI 静态资源
+- `GET /api-docs/openapi.json`（仅 Debug 构建）
+- Debug 构建启用 Swagger UI feature 时在 `/swagger-ui` 提供 Swagger UI；Release 构建不注册文档路由，
+  也不编译或链接 Swagger UI
 
 `shared` owns the shared runtime configuration model, platform-neutral startup contracts, and primitive text validation helpers.
 It must not depend on `core`, Axum, Tauri, Android shell code, or frontend build output.

@@ -2,7 +2,7 @@
 
 //! WineStock 共享 Rust/Axum 服务核心。
 //!
-//! 本 crate 属于 `core axum library` 层，拥有 API 路由、OpenAPI 文档、网络绑定、
+//! 本 crate 属于 `core axum library` 层，拥有 API 路由、Debug API 文档、网络绑定、
 //! 本地服务启动依赖、security/auth/users/rbac/files/stock 领域能力和持久化集成。
 //! 它不拥有 server 进程生命周期、桌面/Android shell、WebView 或前端打包产物。
 
@@ -21,17 +21,19 @@ mod users;
 mod validation;
 
 pub use auth::{
-    AuthBootstrap, AuthBootstrapError, AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest,
-    AuthRefreshRequest, AuthRegisterRequest, AuthSettings, AuthSigningKey, AuthTokenResponse,
-    AuthUserResponse, SigningKeyStatus,
+    AuthBootstrap, AuthBootstrapError, AuthBootstrapStatus, AuthClientKind, AuthLoginRequest,
+    AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest, AuthSettings, AuthSigningKey,
+    AuthTokenResponse, AuthUserResponse, SigningKeyStatus,
 };
 pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };
 pub use files::FileCleanupError;
 #[cfg(debug_assertions)]
+pub use http::OPENAPI_JSON_PATH;
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 pub use http::SWAGGER_UI_PATH;
-pub use http::{build_router, build_router_with_local_service, OPENAPI_JSON_PATH};
+pub use http::{build_router, build_router_with_local_service};
 pub use local_service::{
     start_local_service, LocalServiceInfo, LocalServiceRuntimeError, RunningLocalService,
 };

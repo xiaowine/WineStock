@@ -66,11 +66,11 @@ Current implemented surface:
 - `PUT /api/users/{id}/permissions`
 - `POST /api/users/{id}/password`
 - `GET /api/permissions`
-- OpenAPI JSON at `/api-docs/openapi.json`
-- Swagger UI at `/swagger-ui` in Debug builds only
+- OpenAPI JSON at `/api-docs/openapi.json` in Debug builds only
+- Swagger UI at `/swagger-ui` in Debug builds only when the Swagger UI feature is enabled
 
-Release builds retain `/api-docs/openapi.json` but do not register Swagger UI or link its static assets.
-In Debug builds, Swagger UI is API documentation tooling exposed by the service.
+Release builds do not register `/api-docs/openapi.json` or `/swagger-ui`, and do not compile or link Swagger UI.
+In Debug builds, OpenAPI JSON and optional Swagger UI are API documentation tooling exposed by the service.
 It is not a platform frontend bundle and does not change the rule that Axum must not own desktop or Android UI assets.
 
 ### `desktop shell`

@@ -11,9 +11,11 @@ mod error;
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
+use winestock_core::start_local_service;
 #[cfg(debug_assertions)]
+use winestock_core::OPENAPI_JSON_PATH;
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 use winestock_core::SWAGGER_UI_PATH;
-use winestock_core::{start_local_service, OPENAPI_JSON_PATH};
 
 pub use error::ServerShellError;
 
@@ -47,8 +49,9 @@ pub async fn run() -> Result<(), ServerShellError> {
     let access_url = access_url(bound_addr);
     println!("监听地址: {}", display_bind_addr(bound_addr));
     println!("访问地址: {access_url}");
-    println!("OpenAPI JSON: {access_url}{OPENAPI_JSON_PATH}");
     #[cfg(debug_assertions)]
+    println!("OpenAPI JSON: {access_url}{OPENAPI_JSON_PATH}");
+    #[cfg(all(debug_assertions, feature = "swagger-ui"))]
     println!("Swagger UI: {access_url}{SWAGGER_UI_PATH}");
 
     println!("按 Ctrl+C 停止服务。");

@@ -63,6 +63,12 @@ abstract class RustNativeBuildTask @Inject constructor(
     @get:Input
     abstract val release: Property<Boolean>
 
+    @get:Input
+    abstract val cargoFeatures: ListProperty<String>
+
+    @get:Input
+    abstract val sqliteCompileFlags: Property<String>
+
     /** cargo 的中间 target 目录，不进入 Android 打包输入。 */
     @get:LocalState
     abstract val cargoTargetDirectory: DirectoryProperty
@@ -108,6 +114,10 @@ abstract class RustNativeBuildTask @Inject constructor(
         if (release.get()) {
             arguments += "--release"
         }
+        if (cargoFeatures.get().isNotEmpty()) {
+            arguments += "--features"
+            arguments += cargoFeatures.get().joinToString(",")
+        }
         runCargo(arguments, repositoryRoot)
 
         val library = outputRoot.resolve("${targetAbi.get()}/libwinestock_android_native.so")
@@ -125,6 +135,10 @@ abstract class RustNativeBuildTask @Inject constructor(
                 commandLine(listOf(cargoExecutable.get()) + arguments)
                 environment("ANDROID_NDK_HOME", ndkDirectory.get().asFile.absolutePath)
                 environment("CARGO_TARGET_DIR", cargoTargetDirectory.get().asFile.absolutePath)
+                val sqliteFlags = sqliteCompileFlags.get().trim()
+                if (sqliteFlags.isNotEmpty()) {
+                    environment("LIBSQLITE3_FLAGS", sqliteFlags)
+                }
                 setStandardOutput(standardOutputBuffer)
                 setErrorOutput(errorOutputBuffer)
             }.assertNormalExitValue()

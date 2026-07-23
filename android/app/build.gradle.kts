@@ -36,9 +36,9 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
     compileOptions {
@@ -50,6 +50,11 @@ android {
     }
     dependenciesInfo {
         includeInApk = false
+    }
+    packaging {
+        resources {
+            excludes += "DebugProbesKt.bin"
+        }
     }
     lint {
         // 当前产品范围明确只支持 ARM64 Android 真实设备，不承诺 ChromeOS x86 ABI。
@@ -171,6 +176,20 @@ androidComponents {
                 targetAbi.set("arm64-v8a")
                 minApi.set(26)
                 release.set(variant.buildType == "release")
+                cargoFeatures.set(
+                    if (variant.buildType == "release") {
+                        emptyList()
+                    } else {
+                        listOf("debug-swagger-ui")
+                    },
+                )
+                sqliteCompileFlags.set(
+                    if (variant.buildType == "release") {
+                        "-USQLITE_ENABLE_FTS3 -USQLITE_ENABLE_FTS3_PARENTHESIS -USQLITE_ENABLE_FTS5"
+                    } else {
+                        ""
+                    },
+                )
                 cargoTargetDirectory.set(
                     layout.buildDirectory.dir("intermediates/winestockRust/$variantName/cargo-target"),
                 )

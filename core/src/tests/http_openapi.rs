@@ -12,13 +12,13 @@ use axum::{
 };
 use tower::ServiceExt;
 
+use crate::test_support::{empty_app, error_code, json_body};
 #[cfg(debug_assertions)]
+use crate::OPENAPI_JSON_PATH;
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 use crate::SWAGGER_UI_PATH;
-use crate::{
-    test_support::{empty_app, error_code, json_body},
-    OPENAPI_JSON_PATH,
-};
 
+#[cfg(debug_assertions)]
 #[tokio::test]
 async fn openapi_includes_bearer_auth_and_auth_paths() {
     let response = crate::build_router()
@@ -263,7 +263,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_location_tree_schema(&value);
 }
 
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, feature = "swagger-ui"))]
 #[tokio::test]
 async fn swagger_ui_is_available_in_debug_builds() {
     let response = crate::build_router()
@@ -282,6 +282,45 @@ async fn swagger_ui_is_available_in_debug_builds() {
         .to_str()
         .expect("content type should be valid")
         .starts_with("text/html"));
+}
+
+#[cfg(debug_assertions)]
+#[cfg(not(feature = "swagger-ui"))]
+#[tokio::test]
+async fn swagger_ui_is_not_available_without_swagger_feature() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/swagger-ui/")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(response.headers()[CONTENT_TYPE], "application/json");
+    assert_eq!(error_code(response).await, "not_found");
+}
+
+#[cfg(not(debug_assertions))]
+#[tokio::test]
+async fn openapi_json_is_not_available_in_release_builds() {
+    let response = crate::build_router()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api-docs/openapi.json")
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+
+    assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND);
+    assert_eq!(response.headers()[CONTENT_TYPE], "application/json");
+    assert_eq!(error_code(response).await, "not_found");
 }
 
 #[cfg(not(debug_assertions))]
@@ -394,6 +433,7 @@ async fn unsupported_method_returns_json_error() {
     assert_eq!(error_code(response).await, "method_not_allowed");
 }
 
+#[cfg(debug_assertions)]
 fn assert_operation_tag(value: &serde_json::Value, path: &str, method: &str, expected: &str) {
     let operation = &value["paths"][path][method];
     let tags = operation["tags"]
@@ -406,6 +446,7 @@ fn assert_operation_tag(value: &serde_json::Value, path: &str, method: &str, exp
     );
 }
 
+#[cfg(debug_assertions)]
 fn assert_no_operation_tag(value: &serde_json::Value, unexpected: &str) {
     let paths = value["paths"]
         .as_object()
@@ -427,6 +468,7 @@ fn assert_no_operation_tag(value: &serde_json::Value, unexpected: &str) {
     }
 }
 
+#[cfg(debug_assertions)]
 fn assert_operation_response(value: &serde_json::Value, path: &str, method: &str, status: &str) {
     assert!(
         value["paths"][path][method]["responses"][status].is_object(),
@@ -434,6 +476,7 @@ fn assert_operation_response(value: &serde_json::Value, path: &str, method: &str
     );
 }
 
+#[cfg(debug_assertions)]
 fn assert_no_operation_response(value: &serde_json::Value, path: &str, method: &str, status: &str) {
     assert!(
         value["paths"][path][method]["responses"][status].is_null(),
@@ -441,6 +484,7 @@ fn assert_no_operation_response(value: &serde_json::Value, path: &str, method: &
     );
 }
 
+#[cfg(debug_assertions)]
 fn assert_location_tree_schema(value: &serde_json::Value) {
     let schema = &value["paths"]["/api/location-groups/tree"]["get"]["responses"]["200"]["content"]
         ["application/json"]["schema"];

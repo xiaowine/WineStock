@@ -1,12 +1,16 @@
-# Add project specific R8 rules here.
-# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+# WineStock Android Release R8 keep rules.
 #
-# For more details, see
-#   https://d.android.com/r/tools/r8/keep-rules
+# 只保留平台边界需要稳定二进制名称的入口；Shell Bridge 使用 AndroidX
+# WebMessageListener，不通过 addJavascriptInterface 暴露反射式 JS 对象，因此不需要
+# keep 整个 bridge 包。
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# JNI 查找依赖 Java_winestock_xiaowine_cc_core_NativeCoreBridge_* 符号对应的
+# 类名和 native 方法名，Release 混淆时必须保持稳定。
+-keep class winestock.xiaowine.cc.core.NativeCoreBridge {
+    public static native <methods>;
+}
+
+# 保留其它潜在 native 方法的类和方法名，避免后续新增 JNI 入口时遗漏规则。
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
