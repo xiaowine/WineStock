@@ -1,6 +1,6 @@
 # WineStock Android WebView Edge-to-Edge 实施方案
 
-> 文档状态：已实施，已完成 API 36 手势导航基础验收，待完整设备矩阵<br>
+> 文档状态：已实施；已完成 API 36 手势导航与 API 33 三键导航基础验收，待完整设备矩阵<br>
 > 涉及组件：`android`、`frontend`、根项目文档<br>
 > 编制日期：2026-07-23<br>
 > 适用范围：Android API 26 及以上，当前 `targetSdk = 36`
@@ -522,7 +522,8 @@ Set-Location ..\android
 
 ## 14. 文档同步要求
 
-本方案涉及的 Android WebView shell 已完成 edge-to-edge 与 CSS inset 发布实现；共享 Rust 服务集成和真实设备矩阵仍按平台文档保持未完成状态。
+本方案涉及的 Android WebView shell 已完成 edge-to-edge、CSS inset 发布与共享 Rust 服务集成；
+API 36 手势导航和 API 33 三键导航已有真实设备记录，完整版本、窗口与输入状态矩阵仍按平台文档继续覆盖。
 
 本次已同步：
 
@@ -586,6 +587,13 @@ Set-Location ..\android
   - shell top 值与设备 `169px / 3.75 = 45.07px` 的物理 cutout/density 换算一致；WebView 自身 `env()` 为 `46px`，统一变量通过 `max()` 取值，没有双重相加；
   - 竖屏与两个横屏方向的真实截图确认状态栏、页面顶栏、底部固定操作区和手势导航区背景连续，按钮与文字未进入系统栏或 cutout 交互区域；
   - 通过 WebView CDP 强制重载页面后，四边 shell CSS 变量重新发布，未捕获 JavaScript exception、console error 或 warning；旋转回竖屏后左右 inset 也恢复为零；
+- Android 真实机补充 smoke：在 Xiaomi `M2012K11AC`、Android 13 / API 33、三键导航设备上安装当前
+  Debug APK；设备物理分辨率为 `1080 × 2400`、density 440；
+  - 竖屏下登录、运行设置、服务不可用、正常应用壳、Drawer 和 Dialog 的标题、正文与操作区均未进入
+    状态栏或三键导航保护区域；
+  - 强制横屏后物理窗口为 `2400 × 1080`，WebView hierarchy 可见区域约为 `1200 × 540`；登录表单、
+    按钮和底部内容均可达，未观察到明显裁切或横向溢出；
+  - 旋转回竖屏、HOME 后热恢复和 force-stop 后冷启动均能重新得到可操作页面；
 - Chrome DevTools MCP 桌面与移动回归：
   - `1440 × 900`、`768 × 900` 运行设置页无横向溢出；
   - `390 × 844` 注入 shell inset `top=32px`、`right=4px`、`bottom=24px`、`left=20px` 后，运行设置、AppShell、移动 Drawer、物品、库位和入库工作台均落在安全矩形内；
@@ -593,4 +601,5 @@ Set-Location ..\android
   - `844 × 390` 注入左侧 cutout `36px`、底部 inset `24px` 后，运行设置工作区、普通 Dialog 与全屏网络工作区均未越过安全区；
   - 图片预览在 `top=32px`、`right=4px`、`bottom=24px`、`left=20px` 下按容器实际 padding 约束图片边界；
   - 上述检查的文档宽度均等于视口宽度，控制台无 error、warning 或 issue；
-- 仍待覆盖三键导航、其它 API 版本、软键盘、分屏、深色系统主题、冷启动和热恢复等完整设备矩阵。
+- 仍待覆盖 API 26、29/30、34、35 等版本，更多手势/挖孔组合、软键盘、分屏、深色系统主题和
+  可调整窗口等完整设备矩阵。

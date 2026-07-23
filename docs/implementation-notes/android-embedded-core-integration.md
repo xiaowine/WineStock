@@ -1,6 +1,6 @@
 # WineStock Android 引入 core 本地服务实施方案
 
-> 文档状态：代码与 APK 集成已完成，最小真机 smoke 已通过，完整真机矩阵待测试<br>
+> 文档状态：代码与 APK 集成已完成，API 33 关键真机 smoke 已通过，完整业务与异常矩阵待补齐<br>
 > 涉及组件：`shared`、`core`、`server`、`android`、少量 `frontend` 运行状态联调<br>
 > 编制日期：2026-07-23<br>
 > 当前 Android 基线：AGP `9.2.1`、`minSdk 26`、`targetSdk 36`、Java 17、原生 WebView Shell
@@ -98,7 +98,8 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-core --locked
 | Android Rust targets | 已安装          |
 | Android 最低 API     | `26`            |
 
-该检查只证明 core 依赖可交叉编译，不等于 JNI、Gradle 打包、设备加载和 WebView HTTP 联调已经完成。后续仍需完成 ARM64 JNI 构建、APK 包级验证和真实设备 smoke。
+该检查本身只证明 core 依赖可交叉编译，不单独等同于 JNI、Gradle 打包、设备加载和 WebView HTTP 联调；
+后续 ARM64 JNI 构建、APK 包级验证和 API 33 真机 smoke 已在本记录第 22 节完成。
 
 ## 3. 目标与非目标
 
@@ -1384,10 +1385,10 @@ gradlew.bat :app:assembleRelease                       # passed, profile=release
 
 首次 APK 结果：
 
-| 制品 | APK 大小 | 包内 native library | ABI |
-| ---- | -------- | ------------------- | --- |
-| Debug | 28,320,983 bytes | 20,919,752 bytes | 仅 `arm64-v8a` |
-| Release unsigned | 29,842,036 bytes | 23,885,144 bytes | 仅 `arm64-v8a` |
+| 制品             | APK 大小         | 包内 native library | ABI            |
+| ---------------- | ---------------- | ------------------- | -------------- |
+| Debug            | 28,320,983 bytes | 20,919,752 bytes    | 仅 `arm64-v8a` |
+| Release unsigned | 29,842,036 bytes | 23,885,144 bytes    | 仅 `arm64-v8a` |
 
 两个 APK 均通过最终归档检查，目标路径为：
 
@@ -1395,30 +1396,35 @@ gradlew.bat :app:assembleRelease                       # passed, profile=release
 lib/arm64-v8a/libwinestock_android_native.so
 ```
 
-### 22.3 已完成的最小真机 smoke
+### 22.3 已完成的 API 33 真机 smoke
 
-2026-07-23 在已连接的 ARM64 真机 `M2012K11AC` 上完成以下最小验证：
+2026-07-23 在 ARM64 真机 Xiaomi `M2012K11AC`、Android 13 / API 33、三键导航环境完成：
 
-- 使用 `adb install -r` 覆盖安装 Debug APK，未清除已有应用数据；
-- 冷启动 `MainActivity` 成功，Activity 保持 resumed，未出现 AndroidRuntime/FATAL 崩溃；
-- Logcat 出现 `JNI_OnLoad success`，证明 APK 内 ARM64 `.so` 已由设备实际加载；
-- 从已有远端配置切换到 `self-hosted` 后，配置事务成功持久化；
-- Rust 端完成 SQLite migration 检查，设备内请求 `http://127.0.0.1:17890/api/health`
-  返回 `{"status":"OK"}`。
+- 通过 `:app:installDebug` 构建并覆盖安装当前工作树 Debug APK，未清除已有应用数据；冷启动
+  `MainActivity` 成功，Logcat 证明 ARM64 `.so` 已实际加载，未出现 AndroidRuntime/FATAL 崩溃；
+- 断开 Wi-Fi 后 force-stop 并冷启动，打包前端仍显示“暂时无法连接服务”，运行设置和重新连接入口可用，
+  未发现白屏、404、Uncaught 或 APK 资源加载失败；
+- 本机 `self-hosted` 完成 SQLite migration，停止、启动和重启均成功，健康检查地址为
+  `http://127.0.0.1:17890`；重启或切换服务会按设计清除旧会话；
+- force-stop 后再次启动仍保留本机配置，Application manager 自动启动本地服务，登录页显示恢复出的
+  loopback 地址；HOME 后重新进入 Activity 的热恢复也成功；
+- 远端模式连接 `http://192.168.10.183:17890` 后，健康检查、登录、dashboard 和物品列表读取成功；
+  远端数据库与设备本机数据库相互隔离，本机空数据库不接受远端已有账号属于预期数据边界；
+- 竖屏、横屏和旋转恢复均保持页面可操作；三键返回、ADB `KEYCODE_BACK`、普通路由、Dialog、Drawer
+  与账户 Popover 的前端优先返回语义已通过；
+- 远端明文 HTTP 产生 WebView mixed-content warning，符合当前显式放行策略；未发现 FATAL、JNI load
+  failure、资源 404 或 core 意外退出。
 
-后续冷启动恢复检查开始后，因其它任务正在使用同一测试环境而按用户要求停止；不得把未完成项目推断为通过。
+### 22.4 剩余真实设备覆盖项
 
-### 22.4 待真实设备测试
+以下项目尚未形成完整证据，不应从本次 API 33 smoke 推断为通过：
 
-以下项目仍未形成完整证据，统一标记为“待真实设备测试”：
-
-- 登录、业务读写、图片上传和下载；
-- WebView 在进程冷启动后自动使用恢复出的本地 API 地址；
-- Activity 旋转、页面 reload、前后台恢复时 core generation 保持；
-- 手势返回与三键返回；
-- 远端/本地反复切换、失败回滚和端口占用恢复；
-- force-stop、系统杀进程和 SQLite WAL 恢复；
-- 冷启动耗时、内存、空闲 CPU 与连续 restart 稳定性。
+- 本机首次用户创建、完整业务写入、图片上传和下载；
+- API 26、29/30、34、35、36 的 embedded-core 回归，以及手势导航；
+- 页面 reload 期间的 generation 取消、bridge/proxy 缺失、迟到应答和 JS 主线程卡顿；
+- 远端/本地多轮切换中的失败回滚、端口占用、migration/storage 故障恢复；
+- 系统主动杀进程后的 SQLite WAL 恢复；
+- 冷启动耗时、内存、空闲 CPU 与长时间连续 restart 稳定性。
 
 ## 23. 参考资料
 

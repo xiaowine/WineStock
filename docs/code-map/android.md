@@ -162,4 +162,5 @@ MainActivity.onCreate
 - Shell Bridge 消息通道和文档起始脚本都限定该 origin，非受信任 origin 无法调用桥。
 - 业务能力通过 HTTP 使用 core；桥只承载运行配置、服务生命周期、真实地址和具名平台事件。
 - 本地 self-hosted Axum 已接入；`server-mode` 前台服务仍未实现并通过 capability 关闭。
-- 当前只构建/验收 ARM64 APK；真实设备的加载、HTTP、旋转、后台与 force-stop 恢复仍待测试。
+- 当前只构建/验收 ARM64 APK；API 33 三键导航 ARM64 真机已完成加载、HTTP、旋转、后台与
+  force-stop 恢复 smoke，API 版本/手势导航/完整业务矩阵仍待覆盖。

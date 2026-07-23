@@ -93,8 +93,9 @@ Android 前端资源由 Android 打包，不由 Axum crate 提供。
 - `android/native` 是唯一 JNI 适配层，复用 `core -> shared`，业务调用仍为 WebView -> HTTP；
 - Android `self-hosted` 仅允许 `127.0.0.1`；Foreground Service 与通知策略完成前继续禁用 `server-mode`；
 - 当前构建和交付只支持 APK 与 `arm64-v8a`，AAB、32 位 ARM 和 x86 ABI 不属于当前阶段；
-- 主机测试、ARM64 交叉构建、Debug/Release APK 构建和包级检查已完成；ARM64 真机已验证 Debug APK
-  安装、JNI 加载和本地 `/api/health`，WebView 冷启动恢复、旋转、后台恢复、force-stop 与完整业务 smoke 仍待测试。
+- 主机测试、ARM64 交叉构建、Debug/Release APK 构建和包级检查已完成；API 33 ARM64 真机已验证
+  Debug APK 安装、JNI 加载、离线冷启动、远端/本机 HTTP、旋转、后台恢复、force-stop 恢复和原生返回
+  浮层/路由 smoke。其它 Android 版本、手势导航、异常注入和完整业务矩阵仍待覆盖。
 
 ## Server
 

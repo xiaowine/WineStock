@@ -1,16 +1,17 @@
 # WineStock Android WebView 原生返回键协商实施方案
 
-> 文档状态：已实施，真实设备矩阵待统一上机验证<br>
+> 文档状态：已实施；API 33 三键导航真机 smoke 已完成，跨版本、手势与异常矩阵仍待补齐<br>
 > 涉及组件：`android`、`frontend`、根项目文档<br>
 > 编制日期：2026-07-23<br>
 > 适用范围：Android API 26 及以上，当前 `targetSdk = 36`
 
 > 实施记录：Android broker、页面代次、400ms 超时、Bridge 事件/应答、Activity fallback、前端
 > priority/LIFO registry、通用浮层与主要页面接入、出库异步离开确认、前端 core 自动化测试均已落地。本文第 2 节保留的
-> “当前实现”证据是实施前基线；完成定义中的真实设备手势/三键导航验收将在有在线设备时统一执行。
+> “当前实现”证据是实施前基线。
 >
-> 后续验证标记：`PENDING-DEVICE-SMOKE`。当前没有在线 Android 设备，下列真实设备矩阵尚未宣称通过；
-> 后续完成统一上机测试后，应勾选第 15.4 节清单、记录设备/API/导航方式和结果，并把本文状态改为“已实施并完成设备验收”。
+> 2026-07-23 已在 Xiaomi `M2012K11AC`、Android 13 / API 33、三键导航设备上完成原生返回 smoke；
+> 已覆盖系统返回键、ADB `KEYCODE_BACK`、普通路由、Dialog、Drawer、账户 Popover、冷/热启动、旋转和后台恢复。
+> API 26/29/30/34/35/36、手势导航、JS 卡顿、proxy 缺失、迟到应答及完整嵌套浮层/草稿矩阵仍是剩余覆盖项。
 
 ## 1. 结论
 
@@ -807,8 +808,9 @@ frontend 仍不引入额外测试依赖。本任务把平台无关逻辑拆到 `
 - dispose 后不再处理事件或结算 in-flight handler；
 - 订阅安装失败时清理 route handler。
 
-`capability=false` 不调用平台可选扩展仍由 `shell/runtime.ts` 的运行期门控和普通 Web 构建覆盖；真实
-Dialog、Drawer、路由守卫与 Android 生命周期组合继续纳入设备 smoke。
+`capability=false` 不调用平台可选扩展仍由 `shell/runtime.ts` 的运行期门控和普通 Web 构建覆盖；API 33
+真机已覆盖普通 Dialog、Drawer、路由与部分 Android 生命周期组合，nested 浮层、路由守卫和异常生命周期
+组合仍保留在剩余设备 smoke 范围内。
 
 ### 15.3 真实交互验收
 
@@ -832,16 +834,29 @@ Dialog、Drawer、路由守卫与 Android 生命周期组合继续纳入设备 s
 | 请求后立即刷新页面       | 旧请求取消，新页面 ready 前走 immediate fallback | 新页面 ready 后恢复协商   |
 | 400ms 内连续按两次       | 只执行一个返回语义                               | 第二次在 pending 期被消费 |
 
+本次 API 33 三键导航真机实际结果：
+
+- 登录根路由返回后进入系统桌面；注册页通过 ADB `KEYCODE_BACK` 返回登录页；
+- 本机运行设置页返回登录页，普通“物品管理”二级路由返回 dashboard；
+- 账户 Popover、移动导航 Drawer、运行服务切换确认 Dialog 和物品高级筛选 Dialog 均先关闭当前浮层，
+  原页面或草稿保持；
+- 两次设备端返回约间隔 50ms 时，第一次关闭 Dialog，第一次请求快速结算后第二次继续执行路由返回；
+  该结果不等同于 JS 主线程卡顿期间对同一 pending request 的重复提交验证。
+
 ### 15.4 平台矩阵
 
-> 当前状态：`PENDING-DEVICE-SMOKE`，以下项目全部待统一上机测试。
+已完成一台 API 33 三键导航代表设备的基础矩阵，未覆盖项继续保留为明确的剩余范围：
 
-- [ ] API 26、29/30、33/34、35、36 至少各覆盖一台代表设备或模拟环境；
-- [ ] 三键导航返回键、手势导航返回提交和 ADB `KEYCODE_BACK`；
-- [ ] 竖屏、横屏与旋转重建；
-- [ ] 冷启动、热恢复、页面刷新、后台恢复；
-- [ ] Dialog、nested Dialog、Select、图片预览、Drawer、Popover、入出库步骤与草稿守卫；
-- [ ] bridge 不支持、proxy 缺失、JS 卡顿、迟到应答与 400ms 内连续返回。
+- [x] API 33 ARM64 真机；
+- [ ] API 26、29/30、34、35、36 代表设备或模拟环境；
+- [x] 三键导航返回键与 ADB `KEYCODE_BACK`；
+- [ ] 手势导航返回提交与 predictive-back 提交结果；
+- [x] 竖屏、横屏与旋转重建；
+- [x] 冷启动、热恢复和后台恢复；
+- [ ] 页面刷新期间的 generation 取消与新页面 ready 前 fallback；
+- [x] 普通 Dialog、Drawer、Popover 与普通路由；
+- [ ] nested Dialog、Select listbox、图片预览、入出库步骤和草稿守卫；
+- [ ] bridge 不支持、proxy 缺失、JS 卡顿、迟到应答及同一 pending request 内连续返回。
 
 | 维度         | 最低覆盖                                                |
 | ------------ | ------------------------------------------------------- |

@@ -222,6 +222,9 @@ The root Cargo workspace currently contains:
 The formal Desktop Tauri shell is not implemented yet. The repository Android shell now includes
 packaged frontend loading, Shell Bridge transport, edge-to-edge WindowInsets publication, an
 Application-level runtime manager, and the `android/native -> core -> shared` local Axum path.
-Host, ARM64, and APK verification are complete; real-device lifecycle and WebView HTTP smoke remain pending.
+Host, ARM64, and APK verification are complete. An API 33 ARM64 physical-device smoke has also
+verified packaged WebView loading, offline recovery, local/remote HTTP use, lifecycle recovery,
+rotation, and native-back interactions; the broader Android version, navigation-mode, and business
+regression matrix remains to be covered.
 
 The formal server shell exists under `server/` and starts the shared Axum service from JSON config.

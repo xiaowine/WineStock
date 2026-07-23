@@ -1,9 +1,10 @@
 # Server mode 本机局域网地址实施方案
 
-> 文档状态：阶段 A 已实施，平台地址提供与真实设备验收待后续<br>
+> 文档状态：阶段 A 已实施；API 33 Android 远端 smoke 已完成，正式平台地址提供待后续<br>
 > 涉及组件：`frontend`、Desktop/Android Shell、根项目文档<br>
 > 编制日期：2026-07-23<br>
-> 当前边界：先完成前端展示与契约消费；正式 Desktop Shell 地址发现、Android server mode 和真实设备验收后续补齐
+> 当前边界：前端展示与契约消费已完成；Android 当前 `serverMode = false` 的隐藏行为已上机验证，
+> 正式 Desktop Shell 地址发现和 Android server mode 的真实 LAN 地址仍待实现
 
 > 实施记录：纯地址选择器、自动化测试、本机运行设置主入口、头像快捷入口、共用 Dialog、复制反馈、
 > 地址失效关闭和 Web fallback 占位值清理均已完成。正式 Shell 仍需按本文提供真实 `lanAccessUrls`。
@@ -186,9 +187,14 @@ Dialog 打开后若新快照不再满足条件，应关闭 Dialog；不得继续
 - 复制图标按钮尺寸、提示和无障碍名称正确，浏览器剪贴板成功路径及全局 Notice 已验证；
 - 快照切换为 stopped 并移除地址后，入口立即隐藏，Dialog 在统一离场动画完成后移除；
 - 浏览器控制台没有新增 error、warning 或 issue。
+- 2026-07-23 在 Xiaomi `M2012K11AC`、Android 13 / API 33 真机连接远端 HTTP 服务后，健康检查、
+  登录和 dashboard 均正常；账户菜单只显示“本机运行设置”和“退出登录”，没有“本机局域网地址”，
+  符合 Android 当前 `serverMode = false` 与非本地 server-mode 服务不展示入口的约束。
 
-## 9. 后续验证标记
+## 9. 剩余覆盖项
 
-`PENDING-PLATFORM-SHELL-SMOKE`：正式 Desktop Shell 尚不存在，本次无法用真实 Shell 快照验证网卡发现、网络变化和防火墙场景。
+- 正式 Desktop Shell 尚不存在，仍需在实现后用真实 Shell 快照验证网卡发现、网络变化和防火墙场景。
 
-`PENDING-DEVICE-SMOKE`：当前没有在线 Android 设备，且 Android server mode 尚未启用。后续统一上机时应验证入口保持隐藏；待 Android server mode 完成后，再补充真实 LAN URL、复制、旋转、前后台切换和原生返回验收记录。
+- Android server mode 尚未启用；完成 Foreground Service、通知与网络策略后，仍需补充真实 LAN URL、
+  复制、旋转、前后台切换和原生返回验收。当前 API 33 设备结果只证明 capability 关闭时入口正确隐藏，
+  不代表 Android 已具备对外提供 server-mode 地址的能力。

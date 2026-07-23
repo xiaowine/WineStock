@@ -36,9 +36,12 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - Android `self-hosted` 当前只允许 `127.0.0.1`；`server-mode` 在 Foreground Service 与通知策略完成前保持禁用。
 - native library 无法加载时前端与设置页仍可打开，并允许保存/使用远端配置。
 - 为连接局域网明文 HTTP 服务器，已放行 cleartext 与 WebView mixed-content，范围见 `network_security_config.xml` 与代码注释。
-- ARM64 真机已完成 Debug APK 覆盖安装、JNI 实际加载、`self-hosted` migration 和 loopback `/api/health`
-  最小 smoke；手势导航、三键导航、旋转、后台恢复、force-stop 和完整业务回归仍标记为“待真实设备测试”。
-- JVM、lint、assemble 和最小 smoke 都不能替代完整真机矩阵。
+- API 33、三键导航的 ARM64 真机已完成 Debug APK 覆盖安装、JNI 实际加载、`self-hosted` migration、
+  loopback `/api/health`、离线冷启动、远端/本机切换、旋转、后台恢复、force-stop 恢复和原生返回
+  浮层/路由 smoke；未发现 404、Uncaught 或 FATAL，连接明文 HTTP 远端时出现的 WebView
+  mixed-content warning 属于当前安全策略下的预期提示。
+- 其它 API 版本、手势导航、异常注入和完整业务回归仍是剩余覆盖项；JVM、lint、assemble 和本次真机
+  smoke 都不能替代完整矩阵。
 
 ## 前端资源打包
 

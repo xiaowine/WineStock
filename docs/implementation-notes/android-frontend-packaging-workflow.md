@@ -1,6 +1,6 @@
 # WineStock Android 前端打包工作流完善方案
 
-> 文档状态：已实施；设备离线运行 smoke 与跨系统确定性验证待执行<br>
+> 文档状态：已实施；API 33 真机离线运行 smoke 已完成，CI frozen install 与跨系统确定性验证待执行<br>
 > 涉及组件：`android`、`frontend`、CI/发布流程<br>
 > 编制日期：2026-07-23<br>
 > 适用范围：当前 Android Gradle Plugin `9.2.1`、Gradle `9.6.1`、Vue/Vite 前端
@@ -502,7 +502,7 @@ android/gradlew :app:bundleRelease :app:verifyReleaseFrontendPackage --configura
 
 完成标志：正确性不降低的前提下，未变更构建不重复执行前端编译。
 
-当前实施结果：阶段一已完成；阶段二的目录校验和 APK/AAB 包级校验已完成，CI 接入与设备离线 smoke 待后续环境执行；阶段三已完成本机 `UP-TO-DATE` 和 configuration cache 验证，跨系统确定性与共享远程缓存仍保持禁用。
+当前实施结果：阶段一已完成；阶段二的目录校验、APK/AAB 包级校验和 API 33 真机离线 smoke 已完成，CI frozen install 待后续环境执行；阶段三已完成本机 `UP-TO-DATE` 和 configuration cache 验证，跨系统确定性与共享远程缓存仍保持禁用。
 
 ## 16. 验收清单
 
@@ -534,11 +534,11 @@ android/gradlew :app:bundleRelease :app:verifyReleaseFrontendPackage --configura
 
 ### 16.4 运行 smoke
 
-- [ ] Android 设备离线且 API 不可用时，仍可加载包内前端。
-- [ ] 页面从 `https://winestock.internal/` 加载，根绝对资源路径正常。
-- [ ] Shell Bridge 在受信任 origin 正常注入并收到 `frontendReady`。
-- [ ] 前端入口、懒加载路由、CSS、SVG 和字体无 404。
-- [ ] WebView 控制台无新增资源加载 error。
+- [x] Android 设备离线且 API 不可用时，仍可加载包内前端。
+- [x] 页面从 `https://winestock.internal/` 加载，根绝对资源路径正常。
+- [x] Shell Bridge 在受信任 origin 正常注入并收到 `frontendReady`；运行设置与本地服务生命周期调用可用。
+- [x] 前端入口、懒加载路由、CSS、SVG 和字体无 404。
+- [x] WebView 控制台无资源加载 error；连接明文 HTTP 远端时仅有当前策略预期的 mixed-content warning。
 
 ### 16.5 已执行验证记录
 
@@ -548,7 +548,13 @@ android/gradlew :app:bundleRelease :app:verifyReleaseFrontendPackage --configura
 - 临时移开 `frontend/dist` 并执行 `:app:clean` 后，`assembleDebug` 仍从当前源码重新生成前端并成功打包。
 - 故障注入验证了 legacy assets、manifest 缺失、manifest 引用缺失、依赖未准备和 TypeScript 错误都会中止构建。
 - 受控哨兵验证了父进程 `VITE_*` 与 `.env.android.local` 不进入 Android 产物；现有 `.env.local` 内容未被读取或修改。
-- 尚未执行真实设备/模拟器离线启动、WebView 控制台资源 smoke、CI frozen install 和跨操作系统产物比较。
+- 2026-07-23 在 Xiaomi `M2012K11AC`、Android 13 / API 33、ARM64 真机上通过 `:app:installDebug`
+  安装当前工作树 Debug APK；断开 Wi-Fi、force-stop 后冷启动仍能显示“暂时无法连接服务”，包内前端、
+  “本机运行设置”和“重新连接”入口均可操作，没有白屏、404、Uncaught、FATAL 或 APK 资源加载失败。
+- 恢复网络后，打包前端可连接 `http://192.168.10.183:17890`，健康检查、登录和 dashboard 加载成功；
+  WebView 对该明文 HTTP 地址记录 mixed-content warning，属于当前显式放行策略下的预期提示，不应记为
+  “控制台完全无 warning”。
+- 剩余覆盖项为 CI frozen install 和跨操作系统产物文件清单/摘要比较。
 
 ## 17. 不采用的方案
 
