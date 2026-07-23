@@ -68,7 +68,7 @@
             <span>
               <strong>{{ option.label }}</strong>
               <small>{{ option.description }}</small>
-              <em v-if="option.disabled">当前设备不支持此方式</em>
+              <em v-if="option.disabled">{{ option.disabledReason }}</em>
             </span>
           </label>
         </fieldset>
@@ -305,6 +305,13 @@ const modeTitle = computed(() =>
 const bindHostHint = computed(() =>
   serverMode.value ? "默认值适用于大多数局域网环境。" : "本机模式固定为 127.0.0.1。",
 );
+const serverModeDisabledReason = computed(() => {
+  if (snapshot.value?.capabilities.serverMode) return "";
+  if (snapshot.value?.platform === "android") {
+    return "Android 当前只支持本机 127.0.0.1，自身不能作为局域网服务器。";
+  }
+  return "当前平台暂不支持持续提供局域网服务。";
+});
 const usesInsecureRemoteHttp = computed(() => {
   if (!remoteMode.value) return false;
   try {
@@ -338,6 +345,7 @@ const modeOptions = computed(() => [
     description: "让同一网络中的设备使用这台设备的数据。",
     selected: serverMode.value,
     disabled: !(snapshot.value?.capabilities.serverMode ?? false),
+    disabledReason: serverModeDisabledReason.value,
   },
 ]);
 const statusTone = computed<StatusTone>(() => {
