@@ -5,14 +5,27 @@ import { stockPermissions, userPermissions } from "../auth/permissions";
 /** 应用壳导航分组；高频业务入口与管理入口分开呈现。 */
 export type AppNavigationGroup = "primary" | "management";
 
-/** 应用壳当前使用的占位线性图标名称。 */
-export type AppNavigationIcon = "dashboard" | "items" | "inbound" | "users";
+/** 应用壳导航使用的语义化线性图标名称。 */
+export type AppNavigationIcon =
+  | "dashboard"
+  | "items"
+  | "inbound-create"
+  | "inbound-orders"
+  | "outbound-create"
+  | "outbound-orders"
+  | "inbound-approvals"
+  | "outbound-approvals"
+  | "locations"
+  | "templates"
+  | "substitutes"
+  | "events"
+  | "users";
 
 /** 单个应用路由在侧栏或移动导航中的呈现规则。 */
 export interface AppRouteNavigation {
   /** 导航所属的信息分组。 */
   group: AppNavigationGroup;
-  /** 当前使用的占位线性图标。 */
+  /** 与入口业务语义对应的线性图标。 */
   icon: AppNavigationIcon;
   /** 在所属分组内的稳定排序值。 */
   order: number;
@@ -47,19 +60,19 @@ export const appRouteCatalog = {
   inbound: {
     title: "新建入库",
     requiredPermission: stockPermissions.inboundCreate,
-    navigation: { group: "primary", icon: "inbound", order: 30 },
+    navigation: { group: "primary", icon: "inbound-create", order: 30 },
   },
   "inbound-orders": {
     title: "入库单",
     requiredPermission: stockPermissions.inboundRead,
-    navigation: { group: "primary", icon: "inbound", order: 40 },
+    navigation: { group: "primary", icon: "inbound-orders", order: 40 },
   },
   outbound: {
     title: "新建出库",
     requiredPermission: stockPermissions.outboundCreate,
     navigation: {
       group: "primary",
-      icon: "inbound",
+      icon: "outbound-create",
       order: 50,
       desktopOnly: true,
     },
@@ -67,39 +80,39 @@ export const appRouteCatalog = {
   "outbound-orders": {
     title: "出库单",
     requiredPermission: stockPermissions.outboundRead,
-    navigation: { group: "primary", icon: "inbound", order: 60 },
+    navigation: { group: "primary", icon: "outbound-orders", order: 60 },
   },
   "inbound-approvals": {
     title: "入库审批",
     requiredPermission: stockPermissions.inboundApprove,
     requiredPermissions: [stockPermissions.inboundRead, stockPermissions.inboundApprove],
-    navigation: { group: "primary", icon: "inbound", order: 70 },
+    navigation: { group: "primary", icon: "inbound-approvals", order: 70 },
   },
   "outbound-approvals": {
     title: "出库审批",
     requiredPermission: stockPermissions.outboundApprove,
     requiredPermissions: [stockPermissions.outboundRead, stockPermissions.outboundApprove],
-    navigation: { group: "primary", icon: "inbound", order: 80 },
+    navigation: { group: "primary", icon: "outbound-approvals", order: 80 },
   },
   locations: {
     title: "库位管理",
     requiredPermission: stockPermissions.locationRead,
-    navigation: { group: "management", icon: "items", order: 10 },
+    navigation: { group: "management", icon: "locations", order: 10 },
   },
   templates: {
     title: "分类与模板",
     requiredPermission: stockPermissions.templateRead,
-    navigation: { group: "management", icon: "items", order: 20 },
+    navigation: { group: "management", icon: "templates", order: 20 },
   },
   substitutes: {
     title: "替代关系",
     requiredPermission: stockPermissions.substituteRead,
-    navigation: { group: "management", icon: "items", order: 30 },
+    navigation: { group: "management", icon: "substitutes", order: 30 },
   },
   events: {
     title: "审计日志",
     requiredPermission: stockPermissions.auditRead,
-    navigation: { group: "management", icon: "users", order: 40 },
+    navigation: { group: "management", icon: "events", order: 40 },
   },
   users: {
     title: "用户管理",
