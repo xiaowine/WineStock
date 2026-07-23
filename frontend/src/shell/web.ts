@@ -31,7 +31,8 @@ export function createWebShellBridge(): ShellBridge {
     },
     async applyRuntimeConfig(config) {
       snapshot ??= loadInitialSnapshot();
-      const validation = validateRuntimeConfig(config);
+      const normalizedConfig = normalizeWebRuntimeConfig(config);
+      const validation = validateRuntimeConfig(normalizedConfig);
       if (!validation.valid) {
         return {
           ...validation,
@@ -40,9 +41,9 @@ export function createWebShellBridge(): ShellBridge {
         };
       }
 
-      const nextSnapshot = createConfiguredSnapshot(config, false);
+      const nextSnapshot = createConfiguredSnapshot(normalizedConfig, false);
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedConfig));
       } catch (error) {
         return {
           valid: true,
@@ -170,6 +171,7 @@ function createConfiguredSnapshot(
   config: EditableRuntimeConfig,
   createdDefault: boolean,
 ): RuntimeSnapshot {
+  config = normalizeWebRuntimeConfig(config);
   const remote = isRemoteRuntimeMode(config.mode);
   const apiBaseUrl = remote
     ? normalizeApiBaseUrl(config.remoteBaseUrl)
@@ -210,7 +212,13 @@ function validateRuntimeConfig(config: EditableRuntimeConfig): RuntimeConfigVali
   if (!["self-hosted", "client-only", "connect-to-remote", "server-mode"].includes(config.mode)) {
     addError("mode", "请选择有效的运行方式");
   }
-  if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
+  const automaticSelfHostedPort = config.mode === "self-hosted" && config.port === 0;
+  if (
+    !Number.isInteger(config.port) ||
+    config.port < 0 ||
+    config.port > 65535 ||
+    (config.port === 0 && !automaticSelfHostedPort)
+  ) {
     addError("port", "端口必须是 1 到 65535 之间的整数");
   }
 
@@ -238,6 +246,12 @@ function validateRuntimeConfig(config: EditableRuntimeConfig): RuntimeConfigVali
     valid: Object.keys(fieldErrors).length === 0,
     fieldErrors,
   };
+}
+
+function normalizeWebRuntimeConfig(config: EditableRuntimeConfig): EditableRuntimeConfig {
+  return config.mode === "self-hosted" && config.port === 0
+    ? { ...config, port: defaultRuntimeConfig.port }
+    : config;
 }
 
 function isIpAddress(value: string): boolean {

@@ -49,4 +49,43 @@ class NativeContractTest {
             (result as NativeCallResult.Failure).error.code,
         )
     }
+
+    @Test
+    fun runningStateRequiresMatchingNonzeroPorts() {
+        val valid =
+            NativeContract.parseServiceState(
+                serviceStateJson("127.0.0.1:49152", "http://127.0.0.1:49152"),
+            )
+        val mismatched =
+            NativeContract.parseServiceState(
+                serviceStateJson("127.0.0.1:49152", "http://127.0.0.1:49153"),
+            )
+        val zero =
+            NativeContract.parseServiceState(
+                serviceStateJson("127.0.0.1:0", "http://127.0.0.1:0"),
+            )
+
+        assertTrue(valid is NativeCallResult.Success)
+        assertEquals(
+            ShellErrorCodes.INVALID_BRIDGE_PAYLOAD,
+            (mismatched as NativeCallResult.Failure).error.code,
+        )
+        assertEquals(
+            ShellErrorCodes.INVALID_BRIDGE_PAYLOAD,
+            (zero as NativeCallResult.Failure).error.code,
+        )
+    }
+
+    private fun serviceStateJson(boundAddress: String, apiBaseUrl: String): String =
+        """
+        {
+          "nativeProtocolVersion": 1,
+          "ok": true,
+          "result": {
+            "phase": "running",
+            "boundAddress": "$boundAddress",
+            "apiBaseUrl": "$apiBaseUrl"
+          }
+        }
+        """.trimIndent()
 }

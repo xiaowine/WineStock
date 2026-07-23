@@ -107,7 +107,7 @@ fn json_config_validation_rejects_invalid_field_values() {
     let json = r#"
     {
       "server": {
-        "mode": "self-hosted",
+        "mode": "server-mode",
         "bind_host": "localhost",
         "port": 0,
         "auto_start_server": true,
@@ -126,6 +126,30 @@ fn json_config_validation_rejects_invalid_field_values() {
     assert!(message.contains("bind_host"));
     assert!(message.contains("port"));
     assert!(message.contains("database_path"));
+}
+
+#[test]
+fn self_hosted_zero_port_is_an_allowed_allocation_request() {
+    let mut config = AppConfig::default();
+    config.server.port = 0;
+
+    assert!(config
+        .validation_issues()
+        .iter()
+        .all(|issue| issue.path != "server.port"));
+}
+
+#[test]
+fn server_mode_zero_port_is_rejected() {
+    let mut config = AppConfig::default();
+    config.server.mode = RuntimeMode::ServerMode;
+    config.server.bind_host = "0.0.0.0".to_owned();
+    config.server.port = 0;
+
+    assert!(config
+        .validation_issues()
+        .iter()
+        .any(|issue| issue.path == "server.port"));
 }
 
 #[test]

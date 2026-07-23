@@ -69,7 +69,7 @@ fn prepare_runtime_config(request: &RuntimeConfigRequest) -> Result<PrepareResul
 
     let mut field_errors = BTreeMap::<String, Vec<String>>::new();
     let mode = parse_mode(&request.config.mode, &mut field_errors);
-    let port = validate_port(request.config.port, &mut field_errors);
+    let port = validate_port(request.config.port, mode, &mut field_errors);
     let bind_host = request.config.bind_host.trim().to_owned();
     let mut normalized_remote = request.config.remote_base_url.trim().to_owned();
 
@@ -185,9 +185,13 @@ fn parse_mode(
     }
 }
 
-fn validate_port(value: i64, field_errors: &mut BTreeMap<String, Vec<String>>) -> Option<u16> {
+fn validate_port(
+    value: i64,
+    mode: Option<RuntimeMode>,
+    field_errors: &mut BTreeMap<String, Vec<String>>,
+) -> Option<u16> {
     match u16::try_from(value) {
-        Ok(port) if port > 0 => Some(port),
+        Ok(port) if port > 0 || mode == Some(RuntimeMode::SelfHosted) => Some(port),
         _ => {
             push_error(field_errors, "port", "端口必须是 1 到 65535 之间的整数");
             None

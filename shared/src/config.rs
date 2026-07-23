@@ -112,8 +112,8 @@ pub struct ServerConfig {
     #[garde(length(min = 1, max = 255), ip)]
     pub bind_host: String,
 
-    /// Axum 监听端口，由平台壳和 core 共同使用。
-    #[garde(range(min = 1))]
+    /// Axum 监听端口，由平台壳和 core 共同使用；self-hosted 可用 `0` 请求自动分配。
+    #[garde(if(cond = self.mode != RuntimeMode::SelfHosted, range(min = 1)))]
     pub port: u16,
 
     /// 平台壳启动时是否自动启动本地服务。

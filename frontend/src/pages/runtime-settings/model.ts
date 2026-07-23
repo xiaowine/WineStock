@@ -46,14 +46,15 @@ export function applyRuntimeModeDefaults(
   mode: RuntimeMode,
 ): EditableRuntimeConfig {
   if (mode === "self-hosted") {
-    return { ...config, mode, bindHost: "127.0.0.1" };
+    return { ...config, mode, bindHost: "127.0.0.1", port: 0 };
   }
   if (mode === "server-mode") {
     return {
       ...config,
       mode,
       bindHost: config.bindHost === "127.0.0.1" ? "0.0.0.0" : config.bindHost,
+      port: config.port > 0 ? config.port : 17890,
     };
   }
-  return { ...config, mode };
+  return { ...config, mode, port: config.port > 0 ? config.port : 17890 };
 }

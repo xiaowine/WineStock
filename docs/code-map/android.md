@@ -50,13 +50,17 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
 
 - `android/app/src/main/java/winestock/xiaowine/cc/core/LocalCoreRuntimeManager.kt`
   - 单线程后台 executor 串行执行 JNI、配置校验、启动/停止/重启和 SharedPreferences 提交。
-  - 默认/持久化本地配置自动启动；候选配置先激活后提交，启动或保存失败时恢复旧服务。
-  - 持有权威快照并向 Bridge 订阅者推送；Activity 生命周期不触发 shutdown。
+  - 首次 `self-hosted` 使用端口 `0` 请求系统分配；绑定成功后把 native 返回的实际端口写回并持久化。
+  - 已保存端口冲突时仅对 `self-hosted` 自动重试一次动态端口；`server-mode` 保持固定端口错误路径。
+  - 候选配置先激活后提交，启动或保存失败时恢复旧服务；持有权威快照并向 Bridge 订阅者推送，
+    Activity 生命周期不触发 shutdown。
 - `core/NativeLibraryLoader.kt`、`NativeCoreClient.kt`、`NativeCoreBridge.kt`
   - 安全、幂等加载 `libwinestock_android_native.so`，封装具名静态 JNI 方法和 native protocol v1 调用。
   - load/JNI 失败映射 `native_library_unavailable`，不在类初始化时让应用崩溃。
 - `core/NativeContract.kt`
   - 编解码 native v1 请求/响应、字段错误、规范化配置和实际服务地址；拒绝协议版本不匹配。
+  - 校验 `running` 状态的 `boundAddress` 与 `apiBaseUrl` 使用同一非零实际端口，
+    防止把临时端口 `0` 发布给前端。
 - `core/AndroidStoragePaths.kt`
   - 固定使用 `noBackupFilesDir/winestock/data`，预创建数据库父目录与文件仓目录。
 
@@ -64,7 +68,8 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
   - Cargo `cdylib`/测试 crate，是 Android 唯一 Rust 适配层；依赖 `winestock-core` 和 `winestock-shared`。
   - `ffi.rs` 使用 jni-rs 0.22 `EnvUnowned.with_env()`，每个 JNI 入口只交换 JSON 并阻止 panic 越过 FFI。
   - `engine.rs` 持有双 worker Tokio Runtime 和 `RunningLocalService`，提供 start/stop/restart/state。
-  - `config.rs` 使用 shared 权威校验并额外限制 Android self-hosted 仅 `127.0.0.1`、禁用 server-mode。
+  - `config.rs` 使用 shared 权威校验并额外限制 Android self-hosted 仅 `127.0.0.1`、禁用 server-mode；
+    `self-hosted + port=0` 作为临时自动分配请求传给 core，运行响应始终返回实际绑定地址。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/AppConfig.kt`
   - 集中 Android shell 常量：受信任 host `winestock.internal`（ICANN 保留、永不进入公网 DNS）、

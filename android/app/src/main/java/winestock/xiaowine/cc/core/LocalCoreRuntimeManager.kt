@@ -1,6 +1,7 @@
 package winestock.xiaowine.cc.core
 
 import android.content.Context
+import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutorService
@@ -186,16 +187,20 @@ class LocalCoreRuntimeManager(
             return publish(remoteSnapshot(config, createdDefault = true, nativeAvailable = localAvailable()))
         }
 
-        publish(localSnapshot("unconfigured", config, "starting", createdDefault = false))
-        return when (val started = startNative(config)) {
+        val localCandidate =
+            if (config.mode == RuntimeModes.SELF_HOSTED) config.copy(port = 0) else config
+
+        publish(localSnapshot("unconfigured", localCandidate, "starting", createdDefault = false))
+        return when (val started = startLocalNative(localCandidate)) {
             is NativeCallResult.Failure ->
-                publish(unconfiguredSnapshot(config, started.error))
+                publish(unconfiguredSnapshot(localCandidate, started.error))
             is NativeCallResult.Success -> {
-                if (!safeSaveConfig(config)) {
+                val effectiveConfig = effectiveLocalConfig(localCandidate, started.value)
+                if (!safeSaveConfig(effectiveConfig)) {
                     nativeClient.stopLocalService()
-                    publish(unconfiguredSnapshot(config, configUnavailable()))
+                    publish(unconfiguredSnapshot(effectiveConfig, configUnavailable()))
                 } else {
-                    publish(localRunningSnapshot(config, started.value, createdDefault = true))
+                    publish(localRunningSnapshot(effectiveConfig, started.value, createdDefault = true))
                 }
             }
         }
@@ -215,8 +220,16 @@ class LocalCoreRuntimeManager(
         }
 
         publish(localSnapshot("configured", normalized, "starting"))
-        return when (val started = startNative(normalized)) {
-            is NativeCallResult.Success -> publish(localRunningSnapshot(normalized, started.value))
+        return when (val started = startLocalNative(normalized)) {
+            is NativeCallResult.Success -> {
+                val effectiveConfig = effectiveLocalConfig(normalized, started.value)
+                if (effectiveConfig != normalized && !safeSaveConfig(effectiveConfig)) {
+                    nativeClient.stopLocalService()
+                    publish(localSnapshot("configured", normalized, "failed", error = configUnavailable()))
+                } else {
+                    publish(localRunningSnapshot(effectiveConfig, started.value))
+                }
+            }
             is NativeCallResult.Failure ->
                 publish(localSnapshot("configured", normalized, "failed", error = started.error))
         }
@@ -281,19 +294,20 @@ class LocalCoreRuntimeManager(
         }
 
         publish(localSnapshot("configured", candidate, "starting"))
-        return when (val started = startNative(candidate)) {
+        return when (val started = startLocalNative(candidate)) {
             is NativeCallResult.Failure -> {
                 val restored = restorePrevious(previous, started.error)
                 ApplyRuntimeConfigResult(attempt.validation, false, restored, started.error)
             }
             is NativeCallResult.Success -> {
-                if (!safeSaveConfig(candidate)) {
+                val effectiveConfig = effectiveLocalConfig(candidate, started.value)
+                if (!safeSaveConfig(effectiveConfig)) {
                     nativeClient.stopLocalService()
                     val error = configUnavailable()
                     val restored = restorePrevious(previous, error)
                     ApplyRuntimeConfigResult(attempt.validation, false, restored, error)
                 } else {
-                    val applied = localRunningSnapshot(candidate, started.value)
+                    val applied = localRunningSnapshot(effectiveConfig, started.value)
                     publish(applied)
                     ApplyRuntimeConfigResult(attempt.validation, true, applied)
                 }
@@ -308,8 +322,23 @@ class LocalCoreRuntimeManager(
         }
         if (!localAvailable()) return publish(current.withError(nativeUnavailable()))
         publish(current.copy(service = current.service.copy(phase = "starting", error = null)))
-        return when (val started = startNative(current.config)) {
-            is NativeCallResult.Success -> publish(localRunningSnapshot(current.config, started.value))
+        return when (val started = startLocalNative(current.config)) {
+            is NativeCallResult.Success -> {
+                val effectiveConfig = effectiveLocalConfig(current.config, started.value)
+                if (effectiveConfig != current.config && !safeSaveConfig(effectiveConfig)) {
+                    nativeClient.stopLocalService()
+                    publish(
+                        localSnapshot(
+                            "configured",
+                            current.config,
+                            "failed",
+                            error = configUnavailable(),
+                        ),
+                    )
+                } else {
+                    publish(localRunningSnapshot(effectiveConfig, started.value))
+                }
+            }
             is NativeCallResult.Failure ->
                 publish(localSnapshot("configured", current.config, "failed", error = started.error))
         }
@@ -337,8 +366,23 @@ class LocalCoreRuntimeManager(
         }
         val paths = storagePaths ?: return publish(current.withError(nativeUnavailable()))
         publish(current.copy(service = current.service.copy(phase = "starting", error = null)))
-        return when (val restarted = nativeClient.restartLocalService(current.config, paths)) {
-            is NativeCallResult.Success -> publish(localRunningSnapshot(current.config, restarted.value))
+        return when (val restarted = restartLocalNative(current.config, paths)) {
+            is NativeCallResult.Success -> {
+                val effectiveConfig = effectiveLocalConfig(current.config, restarted.value)
+                if (effectiveConfig != current.config && !safeSaveConfig(effectiveConfig)) {
+                    nativeClient.stopLocalService()
+                    publish(
+                        localSnapshot(
+                            "configured",
+                            current.config,
+                            "failed",
+                            error = configUnavailable(),
+                        ),
+                    )
+                } else {
+                    publish(localRunningSnapshot(effectiveConfig, restarted.value))
+                }
+            }
             is NativeCallResult.Failure ->
                 publish(localSnapshot("configured", current.config, "failed", error = restarted.error))
         }
@@ -370,13 +414,25 @@ class LocalCoreRuntimeManager(
             localAvailable()
         ) {
             restored =
-                when (val restarted = startNative(previous.config)) {
-                    is NativeCallResult.Success ->
-                        localRunningSnapshot(
-                            previous.config,
-                            restarted.value,
-                            createdDefault = previous.createdDefault,
-                        )
+                when (val restarted = startLocalNative(previous.config)) {
+                    is NativeCallResult.Success -> {
+                        val effectiveConfig = effectiveLocalConfig(previous.config, restarted.value)
+                        if (effectiveConfig != previous.config && !safeSaveConfig(effectiveConfig)) {
+                            nativeClient.stopLocalService()
+                            localSnapshot(
+                                "configured",
+                                previous.config,
+                                "failed",
+                                error = configUnavailable(),
+                            )
+                        } else {
+                            localRunningSnapshot(
+                                effectiveConfig,
+                                restarted.value,
+                                createdDefault = previous.createdDefault,
+                            )
+                        }
+                    }
                     is NativeCallResult.Failure ->
                         localSnapshot("configured", previous.config, "failed", error = restarted.error)
                 }
@@ -415,6 +471,54 @@ class LocalCoreRuntimeManager(
         val result = nativeClient.startLocalService(config, paths)
         if (result is NativeCallResult.Failure) handleNativeAvailabilityFailure(result.error)
         return result
+    }
+
+    private fun startLocalNative(config: EditableRuntimeConfig): NativeCallResult<NativeServiceState> {
+        val first = startNative(config)
+        if (
+            first is NativeCallResult.Failure &&
+            first.error.code == ShellErrorCodes.PORT_IN_USE &&
+            config.mode == RuntimeModes.SELF_HOSTED &&
+            config.port != 0
+        ) {
+            return startNative(config.copy(port = 0))
+        }
+        return first
+    }
+
+    private fun restartLocalNative(
+        config: EditableRuntimeConfig,
+        paths: NativeStoragePaths,
+    ): NativeCallResult<NativeServiceState> {
+        val first = nativeClient.restartLocalService(config, paths)
+        if (first is NativeCallResult.Failure) handleNativeAvailabilityFailure(first.error)
+        if (
+            first is NativeCallResult.Failure &&
+            first.error.code == ShellErrorCodes.PORT_IN_USE &&
+            config.mode == RuntimeModes.SELF_HOSTED &&
+            config.port != 0
+        ) {
+            val retry = nativeClient.restartLocalService(config.copy(port = 0), paths)
+            if (retry is NativeCallResult.Failure) handleNativeAvailabilityFailure(retry.error)
+            return retry
+        }
+        return first
+    }
+
+    private fun effectiveLocalConfig(
+        config: EditableRuntimeConfig,
+        state: NativeServiceState,
+    ): EditableRuntimeConfig {
+        if (config.mode != RuntimeModes.SELF_HOSTED || state.phase != "running") return config
+        val actualPort =
+            state.apiBaseUrl
+                ?.let { runCatching { URI(it).port }.getOrDefault(-1) }
+                ?: -1
+        return if (actualPort in 1..65535 && actualPort != config.port) {
+            config.copy(port = actualPort)
+        } else {
+            config
+        }
     }
 
     private fun handleNativeAvailabilityFailure(error: ShellRuntimeError) {

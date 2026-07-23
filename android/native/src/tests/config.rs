@@ -40,6 +40,17 @@ fn accepts_android_loopback_self_hosted_config() {
 }
 
 #[test]
+fn accepts_zero_port_for_self_hosted_allocation() {
+    let mut request = request("self-hosted");
+    request.config.port = 0;
+
+    let prepared = require_runtime_config(&request).expect("allocation request should be valid");
+
+    assert_eq!(prepared.app_config.server.port, 0);
+    assert_eq!(prepared.normalized_config.port, 0);
+}
+
+#[test]
 fn rejects_non_loopback_and_server_mode() {
     let mut non_loopback = request("self-hosted");
     non_loopback.config.bind_host = "0.0.0.0".to_owned();

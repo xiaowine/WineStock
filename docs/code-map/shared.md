@@ -16,6 +16,8 @@
   - `AppConfig::validation_issues()` 返回带稳定字段路径的结构化问题，供 JNI/平台适配层映射表单字段；
     平台不需要解析 `garde::Report` 展示文本。
   - `ServerConfig` 不包含独立 `enabled` 开关；是否使用本地服务由运行模式决定。
+  - `port = 0` 只在 `self-hosted` 下表示 UI Shell 的临时自动分配请求；`server-mode` 始终要求
+    `1..65535`。shared 不负责选择或持久化实际端口。
 
 - `shared/src/config_file.rs`
   - 读取调用方指定路径上的 JSON 配置文件，并在文件缺失时创建调用方提供的默认配置。

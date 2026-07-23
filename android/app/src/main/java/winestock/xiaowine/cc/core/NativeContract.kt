@@ -1,5 +1,6 @@
 package winestock.xiaowine.cc.core
 
+import java.net.URI
 import org.json.JSONObject
 import winestock.xiaowine.cc.shell.EditableRuntimeConfig
 import winestock.xiaowine.cc.shell.ShellErrorCodes
@@ -78,12 +79,20 @@ object NativeContract {
 
     fun parseServiceState(raw: String?): NativeCallResult<NativeServiceState> =
         parse(raw) { result ->
-            NativeServiceState(
+            val state = NativeServiceState(
                 phase = result.getString("phase"),
                 boundAddress = result.optionalString("boundAddress"),
                 apiBaseUrl = result.optionalString("apiBaseUrl"),
                 error = result.optJSONObject("error")?.let(::parseError),
             )
+            if (state.phase == "running") {
+                val apiPort = state.apiBaseUrl?.let(::urlPort) ?: -1
+                val boundPort = state.boundAddress?.let { urlPort("http://$it") } ?: -1
+                if (apiPort !in 1..65535 || boundPort != apiPort) {
+                    throw IllegalArgumentException("native running state port is invalid")
+                }
+            }
+            state
         }
 
     private fun <T> parse(raw: String?, mapper: (JSONObject) -> T): NativeCallResult<T> {
@@ -128,6 +137,9 @@ object NativeContract {
 
     private fun JSONObject.optionalString(name: String): String? =
         if (has(name) && !isNull(name)) optString(name).takeIf(String::isNotBlank) else null
+
+    private fun urlPort(value: String): Int =
+        runCatching { URI(value).port }.getOrDefault(-1)
 
     private fun nativeUnavailable() =
         ShellRuntimeError(

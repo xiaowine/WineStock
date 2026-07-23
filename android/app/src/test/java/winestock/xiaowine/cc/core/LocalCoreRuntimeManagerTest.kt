@@ -23,7 +23,7 @@ class LocalCoreRuntimeManagerTest {
     }
 
     @Test
-    fun missingConfigStartsCoreThenCommitsSharedDefault() {
+    fun missingConfigAutomaticallyAllocatesAndCommitsActualPort() {
         val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Missing)
         val native = FakeNativeCoreClient()
         val manager = manager(native, store)
@@ -33,12 +33,40 @@ class LocalCoreRuntimeManagerTest {
         assertEquals("configured", snapshot.configStatus)
         assertEquals("running", snapshot.service.phase)
         assertTrue(snapshot.createdDefault)
-        assertEquals(DEFAULT_RUNTIME_CONFIG, store.current)
+        assertEquals(DEFAULT_RUNTIME_CONFIG.copy(port = 49152), store.current)
+        assertEquals(49152, snapshot.config.port)
+        assertEquals("127.0.0.1:49152", snapshot.service.boundAddress)
+        assertEquals("http://127.0.0.1:49152", snapshot.service.apiBaseUrl)
+        assertFalse(snapshot.service.apiBaseUrl.orEmpty().endsWith(":0"))
         assertEquals(1, native.startCalls)
+        assertEquals(listOf(0), native.startConfigs.map(EditableRuntimeConfig::port))
     }
 
     @Test
-    fun candidateStartFailureRestoresPreviousRunningServiceWithoutSavingCandidate() {
+    fun persistedSelfHostedPortConflictAllocatesAndPersistsReplacement() {
+        val persisted = DEFAULT_RUNTIME_CONFIG.copy(port = 17890)
+        val replacement = persisted.copy(port = 49154)
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(persisted))
+        val native =
+            FakeNativeCoreClient().apply {
+                startResults +=
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(ShellErrorCodes.PORT_IN_USE, "端口被占用", "port"),
+                    )
+                startResults += successState(replacement)
+            }
+        val manager = manager(native, store)
+
+        val snapshot = manager.getRuntimeSnapshot().await()
+
+        assertEquals(replacement, snapshot.config)
+        assertEquals(replacement, store.current)
+        assertEquals("127.0.0.1:49154", snapshot.service.boundAddress)
+        assertEquals(listOf(17890, 0), native.startConfigs.map(EditableRuntimeConfig::port))
+    }
+
+    @Test
+    fun selfHostedPortConflictRetriesWithAutomaticallyAllocatedPort() {
         val previous = DEFAULT_RUNTIME_CONFIG.copy(port = 17890)
         val candidate = previous.copy(port = 17891)
         val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(previous))
@@ -49,18 +77,18 @@ class LocalCoreRuntimeManagerTest {
                     NativeCallResult.Failure(
                         ShellRuntimeError(ShellErrorCodes.PORT_IN_USE, "端口被占用", "port"),
                     )
-                startResults += successState(previous)
+                startResults += successState(candidate.copy(port = 49153))
             }
         val manager = manager(native, store)
         manager.getRuntimeSnapshot().await()
 
         val result = manager.applyRuntimeConfig(candidate).await()
 
-        assertFalse(result.applied)
-        assertEquals(previous, result.snapshot.config)
+        assertTrue(result.applied)
+        assertEquals(candidate.copy(port = 49153), result.snapshot.config)
         assertEquals("running", result.snapshot.service.phase)
-        assertEquals(ShellErrorCodes.PORT_IN_USE, result.snapshot.service.error?.code)
-        assertEquals(previous, store.current)
+        assertEquals(null, result.snapshot.service.error)
+        assertEquals(candidate.copy(port = 49153), store.current)
         assertEquals(3, native.startCalls)
     }
 
@@ -89,6 +117,74 @@ class LocalCoreRuntimeManagerTest {
         assertEquals(ShellErrorCodes.CONFIG_UNAVAILABLE, result.error?.code)
         assertEquals(previous, store.current)
         assertEquals(2, native.stopCalls)
+    }
+
+    @Test
+    fun saveFailureAfterConflictReplacementStopsReplacementAndRestoresPreviousService() {
+        val previous = DEFAULT_RUNTIME_CONFIG.copy(port = 17890)
+        val candidate = previous.copy(port = 17891)
+        val replacement = candidate.copy(port = 49153)
+        val store =
+            FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(previous)).apply {
+                rejectSave = { it == replacement }
+            }
+        val native =
+            FakeNativeCoreClient().apply {
+                startResults += successState(previous)
+                startResults +=
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(ShellErrorCodes.PORT_IN_USE, "端口被占用", "port"),
+                    )
+                startResults += successState(replacement)
+                startResults += successState(previous)
+            }
+        val manager = manager(native, store)
+        manager.getRuntimeSnapshot().await()
+
+        val result = manager.applyRuntimeConfig(candidate).await()
+
+        assertFalse(result.applied)
+        assertEquals(previous, result.snapshot.config)
+        assertEquals("running", result.snapshot.service.phase)
+        assertEquals(ShellErrorCodes.CONFIG_UNAVAILABLE, result.error?.code)
+        assertEquals(previous, store.current)
+        assertEquals(listOf(17890, 17891, 0, 17890), native.startConfigs.map(EditableRuntimeConfig::port))
+        assertEquals(2, native.stopCalls)
+    }
+
+    @Test
+    fun serverModePortConflictDoesNotRetryWithAutomaticPort() {
+        val previous = DEFAULT_RUNTIME_CONFIG.copy(port = 17890)
+        val candidate =
+            previous.copy(
+                mode = RuntimeModes.SERVER_MODE,
+                bindHost = "0.0.0.0",
+                port = 17891,
+            )
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(previous))
+        val native =
+            FakeNativeCoreClient().apply {
+                startResults += successState(previous)
+                startResults +=
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(ShellErrorCodes.PORT_IN_USE, "端口被占用", "port"),
+                    )
+                startResults += successState(previous)
+            }
+        val manager = manager(native, store)
+        manager.getRuntimeSnapshot().await()
+
+        val result = manager.applyRuntimeConfig(candidate).await()
+
+        assertFalse(result.applied)
+        assertEquals(ShellErrorCodes.PORT_IN_USE, result.error?.code)
+        assertEquals(previous, result.snapshot.config)
+        assertEquals(listOf(17890, 17891, 17890), native.startConfigs.map(EditableRuntimeConfig::port))
+        assertFalse(
+            native.startConfigs.any {
+                it.mode == RuntimeModes.SERVER_MODE && it.port == 0
+            },
+        )
     }
 
     @Test
@@ -159,6 +255,7 @@ class LocalCoreRuntimeManagerTest {
         private val initializeResult: NativeCallResult<Unit> = NativeCallResult.Success(Unit),
     ) : NativeCoreClient {
         val startResults = ArrayDeque<NativeCallResult<NativeServiceState>>()
+        val startConfigs = mutableListOf<EditableRuntimeConfig>()
         var startCalls = 0
         var stopCalls = 0
         private var state = NativeServiceState("stopped", null, null, null)
@@ -181,6 +278,7 @@ class LocalCoreRuntimeManagerTest {
             storage: NativeStoragePaths,
         ): NativeCallResult<NativeServiceState> {
             startCalls += 1
+            startConfigs += config
             val result =
                 if (startResults.isEmpty()) successState(config) else startResults.removeFirst()
             if (result is NativeCallResult.Success) state = result.value
@@ -208,10 +306,13 @@ class LocalCoreRuntimeManagerTest {
             NativeCallResult.Success(
                 NativeServiceState(
                     phase = "running",
-                    boundAddress = "127.0.0.1:${config.port}",
-                    apiBaseUrl = "http://127.0.0.1:${config.port}",
+                    boundAddress = "127.0.0.1:${actualPort(config)}",
+                    apiBaseUrl = "http://127.0.0.1:${actualPort(config)}",
                     error = null,
                 ),
             )
+
+        private fun actualPort(config: EditableRuntimeConfig): Int =
+            if (config.port == 0) 49152 else config.port
     }
 }

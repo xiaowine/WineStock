@@ -118,6 +118,7 @@
 
           <template v-else>
             <FormInput
+              v-if="serverMode"
               v-model="draft.port"
               label="服务端口"
               validation-key="port"
@@ -131,11 +132,13 @@
               :disabled="applying"
               required
             />
-            <p v-if="!serverMode" class="simple-runtime-note">打开应用时，本机服务会自动启动。</p>
+            <p v-if="!serverMode" class="simple-runtime-note">
+              打开应用时，本机服务会自动启动并选择可用端口。
+            </p>
             <div v-else class="form-warning" role="status">
               同一网络中的其他设备将能够连接此服务。
             </div>
-            <details class="simple-runtime-advanced">
+            <details v-if="serverMode" class="simple-runtime-advanced">
               <summary>高级设置</summary>
               <FormInput
                 v-model="draft.bindHost"
@@ -146,7 +149,7 @@
                 name="simple_runtime_bind_host"
                 type="text"
                 autocomplete="off"
-                :disabled="applying || draft.mode === 'self-hosted'"
+                :disabled="applying"
                 required
               />
             </details>

@@ -14,7 +14,9 @@ object RemoteRuntimeConfigFallbackValidator {
         if (!RuntimeModes.isRemote(config.mode)) {
             errors[RuntimeConfigFields.MODE] = listOf("本地服务组件不可用，请改用远端连接模式")
         }
-        if (config.port !in 1..65535) {
+        val automaticSelfHostedPort =
+            config.mode == RuntimeModes.SELF_HOSTED && config.port == 0
+        if (config.port !in 1..65535 && !automaticSelfHostedPort) {
             errors[RuntimeConfigFields.PORT] = listOf("端口必须是 1 到 65535 之间的整数")
         }
         val normalized = normalizeApiBaseUrl(config.remoteBaseUrl)

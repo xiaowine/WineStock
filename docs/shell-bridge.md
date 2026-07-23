@@ -92,6 +92,8 @@ interface EditableRuntimeConfig {
 }
 ```
 
+`port` 在 `self-hosted` 下允许临时值 `0`，表示请求 Shell 自动分配端口；绑定成功后 Shell 必须把实际端口回写到配置和运行快照。`running` 快照和持久化配置中的端口必须始终为 `1..65535`。`server-mode` 始终要求用户配置固定端口。
+
 字段语义必须映射到 `winestock_shared::AppConfig`，但桥 DTO 可以使用适合 TypeScript 的命名并由平台适配层转换。
 配置文件仍由各平台 Shell 决定位置，并使用 shared 的模型和校验作为权威结果。
 `auto_start_server` 不是 UI 配置项：本地模式固定映射为 `true` 并在应用启动时运行服务，远端模式不启动本地服务。
@@ -104,7 +106,7 @@ interface EditableRuntimeConfig {
 - `remoteBaseUrl`：远端客户端模式的目标服务地址。
 - `apiBaseUrl`：Shell 计算并返回给前端的实际 HTTP API 根地址。
 
-本地模式下，前端不能自行根据 `bindHost` 拼接 `apiBaseUrl`。
+本地模式下，前端不能自行根据 `bindHost` 或草稿端口拼接 `apiBaseUrl`，尤其不能生成 `http://127.0.0.1:0`。
 例如 `bindHost = 0.0.0.0` 时，本机前端仍应使用 `http://127.0.0.1:<port>`，不能访问或展示 `http://0.0.0.0:<port>`。
 
 只有 `client-only` 和 `connect-to-remote` 远端客户端模式允许用户直接设置远端 API 地址。
@@ -228,6 +230,8 @@ interface RuntimeConfigFieldError {
 - 有旧配置时尽力恢复旧服务和旧快照。
 - 没有旧配置时保持 `unconfigured` 或 `failed`，并让前端保留草稿。
 - 返回端口、配置、存储、迁移或服务错误，不弹原生对话框。
+
+固定端口被占用时，Shell 仅对 `self-hosted` 自动使用端口 `0` 重试一次；绑定成功后先用实际端口更新配置，再持久化并发布 `running` 快照。`server-mode` 保持固定端口错误路径。
 
 存储路径或数据库迁移可能产生不可逆的外部副作用；未来允许前端编辑存储位置时，必须增加单独确认和迁移策略，不能把它当作普通地址设置。
 

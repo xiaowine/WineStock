@@ -33,6 +33,10 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `WineStockApplication` 在进程级持有一个 `LocalCoreRuntimeManager`；Activity 旋转或页面 reload 不停止本地服务。
 - `android/native` 通过 JNI JSON protocol v1 调用 `winestock-core` 统一运行句柄，业务能力仍全部走 WebView HTTP。
 - 权威配置校验来自 `winestock_shared`；Kotlin 只保留 native 无法加载时连接远端所需的最小降级校验。
+- 首次 `self-hosted` 启动以 `port=0` 请求系统分配端口，启动成功后 Shell 只持久化并发布实际非零端口；
+  已保存端口冲突时自动换端口一次，后续进程启动优先复用最新端口。
+- native `running` 状态中的配置端口、`boundAddress` 和 loopback `apiBaseUrl` 必须使用同一实际端口，
+  不允许临时端口 `0` 进入运行快照或持久化配置。
 - Android `self-hosted` 当前只允许 `127.0.0.1`；`server-mode` 在 Foreground Service 与通知策略完成前保持禁用。
 - native library 无法加载时前端与设置页仍可打开，并允许保存/使用远端配置。
 - 为连接局域网明文 HTTP 服务器，已放行 cleartext 与 WebView mixed-content，范围见 `network_security_config.xml` 与代码注释。
