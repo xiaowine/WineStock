@@ -87,6 +87,7 @@ Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView �
 ## 相关文档
 
 - [`release-package-size-analysis.md`](release-package-size-analysis.md)：Release APK/native library 实测组成、Swagger UI 移除结果与后续压缩方向。
+- [`webview-file-selection-permissions.md`](webview-file-selection-permissions.md)：通用的 WebView 文件选择、URI 授权、媒体库与相机权限提示；不作为具体功能契约。
 - [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md)：Shell Bridge v1 契约与边界（权威）。
 - [`../../docs/code-map/android.md`](../../docs/code-map/android.md)：Android shell 源码结构。
 - [`../../docs/platforms.md`](../../docs/platforms.md)：Android 平台职责。
