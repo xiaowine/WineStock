@@ -94,24 +94,6 @@ export async function applyRuntimeConfig(
   return result;
 }
 
-/** 启动当前生效配置的本地服务。 */
-export async function startLocalService(): Promise<RuntimeSnapshot> {
-  await initializeShellRuntime();
-  return applyLifecycleSnapshot(await requireBridge().startLocalService());
-}
-
-/** 停止当前本地服务。 */
-export async function stopLocalService(): Promise<RuntimeSnapshot> {
-  await initializeShellRuntime();
-  return applyLifecycleSnapshot(await requireBridge().stopLocalService());
-}
-
-/** 重启当前本地服务。 */
-export async function restartLocalService(): Promise<RuntimeSnapshot> {
-  await initializeShellRuntime();
-  return applyLifecycleSnapshot(await requireBridge().restartLocalService());
-}
-
 /** 通知平台前端首个稳定画面已经渲染。 */
 export async function reportFrontendReady(): Promise<void> {
   await initializeShellRuntime();
@@ -196,11 +178,6 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
     configureRuntimeApiBaseUrl(undefined);
     throw error;
   }
-}
-
-function applyLifecycleSnapshot(snapshot: RuntimeSnapshot): RuntimeSnapshot {
-  applySnapshot(snapshot, activeApiBaseUrl.value);
-  return snapshot;
 }
 
 function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): void {

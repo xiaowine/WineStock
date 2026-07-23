@@ -87,7 +87,7 @@
 - `frontend/src/shell/bridge.ts`：选择平台注入桥或普通浏览器 Web fallback，不判断 User-Agent。
 - `frontend/src/shell/web.ts`：使用版本化 localStorage 实现开发/静态环境配置读取、校验和应用；损坏配置返回可修复的 invalid 快照，不管理本地 Rust 服务。
 - `frontend/src/shell/lanAccess.ts`：从只读运行快照派生可展示的真实局域网 URL，统一检查 server-mode 能力与服务状态，并过滤 wildcard、loopback、占位值和无效根地址；不发现网卡。
-- `frontend/src/shell/runtime.ts`：维护响应式 Shell 快照，编排配置应用和本地服务生命周期命令，并在 API 地址变化时重置健康检查与内存会话。
+- `frontend/src/shell/runtime.ts`：维护响应式 Shell 快照，编排配置应用和 API 地址变化时的健康检查、内存会话重置；不提供前端手动 core 生命周期控制。
 - `frontend/src/shell/runtime.ts` 还公开受 capability 约束的外部链接和 native-back 订阅/应答薄包装；收到不兼容或损坏的 Shell 快照时保留前端设置页并进入失败状态。
 
 - `frontend/src/api/client.ts`

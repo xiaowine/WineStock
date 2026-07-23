@@ -21,7 +21,7 @@
 
 ## 交互规则
 
-- 当前服务区同时展示 Shell 生命周期和 `/api/health` 结果，并按 capability 显示启动、停止或重启操作。
+- 当前服务区只展示 Shell 发布的生命周期状态和 `/api/health` 结果，不提供手动启动、停止或重启 core 的操作；本机服务由应用 Shell 管理。
 - 当前生效服务满足 `server-mode + local + running + serverMode capability` 且 Shell 返回真实
   `lanAccessUrls` 时，当前服务区显示“本机局域网地址”主入口；已登录应用壳的头像 Popover 同时提供快捷入口。
 - 两个入口复用同一个“本机局域网地址” Dialog。地址逐项使用线性复制图标按钮并通过全局 Notice 反馈，
@@ -39,7 +39,7 @@
 普通浏览器使用 `winestock.runtime.config.v1` 保存已应用配置。没有环境地址和持久配置时返回 `unconfigured` 快照及默认 `17890` 草稿；损坏或校验失败的记录返回 `invalid` 快照，让用户在本页修复。
 
 Web fallback 不具备真实本地服务生命周期和网卡发现能力，不得生成占位 `lanAccessUrls`。页面只能依据
-`capabilities` 和真实快照展示平台操作，不能从 User-Agent、全局对象名称或运行目录猜测能力。
+快照展示服务状态和真实地址，不能从 User-Agent、全局对象名称或运行目录猜测能力。
 
 ## 响应式与验收
 

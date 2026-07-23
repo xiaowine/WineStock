@@ -1,6 +1,6 @@
 <!--
-  本文件拥有 UI 平台运行设置、服务状态和配置应用编排，属于 frontend Shell 控制界面。
-  它不读写平台文件、不直接启动 Rust，也不代理库存或鉴权业务 API。
+  本文件拥有 UI 平台运行设置、Shell 状态呈现和配置应用编排，属于 frontend Shell 界面。
+  它不读写平台文件、不管理 core 生命周期、不代理库存或鉴权业务 API。
 -->
 <template>
   <main ref="pageRoot" class="runtime-settings-page">
@@ -41,7 +41,10 @@
           <p>{{ statusDetail }}</p>
           <code v-if="activeAddress">{{ activeAddress }}</code>
         </div>
-        <div class="runtime-service-summary__actions">
+        <div
+          v-if="lanAccessUrls.length || canRetryActiveService"
+          class="runtime-service-summary__actions"
+        >
           <button
             v-if="lanAccessUrls.length"
             class="secondary-button"
@@ -58,33 +61,6 @@
             @click="retryActiveService"
           >
             {{ checkingActiveService ? "正在检查…" : "重新检查" }}
-          </button>
-          <button
-            v-if="snapshot?.capabilities.restartLocalService && serviceRunning"
-            class="secondary-button"
-            type="button"
-            :disabled="runtimeActionPending || dirty"
-            @click="restartCurrentService"
-          >
-            重启服务
-          </button>
-          <button
-            v-if="snapshot?.capabilities.stopLocalService && serviceRunning"
-            class="secondary-button"
-            type="button"
-            :disabled="runtimeActionPending || dirty"
-            @click="stopCurrentService"
-          >
-            停止服务
-          </button>
-          <button
-            v-if="snapshot?.capabilities.startLocalService && !serviceRunning"
-            class="primary-button"
-            type="button"
-            :disabled="runtimeActionPending || dirty"
-            @click="startCurrentService"
-          >
-            启动服务
           </button>
         </div>
       </section>
@@ -286,11 +262,8 @@ import {
   activeApiBaseUrl,
   applyRuntimeConfig,
   initializeShellRuntime,
-  restartLocalService,
   runtimeSnapshot,
   shellRuntimeError,
-  startLocalService,
-  stopLocalService,
   validateRuntimeConfig,
 } from "../shell/runtime";
 import { getUsableLanAccessUrls } from "../shell/lanAccess";
@@ -324,7 +297,6 @@ const draft = ref<EditableRuntimeConfig>(cloneRuntimeConfig(defaultRuntimeConfig
 const fieldErrors = ref<Partial<Record<RuntimeConfigField, readonly string[]>>>({});
 const pageError = ref("");
 const applying = ref(false);
-const runtimeActionPending = ref(false);
 const confirmationOpen = ref(false);
 const lanAccessDialogOpen = ref(false);
 const testingRemote = ref(false);
@@ -371,7 +343,6 @@ const enablingLanAccess = computed(
     (snapshot.value?.config.mode !== "server-mode" ||
       snapshot.value.config.bindHost !== draft.value.bindHost),
 );
-const serviceRunning = computed(() => snapshot.value?.service.phase === "running");
 const localServiceStopped = computed(
   () =>
     snapshot.value?.configStatus === "configured" &&
@@ -414,11 +385,7 @@ const platformLabel = computed(() => {
 });
 const applyButtonLabel = computed(() => {
   if (remoteMode.value) return "保存并连接";
-  if (!snapshot.value?.service.apiBaseUrl) return "保存并启动";
-  if (endpointChanging.value || modeChanging.value) {
-    return "保存并重启";
-  }
-  return "保存更改";
+  return "保存配置";
 });
 const confirmationTitle = computed(() =>
   enablingLanAccess.value ? "允许局域网设备访问？" : "切换运行服务？",
@@ -457,7 +424,7 @@ const statusTitle = computed(() => {
 });
 const statusDetail = computed(() => {
   if (snapshot.value?.service.error) return snapshot.value.service.error.message;
-  if (localServiceStopped.value) return "配置仍然保留，应用会在后台自动尝试恢复本机服务。";
+  if (localServiceStopped.value) return "配置仍然保留，本机服务生命周期由应用 Shell 管理。";
   if (!activeAddress.value) return "选择运行方式并保存后，业务页面才会连接 WineStock API。";
   if (serviceAvailabilityStatus.value === "available")
     return "当前地址已经通过 WineStock 健康检查。";
@@ -604,35 +571,6 @@ async function testRemoteConnection(): Promise<void> {
 
 async function retryActiveService(): Promise<void> {
   await checkServiceAvailability();
-}
-
-async function restartCurrentService(): Promise<void> {
-  await runRuntimeAction(() => restartLocalService(), "本地服务已重启");
-}
-
-async function stopCurrentService(): Promise<void> {
-  await runRuntimeAction(() => stopLocalService(), "本地服务已停止");
-}
-
-async function startCurrentService(): Promise<void> {
-  await runRuntimeAction(() => startLocalService(), "本地服务已启动");
-}
-
-async function runRuntimeAction(
-  action: () => Promise<unknown>,
-  successMessage: string,
-): Promise<void> {
-  runtimeActionPending.value = true;
-  try {
-    await action();
-    notice.success(successMessage);
-  } catch (error) {
-    notice.error("服务操作失败", {
-      detail: error instanceof Error ? error.message : "Shell 未能完成服务操作",
-    });
-  } finally {
-    runtimeActionPending.value = false;
-  }
 }
 
 async function returnToApplication(): Promise<void> {
