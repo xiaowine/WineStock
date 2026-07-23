@@ -372,6 +372,12 @@ const enablingLanAccess = computed(
       snapshot.value.config.bindHost !== draft.value.bindHost),
 );
 const serviceRunning = computed(() => snapshot.value?.service.phase === "running");
+const localServiceStopped = computed(
+  () =>
+    snapshot.value?.configStatus === "configured" &&
+    snapshot.value.service.ownership === "local" &&
+    snapshot.value.service.phase === "stopped",
+);
 const checkingActiveService = computed(() => isCheckingServiceAvailability.value);
 const canRetryActiveService = computed(() => Boolean(activeAddress.value));
 const showReturnAction = computed(
@@ -438,7 +444,8 @@ const statusTitle = computed(() => {
   const phase = snapshot.value?.service.phase;
   if (phase === "starting") return "正在启动本地服务";
   if (phase === "stopping") return "正在停止本地服务";
-  if (phase === "failed") return "服务启动失败";
+  if (phase === "failed") return "本机服务启动失败";
+  if (localServiceStopped.value) return "本机服务已停止";
   if (!activeAddress.value) return "尚未配置运行服务";
   if (serviceAvailabilityStatus.value === "available") {
     return snapshot.value?.service.ownership === "remote" ? "远程服务可用" : "本机服务运行中";
@@ -450,6 +457,7 @@ const statusTitle = computed(() => {
 });
 const statusDetail = computed(() => {
   if (snapshot.value?.service.error) return snapshot.value.service.error.message;
+  if (localServiceStopped.value) return "配置仍然保留，应用会在后台自动尝试恢复本机服务。";
   if (!activeAddress.value) return "选择运行方式并保存后，业务页面才会连接 WineStock API。";
   if (serviceAvailabilityStatus.value === "available")
     return "当前地址已经通过 WineStock 健康检查。";
