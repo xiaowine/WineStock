@@ -11,6 +11,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -31,6 +32,7 @@ import org.gradle.work.DisableCachingByDefault
 @DisableCachingByDefault(because = "Rust/NDK 跨机器字节确定性验证完成前只启用本地 up-to-date 检查")
 abstract class RustNativeBuildTask @Inject constructor(
     private val execOperations: ExecOperations,
+    private val fileSystemOperations: FileSystemOperations,
 ) : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -84,7 +86,7 @@ abstract class RustNativeBuildTask @Inject constructor(
         }
 
         val outputRoot = outputDirectory.get().asFile
-        project.delete(outputRoot)
+        fileSystemOperations.delete { delete(outputRoot) }
         outputRoot.mkdirs()
         cargoTargetDirectory.get().asFile.mkdirs()
 
