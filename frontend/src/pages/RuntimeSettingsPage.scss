@@ -338,7 +338,13 @@
   }
 
   .simple-runtime-form {
-    height: 650px;
+    height: auto;
+    min-height: 0;
+    grid-template-rows: auto auto;
+  }
+
+  .simple-runtime-settings {
+    overflow-y: visible;
   }
 
   .simple-runtime-modes,
