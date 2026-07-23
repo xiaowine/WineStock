@@ -632,7 +632,6 @@ async function saveTemporaryPassword(password: string): Promise<void> {
     passwordUser.value = null;
     notice.success("临时密码已设置", {
       detail: `${target.username} 下次登录后必须修改密码。`,
-      durationMs: 6_000,
     });
   } catch (error) {
     actionError.value = userManagementErrorMessage(error, "设置临时密码失败");
@@ -679,7 +678,6 @@ async function confirmDeleteUser(): Promise<void> {
     await resetAndLoadUsers();
     notice.success("用户已删除", {
       detail: `${target.username} 已退出登录，且无法再次使用该账号。`,
-      durationMs: 6_000,
     });
   } catch (error) {
     actionError.value = userManagementErrorMessage(error, "删除用户失败");

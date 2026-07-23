@@ -1,8 +1,8 @@
 // 本文件拥有 frontend 全局 Notice 状态、详情、点击回调、倒计时和调用 API；它不决定具体页面布局或业务错误文案。
 import { readonly, ref } from "vue";
 
-const DEFAULT_DURATION_MS = 5_000;
-const ERROR_DURATION_MS = 7_000;
+const DEFAULT_DURATION_MS = 2_000;
+const ERROR_DURATION_MS = 3_000;
 const MIN_DURATION_MS = 1_500;
 const MAX_VISIBLE_NOTICES = 5;
 const TICK_INTERVAL_MS = 50;
