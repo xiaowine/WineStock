@@ -179,7 +179,7 @@
 
 ## 页面
 
-- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的本机运行设置工作区；编辑当前设备的模式、默认端口 `17890`、远端地址和监听地址，本地模式固定随应用启动服务，并展示 Shell/健康状态、本机真实局域网地址主入口、校验、连接测试、风险确认和响应式底部操作区。
+- `frontend/src/pages/RuntimeSettingsPage.vue`、`RuntimeSettingsPage.scss`、`pages/runtime-settings/model.ts`：无 API 和鉴权依赖的简化运行设置工作区；编辑当前设备的运行模式、端口、远端地址和监听地址，以单列任务语言呈现连接状态、必要字段、风险确认和稳定尺寸的响应式操作区。
 - `frontend/src/pages/LoginPage.vue`：桌面和移动共用的用户名密码登录页面，调用登录 API、映射字段错误、安全恢复内部目标，并显示当前服务地址和本机运行设置入口。
 - `frontend/src/pages/RegisterPage.vue`：桌面和移动共用的首个用户注册页面，处理密码确认、错误映射和注册后自动登录流程。
 - `frontend/src/pages/ChangePasswordPage.vue`：桌面和移动共用的当前用户改密页面，处理强制改密、主动改密、错误映射、原目标恢复和退出。
