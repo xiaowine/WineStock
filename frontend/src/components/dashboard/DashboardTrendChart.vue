@@ -101,21 +101,22 @@
         <span>出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span>
       </div>
 
-      <div v-if="compactChart" class="dashboard-trend-chart__touch-detail" role="status">
-        <template v-if="hoveredPoint">
-          <strong>{{ formatFullDate(hoveredPoint.item.date) }}</strong>
-          <span
-            ><i
-              class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--inbound"
-            />入库 {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span
-          >
-          <span
-            ><i
-              class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--outbound"
-            />出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span
-          >
-        </template>
-        <span v-else class="dashboard-trend-chart__touch-hint">轻触曲线查看每日数量</span>
+      <div
+        v-if="compactChart && hoveredPoint"
+        class="dashboard-trend-chart__touch-detail"
+        role="status"
+      >
+        <strong>{{ formatFullDate(hoveredPoint.item.date) }}</strong>
+        <span
+          ><i
+            class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--inbound"
+          />入库 {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span
+        >
+        <span
+          ><i
+            class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--outbound"
+          />出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span
+        >
       </div>
     </div>
   </div>
@@ -240,21 +241,38 @@ watch(
 );
 
 watch(
-  () => props.daily.length,
-  (length) => {
-    if (length === 0 || (hoverIndex.value !== null && hoverIndex.value >= length)) {
-      hoverIndex.value = null;
-      touchSelectionActive.value = false;
-    }
-  },
-);
-
-watch(
   () => props.days,
   () => {
     hoverIndex.value = null;
     touchSelectionActive.value = false;
   },
+);
+
+watch(
+  [() => props.daily, compactChart],
+  () => {
+    if (props.daily.length === 0) {
+      hoverIndex.value = null;
+      touchSelectionActive.value = false;
+      return;
+    }
+
+    // 桌面端：仅悬停显示，不默认选中；索引越界则清空。
+    if (!compactChart.value) {
+      if (hoverIndex.value !== null && hoverIndex.value >= props.daily.length) {
+        hoverIndex.value = null;
+      }
+      return;
+    }
+
+    // 移动端：有合法选中则保留；否则默认当天。
+    if (hoverIndex.value !== null && hoverIndex.value < props.daily.length) {
+      return;
+    }
+    hoverIndex.value = resolveDefaultHoverIndex();
+    touchSelectionActive.value = false;
+  },
+  { immediate: true },
 );
 
 function createPoints(field: "inbound_quantity" | "outbound_quantity"): ChartPoint[] {
@@ -347,7 +365,12 @@ function handlePointerMove(event: PointerEvent): void {
 }
 
 function handlePointerLeave(event: PointerEvent): void {
-  if (event.pointerType === "mouse" && !touchSelectionActive.value) {
+  // 桌面端离开清空（原行为）；移动端保留点选的那一天。
+  if (
+    !compactChart.value &&
+    event.pointerType === "mouse" &&
+    !touchSelectionActive.value
+  ) {
     hoverIndex.value = null;
   }
 }
@@ -365,9 +388,30 @@ function handleKeydown(event: KeyboardEvent): void {
     hoverIndex.value = props.daily.length - 1;
     return;
   }
-  const currentIndex = hoverIndex.value ?? (event.key === "ArrowLeft" ? props.daily.length : -1);
+  const currentIndex =
+    hoverIndex.value ?? (event.key === "ArrowLeft" ? props.daily.length : -1);
   const offset = event.key === "ArrowLeft" ? -1 : 1;
   hoverIndex.value = Math.min(props.daily.length - 1, Math.max(0, currentIndex + offset));
+}
+
+/** 移动端默认日：优先本地当天，否则序列最后一点。 */
+function resolveDefaultHoverIndex(): number | null {
+  if (props.daily.length === 0) {
+    return null;
+  }
+  const today = formatLocalIsoDate(new Date());
+  const todayIndex = props.daily.findIndex((item) => item.date === today);
+  if (todayIndex >= 0) {
+    return todayIndex;
+  }
+  return props.daily.length - 1;
+}
+
+function formatLocalIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatShortDate(value: string): string {

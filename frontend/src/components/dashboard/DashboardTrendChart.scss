@@ -171,7 +171,7 @@
   white-space: nowrap;
 }
 
-.dashboard-trend-chart__touch-detail > span:not(.dashboard-trend-chart__touch-hint) {
+.dashboard-trend-chart__touch-detail > span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -191,12 +191,6 @@
 
 .dashboard-trend-chart__detail-dot--outbound {
   background: var(--color-accent);
-}
-
-.dashboard-trend-chart__touch-hint {
-  grid-column: 1 / -1;
-  color: var(--color-subtle);
-  text-align: center;
 }
 
 @include mixins.mobile {
