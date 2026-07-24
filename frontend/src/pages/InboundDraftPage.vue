@@ -6,29 +6,26 @@
   <section class="route-page inbound-draft-page">
     <header class="content-header inbound-draft-page__header">
       <div class="inbound-page-title">
-        <div class="inbound-progress" aria-label="入库流程进度">
-          <span :class="{ 'inbound-progress__step--active': currentStep === 'catalog' }">1</span>
-          <i></i>
-          <span :class="{ 'inbound-progress__step--active': currentStep === 'draft' }">2</span>
-        </div>
         <div>
           <h1>{{ $route.meta.title }}</h1>
         </div>
       </div>
       <div
-        v-if="currentStep === 'draft'"
-        class="inbound-draft-summary"
+        v-if="draftItems.length > 0"
+        class="content-summary inbound-draft-summary"
         aria-label="当前入库草稿摘要"
       >
         <span
           ><strong>{{ draftItems.length }}</strong> 条明细</span
         >
+        <span aria-hidden="true">·</span>
         <span
-          ><strong>{{ quantitySummary }}</strong> {{ quantitySummaryLabel }}</span
+          >入库数量 <strong>{{ quantitySummary }}</strong></span
         >
-        <span
-          ><strong>¥{{ formatMoney(draftTotal) }}</strong> 预计金额</span
-        >
+        <template v-if="draftAmountReady">
+          <span aria-hidden="true">·</span>
+          <span>预计金额 <strong>¥{{ formatMoney(draftTotal) }}</strong></span>
+        </template>
       </div>
       <div class="inbound-page-actions">
         <button
@@ -39,7 +36,7 @@
         >
           清空草稿
         </button>
-        <template v-if="currentStep === 'draft'">
+        <template v-if="draftItems.length > 0">
           <button
             class="primary-button"
             type="button"
@@ -52,77 +49,82 @@
       </div>
     </header>
 
-    <div class="inbound-step-stage">
-      <Transition :name="stepTransitionName" mode="out-in" @after-enter="handleStepAfterEnter">
-        <InboundCatalogStep
-          v-if="currentStep === 'catalog'"
-          key="catalog"
-          :items="items"
-          :search-input="searchInput"
-          :loading-items="loadingItems"
-          :item-error="itemError"
-          :items-exhausted="itemsExhausted"
-          :draft-counts="draftItemCounts"
-          :can-continue="draftItems.length > 0"
-          :can-create-item="canCreateItem"
-          @update:search-input="searchInput = $event"
-          @search="applySearch"
-          @reset-items="resetItems"
-          @load-next-items="loadNextItems"
-          @scroll-items="handleItemScroll"
-          @list-element="itemList = $event"
-          @toggle-item="toggleCatalogItem"
-          @create-item="itemCreateOpen = true"
-          @continue="openDraftStep"
-        />
-
-        <InboundDraftStep
-          v-else
-          key="draft"
-          :lines="draftItems"
-          :locations="locations"
-          :location-error="locationError"
-          :template-options-loading="templateOptionsLoading"
-          :template-options-error="templateOptionsError"
-          :source="source"
-          :notes="notes"
-          :notes-open="notesOpen"
-          :validation-attempted="validationAttempted"
-          :selected-line-id="selectedLineId"
-          :drawer-open="selectedLine !== null"
-          @update:source="source = $event"
-          @update:notes="notes = $event"
-          @update:notes-open="notesOpen = $event"
-          @continue-adding="continueAddingItems"
-          @retry-locations="loadLocationOptions"
-          @retry-templates="loadInboundTemplateOptions"
-          @select-line="selectLine"
-          @remove-line="removeLine"
-        >
-          <Transition name="inbound-editor">
-            <div v-if="selectedLine" class="inbound-line-editor-layer">
-              <button
-                class="inbound-line-editor-backdrop"
-                type="button"
-                aria-label="关闭当前明细详情"
-                @click="closeLineEditor"
-              ></button>
-              <InboundLineEditor
-                :line="selectedLine"
-                :templates="inboundTemplates"
-                :templates-loading="templateOptionsLoading"
-                :templates-error="templateOptionsError"
-                :validation-attempted="validationAttempted"
-                @close="closeLineEditor"
-                @select-template="selectInboundTemplate"
-                @retry-template="retryLineTemplate"
-                @retry-templates="loadInboundTemplateOptions"
-              />
-            </div>
-          </Transition>
-        </InboundDraftStep>
-      </Transition>
+    <div class="inbound-workspace">
+      <InboundDraftStep
+        :lines="draftItems"
+        :locations="locations"
+        :location-error="locationError"
+        :template-options-loading="templateOptionsLoading"
+        :template-options-error="templateOptionsError"
+        :source="source"
+        :notes="notes"
+        :notes-open="notesOpen"
+        :validation-attempted="validationAttempted"
+        :selected-line-id="selectedLineId"
+        :drawer-open="selectedLine !== null"
+        :can-add-item="canAddItem"
+        :add-item-disabled-reason="addItemDisabledReason"
+        @update:source="source = $event"
+        @update:notes="notes = $event"
+        @update:notes-open="notesOpen = $event"
+        @retry-locations="loadLocationOptions"
+        @retry-templates="loadInboundTemplateOptions"
+        @select-line="selectLine"
+        @remove-line="removeLine"
+        @add-item="openItemPicker"
+      />
     </div>
+
+    <Teleport to="body">
+      <Transition name="inbound-editor" @after-leave="handleLineEditorAfterLeave">
+        <div v-if="selectedLine" class="inbound-line-editor-layer">
+          <div
+            class="inbound-line-editor-backdrop"
+            role="presentation"
+            @click="closeLineEditor"
+          ></div>
+          <InboundLineEditor
+            :line="selectedLine"
+            :locations="locations"
+            :location-error="locationError"
+            :templates="inboundTemplates"
+            :templates-loading="templateOptionsLoading"
+            :templates-error="templateOptionsError"
+            :validation-attempted="validationAttempted"
+            @close="closeLineEditor"
+            @complete-and-continue="completeLineAndContinue"
+            @select-template="selectInboundTemplate"
+            @retry-template="retryLineTemplate"
+            @retry-templates="loadInboundTemplateOptions"
+            @retry-locations="loadLocationOptions"
+          />
+        </div>
+      </Transition>
+    </Teleport>
+
+    <ItemSelectionDialog
+      :open="itemPickerOpen"
+      title="选择入库物品"
+      description="选择一项后进入明细配置。"
+      search-name="inbound_item_search"
+      :items="items"
+      :search-input="searchInput"
+      :loading-items="loadingItems"
+      :item-error="itemError"
+      :items-exhausted="itemsExhausted"
+      :selected-item-ids="draftItemIds"
+      :can-create-item="canCreateItem"
+      @close="closeItemPicker"
+      @after-close="handleItemPickerAfterClose"
+      @update:search-input="searchInput = $event"
+      @search="applySearch"
+      @reset-items="resetItems"
+      @load-next-items="loadNextItems"
+      @scroll-items="handleItemScroll"
+      @list-element="itemList = $event"
+      @select-item="handleItemSelected"
+      @create-item="openCreateItemFromPicker"
+    />
 
     <ModalDialog
       :open="pendingTemplateChange !== null"
@@ -253,13 +255,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import ModalDialog from "../components/ModalDialog.vue";
-import InboundCatalogStep from "../components/inbound/InboundCatalogStep.vue";
 import InboundDraftStep from "../components/inbound/InboundDraftStep.vue";
 import InboundLineEditor from "../components/inbound/InboundLineEditor.vue";
 import ItemCreateDialog from "../components/items/ItemCreateDialog.vue";
+import ItemSelectionDialog from "../components/items/ItemSelectionDialog.vue";
 import {
   createInbound,
   listLocations,
@@ -305,12 +307,7 @@ import {
 } from "./inbound-draft/presentation";
 
 type ConfirmationMode = "clear" | "leave" | null;
-type InboundDraftStepName = "catalog" | "draft";
-type InboundStepTransitionDirection = "forward" | "backward";
-const stepSessionKey = "winestock.inbound.step";
 const restoredNoticeSessionKey = "winestock.inbound.restored-notice";
-const currentStep = ref<InboundDraftStepName>(readSessionStep());
-const stepTransitionDirection = ref<InboundStepTransitionDirection>("forward");
 const draftItems = ref<InboundDraftLine[]>([]);
 const locations = ref<LocationResponse[]>([]);
 const inboundTemplates = ref<InboundTemplateResponse[]>([]);
@@ -321,6 +318,7 @@ const source = ref("");
 const notes = ref("");
 const notesOpen = ref(false);
 const selectedLineId = ref<string | null>(null);
+const itemPickerOpen = ref(false);
 const submitting = ref(false);
 const validationAttempted = ref(false);
 const confirmationMode = ref<ConfirmationMode>(null);
@@ -332,7 +330,9 @@ const templateChangeSubmitting = ref(false);
 let locationAbortController: AbortController | null = null;
 let templateOptionsAbortController: AbortController | null = null;
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null;
-let pendingStepTransition: { step: InboundDraftStepName; resolve: () => void } | null = null;
+let pendingPickerItem: ItemOptionResponse | null = null;
+let openCreateItemAfterPicker = false;
+let openPickerAfterLineEditor = false;
 const templateAbortControllers = new Map<string, AbortController>();
 const templateRequestVersions = new Map<string, number>();
 const templateCache = new Map<number, InboundTemplateResponse>();
@@ -345,17 +345,6 @@ useNativeBackHandler({
     if (selectedLineId.value === null) return { handled: false };
     closeLineEditor();
     return { handled: true, reason: "drawer" };
-  },
-});
-
-useNativeBackHandler({
-  id: "inbound-draft-step",
-  active: () => currentStep.value === "draft",
-  priority: NativeBackPriority.PageState,
-  handle: () => {
-    if (currentStep.value !== "draft") return { handled: false };
-    void continueAddingItems();
-    return { handled: true, reason: "page-state" };
   },
 });
 
@@ -378,7 +367,7 @@ const draftItemCounts = computed(() => {
     counts.set(line.item.id, (counts.get(line.item.id) ?? 0) + 1);
   return counts;
 });
-const stepTransitionName = computed(() => `inbound-step-${stepTransitionDirection.value}`);
+const draftItemIds = computed<ReadonlySet<number>>(() => new Set(draftItemCounts.value.keys()));
 const selectedLine = computed(
   () => draftItems.value.find((line) => line.lineId === selectedLineId.value) ?? null,
 );
@@ -393,8 +382,8 @@ const quantitySummary = computed(() => {
   if (units.size === 1) return `${formatQuantity(draftQuantity.value)} ${Array.from(units)[0]}`;
   return draftItems.value.length ? "按明细分别计量" : "0";
 });
-const quantitySummaryLabel = computed(() =>
-  quantitySummary.value === "按明细分别计量" ? "数量" : "入库总量",
+const draftAmountReady = computed(
+  () => draftItems.value.length > 0 && draftItems.value.every(lineReady),
 );
 const hasDraft = computed(
   () =>
@@ -406,6 +395,15 @@ const draftReady = computed(
     draftItems.value.length > 0 &&
     draftItems.value.every(lineReady),
 );
+const incompleteLine = computed(() => draftItems.value.find((line) => !lineReady(line)) ?? null);
+const canAddItem = computed(
+  () => selectedLineId.value === null && incompleteLine.value === null,
+);
+const addItemDisabledReason = computed(() => {
+  if (selectedLineId.value !== null) return "请先完成或暂存当前打开的明细。";
+  if (incompleteLine.value) return `请先完成“${incompleteLine.value.item.name}”的入库明细。`;
+  return "";
+});
 const canDirectInbound = computed(() =>
   hasPermission(authSession.value?.user.permissions, stockPermissions.inboundApprove),
 );
@@ -423,15 +421,11 @@ const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useInboundDraf
   hasDraft,
 );
 
-// 响应式 Shell 在断点切换时会重挂载页面，步骤必须在当前标签页内保持稳定。
-watch(currentStep, (step) => sessionStorage.setItem(stepSessionKey, step));
-
 onMounted(async () => {
   const restored = await restoreDraft();
   const removedDuplicates = removeRestoredDuplicateItems();
   // 恢复历史草稿只恢复数据，不主动进入任一明细的详情编辑模式。
   selectedLineId.value = null;
-  currentStep.value = draftItems.value.length > 0 ? readSessionStep() : "catalog";
   draftItems.value.forEach((line) => {
     if (line.templateId)
       void loadLineTemplate(line, line.templateId, nextTemplateRequestVersion(line));
@@ -470,8 +464,6 @@ function removeRestoredDuplicateItems(): number {
 }
 
 onBeforeUnmount(() => {
-  pendingStepTransition?.resolve();
-  pendingStepTransition = null;
   locationAbortController?.abort();
   templateOptionsAbortController?.abort();
   templateAbortControllers.forEach((controller) => controller.abort());
@@ -503,27 +495,63 @@ async function loadLocationOptions(): Promise<void> {
 }
 
 /** 选择阶段按物品去重，每个物品在当前入库单中只保留一条独立明细。 */
-function addItem(item: ItemOptionResponse, showNotice = true): void {
-  if (draftItems.value.some((line) => line.item.id === item.id)) return;
+function addItem(item: ItemOptionResponse, showNotice = true): InboundDraftLine | null {
+  const existing = draftItems.value.find((line) => line.item.id === item.id);
+  if (existing) {
+    selectedLineId.value = existing.lineId;
+    return existing;
+  }
   const line = createDraftLine(item);
   draftItems.value.push(line);
-  // 添加物品只创建明细；详情编辑必须由用户通过“详情”按钮显式进入。
-  selectedLineId.value = null;
+  // 物品加入草稿后立即打开该明细，避免先批量选品再重复配置。
+  selectedLineId.value = line.lineId;
   void loadDefaultInboundTemplate(line);
   if (showNotice) notice.info(`已加入 ${item.name}`);
+  return line;
 }
 
-function toggleCatalogItem(item: ItemOptionResponse): void {
-  const line = draftItems.value.find((candidate) => candidate.item.id === item.id);
-  if (line) removeLine(line.lineId);
-  else addItem(item);
+function openItemPicker(): void {
+  if (!canAddItem.value) {
+    if (incompleteLine.value)
+      notice.warning(`请先完成“${incompleteLine.value.item.name}”的入库明细。`);
+    return;
+  }
+  itemPickerOpen.value = true;
+  void resetItems();
+}
+
+function closeItemPicker(): void {
+  pendingPickerItem = null;
+  openCreateItemAfterPicker = false;
+  itemPickerOpen.value = false;
+}
+
+function handleItemSelected(item: ItemOptionResponse): void {
+  pendingPickerItem = item;
+  itemPickerOpen.value = false;
+}
+
+function openCreateItemFromPicker(): void {
+  pendingPickerItem = null;
+  openCreateItemAfterPicker = true;
+  itemPickerOpen.value = false;
+}
+
+function handleItemPickerAfterClose(): void {
+  if (openCreateItemAfterPicker) {
+    openCreateItemAfterPicker = false;
+    itemCreateOpen.value = true;
+    return;
+  }
+  const item = pendingPickerItem;
+  pendingPickerItem = null;
+  if (item) addItem(item);
 }
 
 async function handleItemCreated(item: ItemOptionResponse): Promise<void> {
   itemCreateOpen.value = false;
   addItem(item, false);
   notice.success("物品已创建并加入入库单", { detail: item.name });
-  await goToStep("draft");
 }
 
 async function loadInboundTemplateOptions(): Promise<void> {
@@ -712,34 +740,17 @@ function removeLine(lineId: string): void {
   notice.info(`已移除 ${line.item.name}`);
 }
 
-function openDraftStep(): void {
-  if (draftItems.value.length === 0) return;
+async function completeLineAndContinue(): Promise<void> {
+  const line = selectedLine.value;
+  if (!line) return;
+  validationAttempted.value = true;
+  if (!lineReady(line)) {
+    notice.warning("当前明细尚未完成", { detail: `请先补齐“${line.item.name}”的必填信息。` });
+    await focusLineError(line);
+    return;
+  }
+  openPickerAfterLineEditor = true;
   selectedLineId.value = null;
-  void goToStep("draft");
-}
-
-async function continueAddingItems(): Promise<void> {
-  selectedLineId.value = null;
-  await goToStep("catalog");
-  document.querySelector<HTMLElement>(".inbound-catalog-step__search input")?.focus();
-}
-
-/** 按步骤顺序设置切换方向，让前进与返回使用对称的水平动效。 */
-function goToStep(step: InboundDraftStepName): Promise<void> {
-  if (step === currentStep.value) return Promise.resolve();
-  stepTransitionDirection.value = currentStep.value === "catalog" ? "forward" : "backward";
-  currentStep.value = step;
-  return new Promise<void>((resolve) => {
-    pendingStepTransition = { step, resolve };
-  });
-}
-
-/** out-in 新步骤完成进入后再恢复依赖其 DOM 的聚焦和错误定位流程。 */
-function handleStepAfterEnter(element: Element): void {
-  const enteredStep = element.classList.contains("inbound-catalog-step") ? "catalog" : "draft";
-  if (pendingStepTransition?.step !== enteredStep) return;
-  pendingStepTransition.resolve();
-  pendingStepTransition = null;
 }
 
 function selectLine(lineId: string): void {
@@ -747,12 +758,20 @@ function selectLine(lineId: string): void {
 }
 
 function closeLineEditor(): void {
+  openPickerAfterLineEditor = false;
   const lineId = selectedLineId.value;
   selectedLineId.value = null;
   if (lineId)
     void nextTick(() =>
       document.querySelector<HTMLElement>(`[data-line-action="${lineId}"]`)?.focus(),
     );
+}
+
+function handleLineEditorAfterLeave(): void {
+  if (!openPickerAfterLineEditor) return;
+  openPickerAfterLineEditor = false;
+  itemPickerOpen.value = true;
+  void resetItems();
 }
 
 async function reviewDraft(submissionMode: InboundSubmissionMode): Promise<void> {
@@ -874,7 +893,6 @@ function clearLocalDraftState(): void {
   notesOpen.value = false;
   draftItems.value = [];
   selectedLineId.value = null;
-  void goToStep("catalog");
   validationAttempted.value = false;
   removePersistedDraft();
 }
@@ -891,11 +909,11 @@ async function deleteLineUploads(line: InboundDraftLine): Promise<void> {
 
 async function focusFirstError(): Promise<void> {
   if (draftItems.value.length === 0) {
-    await goToStep("catalog");
-    document.querySelector<HTMLElement>(".inbound-catalog-step__search input")?.focus();
+    openItemPicker();
+    await nextTick();
+    document.querySelector<HTMLElement>('[name="inbound_item_search"]')?.focus();
     return;
   }
-  await goToStep("draft");
   selectedLineId.value = null;
   await nextTick();
   if (!source.value.trim()) {
@@ -903,20 +921,23 @@ async function focusFirstError(): Promise<void> {
     return;
   }
   for (const line of draftItems.value) {
-    if (!validQuantity(line.quantity)) return focusLineControl(line, "quantity");
-    if (!validUnitPrice(line.unitPrice)) return focusLineControl(line, "unitPrice");
-    if (line.locationId === null) return focusLineControl(line, "locationId");
-    if (line.templateState === "resolving" || line.templateError) return focusLineTemplate(line);
-    const field = line.template?.fields.find(
-      (candidate) => templateFieldError(line, candidate) !== null,
-    );
-    if (field) return focusLineTemplate(line, field.field_name);
+    if (!lineReady(line)) return focusLineError(line);
   }
 }
 
+async function focusLineError(line: InboundDraftLine): Promise<void> {
+  if (!validQuantity(line.quantity)) return focusLineControl(line, "quantity");
+  if (!validUnitPrice(line.unitPrice)) return focusLineControl(line, "unitPrice");
+  if (line.locationId === null) return focusLineControl(line, "locationId");
+  if (line.templateState === "resolving" || line.templateError) return focusLineTemplate(line);
+  const field = line.template?.fields.find(
+    (candidate) => templateFieldError(line, candidate) !== null,
+  );
+  if (field) return focusLineTemplate(line, field.field_name);
+}
+
 async function focusLineControl(line: InboundDraftLine, field: string): Promise<void> {
-  await goToStep("draft");
-  selectedLineId.value = null;
+  selectedLineId.value = line.lineId;
   await nextTick();
   document
     .querySelector<HTMLElement>(`[data-line-id="${line.lineId}"][data-field="${field}"]`)
@@ -924,7 +945,6 @@ async function focusLineControl(line: InboundDraftLine, field: string): Promise<
 }
 
 async function focusLineTemplate(line: InboundDraftLine, fieldName?: string): Promise<void> {
-  await goToStep("draft");
   selectedLineId.value = line.lineId;
   await nextTick();
   if (fieldName)
@@ -943,7 +963,6 @@ async function focusBackendError(error: unknown): Promise<void> {
   const line = backendErrorLine(error);
   if (!line) return;
   validationAttempted.value = true;
-  await goToStep("draft");
   if (error.code === "item_not_found") await focusLineControl(line, "remove");
   else if (error.code === "location_not_found") await focusLineControl(line, "locationId");
   else if (error.code === "template_not_found") await focusLineTemplate(line);
@@ -974,10 +993,6 @@ function draftBlockingReason(): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function readSessionStep(): InboundDraftStepName {
-  return sessionStorage.getItem(stepSessionKey) === "draft" ? "draft" : "catalog";
 }
 </script>
 

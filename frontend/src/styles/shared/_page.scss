@@ -13,6 +13,25 @@
   gap: 10px;
 }
 
+/* 工作流页头的摘要沿用列表工具栏的紧凑内联信息，不为单个页面另造分段卡片。 */
+.content-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.content-summary strong {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
 .route-page {
   display: flex;
   min-width: 0;

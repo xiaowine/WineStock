@@ -41,7 +41,9 @@
               :disabled="busy"
               @click="requestClose"
             >
-              ×
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
             </button>
           </header>
 
@@ -98,6 +100,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   close: [];
+  "after-close": [];
 }>();
 
 const dialogId = useId();
@@ -206,6 +209,7 @@ function requestClose(): void {
 function restoreFocus(): void {
   if (props.restoreFocus && returnFocusElement?.isConnected) returnFocusElement.focus();
   returnFocusElement = null;
+  emit("after-close");
 }
 </script>
 

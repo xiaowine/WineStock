@@ -44,9 +44,9 @@
 - `frontend/src/components/forms/DateTimeField.vue`、`DateTimeField.scss`：项目通用日期时间字段，复用嵌套 `ModalDialog` 提供日历和时分秒选择，不依赖浏览器原生日期弹层。
 - `frontend/src/components/forms/`：通用 `FormField`、`FormInput`、`FormSelect` 和 `FormTextarea` 字段组件；`FormSelect` 组合 `SelectControl`，统一标题、必填标记、提示、红框错误状态和不占布局的无障碍错误说明，不包含业务校验规则。
 - `frontend/src/composables/useFormValidation.ts`：为当前表单组件子树注册字段位置、清理单字段错误并自动滚动聚焦首个错误；校验结果仍由页面、会话或业务模型产生。
-- `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的“批次与入库属性”明细抽屉，编辑批次、有效期、入库模板和本次收货属性；说明入库模板职责、呈现候选加载错误与重试、标记失效模板选项，并在移动端切换为全屏编辑面板。
-- `frontend/src/components/inbound/InboundCatalogStep.vue`：正式入库流程的第一步，完成物品搜索、分页浏览和按物品去重的加入或移出操作。
-- `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库流程的第二步，编辑来源、备注、数量、价格和分组库位，并在主列表展示逐行完整性和入库模板摘要（推荐、待填项数、已完成、失效和候选加载错误），状态可点击打开对应抽屉。
+- `frontend/src/components/items/ItemSelectionDialog.vue`、`ItemSelectionDialog.scss`：入库/出库共用的单物品选择 Dialog；复用 SearchField、服务端分页和触底加载，选择层离场后由页面打开对应明细编辑器，不拥有草稿或业务 API。
+- `frontend/src/components/inbound/InboundLineEditor.vue`：正式入库工作台的完整单条明细编辑器，集中编辑数量、单价、库位、批次、有效期、入库模板、动态属性和图片；呈现候选加载错误与重试、标记失效模板选项，并在移动端切换为全屏编辑面板。
+- `frontend/src/components/inbound/InboundDraftStep.vue`：正式入库工作台的单据基本信息与明细复核区；展示来源、备注、数量/价格/库位、模板与批次摘要以及实际阻塞状态，编辑和移除使用统一图标按钮。
 - `frontend/src/components/inbound/InboundOrderFiltersDialog.vue`：入库单状态和创建日期筛选草稿、校验与应用事件；不请求接口或修改路由。
 - `frontend/src/components/inbound/InboundOrderList.vue`：入库单桌面三段式行、平板过渡布局和移动单列条目的呈现；不请求分页数据或管理详情会话。
 - `frontend/src/components/approvals/`：入库与出库审批共用的日期筛选、桌面/移动待审批队列、审核 Dialog、确认阶段、入库明细、出库批次/FIFO 明细和共享响应式样式；请求和队列协调集中在 `StockApprovalWorkspace.vue`。
@@ -189,8 +189,8 @@
 - `frontend/src/components/dashboard/DashboardTrendChart.vue`：按容器宽度自适应的原生 SVG 出入库双曲线、坐标轴、桌面悬浮提示和窄屏触控详情，不请求 API。
 - `frontend/src/pages/ItemsPage.vue`、`ItemsPage.scss`、`pages/items/model.ts`：承担库存监控和补货判断的物品目录；桌面使用固定身份/库存列与纵向复合单元格，移动使用无横向表格的库存项目。关键词、库存状态、高级结构化筛选、计数、排序和分页来自服务端；所有具备 `stock.item.read` 的用户可从目录行或详情图标进入资料和库存详情，只有 `stock.item.manage` 用户才能看到新建、删除和保存入口，详情 Dialog 才可编辑。
 - `frontend/src/components/items/ItemCatalogAttributeDialog.vue`：维护现有物品模板中最多三个列表展示字段，不编辑模板字段结构。
-- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 正式多明细入库工作台；编排跨设备双步骤流程、带稳定舞台和方向语义的 `out-in` 步骤动画、草稿恢复、物品去重、权限控制的流程内物品新建、基于轻量选品响应的推荐入库模板解析、带请求版本防竞态的模板加载、模板切换破坏性确认、动态模板、图片上传、提交确认和后端错误定位；原生返回先关闭明细 Drawer，再从填写步骤回到选品步骤。
-- `frontend/src/pages/OutboundDraftPage.vue`、`OutboundDraftPage.scss`、`pages/outbound-draft/model.ts`、`api/outbound.ts`、`composables/useOutboundDraftPersistence.ts`：`/outbound` 两步待审批出库工作台；物品选取、FIFO/指定批次、可选库位、版本化本地草稿、异步 `ModalDialog` 离开保护及提交确认均留在前端；原生返回从填写步骤回到选品步骤，不审批或扣减库存。
+- `frontend/src/pages/InboundDraftPage.vue`、`InboundDraftPage.scss`：`/inbound` 单物品串行入库工作台；编排选择弹窗、完整明细 Drawer、草稿恢复、物品去重、权限控制的流程内物品新建、推荐入库模板解析、请求版本防竞态的模板加载、模板切换确认、动态模板、图片上传、提交确认和后端错误定位；原生返回先关闭明细 Drawer，再回到工作台。
+- `frontend/src/pages/OutboundDraftPage.vue`、`OutboundDraftPage.scss`、`pages/outbound-draft/model.ts`、`api/outbound.ts`、`composables/useOutboundDraftPersistence.ts`：`/outbound` 单物品串行出库工作台；选择弹窗与宽 `ModalDialog` 明细编辑器严格串行，集中处理数量、FIFO/指定批次、库位、批次快照、成本预估、版本化本地草稿、离开保护及提交确认；原生返回关闭最上层 Dialog，不审批或扣减库存的既有直接生效例外除外。
 - `frontend/src/pages/LocationsPage.vue`、`LocationsPage.scss`：`/locations` 库位分组树、列表和 CRUD 请求编排；移动分组 Drawer 处理原生返回并恢复分组触发器焦点。
 - `frontend/src/api/inboundOrders.ts`：入库单分页、状态/日期/关键词查询与详情 DTO，不管理页面状态或审批写入。
 - `frontend/src/pages/InboundOrdersPage.vue`、`InboundOrdersPage.scss`：`/inbound/orders` 入库单服务端分页协议下的尾部哨兵追加、关键词搜索、筛选 Dialog 编排、按需只读详情和审批路由跳转；列表呈现委托给 `InboundOrderList`，新建与审批分别保留在 `/inbound`、`/approvals/inbound`。
@@ -225,14 +225,10 @@
 - `frontend/docs/implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切、单列呈现重构、详情和筛选 Dialog 适配方案。
 - `frontend/docs/page-outbound-orders.md`：出库单列表、服务端筛选、触底追加、批次/FIFO 语义、详情与审批边界实施设计。
 - `frontend/docs/page-stock-approvals.md`：入库与出库审批共享工作台、组合权限、审核确认、库存影响、并发错误、响应式和验收设计。
-- `frontend/docs/page-outbound.md`：新建出库两步工作台、批次/FIFO 分配、草稿、提交审核和验收设计。
+- `frontend/docs/page-inbound.md`：新建入库单物品选择、单条明细编辑、模板/图片、草稿和响应式验收设计。
+- `frontend/docs/page-outbound.md`：新建出库单物品选择、数量/FIFO/批次分配、草稿、提交审核和验收设计。
 - `frontend/docs/page-templates.md`：分类与模板页面的三业务域结构、字段编辑器、权限、危险删除、响应式和验收设计。
 - `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。
-- `frontend/docs/page-inbound-orders.md`：入库单列表、服务端筛选、按需详情、审批边界和实施验收设计。
-- `frontend/docs/implementation-notes/outbound-estimated-cost.md`：出库草稿提交前基于批次快照的预计成本、FIFO 分摊、界面呈现与验收边界。
-- `frontend/docs/page-outbound-orders.md`：出库单列表、服务端筛选、触底追加、批次/FIFO 语义、详情与审批边界实施设计。
-- `frontend/docs/page-outbound.md`：新建出库两步工作台、批次/FIFO 分配、草稿、提交审核和验收设计。
-- `frontend/docs/page-templates.md`：分类与模板页面的三业务域结构、字段编辑器、权限、危险删除、响应式和验收设计。
 - `frontend/docs/page-substitutes.md`：替代关系页面的全局分组、方向语义、物品 Dialog 复用、整体保存、权限、响应式和验收设计。
 - `frontend/docs/implementation-notes/substitute-network-visualization.md`：替代关系星链网络的节点与有向边语义、力导向布局、编辑回路、响应式、性能边界和分阶段实施方案。
 - `frontend/docs/implementation-notes/inbound-template-usability-remediation.md`：入库工作台模板状态不可见、权限耦合、推荐模板竞态和破坏性切换的前后端整改方案。

@@ -54,12 +54,12 @@ Android 声明 `capabilities.nativeBack = true` 时，前端通过统一 registr
 1. `500`：Select listbox、图片来源与颜色等临时子浮层；
 2. `450`：图片全屏预览；
 3. `400`：最上层 Dialog，busy 时消费但不关闭；
-4. `300`：移动 Drawer 与 Popover；
-5. `200`：入库/出库工作台页面内步骤；
+4. `300`：移动 Drawer、Popover 与活动明细编辑层；
+5. `200`：预留给未来确有独立导航语义的页面内工作区，不用于当前入库/出库明细编辑；
 6. `100`：Vue Router history；
 7. 无 handler 处理时回复 `handled=false`，由 Android 重新判断 WebView/Activity fallback。
 
-同优先级按最近打开顺序处理。新增可取消的 Teleport 浮层、Drawer、Popover、全屏预览或页面内步骤时，
+同优先级按最近打开顺序处理。新增可取消的 Teleport 浮层、Drawer、Popover、全屏预览或活动编辑层时，
 必须通过 `useNativeBackHandler` 注册；关闭时立即结算，不等待 CSS 动画、网络请求、文件操作或用户在后续
 确认框中的选择。需要确认时应同步打开 `ModalDialog` 并把本次返回视为已处理。
 
@@ -75,4 +75,4 @@ Android 声明 `capabilities.nativeBack = true` 时，前端通过统一 registr
 - 最后一项内容可滚动到导航栏上方，标题/关闭按钮/输入框不被 cutout 遮挡；
 - 计算样式中 shell 与 env 没有相加造成的双重空白，控制台无新增错误。
 - 逐层验证 Select/图片子浮层、预览、nested Dialog、导航/库位/明细 Drawer、账户 Popover、
-  入库/出库步骤和未保存草稿离开确认；400ms 内连续提交不得一次关闭两层。
+  入库/出库明细编辑层和未保存草稿离开确认；400ms 内连续提交不得一次关闭两层。

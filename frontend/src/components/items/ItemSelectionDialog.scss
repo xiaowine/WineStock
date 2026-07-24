@@ -1,0 +1,132 @@
+/* 单物品选择弹窗的内容布局；业务页面只负责打开弹窗和接收选择结果。 */
+@use "../../styles/foundation/mixins" as mixins;
+.item-selection-dialog {
+  display: grid;
+  min-height: 0;
+  gap: 14px;
+}
+
+.item-selection-dialog__toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.item-selection-dialog__search {
+  min-width: 0;
+}
+
+.item-selection-dialog__create {
+  width: 40px;
+  height: 40px;
+}
+
+.item-selection-dialog__list {
+  display: grid;
+  max-height: min(56vh, 520px);
+  min-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.item-selection-dialog__item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  min-height: 68px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.item-selection-dialog__item:last-child {
+  border-bottom: 0;
+}
+
+.item-selection-dialog__item:hover {
+  background: rgb(23 32 42 / 3%);
+}
+
+.item-selection-dialog__item--selected {
+  background: var(--color-accent-soft);
+  box-shadow: inset 3px 0 var(--color-accent);
+}
+
+.item-selection-dialog__identity {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.item-selection-dialog__identity strong,
+.item-selection-dialog__identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-selection-dialog__identity small {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.item-selection-dialog__select {
+  gap: 6px;
+  padding-right: 12px;
+  padding-left: 12px;
+  white-space: nowrap;
+}
+
+.item-selection-dialog__select--selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+}
+
+.item-selection-dialog__select svg {
+  @include mixins.svg-icon;
+  flex: 0 0 auto;
+}
+
+.item-selection-dialog__state {
+  display: grid;
+  min-height: 130px;
+  place-items: center;
+  gap: 8px;
+  padding: 18px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.item-selection-dialog__state p {
+  margin: 0;
+}
+
+.item-selection-dialog__state--error {
+  color: var(--color-danger);
+}
+
+.item-selection-dialog__state--tail {
+  min-height: 48px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 560px) {
+  .item-selection-dialog__list {
+    max-height: calc(72vh - var(--safe-area-top));
+  }
+
+  .item-selection-dialog__item {
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    min-height: 114px;
+  }
+
+  .item-selection-dialog__select {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+  }
+}

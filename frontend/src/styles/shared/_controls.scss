@@ -1,5 +1,6 @@
 /* 本文件拥有跨页面复用的按钮与轻量操作控件外观，不定义具体业务组件布局。 */
 @use "sass:map";
+@use "../foundation/mixins" as mixins;
 
 %button-reset {
   border: 0;
@@ -38,6 +39,10 @@
   background: var(--color-surface);
   color: var(--color-muted);
   font-weight: 680;
+
+  > svg {
+    @include mixins.svg-icon;
+  }
 
   &--primary {
     border-color: var(--color-accent);

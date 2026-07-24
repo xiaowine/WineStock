@@ -38,7 +38,7 @@ http://127.0.0.1:<vite-port>/#/settings/runtime
 ### Android 原生返回与 history
 
 Android 通过 Shell Bridge v1 的 `nativeBack` 可选扩展先把返回提交交给前端。Dialog、预览、Select、
-Drawer、Popover 和页面内步骤都未处理时，registry 的最后一级 handler 才检查 Native 提供的
+Drawer、Popover 和活动明细编辑层都未处理时，registry 的最后一级 handler 才检查 Native 提供的
 `canGoBack`：为 true 时调用 `router.back()`，为 false 时回复未处理并交给 Activity fallback。
 
 `router.back()` 返回 `void`，且离开守卫可能异步打开确认 Dialog，因此前端在提交调用后立即回复
@@ -56,9 +56,9 @@ Drawer、Popover 和页面内步骤都未处理时，registry 的最后一级 ha
 | `/`                   | 无                   | `AppShell`     | 是             | 重定向到 `dashboard`                                                                                                                                                                    |
 | `/dashboard`          | `dashboard`          | `AppShell`     | 是             | 库存摘要、出入库趋势和呆滞物品总览；需要 `stock.dashboard.read`                                                                                                                         |
 | `/items`              | `items`              | `AppShell`     | 是             | 全宽物品目录，以及复用通用 Dialog 的新建/编辑、分类、可选属性预设和自定义属性；需要 `stock.item.read`                                                                                   |
-| `/inbound`            | `inbound`            | `AppShell`     | 是             | 桌面和移动端多明细入库工作台；提交按钮按权限自动切换为“直接入库”或“提交审核”，不允许同时选择两种模式；拥有物品管理权限时可在选择阶段新建物品并直接加入草稿；需要 `stock.inbound.create` |
+| `/inbound`            | `inbound`            | `AppShell`     | 是             | 桌面和移动端单物品串行入库工作台；选择一项物品后立即进入完整明细编辑，完成或暂存后才能继续添加；提交按钮按权限自动切换为“直接入库”或“提交审核”；需要 `stock.inbound.create` |
 | `/inbound/orders`     | `inbound-orders`     | `AppShell`     | 是             | 真实入库单服务端分页、关键词/状态/日期筛选和按需详情；需要 `stock.inbound.read`，审批入口仍需要 `stock.inbound.approve`                                                                 |
-| `/outbound`           | `outbound`           | `AppShell`     | 是             | 两步新建待审批出库工作台，支持物品搜索、FIFO/指定批次、草稿恢复和提交确认；创建需要 `stock.outbound.create`，选品与批次读取还需要 `stock.item.read`，移动导航暂不展示入口               |
+| `/outbound`           | `outbound`           | `AppShell`     | 是             | 单物品串行出库工作台；选择一项物品后在同一 Dialog 配置数量、FIFO/指定批次和库位，再继续添加；支持草稿恢复和提交确认；创建需要 `stock.outbound.create`，选品与批次读取还需要 `stock.item.read`，移动导航暂不展示入口 |
 | `/outbound/orders`    | `outbound-orders`    | `AppShell`     | 是             | 真实出库单服务端分页协议下的触底追加、关键词/状态/日期筛选和按需详情；需要 `stock.outbound.read`，审批入口仍需要 `stock.outbound.approve`                                               |
 | `/approvals/inbound`  | `inbound-approvals`  | `AppShell`     | 是             | 待审批入库单队列、关键词/日期筛选、按需详情、确认通过与拒绝；同时需要 `stock.inbound.read` 和 `stock.inbound.approve`                                                                   |
 | `/approvals/outbound` | `outbound-approvals` | `AppShell`     | 是             | 待审批出库单队列、关键词/日期筛选、批次/FIFO 详情、确认通过与拒绝；同时需要 `stock.outbound.read` 和 `stock.outbound.approve`                                                           |
