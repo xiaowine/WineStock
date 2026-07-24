@@ -10,6 +10,11 @@
     public static native <methods>;
 }
 
+# addJavascriptInterface 依赖稳定类名与 @JavascriptInterface 方法名。
+-keepclassmembers class winestock.xiaowine.cc.web.SystemBarAppearanceBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
 # 保留其它潜在 native 方法的类和方法名，避免后续新增 JNI 入口时遗漏规则。
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;

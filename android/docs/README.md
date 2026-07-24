@@ -108,8 +108,15 @@ Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView �
 触底时用真实节点 `.app-content-pane__end-inset`（含 `--safe-area-bottom`）撑开
 scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 padding 裁掉栏下沉浸区域。
 
-系统栏图标固定使用与当前浅色前端匹配的深色图标。夜间系统资源仍使用浅色
-`web_background`，避免 SplashScreen、Window 和 WebView 空白期出现深色断层。
+系统栏默认使用与浅色前端匹配的深色图标。图片全屏查看时前端经
+`WineStockSystemChrome`（`SystemBarAppearanceController` / `SystemBarAppearanceBridge`）
+临时改为浅色图标并关闭导航栏 contrast 强制，关闭后恢复；不经 Shell Bridge 业务契约。
+夜间系统资源仍使用浅色 `web_background`，避免 SplashScreen、Window 和 WebView 空白期出现深色断层。
+
+`MainActivity` 只做系统入口与 Activity Result 注册；组装与业务接线在
+`shell/MainShellCoordinator`。WebView 配置、文件选择、Splash、系统栏与返回分别在
+`web/ShellWebViewConfigurator`、`web/WebViewFileChooserHost`、`web/SplashFrontendGate`、
+`web/SystemBarAppearanceController`、`shell/NativeBackNavigator`。
 
 ## 相关文档
 

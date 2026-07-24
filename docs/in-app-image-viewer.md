@@ -9,7 +9,8 @@
 - **不**调用 `requestFullscreen`，**不**隐藏状态栏/导航栏，**不**改 Shell。
 - 用 `--safe-area-*` 只避让**可点内容**（关闭按钮、图片终点）；遮罩 **铺满整窗**（方案 B）。
 - 遮罩为半透明深色（`__dim` + `rgb(11 15 20 / 62%)`），业务页可透出；不用 `backdrop-filter`，避免进场后模糊延迟出现。
-- **不** hide 系统栏，故无 inset 恢复闪烁。
+- **不** hide 系统栏；Android 经 `WineStockSystemChrome.setDarkContent` 在打开时改用浅色系统栏图标
+  （并关闭导航栏 contrast 强制），关闭后恢复深色图标，避免 `LIGHT_NAVIGATION_BARS` 系统浅色底盖住遮罩。
 
 ## 组件
 
@@ -34,7 +35,7 @@ closed --open--> open
 ## 明确不做
 
 - `SystemBarsController` / `WebChromeClient` 全屏回调（已回撤）
-- Shell Bridge 藏栏 / 改图标能力
+- 将系统栏外观能力扩进 Shell Bridge v1 业务契约（仅宿主 chrome 钩子）
 - 为图标对比度而在栏后故意留浅色条（旧版行为；现方案 B 优先无白条）
 
 ## 相关

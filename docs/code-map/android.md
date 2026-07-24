@@ -33,17 +33,10 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
 ## Activity 与 WebView
 
 - `android/app/src/main/java/winestock/xiaowine/cc/MainActivity.kt`
-  - 唯一 Activity；创建配置 WebView、通过 `WebViewAssetLoader` 从受信任 origin 加载打包前端。
-  - 在 `loadUrl` 前安装 Shell Bridge，保证 document-start 脚本先于页面脚本注入。
-  - 保持 edge-to-edge，让 WebView 覆盖完整 Activity Window；不再给根容器统一添加系统栏 padding。
-  - 管理与浅色前端一致的系统栏图标、页面可见后的 inset 重发和 SplashScreen；系统返回先交给
-    Shell Bridge 协商，未处理、超时或页面未 ready 时才重新判断 WebView history 并交回 dispatcher。
-  - 主页面开始加载、Activity pause/stop/destroy 时同步推进或清理原生返回生命周期；`onResume` 恢复协商、
-    刷新安全区并通知桥应用恢复。
-  - 放开 WebView mixed content，使运行在 `https://winestock.internal` 的前端能连接明文 HTTP 远端服务。
-  - 从 `WineStockApplication` 取得进程级 manager，只绑定 Bridge/WebView，不拥有或停止本地 Axum。
-  - 通过 `WebChromeClient.onShowFileChooser` + Activity Result 启动系统文件选择器（`FileChooserParams.createIntent`
-    / SAF），把选定的 `content://` URI 交回 WebView；不申请存储/媒体/相机权限。
+  - 唯一 Activity 入口：系统生命周期 + `registerForActivityResult`；不内联 WebView/Bridge 组装。
+- `android/app/src/main/java/winestock/xiaowine/cc/shell/MainShellCoordinator.kt`
+  - 组装 edge-to-edge、Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host；
+    在 `loadUrl` 前安装 Bridge；从 `WineStockApplication` 取进程级 manager，不停止本地 Axum。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/WineStockApplication.kt`
   - 在 Application 创建时初始化唯一 `LocalCoreRuntimeManager`；Activity 重建不替换 core runtime。
@@ -88,17 +81,30 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
     `--shell-safe-area-inset-top/right/bottom/left`，页面提交、加载完成或恢复时重发。
   - inset 属于 WebView 渲染环境，不扩展 Shell Bridge v1 业务契约。
 
+- `android/app/src/main/java/winestock/xiaowine/cc/web/SystemBarAppearanceController.kt`
+  - 拥有浅色/深色内容系统栏外观与 `navigationBarContrastEnforced`；安装
+    `WineStockSystemChrome` JS 接口；resume 时 `reapply()`。
+- `android/app/src/main/java/winestock/xiaowine/cc/web/SystemBarAppearanceBridge.kt`
+  - JS 薄接口：`setDarkContent(boolean)`，由 Controller 安装；不经 Shell Bridge。
+
 - `android/app/src/main/java/winestock/xiaowine/cc/web/WebViewFileChooserSession.kt`
   - 纯状态机地拥有 HTML 文件选择的单 pending `ValueCallback`、supersede 时 null 结算、
     cancel/destroy 一次结算，以及 ClipData/单 URI/取消的结果映射。
-  - 与 MainActivity 单个 ActivityResultLauncher 配套：supersede 后的唯一结果结算新 pending，
-    不用 stale 丢弃计数（避免把二次选择结果当过期丢掉导致 WebView 挂起）。
   - 不启动 Intent、不依赖 WebView，不做 `content://` 路径反查；由 JVM 单元测试覆盖竞态。
+- `android/app/src/main/java/winestock/xiaowine/cc/web/WebViewFileChooserHost.kt`
+  - 启动系统选择器 Intent、解析 Activity Result、把 URI 交回 WebView；包装 Session。
 - `android/app/src/test/java/winestock/xiaowine/cc/web/WebViewFileChooserSessionTest.kt`
   - 覆盖 deliver、cancel、空结果、supersede 后单次 deliver 结算新回调、destroy 与 mapChooserResult。
 
-- `android/app/src/main/java/winestock/xiaowine/cc/web/LoadingOverlayController.kt`
-  - 拥有加载遮罩生命周期：启动兜底超时，收到首个就绪信号后淡出。`hide` 幂等且线程安全。
+- `android/app/src/main/java/winestock/xiaowine/cc/web/ShellWebViewConfigurator.kt`
+  - 配置 WebView 背景、overscroll、asset 拦截、mixed content、系统栏钩子与文件选择 ChromeClient。
+- `android/app/src/main/java/winestock/xiaowine/cc/web/SplashFrontendGate.kt`
+  - SplashScreen keep-on-screen 与超时/前端 ready 门闩；`markReady` 幂等。
+
+- `android/app/src/main/java/winestock/xiaowine/cc/shell/NativeBackNavigator.kt`
+  - 系统返回：Shell Bridge 协商，未处理时 WebView history / finish Activity。
+- `android/app/src/main/java/winestock/xiaowine/cc/shell/DeviceMetadata.kt`
+  - Bridge 注入用的设备名与 app 版本字符串。
 
 ## Shell Bridge 传输
 
