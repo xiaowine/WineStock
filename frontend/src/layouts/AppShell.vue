@@ -98,6 +98,8 @@
 
       <main class="app-content-pane" aria-label="主内容">
         <RouteContentView />
+        <!-- 触底安全区占位：必须是真实节点以撑开 scrollHeight，内容可仍延伸到导航栏下。 -->
+        <div class="app-content-pane__end-inset" aria-hidden="true" />
       </main>
     </div>
 

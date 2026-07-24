@@ -477,7 +477,13 @@
   .items-catalog__refresh-status {
     display: none;
   }
+  /*
+   * 勿用 flex:1 把 body 锁死高度再 overflow:visible 把 load-more 画到导航栏下：
+   * 溢出不会可靠进入 content-pane 的 scrollHeight，导致尾部永远滚不出来。
+   * 按内容撑开，catalog 的 min-height 只负责「够高」，多出的空白在列表下方、栏上方。
+   */
   .items-catalog__body {
+    flex: 0 0 auto;
     overflow: visible;
   }
   .items-catalog__table {

@@ -531,7 +531,9 @@ button.event-action-pill {
   }
 
   .events-results {
+    /* 与物品列表相同：结果区按内容增高，避免 load-more 溢出到导航栏下且无法滚动。 */
     overflow: visible;
+    flex: 0 0 auto;
   }
 
   .events-load-more {

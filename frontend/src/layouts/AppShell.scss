@@ -2,6 +2,7 @@
 @use "../styles/foundation/mixins" as mixins;
 .app-shell {
   display: flex;
+  /* 全屏 edge-to-edge：内容可延伸到系统导航栏下方以保持沉浸；底边避让靠滚动宿主尾部占位。 */
   height: 100vh;
   height: 100dvh;
   min-height: 320px;
@@ -91,6 +92,11 @@
   overscroll-behavior-y: contain;
   padding: 18px calc(22px + var(--safe-area-right)) calc(22px + var(--safe-area-bottom)) 22px;
   background: var(--color-surface);
+}
+
+/* 桌面端占位收进 padding；移动端用独立高度节点（见 mobile）。 */
+.app-content-pane__end-inset {
+  display: none;
 }
 
 .app-mobile-nav-trigger,
@@ -216,8 +222,31 @@
   }
 
   .app-content-pane {
+    display: flex;
     height: 100%;
-    padding: 10px var(--safe-area-right) calc(18px + var(--safe-area-bottom)) var(--safe-area-left);
+    min-height: 0;
+    flex-direction: column;
+    padding: 10px max(12px, var(--safe-area-right)) 0 max(12px, var(--safe-area-left));
+    scroll-padding-bottom: calc(16px + var(--safe-area-bottom));
+  }
+
+  /* 路由按内容增高，勿 flex:1 拉满含导航栏在内的整屏高度。 */
+  .app-content-pane .route-page {
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 0 12px;
+  }
+
+  /*
+   * 真实尾部节点撑开 scrollHeight：触底时最后一项可完整高于系统导航栏；
+   * 未触底时该节点在视口外，列表中部仍可画进导航栏后方（沉浸）。
+   */
+  .app-content-pane__end-inset {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    height: calc(16px + var(--safe-area-bottom));
+    pointer-events: none;
   }
 
   .app-navigation-pane {
@@ -301,7 +330,4 @@
     opacity: 0;
   }
 
-  .app-content-pane .route-page {
-    padding: 0 12px;
-  }
 }

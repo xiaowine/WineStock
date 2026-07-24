@@ -94,12 +94,19 @@ Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView �
 
 `web/WebViewportInsetsPublisher.kt` 负责：
 
-- 读取 `systemBars | displayCutout`，不消费 WindowInsets；
-- 依据当前 display density 把 Android 物理像素转换为 CSS 像素；
+- 读取 systemBars/displayCutout，底边再与 navigationBars(ignoringVisibility)、
+  tappableElement、mandatorySystemGestures 取较大值；仍为 0 且无侧栏导航时回退
+  系统 `navigation_bar_height`；
+- 在 Activity 根与 WebView 上监听 inset，不消费 WindowInsets；
+- 依据当前 display density 把物理像素转换为 CSS 像素；
 - 只向受信任 origin `https://winestock.internal` 发布
   `--shell-safe-area-inset-top/right/bottom/left`；
 - 对相同数值去重，并在页面提交可见、加载完成、恢复或 inset 变化后重发；
 - Activity 销毁时解除监听，不把 inset 扩展为 Shell Bridge v1 业务契约。
+
+前端主滚动区 `.app-content-pane` 保持全高 edge-to-edge（内容可画进导航栏后方），
+触底时用真实节点 `.app-content-pane__end-inset`（含 `--safe-area-bottom`）撑开
+scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 padding 裁掉栏下沉浸区域。
 
 系统栏图标固定使用与当前浅色前端匹配的深色图标。夜间系统资源仍使用浅色
 `web_background`，避免 SplashScreen、Window 和 WebView 空白期出现深色断层。

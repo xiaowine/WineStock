@@ -10,7 +10,9 @@ import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.round
+import kotlin.math.roundToInt
 
 /**
  * Android WebView 安全区发布器。
@@ -34,18 +36,27 @@ internal class WebViewportInsetsPublisher(
         if (disposed) return
         ViewCompat.setOnApplyWindowInsetsListener(insetTarget) { _, insets ->
             if (!disposed) {
-                latestPhysicalInsets =
-                    insets.getInsets(
-                        WindowInsetsCompat.Type.systemBars() or
-                            WindowInsetsCompat.Type.displayCutout(),
-                    )
+                latestPhysicalInsets = extractContentSafeInsets(insets)
                 hasReceivedInsets = true
                 publishIfPossible(force = false)
             }
             // 让其它 View 继续收到原始 inset；本类不执行全局 padding 或消费。
             insets
         }
+        // WebView 也可能单独收到 inset 变化；两边都监听，取较大边写 CSS 变量。
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+            if (!disposed) {
+                val candidate = extractContentSafeInsets(insets)
+                if (isStrictlyLarger(candidate, latestPhysicalInsets) || !hasReceivedInsets) {
+                    latestPhysicalInsets = mergeInsets(latestPhysicalInsets, candidate)
+                    hasReceivedInsets = true
+                    publishIfPossible(force = false)
+                }
+            }
+            insets
+        }
         ViewCompat.requestApplyInsets(insetTarget)
+        ViewCompat.requestApplyInsets(webView)
     }
 
     /** 页面提交或加载完成后重发缓存值，覆盖页面导航造成的 CSS 变量丢失。 */
@@ -67,6 +78,7 @@ internal class WebViewportInsetsPublisher(
         if (disposed) return
         disposed = true
         ViewCompat.setOnApplyWindowInsetsListener(insetTarget, null)
+        ViewCompat.setOnApplyWindowInsetsListener(webView, null)
     }
 
     private fun publishIfPossible(force: Boolean) {
@@ -116,6 +128,65 @@ internal class WebViewportInsetsPublisher(
         } else {
             -1
         }
+
+    /**
+     * 合并状态栏/导航栏（含 ignoringVisibility）、挖孔、可点区与强制手势底边。
+     * 底边若仍为 0，回退系统 `navigation_bar_height`，避免 edge-to-edge 下漏报导航栏高度。
+     */
+    private fun extractContentSafeInsets(insets: WindowInsetsCompat): Insets {
+        val systemAndCutout =
+            insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+        val navIgnoring =
+            insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars())
+        val statusIgnoring =
+            insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars())
+        val tappable = insets.getInsets(WindowInsetsCompat.Type.tappableElement())
+        val mandatoryGestures = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures())
+
+        val top = maxOf(systemAndCutout.top, statusIgnoring.top, tappable.top)
+        val left = maxOf(systemAndCutout.left, tappable.left)
+        val right = maxOf(systemAndCutout.right, tappable.right)
+        var bottom =
+            maxOf(
+                systemAndCutout.bottom,
+                navIgnoring.bottom,
+                tappable.bottom,
+                mandatoryGestures.bottom,
+            )
+        // 底边为 0 且侧边也无导航 inset 时，多半是 edge-to-edge 漏报底栏（非横屏侧栏导航）。
+        val hasSideNavigation = navIgnoring.left > 0 || navIgnoring.right > 0
+        if (bottom <= 0 && !hasSideNavigation) {
+            bottom = navigationBarHeightFallbackPx()
+        }
+        return Insets.of(left, top, right, bottom)
+    }
+
+    private fun navigationBarHeightFallbackPx(): Int {
+        val resources = insetTarget.resources
+        val resId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+        if (resId > 0) {
+            val value = resources.getDimensionPixelSize(resId)
+            if (value > 0) return value
+        }
+        // 常见三键导航约 48dp；手势条更矮时若 inset 非 0 不会走到这里。
+        return (48f * resources.displayMetrics.density).roundToInt()
+    }
+
+    private fun mergeInsets(a: Insets, b: Insets): Insets =
+        Insets.of(
+            max(a.left, b.left),
+            max(a.top, b.top),
+            max(a.right, b.right),
+            max(a.bottom, b.bottom),
+        )
+
+    private fun isStrictlyLarger(candidate: Insets, current: Insets): Boolean =
+        candidate.left > current.left ||
+            candidate.top > current.top ||
+            candidate.right > current.right ||
+            candidate.bottom > current.bottom
 
     private fun Insets.toCssInsets(): CssInsets {
         val density = insetTarget.resources.displayMetrics.density.takeIf { it > 0f } ?: 1f

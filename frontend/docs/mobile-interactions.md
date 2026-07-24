@@ -20,7 +20,11 @@ Android shell 的 `WebViewportInsetsPublisher` 读取 `systemBars | displayCutou
 1. `html`、`body`、`#app`、遮罩和背景层保持 full bleed，不添加全局安全区 padding。
 2. 顶栏、Drawer header、关闭按钮、表单、固定底部操作区和通知等可读/可操作内容，
    按靠近的边消费对应 `--safe-area-*`。
-3. 普通滚动宿主要为底部安全区保留可滚动尾部，确保最后一项能滚到导航栏上方。
+3. 系统导航栏：保持 edge-to-edge 沉浸——主滚动区全高，中部内容可延伸到栏下。触底避让用真实节点
+   `.app-content-pane__end-inset`（`16px + var(--safe-area-bottom)`）撑开 scrollHeight；移动端
+   `.route-page` 为 `flex: 0 0 auto` 按内容增高。列表 `load-more` 须在文档流内，禁止 flex 锁高 +
+   overflow 把尾部画到栏下。不要用壳级 `padding-bottom` 裁掉栏下沉浸区。
+   固定底栏/Sheet 仍须在组件上消费 `--safe-area-bottom`。
 4. 横屏或 display cutout 必须同时考虑 left/right；不能只处理 top/bottom。
 5. Dialog/Sheet 的遮罩可以覆盖全视口，面板和操作区按语义避让；不要通过复制平台判断
    建立第二套布局。
