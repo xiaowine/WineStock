@@ -57,6 +57,25 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         .await
         .expect("second migration should be idempotent");
 
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM seaql_migrations",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_string(
+            &storage.database,
+            "SELECT version FROM seaql_migrations LIMIT 1",
+            "version",
+        )
+        .await,
+        "m20260706_000001_initial_schema"
+    );
+
     for table in [
         "auth_users",
         "auth_permissions",
@@ -95,6 +114,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         "unit_mode",
         "fixed_unit",
         "unit_options_json",
+        "catalog_visible",
     ] {
         let sql = format!(
             "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attribute_definitions') WHERE name = '{column}'"
@@ -167,6 +187,24 @@ async fn migration_is_idempotent_and_creates_current_schema() {
     assert_eq!(
         query_i64(
             &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_locations') WHERE name IN ('notes')",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_locations') WHERE name = 'code'",
+            "count",
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
             "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_auth_users_visible_id'",
             "count",
         )
@@ -204,6 +242,15 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         query_i64(
             &storage.database,
             "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_stock_items_sku_active'",
+            "count",
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index' AND name = 'idx_stock_locations_name_active'",
             "count",
         )
         .await,

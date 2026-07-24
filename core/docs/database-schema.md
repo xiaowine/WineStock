@@ -1,7 +1,7 @@
 # 数据库结构
 
 本文档记录当前 SQLite schema 的业务表命名、职责和系统表边界。
-业务实现以 `core/src/persistence/migration/` 中的 SeaORM migration 为准；本文档用于帮助阅读数据库文件时快速区分表的所有权。
+业务实现以 `core/src/persistence/migration/` 中的单一 SeaORM 初始 schema migration 为准；本文档用于帮助阅读数据库文件时快速区分表的所有权。
 用户直接权限和授权规则见 [`rbac-permission-model.md`](rbac-permission-model.md)。
 
 ## 命名规则

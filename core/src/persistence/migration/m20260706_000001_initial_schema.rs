@@ -232,6 +232,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         field_type TEXT NOT NULL CHECK (field_type IN ('text', 'number', 'select', 'date', 'file', 'url', 'boolean')),
         required INTEGER NOT NULL DEFAULT 0 CHECK (required IN (0, 1)),
         searchable INTEGER NOT NULL DEFAULT 0 CHECK (searchable IN (0, 1)),
+        catalog_visible INTEGER NOT NULL DEFAULT 0 CHECK (catalog_visible IN (0, 1)),
         options_json TEXT,
         default_value TEXT,
         unit_mode TEXT NOT NULL DEFAULT 'none' CHECK (unit_mode IN ('none', 'fixed', 'select')),

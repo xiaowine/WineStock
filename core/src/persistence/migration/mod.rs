@@ -1,11 +1,9 @@
 //! SeaORM migration 注册入口。
 //!
-//! 本模块属于 core 持久化层，只声明内置 migration 列表。
+//! 本模块属于 core 持久化层，只声明开发阶段唯一的内置 schema migration。
 //! 是否执行 migration 由平台传入的 `StorageConfig.auto_migrate` 决定。
 
 mod m20260706_000001_initial_schema;
-mod m20260713_000002_item_catalog_visibility;
-mod m20260715_000003_location_name_notes;
 
 use sea_orm_migration::prelude::*;
 
@@ -15,10 +13,6 @@ pub(super) struct Migrator;
 #[sea_orm_migration::async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
-            Box::new(m20260706_000001_initial_schema::Migration),
-            Box::new(m20260713_000002_item_catalog_visibility::Migration),
-            Box::new(m20260715_000003_location_name_notes::Migration),
-        ]
+        vec![Box::new(m20260706_000001_initial_schema::Migration)]
     }
 }

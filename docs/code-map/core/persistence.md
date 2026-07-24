@@ -9,11 +9,8 @@
 - `core/src/persistence/migration/mod.rs`：SeaORM `Migrator`。
 - `core/src/persistence/migration/m20260706_000001_initial_schema.rs`
   - 创建 auth、storage、stock 和 audit 业务表，包括物品/入库属性及两类图片绑定关系。
-  - 初始 schema 使用 `stock_item_attribute_definitions` 统一保存模板与物品私有属性定义，值表只引用 `definition_id`；数字定义使用 `none`、`fixed`、`select` 单位规则，不保留开发阶段兼容迁移。
-- `core/src/persistence/migration/m20260713_000002_item_catalog_visibility.rs`
-  - 为已执行初始 schema 的数据库补充 `catalog_visible`，新数据库检测到字段已存在时跳过。
-- `core/src/persistence/migration/m20260715_000003_location_name_notes.rs`
-  - 将库位自然标识切换为全局唯一名称，增加可选备注并移除旧库位编码；已有重复名称会阻止迁移，避免静默合并业务位置。
+  - 初始 schema 使用 `stock_item_attribute_definitions` 统一保存模板与物品私有属性定义，包含 `catalog_visible` 和数字定义的 `none`、`fixed`、`select` 单位规则。
+  - 库位直接以全局唯一名称和可选 `notes` 建模，不保留旧库位编码或开发阶段增量兼容 migration。
 
 数据库表与字段边界见 `core/docs/database-schema.md`。
 
