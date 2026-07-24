@@ -1,5 +1,4 @@
-/* 本文件拥有普通图片触发器和全屏图片查看层样式，不拥有鉴权加载或业务页面布局。 */
-@use "../styles/foundation/mixins" as mixins;
+/* 缩略图触发器样式；查看层样式见 InAppImageViewer.scss。 */
 .preview-image {
   position: relative;
   display: block;
@@ -64,84 +63,5 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-  }
-}
-
-.image-viewer {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-notice) - 1);
-  display: grid;
-  isolation: isolate;
-  place-items: center;
-  padding: max(56px, calc(20px + var(--safe-area-top))) calc(20px + var(--safe-area-right))
-    max(20px, var(--safe-area-bottom)) calc(20px + var(--safe-area-left));
-  background: var(--color-page);
-
-  /* 深色预览层只覆盖安全绘制矩形，系统栏区域保留浅色背景以匹配深色图标。 */
-  &::before {
-    position: absolute;
-    z-index: 0;
-    inset: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom) var(--safe-area-left);
-    background: rgb(11 15 20 / 70%);
-    backdrop-filter: blur(1.8px);
-    content: "";
-  }
-
-  > img {
-    position: fixed;
-    z-index: 1;
-    display: block;
-    object-fit: contain;
-    user-select: none;
-    -webkit-user-drag: none;
-    transition:
-      left var(--motion-duration-standard) var(--motion-ease-standard),
-      top var(--motion-duration-standard) var(--motion-ease-standard),
-      width var(--motion-duration-standard) var(--motion-ease-standard),
-      height var(--motion-duration-standard) var(--motion-ease-standard),
-      border-radius var(--motion-duration-standard) var(--motion-ease-standard);
-  }
-
-  &__close {
-    position: absolute;
-    z-index: 1;
-    top: max(14px, var(--safe-area-top));
-    right: calc(14px + var(--safe-area-right));
-    width: 40px;
-    height: 40px;
-    border-color: rgb(255 255 255 / 24%);
-    background: rgb(23 32 42 / 72%);
-    color: #fff;
-
-    &:hover {
-      background: rgb(255 255 255 / 14%);
-    }
-
-    svg {
-      width: 20px;
-      height: 20px;
-      fill: none;
-      stroke: currentcolor;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-    }
-  }
-}
-
-.image-viewer-enter-active,
-.image-viewer-leave-active {
-  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
-.image-viewer-enter-from,
-.image-viewer-leave-to {
-  opacity: 0;
-}
-
-@include mixins.mobile {
-  .image-viewer {
-    padding-right: calc(12px + var(--safe-area-right));
-    padding-left: calc(12px + var(--safe-area-left));
   }
 }

@@ -1,0 +1,98 @@
+/* 应用内图片查看层：安全区避让，不隐藏系统栏、不使用 Fullscreen API。 */
+@use "../styles/foundation/mixins" as mixins;
+
+.in-app-image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-notice) - 1);
+  display: grid;
+  isolation: isolate;
+  place-items: center;
+  /* 图片与关闭按钮仍避让系统栏；遮罩铺满整窗（方案 B），不隐藏系统栏。 */
+  padding: max(56px, calc(20px + var(--safe-area-top))) calc(20px + var(--safe-area-right))
+    max(20px, var(--safe-area-bottom)) calc(20px + var(--safe-area-left));
+  /* 层本身透明；遮罩用半透明色立刻压暗（不用 backdrop-filter，避免进场后晚一拍才糊）。 */
+  background: transparent;
+
+  &__dim {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background: rgb(11 15 20 / 62%);
+    pointer-events: none;
+  }
+
+  > img {
+    position: fixed;
+    z-index: 1;
+    display: block;
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+    transition:
+      left var(--motion-duration-standard) var(--motion-ease-standard),
+      top var(--motion-duration-standard) var(--motion-ease-standard),
+      width var(--motion-duration-standard) var(--motion-ease-standard),
+      height var(--motion-duration-standard) var(--motion-ease-standard),
+      border-radius var(--motion-duration-standard) var(--motion-ease-standard);
+  }
+
+  &__close {
+    position: absolute;
+    z-index: 1;
+    /* 相对安全区再下移，避免贴状态栏/刘海。 */
+    top: max(22px, calc(var(--safe-area-top) + 12px));
+    right: calc(14px + var(--safe-area-right));
+    width: 40px;
+    height: 40px;
+    border-color: rgb(255 255 255 / 24%);
+    background: rgb(23 32 42 / 72%);
+    color: #fff;
+    /* 触摸松手后不保留 :hover 高亮（全局 .icon-button:hover 在部分 WebView 会粘住）。 */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+
+    /* 提高优先级以覆盖全局 .icon-button:hover，避免触控粘滞高亮。 */
+    @include mixins.hover-capable {
+      &.icon-button:hover {
+        background: rgb(255 255 255 / 14%);
+      }
+    }
+
+    @include mixins.touch-input {
+      &.icon-button:hover,
+      &.icon-button:focus {
+        background: rgb(23 32 42 / 72%);
+      }
+
+      &.icon-button:active {
+        background: rgb(255 255 255 / 18%);
+      }
+    }
+
+    svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+    }
+  }
+}
+
+/* 进场不淡整层（遮罩需首帧就位）；仅退场淡出。 */
+.in-app-image-viewer-leave-active {
+  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.in-app-image-viewer-leave-to {
+  opacity: 0;
+}
+
+@include mixins.mobile {
+  .in-app-image-viewer {
+    padding-right: calc(12px + var(--safe-area-right));
+    padding-left: calc(12px + var(--safe-area-left));
+  }
+}

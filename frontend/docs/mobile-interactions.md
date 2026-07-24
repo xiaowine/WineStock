@@ -24,7 +24,8 @@ Android shell 的 `WebViewportInsetsPublisher` 读取 `systemBars | displayCutou
 4. 横屏或 display cutout 必须同时考虑 left/right；不能只处理 top/bottom。
 5. Dialog/Sheet 的遮罩可以覆盖全视口，面板和操作区按语义避让；不要通过复制平台判断
    建立第二套布局。
-6. 图片预览等深色临时内容不能覆盖系统栏安全区，除非另行实现系统栏图标外观桥能力。
+6. 图片查看使用应用内固定层（`InAppImageViewer`），不隐藏系统栏、不调用 Fullscreen；
+   遮罩 full-bleed 铺满（含系统栏区域），关闭按钮与图片仍按 `--safe-area-*` 避让；不扩展 Shell Bridge。
 
 ## 受影响组件清单
 
