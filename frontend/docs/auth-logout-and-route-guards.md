@@ -13,7 +13,7 @@
 - 会话层公开五态初始化模型，网络不可用和凭据失效不会混为一谈。
 - access token 会在预计到期前自动 refresh，并在页面唤醒或网络恢复时补检。
 - `meta.requiresAuth` 已由全局异步前置守卫执行。
-- 守卫在会话初始化之前先检查 `runtimeSetupFinished`（服务可 HTTP 且非 `createdDefault`）；未完成时导向运行设置。Shell 自动默认 `apiBaseUrl` 保留，由 `createdDefault` 触发首次确认。
+- 守卫在会话初始化之前先检查 `runtimeSetupFinished`（Shell `initialized` 且服务可 HTTP）；未完成时导向运行设置。首次未初始化时 Shell 不启动本地服务，由前端 apply 触发首次确认。
 - `password_change_required` 已由独立修改密码页面和全局守卫执行，受限会话不能进入其它前端页面。
 - 桌面应用壳已经提供登出入口、进行状态和本机退出警告；登出落地统一为 `/auth`（与运行设置完成出口一致）。
 
@@ -258,7 +258,7 @@ router.beforeEach(async (to) => {
 守卫要求：
 
 - 可以异步等待初始化。
-- 设置未完成（含 Shell `createdDefault`）时不得先进入认证或业务页。
+- 设置未完成（含 Shell `initialized=false`）时不得先进入认证或业务页。
 - 只在明确 `anonymous` 时把受保护页面重定向到 `/auth`。
 - `unavailable` 不重定向认证页，避免把服务暂时不可用误报为凭据失效。
 - 运行设置页（`requiresService === false`）在会话变 anonymous 时不被监听器抢走。

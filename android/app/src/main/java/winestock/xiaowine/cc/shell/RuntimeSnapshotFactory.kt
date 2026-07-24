@@ -13,7 +13,8 @@ data class RuntimeServiceSnapshot(
 data class AndroidRuntimeSnapshot(
     val configStatus: String,
     val config: EditableRuntimeConfig,
-    val createdDefault: Boolean,
+    /** 运行配置是否已由用户成功应用并持久化；不表示本地服务当前是否健康。 */
+    val initialized: Boolean,
     val service: RuntimeServiceSnapshot,
     /** native 加载成功才开放本地生命周期 capability；server-mode 仍保持禁用。 */
     val nativeAvailable: Boolean,
@@ -26,7 +27,9 @@ object RuntimeSnapshotFactory {
 
     fun toJson(snapshot: AndroidRuntimeSnapshot, nativeBackSupported: Boolean): JSONObject {
         val localLifecycleAvailable =
-            snapshot.nativeAvailable && snapshot.service.ownership == "local"
+            snapshot.initialized &&
+                snapshot.nativeAvailable &&
+                snapshot.service.ownership == "local"
         val service =
             JSONObject()
                 .put("ownership", snapshot.service.ownership)
@@ -40,7 +43,7 @@ object RuntimeSnapshotFactory {
             .put("platform", PLATFORM)
             .put("configStatus", snapshot.configStatus)
             .put("config", snapshot.config.toJson())
-            .put("createdDefault", snapshot.createdDefault)
+            .put("initialized", snapshot.initialized)
             .put("service", service)
             .put(
                 "capabilities",

@@ -21,17 +21,14 @@ async function loadModule(relativePath) {
 const { isRuntimeServiceReady, isRuntimeSetupFinished } = await loadModule(
   "../src/shell/runtimeReadiness.ts",
 );
-const {
-  bridgeReturnToToAuthRedirect,
-  isSafeInternalPath,
-  resolveRuntimeSettingsLeave,
-} = await loadModule("../src/pages/runtime-settings/leave.ts");
+const { bridgeReturnToToAuthRedirect, isSafeInternalPath, resolveRuntimeSettingsLeave } =
+  await loadModule("../src/pages/runtime-settings/leave.ts");
 
 function snapshot(overrides = {}) {
   const { service: serviceOverride, ...rest } = overrides;
   return {
     configStatus: "configured",
-    createdDefault: false,
+    initialized: true,
     service: {
       apiBaseUrl: "http://127.0.0.1:17890",
       ...(serviceOverride ?? {}),
@@ -60,23 +57,22 @@ test("unready when configStatus is unconfigured or invalid", () => {
   );
 });
 
-test("service ready with apiBaseUrl even when createdDefault", () => {
-  assert.equal(isRuntimeServiceReady(snapshot({ createdDefault: true })), true);
-  assert.equal(isRuntimeServiceReady(snapshot({ createdDefault: false })), true);
+test("service readiness is independent from Shell initialization", () => {
+  assert.equal(isRuntimeServiceReady(snapshot({ initialized: false })), true);
+  assert.equal(isRuntimeServiceReady(snapshot({ initialized: true })), true);
 });
 
-test("setup finished only after save cleared createdDefault", () => {
-  assert.equal(isRuntimeSetupFinished(snapshot({ createdDefault: true })), false);
-  assert.equal(isRuntimeSetupFinished(snapshot({ createdDefault: false })), true);
-  assert.equal(isRuntimeSetupFinished(snapshot({ createdDefault: undefined })), true);
+test("setup finished follows Shell initialized flag", () => {
+  assert.equal(isRuntimeSetupFinished(snapshot({ initialized: false })), false);
+  assert.equal(isRuntimeSetupFinished(snapshot({ initialized: true })), true);
 });
 
-test("save path semantics: auto default blocks funnel until apply", () => {
-  const autoDefault = snapshot({ createdDefault: true });
-  assert.equal(isRuntimeServiceReady(autoDefault), true);
-  assert.equal(isRuntimeSetupFinished(autoDefault), false);
-  const afterSave = snapshot({ createdDefault: false });
-  assert.equal(isRuntimeSetupFinished(afterSave), true);
+test("uninitialized Shell snapshot stays in setup even if it exposes an API", () => {
+  const uninitialized = snapshot({ initialized: false });
+  assert.equal(isRuntimeServiceReady(uninitialized), true);
+  assert.equal(isRuntimeSetupFinished(uninitialized), false);
+  const afterApply = snapshot({ initialized: true });
+  assert.equal(isRuntimeSetupFinished(afterApply), true);
 });
 
 test("safe internal path rejects external-looking values", () => {

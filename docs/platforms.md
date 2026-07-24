@@ -19,7 +19,8 @@
 
 启动时，桌面 Shell 必须先注册 Shell Bridge，再加载 Tauri 打包的前端资源；即使配置或 API 服务不可用，前端仍应能打开。
 运行设置和服务状态只由前端呈现。Shell 根据前端请求读取、校验、持久化并应用共享配置。
-本地模式启动应用时始终在后台启动共享 Axum 服务，不把该行为暴露为可关闭的普通 UI 选项；`client-only` 不启动 Axum。
+已有 initialized 本地配置时，应用启动会在后台启动共享 Axum 服务，不把该行为暴露为可关闭的普通 UI 选项；
+首次缺少配置时等待前端 apply，`client-only` 不启动 Axum。
 
 WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地址之一：
 
@@ -63,7 +64,9 @@ Android Shell 负责：
 
 启动时，Android Shell 必须先注册 Shell Bridge，再加载 Android 打包的前端资源；即使配置或 API 服务不可用，前端仍应能打开。
 运行设置和服务状态只由前端呈现。Shell 根据前端请求读取、校验、持久化并应用共享配置。
-本地模式启动应用时始终启动共享 Axum Android native library；`client-only` 不启动 Axum。
+首次没有持久配置时，Shell 发布 `initialized=false` 和默认草稿，不创建配置文件、不启动本地 Axum HTTP 服务；
+用户在前端选择模式并成功应用后才启动本地 core 或切换远端。已有有效本地配置的后续冷启动仍自动启动
+共享 Axum 服务；`client-only` 不启动 Axum。
 
 WebView 从受信任本地 origin 打开 Android 打包的前端资源，随后前端访问以下 API 根地址之一：
 
@@ -90,12 +93,13 @@ Android 前端资源由 Android 打包，不由 Axum crate 提供。
 
 - 已实现打包 WebView、Shell Bridge、edge-to-edge、受限 origin 的 CSS inset 发布和前端优先的原生返回协商；
 - `WineStockApplication` 持有进程级唯一 `LocalCoreRuntimeManager`，Activity 重建不会停止或重建 Rust Runtime 与本地 Axum；
+- `LocalCoreRuntimeManager` 只自动激活持久配置；首次未初始化保持 stopped，前端 apply 成功后才启动/选择服务；
 - `android/native` 是唯一 JNI 适配层，复用 `core -> shared`，业务调用仍为 WebView -> HTTP；
 - Android `self-hosted` 仅允许 `127.0.0.1`；Foreground Service 与通知策略完成前继续禁用 `server-mode`；
 - 当前构建和交付只支持 APK 与 `arm64-v8a`，AAB、32 位 ARM 和 x86 ABI 不属于当前阶段；
 - 主机测试、ARM64 交叉构建、Debug/Release APK 构建和包级检查已完成；API 33 ARM64 真机已验证
   Debug APK 安装、JNI 加载、离线冷启动、远端/本机 HTTP、旋转、后台恢复、force-stop 恢复和原生返回
-  浮层/路由 smoke。其它 Android 版本、手势导航、异常注入和完整业务矩阵仍待覆盖。
+  浮层/路由 smoke。首次未初始化不启服的新漏斗仍待真机复验；其它 Android 版本、手势导航、异常注入和完整业务矩阵仍待覆盖。
 
 ## Server
 

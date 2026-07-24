@@ -25,7 +25,7 @@ core        -> 共享 Axum 服务和业务能力
 server      -> 无头服务端平台 shell
 frontend    -> 共享前端源码，不由 Axum 服务
 desktop     -> 当前非正式脚手架，正式 Tauri shell 尚未实现
-android     -> 原生 WebView shell，已实现 Shell Bridge、运行配置与 edge-to-edge inset 发布，端上本地 Axum 尚未实现
+android     -> 原生 WebView shell，已实现 Shell Bridge、运行配置、edge-to-edge inset 与 Application 级本地 Axum
 ```
 
 详细架构边界仍以 `docs/architecture.md`、`docs/platforms.md` 和 `docs/project-structure.md` 为准。

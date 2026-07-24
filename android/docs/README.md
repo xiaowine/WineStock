@@ -33,7 +33,10 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `WineStockApplication` 在进程级持有一个 `LocalCoreRuntimeManager`；Activity 旋转或页面 reload 不停止本地服务。
 - `android/native` 通过 JNI JSON protocol v1 调用 `winestock-core` 统一运行句柄，业务能力仍全部走 WebView HTTP。
 - 权威配置校验来自 `winestock_shared`；Kotlin 只保留 native 无法加载时连接远端所需的最小降级校验。
-- 首次 `self-hosted` 启动以 `port=0` 请求系统分配端口，启动成功后 Shell 只持久化并发布实际非零端口；
+- 首次缺少 SharedPreferences 配置时只发布 `initialized=false` 和默认草稿，不创建配置、不启动本地
+  Axum HTTP 服务；前端选择模式并成功 apply 后才启动本地 core 或切换远端。
+- 已有有效配置的后续冷启动仍自动激活；首次确认 `self-hosted` 时以 `port=0` 请求系统分配端口，
+  启动成功后 Shell 只持久化并发布实际非零端口；
   已保存端口冲突时自动换端口一次，后续进程启动优先复用最新端口。
 - native `running` 状态中的配置端口、`boundAddress` 和 loopback `apiBaseUrl` 必须使用同一实际端口，
   不允许临时端口 `0` 进入运行快照或持久化配置。
@@ -45,7 +48,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
   浮层/路由 smoke；未发现 404、Uncaught 或 FATAL，连接明文 HTTP 远端时出现的 WebView
   mixed-content warning 属于当前安全策略下的预期提示。
 - 其它 API 版本、手势导航、异常注入和完整业务回归仍是剩余覆盖项；JVM、lint、assemble 和本次真机
-  smoke 都不能替代完整矩阵。
+  smoke 都不能替代完整矩阵。首次未初始化不启服、选择模式后再 apply 的新漏斗尚未完成真机复验。
 
 ## 前端资源打包
 

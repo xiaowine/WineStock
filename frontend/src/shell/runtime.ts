@@ -54,8 +54,8 @@ export const shellRuntimeError = readonly(mutableRuntimeError);
 export const activeApiBaseUrl = computed(() => mutableRuntimeSnapshot.value?.service.apiBaseUrl);
 
 /**
- * 启动漏斗设置是否已确认完成（服务可 HTTP 且非 createdDefault）。
- * 用户须通过「保存设置」apply 后，Shell 才会清除 createdDefault。
+ * 启动漏斗设置是否已确认完成（Shell initialized 且服务可 HTTP）。
+ * initialized 由 Shell 根据成功应用的持久配置或平台显式配置发布。
  */
 export const runtimeSetupFinished = computed(() =>
   isRuntimeSetupFinishedSnapshot(mutableRuntimeSnapshot.value),

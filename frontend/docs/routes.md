@@ -91,9 +91,9 @@ Drawer、Popover 和页面内步骤都未处理时，registry 的最后一级 ha
 运行设置（/settings/runtime）→ 统一认证入口（/auth）→ 注册或登录 → 业务页
 ```
 
-- **设置未完成**（方案 B）：`configStatus` 非 `configured`、无有效 `apiBaseUrl`，或 Shell `createdDefault === true`（自动默认尚未由用户确认）。
-- **设置已完成**：`configured` + 有效 `apiBaseUrl` 且 `createdDefault !== true` 时跳过运行设置，直接会话恢复与认证。
-- Shell 仍可自动注入/启服并填写 `apiBaseUrl`；前端用 `createdDefault` 区分「能连」与「已确认」，**不**删除平台默认地址。
+- **设置未完成**：`configStatus` 非 `configured`、无有效 `apiBaseUrl`，或 Shell `initialized === false`。
+- **设置已完成**：Shell `initialized === true` 且 `configured`、有有效 `apiBaseUrl` 时跳过运行设置，直接会话恢复与认证。
+- 首次未初始化时 Shell 只提供默认草稿并保持本地服务 stopped；前端选择模式并成功 apply 后才获得正式 `initialized=true`。
 - 运行设置用 `returnTo`；认证用 `redirect`；从设置进入 `/auth` 时桥接二者。
 
 ## 鉴权状态

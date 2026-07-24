@@ -5,6 +5,7 @@ import {
   cloneRuntimeConfig,
   cloneRuntimeSnapshot,
   defaultRuntimeConfig,
+  SHELL_BRIDGE_PROTOCOL_VERSION,
   type EditableRuntimeConfig,
   type RuntimeConfigField,
   type RuntimeConfigValidationResult,
@@ -41,7 +42,7 @@ export function createWebShellBridge(): ShellBridge {
         };
       }
 
-      const nextSnapshot = createConfiguredSnapshot(normalizedConfig, false);
+      const nextSnapshot = createConfiguredSnapshot(normalizedConfig);
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedConfig));
       } catch (error) {
@@ -98,14 +99,14 @@ function loadInitialSnapshot(): RuntimeSnapshot {
   if (persisted.status === "loaded") {
     const validation = validateRuntimeConfig(persisted.config);
     if (validation.valid) {
-      return createConfiguredSnapshot(persisted.config, false);
+      return createConfiguredSnapshot(persisted.config);
     }
     return {
-      protocolVersion: 1,
+      protocolVersion: SHELL_BRIDGE_PROTOCOL_VERSION,
       platform: "web",
       configStatus: "invalid",
       config: cloneRuntimeConfig(persisted.config),
-      createdDefault: false,
+      initialized: false,
       service: {
         ownership: isRemoteRuntimeMode(persisted.config.mode) ? "remote" : "local",
         phase: "stopped",
@@ -120,11 +121,11 @@ function loadInitialSnapshot(): RuntimeSnapshot {
 
   if (persisted.status === "invalid") {
     return {
-      protocolVersion: 1,
+      protocolVersion: SHELL_BRIDGE_PROTOCOL_VERSION,
       platform: "web",
       configStatus: "invalid",
       config: cloneRuntimeConfig(defaultRuntimeConfig),
-      createdDefault: false,
+      initialized: false,
       service: {
         ownership: "local",
         phase: "stopped",
@@ -139,22 +140,19 @@ function loadInitialSnapshot(): RuntimeSnapshot {
 
   const initialApiBaseUrl = resolveInitialApiBaseUrl();
   if (initialApiBaseUrl) {
-    return createConfiguredSnapshot(
-      {
-        ...defaultRuntimeConfig,
-        mode: "client-only",
-        remoteBaseUrl: initialApiBaseUrl,
-      },
-      false,
-    );
+    return createConfiguredSnapshot({
+      ...defaultRuntimeConfig,
+      mode: "client-only",
+      remoteBaseUrl: initialApiBaseUrl,
+    });
   }
 
   return {
-    protocolVersion: 1,
+    protocolVersion: SHELL_BRIDGE_PROTOCOL_VERSION,
     platform: "web",
     configStatus: "unconfigured",
     config: cloneRuntimeConfig(defaultRuntimeConfig),
-    createdDefault: false,
+    initialized: false,
     service: {
       ownership: "local",
       phase: "stopped",
@@ -167,21 +165,18 @@ function isRemoteRuntimeMode(mode: EditableRuntimeConfig["mode"]): boolean {
   return mode === "client-only" || mode === "connect-to-remote";
 }
 
-function createConfiguredSnapshot(
-  config: EditableRuntimeConfig,
-  createdDefault: boolean,
-): RuntimeSnapshot {
+function createConfiguredSnapshot(config: EditableRuntimeConfig): RuntimeSnapshot {
   config = normalizeWebRuntimeConfig(config);
   const remote = isRemoteRuntimeMode(config.mode);
   const apiBaseUrl = remote
     ? normalizeApiBaseUrl(config.remoteBaseUrl)
     : `http://127.0.0.1:${config.port}`;
   return {
-    protocolVersion: 1,
+    protocolVersion: SHELL_BRIDGE_PROTOCOL_VERSION,
     platform: "web",
     configStatus: "configured",
     config: cloneRuntimeConfig(config),
-    createdDefault,
+    initialized: true,
     service: {
       ownership: remote ? "remote" : "local",
       phase: "running",

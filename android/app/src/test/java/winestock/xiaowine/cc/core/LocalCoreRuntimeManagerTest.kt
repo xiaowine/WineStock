@@ -11,6 +11,7 @@ import winestock.xiaowine.cc.shell.DEFAULT_RUNTIME_CONFIG
 import winestock.xiaowine.cc.shell.EditableRuntimeConfig
 import winestock.xiaowine.cc.shell.RuntimeConfigRepository
 import winestock.xiaowine.cc.shell.RuntimeModes
+import winestock.xiaowine.cc.shell.RuntimeSnapshotFactory
 import winestock.xiaowine.cc.shell.ShellErrorCodes
 import winestock.xiaowine.cc.shell.ShellRuntimeError
 
@@ -23,32 +24,172 @@ class LocalCoreRuntimeManagerTest {
     }
 
     @Test
-    fun missingConfigStartsDefaultWithoutPersistingUntilUserApply() {
+    fun missingConfigDoesNotStartCoreUntilUserApply() {
         val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Missing)
         val native = FakeNativeCoreClient()
         val manager = manager(native, store)
 
         val snapshot = manager.getRuntimeSnapshot().await()
 
-        assertEquals("configured", snapshot.configStatus)
-        assertEquals("running", snapshot.service.phase)
-        assertTrue(snapshot.createdDefault)
-        // 自动默认只起服、不写盘；用户保存后才有 Present 配置。
+        assertEquals("unconfigured", snapshot.configStatus)
+        assertEquals("stopped", snapshot.service.phase)
+        assertFalse(snapshot.initialized)
+        // 首次只提供默认草稿；用户保存后才启动本地 core 并写入 Present 配置。
         assertEquals(null, store.current)
-        assertEquals(49152, snapshot.config.port)
-        assertEquals("127.0.0.1:49152", snapshot.service.boundAddress)
-        assertEquals("http://127.0.0.1:49152", snapshot.service.apiBaseUrl)
-        assertFalse(snapshot.service.apiBaseUrl.orEmpty().endsWith(":0"))
-        assertEquals(1, native.startCalls)
-        assertEquals(listOf(0), native.startConfigs.map(EditableRuntimeConfig::port))
+        assertEquals(DEFAULT_RUNTIME_CONFIG, snapshot.config)
+        assertEquals(0, native.startCalls)
+        val initialJson = RuntimeSnapshotFactory.toJson(snapshot, nativeBackSupported = false)
+        assertEquals(1, initialJson.getInt("protocolVersion"))
+        assertFalse(initialJson.getBoolean("initialized"))
+        assertFalse(initialJson.getJSONObject("capabilities").getBoolean("startLocalService"))
 
         val applied =
             manager
                 .applyRuntimeConfig(snapshot.config)
                 .await()
         assertTrue(applied.applied)
-        assertFalse(applied.snapshot.createdDefault)
-        assertEquals(snapshot.config, store.current)
+        assertTrue(applied.snapshot.initialized)
+        assertEquals("running", applied.snapshot.service.phase)
+        assertEquals(49152, applied.snapshot.config.port)
+        assertEquals(applied.snapshot.config, store.current)
+        assertEquals(1, native.startCalls)
+        assertEquals(listOf(0), native.startConfigs.map(EditableRuntimeConfig::port))
+        val appliedJson = RuntimeSnapshotFactory.toJson(applied.snapshot, nativeBackSupported = false)
+        assertTrue(appliedJson.getBoolean("initialized"))
+        assertTrue(appliedJson.getJSONObject("capabilities").getBoolean("startLocalService"))
+    }
+
+    @Test
+    fun firstLocalApplyFailureKeepsRuntimeUninitializedAndUnpersisted() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Missing)
+        val native =
+            FakeNativeCoreClient().apply {
+                startResults +=
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(ShellErrorCodes.SERVICE_START_FAILED, "本地服务启动失败"),
+                    )
+            }
+        val manager = manager(native, store)
+        val initial = manager.getRuntimeSnapshot().await()
+
+        val result = manager.applyRuntimeConfig(initial.config).await()
+
+        assertFalse(result.applied)
+        assertFalse(result.snapshot.initialized)
+        assertEquals("unconfigured", result.snapshot.configStatus)
+        assertEquals(null, store.current)
+        assertEquals(listOf(0), native.startConfigs.map(EditableRuntimeConfig::port))
+    }
+
+    @Test
+    fun invalidPersistedConfigDoesNotStartCoreAndRequiresInitialization() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Invalid)
+        val native = FakeNativeCoreClient()
+        val manager = manager(native, store)
+
+        val snapshot = manager.getRuntimeSnapshot().await()
+
+        assertEquals("invalid", snapshot.configStatus)
+        assertFalse(snapshot.initialized)
+        assertEquals("stopped", snapshot.service.phase)
+        assertEquals(0, native.startCalls)
+    }
+
+    @Test
+    fun persistedRemoteConfigIsInitializedWithoutStartingLocalCore() {
+        val remote =
+            DEFAULT_RUNTIME_CONFIG.copy(
+                mode = RuntimeModes.CONNECT_TO_REMOTE,
+                remoteBaseUrl = "https://example.com/api",
+            )
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(remote))
+        val native = FakeNativeCoreClient()
+        val manager = manager(native, store)
+
+        val snapshot = manager.getRuntimeSnapshot().await()
+
+        assertTrue(snapshot.initialized)
+        assertEquals("remote", snapshot.service.ownership)
+        assertEquals("https://example.com/api", snapshot.service.apiBaseUrl)
+        assertEquals(0, native.startCalls)
+    }
+
+    @Test
+    fun persistedLocalConfigKeepsInitializedStateWhenNativeValidationFails() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(DEFAULT_RUNTIME_CONFIG))
+        val native =
+            FakeNativeCoreClient(
+                validationResult =
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(
+                            ShellErrorCodes.STORAGE_UNAVAILABLE,
+                            "本地存储目录不可用",
+                        ),
+                    ),
+            )
+        val manager = manager(native, store)
+
+        val snapshot = manager.getRuntimeSnapshot().await()
+
+        assertEquals("configured", snapshot.configStatus)
+        assertTrue(snapshot.initialized)
+        assertEquals("failed", snapshot.service.phase)
+        assertEquals(ShellErrorCodes.STORAGE_UNAVAILABLE, snapshot.service.error?.code)
+        assertEquals(0, native.startCalls)
+    }
+
+    @Test
+    fun persistedRemoteConfigFallsBackWhenNativeValidationIsUnavailable() {
+        val remote =
+            DEFAULT_RUNTIME_CONFIG.copy(
+                mode = RuntimeModes.CONNECT_TO_REMOTE,
+                remoteBaseUrl = "https://example.com/api",
+            )
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(remote))
+        val native =
+            FakeNativeCoreClient(
+                validationResult =
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(
+                            ShellErrorCodes.NATIVE_LIBRARY_UNAVAILABLE,
+                            "native unavailable",
+                        ),
+                    ),
+            )
+        val manager = manager(native, store)
+
+        val snapshot = manager.getRuntimeSnapshot().await()
+
+        assertEquals("configured", snapshot.configStatus)
+        assertTrue(snapshot.initialized)
+        assertEquals("remote", snapshot.service.ownership)
+        assertEquals("running", snapshot.service.phase)
+        assertEquals("https://example.com/api", snapshot.service.apiBaseUrl)
+        assertEquals(0, native.startCalls)
+    }
+
+    @Test
+    fun persistedLocalConfigStaysInitializedWhenNativeDefaultLookupFails() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(DEFAULT_RUNTIME_CONFIG))
+        val native =
+            FakeNativeCoreClient(
+                defaultConfigResult =
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(
+                            ShellErrorCodes.NATIVE_LIBRARY_UNAVAILABLE,
+                            "native unavailable",
+                        ),
+                    ),
+            )
+        val manager = manager(native, store)
+
+        val snapshot = manager.getRuntimeSnapshot().await()
+
+        assertEquals("configured", snapshot.configStatus)
+        assertTrue(snapshot.initialized)
+        assertEquals("failed", snapshot.service.phase)
+        assertEquals(ShellErrorCodes.NATIVE_LIBRARY_UNAVAILABLE, snapshot.service.error?.code)
+        assertEquals(0, native.startCalls)
     }
 
     @Test
@@ -69,6 +210,7 @@ class LocalCoreRuntimeManagerTest {
         val snapshot = manager.getRuntimeSnapshot().await()
 
         assertEquals(replacement, snapshot.config)
+        assertTrue(snapshot.initialized)
         assertEquals(replacement, store.current)
         assertEquals("127.0.0.1:49154", snapshot.service.boundAddress)
         assertEquals(listOf(17890, 0), native.startConfigs.map(EditableRuntimeConfig::port))
@@ -226,6 +368,36 @@ class LocalCoreRuntimeManagerTest {
         assertFalse(result.snapshot.nativeAvailable)
     }
 
+    @Test
+    fun nativeValidationFailureStillAllowsFirstRemoteConfiguration() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Missing)
+        val native =
+            FakeNativeCoreClient(
+                validationResult =
+                    NativeCallResult.Failure(
+                        ShellRuntimeError(
+                            ShellErrorCodes.STORAGE_UNAVAILABLE,
+                            "本地存储目录不可用",
+                        ),
+                    ),
+            )
+        val manager = manager(native, store)
+        manager.getRuntimeSnapshot().await()
+        val remote =
+            DEFAULT_RUNTIME_CONFIG.copy(
+                mode = RuntimeModes.CONNECT_TO_REMOTE,
+                remoteBaseUrl = "https://example.com/api/",
+            )
+
+        val result = manager.applyRuntimeConfig(remote).await()
+
+        assertTrue(result.applied)
+        assertTrue(result.snapshot.initialized)
+        assertEquals("remote", result.snapshot.service.ownership)
+        assertEquals("https://example.com/api", result.snapshot.service.apiBaseUrl)
+        assertEquals("https://example.com/api", store.current?.remoteBaseUrl)
+    }
+
     private fun manager(
         native: FakeNativeCoreClient,
         store: FakeConfigRepository,
@@ -262,6 +434,9 @@ class LocalCoreRuntimeManagerTest {
 
     private class FakeNativeCoreClient(
         private val initializeResult: NativeCallResult<Unit> = NativeCallResult.Success(Unit),
+        private val defaultConfigResult: NativeCallResult<EditableRuntimeConfig> =
+            NativeCallResult.Success(DEFAULT_RUNTIME_CONFIG),
+        private val validationResult: NativeCallResult<NativeValidationResult>? = null,
     ) : NativeCoreClient {
         val startResults = ArrayDeque<NativeCallResult<NativeServiceState>>()
         val startConfigs = mutableListOf<EditableRuntimeConfig>()
@@ -271,16 +446,16 @@ class LocalCoreRuntimeManagerTest {
 
         override fun initialize(): NativeCallResult<Unit> = initializeResult
 
-        override fun defaultRuntimeConfig(): NativeCallResult<EditableRuntimeConfig> =
-            NativeCallResult.Success(DEFAULT_RUNTIME_CONFIG)
+        override fun defaultRuntimeConfig(): NativeCallResult<EditableRuntimeConfig> = defaultConfigResult
 
         override fun validateRuntimeConfig(
             config: EditableRuntimeConfig,
             storage: NativeStoragePaths,
         ): NativeCallResult<NativeValidationResult> =
-            NativeCallResult.Success(
-                NativeValidationResult(true, emptyMap(), config),
-            )
+            validationResult
+                ?: NativeCallResult.Success(
+                    NativeValidationResult(true, emptyMap(), config),
+                )
 
         override fun startLocalService(
             config: EditableRuntimeConfig,

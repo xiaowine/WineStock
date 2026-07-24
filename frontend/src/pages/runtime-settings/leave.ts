@@ -46,12 +46,12 @@ export function bridgeReturnToToAuthRedirect(returnTo: string | undefined): stri
 
 /**
  * 根据设置是否完成、会话与 returnTo 解析运行设置离开目标。
- * `setupFinished` 为 false（无服务或仍为 createdDefault）时匿名不得离开。
+ * `setupFinished` 为 false（Shell 尚未 initialized 或服务不可用）时匿名不得离开。
  * `returnToRouteValid` 由调用方用路由器 resolve 结果填入（已排除 runtime-settings / home-fallback）。
  */
 export function resolveRuntimeSettingsLeave(input: {
   returnTo: string | undefined;
-  /** 设置流程已完成（服务可访问且非 Shell 自动默认）。 */
+  /** 设置流程已完成（Shell initialized 且服务可访问）。 */
   setupFinished: boolean;
   authenticated: boolean;
   returnToRouteValid: boolean;

@@ -58,8 +58,8 @@ export interface RuntimeSnapshot {
   configStatus: RuntimeConfigStatus;
   /** 当前生效或待修复的可编辑配置。 */
   config: EditableRuntimeConfig;
-  /** 本次启动是否由 Shell 创建了默认配置。 */
-  createdDefault: boolean;
+  /** Shell 是否已有权威初始化配置；交互式平台通常由成功应用并持久化产生。 */
+  initialized: boolean;
   /** 当前服务运行状态。 */
   service: {
     /** 本地服务由 Shell 管理，远端服务只由前端执行 HTTP 检查。 */
@@ -331,7 +331,7 @@ export function assertCompatibleRuntimeSnapshot(value: unknown): asserts value i
   if (
     !["web", "desktop", "android"].includes(String(value.platform)) ||
     !["configured", "unconfigured", "invalid"].includes(String(value.configStatus)) ||
-    typeof value.createdDefault !== "boolean" ||
+    typeof value.initialized !== "boolean" ||
     !isEditableRuntimeConfig(config) ||
     !isRecord(service) ||
     !["local", "remote"].includes(String(service.ownership)) ||

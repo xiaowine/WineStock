@@ -27,7 +27,7 @@ function createSnapshot(overrides = {}) {
       port: 17890,
       remoteBaseUrl: "",
     },
-    createdDefault: false,
+    initialized: true,
     service: {
       ownership: "local",
       phase: "running",

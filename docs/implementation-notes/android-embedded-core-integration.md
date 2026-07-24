@@ -122,7 +122,7 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-core --locked
 - 不把 Android 改造成 Rust `NativeActivity`，也不替换当前 Kotlin/WebView Shell。
 - 不在第一阶段支持后台长期对其它设备提供服务的 `server-mode`。
 - 不在第一阶段增加原生设置 Activity、通知中心或第二套错误 UI。
-- 不顺带更换 SQLite、SeaORM、Axum、前端框架或 Shell Bridge v1。
+- 不顺带更换 SQLite、SeaORM、Axum、前端框架或 Shell Bridge 的方法集合；快照仍保持 Shell Bridge v1，仅增加 `initialized` 字段语义。
 - 不在 Gradle 普通构建中自动安装 Rust、rustup target、cargo-ndk 或 NDK。
 - 不为了减小包体立即裁剪 Swagger/OpenAPI 功能；先完成一致性集成并测量，再依据实际包体决定是否 feature-gate。
 
@@ -662,7 +662,8 @@ mode              -> AppConfig.server.mode
 bindHost          -> AppConfig.server.bind_host
 port              -> AppConfig.server.port
 remoteBaseUrl     -> AppConfig.server.remote_base_url
-local mode        -> auto_start_server = true
+initialized local -> auto_start_server = true
+missing config    -> wait for frontend apply
 Android fixed path -> AppConfig.storage.database_path/files_dir
 Android policy     -> auto_migrate = true
 ```
@@ -741,13 +742,13 @@ context.noBackupFilesDir/winestock/
 ```text
 native/shared 默认配置
   -> 映射为 Android EditableRuntimeConfig
-  -> 保存为当前正式配置
-  -> createdDefault = true
-  -> 准备 app-private 目录
-  -> 启动 self-hosted core
+  -> 发布 initialized=false + unconfigured/stopped 快照
+  -> 前端显示运行设置并等待用户选择模式
+  -> apply 本地模式：启动 core，成功后保存实际配置并发布 initialized=true
+  -> apply 远端模式：保存远端配置并发布 initialized=true，不启动本地 core
 ```
 
-若保存默认配置失败，不应假装 configured；前端进入可修复错误态。若 core 启动失败，默认配置仍可保留，快照为 `failed`，用户可以修改端口或切换远端模式。
+缺少配置时不得自动创建配置文件或启动 HTTP 服务。首次 apply 失败仍保持 `initialized=false`，前端保留草稿和稳定错误；已有持久配置的后续冷启动继续自动激活。
 
 ## 11. 配置应用事务与回滚
 
@@ -1254,7 +1255,7 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-android-native --locked
 
 - native loader 成功/失败状态。
 - native protocol 版本不匹配。
-- 配置 missing/invalid/present/default-created。
+- 配置 missing/invalid/present 与 Shell `initialized` 映射。
 - local、remote 和 unsupported server-mode 映射。
 - apply 成功后提交。
 - start 成功但配置保存失败时回滚。
@@ -1265,7 +1266,7 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-android-native --locked
 ### 18.4 Android instrumentation
 
 - APK 能加载对应 ABI `.so`。
-- 首次启动创建默认配置、数据库和文件目录。
+- 首次启动加载打包前端但不创建配置、不启动本地 HTTP 服务；用户 apply 后才创建本地数据并启动 core。
 - WebView 通过 HTTP 完成健康检查、登录和一个读写业务流程。
 - 图片上传/下载经过本地 core。
 - Activity 旋转前后 bound address 和 engine generation 不变。

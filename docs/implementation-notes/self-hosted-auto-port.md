@@ -8,7 +8,7 @@
 
 本机模式采用“自动选择、成功后持久化、后续优先复用”的策略：
 
-1. 首次本机启动使用端口 `0` 请求操作系统分配可用端口。
+1. 首次用户确认本机模式并调用 apply 后，使用端口 `0` 请求操作系统分配可用端口。
 2. 绑定成功后，从实际 `SocketAddr` 取得端口，并把实际端口写回 Shell 配置与 `RuntimeSnapshot.config`。
 3. 后续启动优先使用已持久化的实际端口，保持 API 地址稳定。
 4. 已持久化端口被其它进程占用时，Shell 再次使用端口 `0` 分配新端口；成功后原子更新配置和快照，并明确发布地址变化。
@@ -20,7 +20,7 @@
 - `shared::ServerConfig.port` 已按运行模式校验：`self-hosted` 接受临时值 `0`，`server-mode` 仍要求 `1..65535`。
 - `core/src/server.rs` 继续直接绑定配置中的 `SocketAddr`；端口为 `0` 时由操作系统分配，并通过运行句柄返回实际地址。
 - Android native 已允许 `self-hosted + port=0` 启动，并返回非零 `boundAddress` 和 `apiBaseUrl`。
-- `LocalCoreRuntimeManager` 首次启动使用端口 `0`；绑定成功后把实际端口回写并持久化。已保存端口冲突时只对 `self-hosted` 自动重试一次动态端口。
+- `LocalCoreRuntimeManager` 首次缺配置时不启动服务；用户首次 apply `self-hosted` 后使用端口 `0`，绑定成功再把实际端口回写并持久化。已保存端口冲突时只对 `self-hosted` 自动重试一次动态端口。
 - Kotlin native 契约会拒绝端口为 `0` 或 `boundAddress` 与 `apiBaseUrl` 端口不一致的 `running` 状态；
   loopback 主机由 Android native 的 self-hosted 配置约束保证。
 - 运行设置页面在 `self-hosted` 下不显示端口和监听地址；`server-mode` 仍保留固定端口与高级监听地址。
@@ -55,7 +55,7 @@
 - `server-mode + port`：必须是 `1..65535` 的固定端口。
 - 远程模式的 `port` 保留当前 DTO 兼容值，不参与远程 URL 解析或绑定。
 
-这样可以保持 Shell Bridge v1 的字段形状，避免一次性迁移所有平台协议。实现时必须在文档和校验代码中明确 `0` 只对 `self-hosted` 有效，不能把 `0` 泛化为所有模式的合法端口。
+这样可以保持 Shell Bridge v1 的字段形状；本次只新增 `initialized` 语义，不改变 `port` DTO。实现时必须在文档和校验代码中明确 `0` 只对 `self-hosted` 有效，不能把 `0` 泛化为所有模式的合法端口。
 
 如果后续需要区分“用户指定固定本机端口”和“始终自动分配”，再升级为显式 `portPolicy` 字段；本方案不在第一阶段引入该字段。
 
@@ -99,7 +99,9 @@
 把本地应用流程改为以下事务：
 
 ```text
-读取候选配置
+缺少持久配置
+  -> 发布 initialized=false + stopped + 默认草稿
+  -> 等待前端选择并 apply
   -> self-hosted 且首次/需重新分配时使用 port=0
   -> native 校验
   -> 停止旧服务（如有）
@@ -111,7 +113,7 @@
 ```
 
 - 只有绑定成功后才持久化实际端口；启动失败不能把 `0` 或失败端口写入配置。
-- `activateMissingDefault()` 在不改变 shared 全局默认配置的前提下，把首次 self-hosted 启动候选的端口改为 `0`；读取已有配置时不做这一转换。
+- `applyInternal()` 在不改变 shared 全局默认配置的前提下，把未初始化快照的首次 self-hosted 候选端口改为 `0`；读取已有配置时不做这一转换。
 - 保存失败时沿用当前恢复旧服务的逻辑，并保证恢复快照的 `config.port` 与恢复服务实际端口一致。
 - 已保存端口冲突时，仅对 self-hosted 自动重试一次或使用端口 `0` 重新分配；仍失败则返回稳定错误和重试入口，避免无限重启循环。
 - `server-mode` 端口冲突继续直接返回 `port_in_use`，不自动改端口。
@@ -157,7 +159,7 @@
 - 已有 self-hosted 配置包含 `17890` 或其它有效端口：原样读取并优先复用，不强制重新分配。
 - 已有 server-mode 配置：端口字段和冲突行为不变。
 - 已有损坏配置：按现有 invalid 流程进入运行设置，不自动覆盖用户配置。
-- 首次安装没有配置：使用 self-hosted `port = 0` 作为启动候选，成功后只持久化实际端口。
+- 首次安装没有配置：保持 stopped；用户确认 self-hosted 后使用 `port = 0` 作为启动候选，成功后只持久化实际端口。
 - Web fallback 无法真正管理本地 core：保留兼容默认端口和现有环境地址行为，不伪造动态端口；自动端口验收以 Android Shell 和未来 Desktop Shell 为准。
 - 不修改数据库结构，不影响 core HTTP API 和业务数据文件。
 
@@ -175,7 +177,7 @@
 
 ### Android manager
 
-- 首次安装启动自动分配端口，配置文件保存实际端口而不是 `0`。
+- 首次安装不启动服务、不写配置；用户 apply self-hosted 后自动分配端口，配置保存实际端口而不是 `0`。
 - 覆盖安装/进程重启优先复用同一端口，WebView 能恢复到同一 API 地址。
 - 人为占用保存端口后启动自动换端口，快照和配置同步更新；必要时会话按既有规则重新登录。
 - server-mode 端口冲突不自动切换，页面显示错误和重试。
@@ -201,16 +203,16 @@
 2. **Android Shell 事务（已完成）**：绑定成功后回写实际端口、持久化、冲突重试和恢复逻辑。
 3. **前端界面（已完成）**：按模式隐藏端口、删除 `port=0` 伪预览、同步文档和状态文案。
 4. **Desktop 对齐（后续平台任务）**：正式 Desktop Shell 实现相同分配和快照不变量。
-5. **设备验收（已完成本功能范围）**：首次动态分配、冲突换端口、进程重启复用端口和 loopback 健康检查。
+5. **设备验收（需补充新首次漏斗）**：既有动态分配、冲突换端口、进程重启复用端口和 loopback 健康检查已完成；首次未初始化不启服仍需真机复验。
 
 ## 实际验收记录
 
 - Rust：`cargo test -p winestock-shared`、`cargo test -p winestock-android-native --lib` 通过。
 - Core：`cargo test -p winestock-core local_service` 通过，动态端口、端口冲突和关闭释放路径共 4 项测试通过。
-- Android JVM：`:app:testDebugUnitTest` 通过，覆盖首次自动分配、固定端口冲突回退、保存失败恢复、`server-mode` 不重试和运行地址不变量。
+- Android JVM：`:app:testDebugUnitTest` 通过，当前覆盖首次未初始化不启服、apply 后自动分配、固定端口冲突回退、保存失败恢复、`server-mode` 不重试和运行地址不变量。
 - 前端：`pnpm run build`、`pnpm run test:lan-access`、`pnpm run test:native-back` 通过。
 - Android 构建：`:app:installDebug` 与 `:app:assembleRelease` 通过。
-- 真机：API 33 ARM64 设备首次冲突后分配并持久化端口 `38141`，结束进程后再次启动仍复用该端口；WebView 请求 `http://127.0.0.1:38141/api/health` 并收到 `{"status":"OK"}`。
+- 历史真机记录：API 33 ARM64 设备曾验证冲突后分配并持久化端口 `38141`，结束进程后再次启动仍复用该端口；WebView 请求 `http://127.0.0.1:38141/api/health` 并收到 `{"status":"OK"}`。该记录早于首次未初始化延迟启服改动，不能替代新的首次漏斗真机验收。
 - 真机界面：Android MCP 确认 `self-hosted` 页面不显示端口或监听地址输入框，页面元素树和截图无异常。
 
 ## 实施门槛

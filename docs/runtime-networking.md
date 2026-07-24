@@ -54,7 +54,7 @@ remote_base_url = ""
 
 ### `port`
 
-决定服务端口。`server-mode` 使用用户配置的固定端口；UI 平台的 `self-hosted` 可以在首次启动或固定端口冲突时使用临时值 `0` 请求操作系统分配端口，绑定成功后必须回写并持久化实际端口。
+决定服务端口。`server-mode` 使用用户配置的固定端口；UI 平台的 `self-hosted` 可以在首次 apply 或固定端口冲突时使用临时值 `0` 请求操作系统分配端口，绑定成功后必须回写并持久化实际端口。
 
 平台代码不得硬编码端口，并必须显式处理端口冲突。`0` 不得写入运行中快照、持久化配置或可访问 URL。
 
@@ -72,7 +72,8 @@ http://192.168.1.23:17890
 
 决定平台 Shell 是否自动启动本地 Axum 服务。
 
-该共享字段继续用于无头 Server 配置和兼容。带 UI 的平台不把它作为普通设置项：本地模式始终持久化或规范化为 `true`，远端模式不启动本地服务。
+该共享字段继续用于无头 Server 配置和兼容。带 UI 的平台不把它作为普通设置项：本地模式在配置已 initialized
+后持久化或规范化为 `true`，首次缺少配置时等待前端 apply；远端模式不启动本地服务。
 
 ## UI 平台地址选择
 
@@ -90,7 +91,10 @@ API 未配置、正在启动、已停止或失败时，运行设置仍必须可�
 ### Android 当前策略
 
 - Android `self-hosted` 只接受 `127.0.0.1`，native/shared 校验拒绝局域网绑定；
-- Application 级 manager 在 Activity 拥有 WebView 之前启动持久化配置或默认本地配置；
+- Application 级 manager 只自动激活已有有效持久配置；首次缺失配置时发布 `initialized=false` 和默认草稿，
+  不写配置、不启动本地 Axum HTTP 服务；
+- 前端始终从 Android 打包资源启动，首次选择模式并成功调用 `applyRuntimeConfig` 后，Shell 才启动本地
+  core 或切换到远端地址，并持久化正式配置；
 - WebView 使用 core 返回的实际 `http://127.0.0.1:<bound-port>`，不使用监听通配地址；
 - 切换远端模式时，先停止 manager 拥有的本地服务，再提交远端配置；
 - 候选本地配置只有在 bind/bootstrap 成功后才持久化；激活或持久化失败时尽力恢复旧服务；

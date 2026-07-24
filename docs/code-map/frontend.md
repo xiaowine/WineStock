@@ -19,7 +19,7 @@
 - `frontend/src/router/index.ts`：hash history、根应用壳嵌套路由、服务无关的 `/settings/runtime`、鉴权页面和 catch-all 重定向；应用壳页面的 `meta` 从统一路由目录生成。
 - `frontend/src/router/appRouteCatalog.ts`：应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源；不创建 Router 或执行权限判断。
 - `frontend/src/router/meta.d.ts`：页面标题、`requiresAuth`、单权限 `requiredPermission`、组合权限 `requiredPermissions` 和强制改密页面放行元数据。
-- `frontend/src/router/guards.ts`：服务无关路由绕过 API/会话初始化，其它路由缺少 API 时跳转运行设置；随后执行匿名、权限、强制改密和安全回跳判断，并监听会话变化。
+- `frontend/src/router/guards.ts`：服务无关路由绕过 API/会话初始化，其它路由在 Shell 未 initialized 或缺少 API 时跳转运行设置；随后执行匿名、权限、强制改密和安全回跳判断，并监听会话变化。
 - `frontend/src/router/navigation.ts`：从统一路由目录生成应用壳一级导航，并按当前会话单项或组合权限快照和平台可见性过滤入口，不独立维护页面名称或权限。
 - `frontend/src/navigation/nativeBackCore.ts`：平台无关的原生返回 registry 与请求协调；按 priority 降序、同级最近激活优先调度，异常安全消费、requestId 去重，并通过注入的订阅、应答和路由函数保持可测试。
 - `frontend/src/navigation/nativeBack.ts`：把全局 core 实例接到 Shell Bridge 与 Vue Router；最后一级通过 `router.back()` 提交 history 返回并立即结算，不等待异步离开守卫。
@@ -82,7 +82,7 @@
   - 校验 API 根地址必须为 HTTP/HTTPS，禁止把全接口监听地址作为访问地址。
   - 提供登录请求所需的客户端类型、设备名称和版本号。
 
-- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、快照、能力、原生返回 request/resolution/ack 和稳定字段错误类型；Web fallback 保留 `17890` 兼容默认值，UI Shell 的 self-hosted 实际端口由 Shell 分配并回写。
+- `frontend/src/shell/contract.ts`：Shell Bridge v1、运行配置、`initialized` 权威状态、快照、能力、原生返回 request/resolution/ack 和稳定字段错误类型；Web fallback 保留 `17890` 表单默认值，UI Shell 的 self-hosted 实际端口由 Shell 分配并回写。
 - `frontend/src/shell/contract.ts` 同时在运行时校验协议版本、快照基础结构、注入桥具名方法，以及 capability 开启后的 native-back 可选扩展，不能只依赖 TypeScript 静态类型信任平台数据。
 - `frontend/src/shell/bridge.ts`：选择平台注入桥或普通浏览器 Web fallback，不判断 User-Agent。
 - `frontend/src/shell/web.ts`：使用版本化 localStorage 实现开发/静态环境配置读取、校验和应用；损坏配置返回可修复的 invalid 快照，不管理本地 Rust 服务。

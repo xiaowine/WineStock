@@ -25,7 +25,7 @@ export function installAuthGuards(router: Router): void {
     if (to.meta.requiresService === false) {
       return;
     }
-    // 2. 设置未完成（无服务地址或 Shell 自动默认未确认）时先进入运行设置。
+    // 2. Shell 尚未初始化配置或没有服务地址时先进入运行设置。
     if (!runtimeSetupFinished.value) {
       return createRuntimeSettingsRedirect(to.fullPath);
     }

@@ -45,7 +45,9 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
 
 - `android/app/src/main/java/winestock/xiaowine/cc/core/LocalCoreRuntimeManager.kt`
   - 单线程后台 executor 串行执行 JNI、配置校验、启动/停止/重启和 SharedPreferences 提交。
-  - 首次 `self-hosted` 使用端口 `0` 请求系统分配；绑定成功后把 native 返回的实际端口写回并持久化。
+  - 缺少持久配置时只发布 `initialized=false`、默认草稿和 stopped 状态，不启动本地 HTTP 服务；
+    前端首次 apply 后才激活并持久化配置。
+  - 首次确认 `self-hosted` 时使用端口 `0` 请求系统分配；绑定成功后把 native 返回的实际端口写回并持久化。
   - 已保存端口冲突时仅对 `self-hosted` 自动重试一次动态端口；`server-mode` 保持固定端口错误路径。
   - 候选配置先激活后提交，启动或保存失败时恢复旧服务；持有权威快照并向 Bridge 订阅者推送，
     Activity 生命周期不触发 shutdown。
@@ -146,8 +148,8 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
   - 只保存运行配置，不保存 token 或业务数据。
 
 - `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeSnapshotFactory.kt`
-  - 把 manager 状态构造为 Shell Bridge v1 快照；本地生命周期 capability 只在 native 可用且当前
-    ownership 为 local 时开启，`serverMode` 固定 false。
+  - 把 manager 状态构造为 Shell Bridge v1 快照，向前端发布 Shell 权威 `initialized`；本地生命周期
+    capability 只在已初始化、native 可用且当前 ownership 为 local 时开启，`serverMode` 固定 false。
 - `shell/AsyncBridgeReplyGate.kt`
   - 独立保存页面 generation；刷新、导航或 destroy 后拒绝旧异步调用的迟到回复。
 
@@ -166,12 +168,15 @@ Axum/core，桥读写运行配置、返回运行快照、异步管理服务并�
 
 ```text
 MainActivity.onCreate
-  -> WineStockApplication.LocalCoreRuntimeManager（进程级异步初始化/默认本地 core）
+  -> WineStockApplication.LocalCoreRuntimeManager（进程级异步初始化；只自动激活持久配置）
   -> WebViewAssetLoader（域名 winestock.internal，/ -> assets/frontend）
   -> ShellBridgeHost.install（WebMessageListener + document-start shim，限受信任 origin）
   -> WebView.loadUrl(https://winestock.internal/)
   -> 前端读取 window.__WINESTOCK_SHELL_BRIDGE__ 和 __WINESTOCK_RUNTIME_CONFIG__
-  -> 前端 getRuntimeSnapshot / applyRuntimeConfig
+  -> 前端 getRuntimeSnapshot
+     -> initialized=false：显示运行设置，不启动 core
+     -> initialized=true：使用 Shell 已激活的本地/远端状态
+  -> 用户首次选择模式后调用 applyRuntimeConfig
      -> ShellBridgeHost 异步调用 LocalCoreRuntimeManager
      -> JNI -> android/native -> core RunningLocalService
   -> 前端按 apiBaseUrl 通过 HTTP 使用 core
@@ -186,4 +191,4 @@ MainActivity.onCreate
 - 业务能力通过 HTTP 使用 core；桥只承载运行配置、服务生命周期、真实地址和具名平台事件。
 - 本地 self-hosted Axum 已接入；`server-mode` 前台服务仍未实现并通过 capability 关闭。
 - 当前只构建/验收 ARM64 APK；API 33 三键导航 ARM64 真机已完成加载、HTTP、旋转、后台与
-  force-stop 恢复 smoke，API 版本/手势导航/完整业务矩阵仍待覆盖。
+  force-stop 恢复 smoke；首次未初始化延迟启服仍待真机复验，API 版本/手势导航/完整业务矩阵仍待覆盖。

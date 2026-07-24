@@ -246,10 +246,7 @@ import {
   isCheckingServiceAvailability,
   serviceAvailabilityStatus,
 } from "../service/availability";
-import {
-  isSafeInternalPath,
-  resolveRuntimeSettingsLeave,
-} from "./runtime-settings/leave";
+import { isSafeInternalPath, resolveRuntimeSettingsLeave } from "./runtime-settings/leave";
 import {
   applyRuntimeModeDefaults,
   isRemoteRuntimeMode,
@@ -301,17 +298,15 @@ const enablingLanAccess = computed(
 );
 const checkingActiveService = computed(() => isCheckingServiceAvailability.value);
 const canRetryActiveService = computed(() => Boolean(activeAddress.value));
-/** 用户已通过「保存设置」确认（Shell 已清除 createdDefault）。 */
+/** 用户已通过「保存设置」确认（Shell 已发布 initialized=true）。 */
 const setupFinished = computed(() => isRuntimeSetupFinished(snapshot.value));
 /**
- * 未确认（createdDefault）时即使表单与草稿一致也允许保存，
+ * 未初始化时即使表单与草稿一致也允许保存，
  * 由保存按钮触发 apply，把确认权收在保存路径上。
  */
 const canSave = computed(() => dirty.value || !setupFinished.value);
 /** 仅设置已确认后才展示离开；未确认必须先「保存设置」。 */
-const showLeaveAction = computed(
-  () => setupFinished.value || authStatus.value === "authenticated",
-);
+const showLeaveAction = computed(() => setupFinished.value || authStatus.value === "authenticated");
 const leaveActionLabel = computed(() =>
   authStatus.value === "authenticated" ? "← 返回应用" : "继续",
 );
@@ -511,7 +506,7 @@ async function retryActiveService(): Promise<void> {
 
 /**
  * 配置阶段结束：已登录回业务，匿名统一进入 /auth。
- * 不在此处 apply：createdDefault 的清除只允许走「保存设置」。
+ * 不在此处 apply：initialized 只能由 Shell 在「保存设置」成功后发布。
  */
 async function leaveRuntimeSettings(): Promise<void> {
   if (authStatus.value !== "authenticated" && !setupFinished.value) {
@@ -525,9 +520,7 @@ async function leaveRuntimeSettings(): Promise<void> {
 async function navigateAfterSetup(setupFinishedOverride?: boolean): Promise<void> {
   const returnTo = typeof route.query.returnTo === "string" ? route.query.returnTo : undefined;
   const finished =
-    setupFinishedOverride === true ||
-    setupFinished.value ||
-    authStatus.value === "authenticated";
+    setupFinishedOverride === true || setupFinished.value || authStatus.value === "authenticated";
   const target = resolveRuntimeSettingsLeave({
     returnTo,
     setupFinished: finished,

@@ -48,7 +48,7 @@ class LocalCoreRuntimeManager(
         AndroidRuntimeSnapshot(
             configStatus = "unconfigured",
             config = DEFAULT_RUNTIME_CONFIG,
-            createdDefault = false,
+            initialized = false,
             service = RuntimeServiceSnapshot("local", "stopped"),
             nativeAvailable = false,
         )
@@ -110,14 +110,16 @@ class LocalCoreRuntimeManager(
             is NativeCallResult.Success -> sharedDefaultConfig = defaultResult.value
             is NativeCallResult.Failure -> {
                 handleNativeAvailabilityFailure(defaultResult.error)
-                if (loaded !is RuntimeConfigRepository.Loaded.Present) {
-                    return publish(
+                return publish(
+                    if (loaded is RuntimeConfigRepository.Loaded.Present) {
+                        initializeWithoutLocalCore(loaded, defaultResult.error)
+                    } else {
                         unconfiguredSnapshot(
                             config = DEFAULT_RUNTIME_CONFIG,
                             error = defaultResult.error,
-                        ),
-                    )
-                }
+                        )
+                    },
+                )
             }
         }
 
@@ -130,7 +132,8 @@ class LocalCoreRuntimeManager(
         }
 
         return when (loaded) {
-            RuntimeConfigRepository.Loaded.Missing -> activateMissingDefault()
+            // 缺少持久配置时只发布默认草稿，不启动本地 core；首次启动由前端 apply 触发。
+            RuntimeConfigRepository.Loaded.Missing -> publish(unconfiguredSnapshot(sharedDefaultConfig))
             RuntimeConfigRepository.Loaded.Invalid ->
                 publish(
                     invalidSnapshot(
@@ -159,14 +162,16 @@ class LocalCoreRuntimeManager(
                 if (fallback.valid) {
                     remoteSnapshot(
                         config = fallback.normalizedConfig ?: loaded.config,
-                        createdDefault = false,
                         nativeAvailable = false,
                     )
+                } else if (RuntimeModes.isRemote(loaded.config.mode)) {
+                    // native 不可用时仍能识别远端配置；地址本身无效则回到可修复的未初始化态。
+                    invalidSnapshot(loaded.config, configInvalid())
                 } else {
                     AndroidRuntimeSnapshot(
                         configStatus = "configured",
                         config = loaded.config,
-                        createdDefault = false,
+                        initialized = true,
                         service = RuntimeServiceSnapshot("local", "failed", error = error),
                         nativeAvailable = false,
                     )
@@ -174,48 +179,60 @@ class LocalCoreRuntimeManager(
             }
         }
 
-    /**
-     * 无持久配置时可用默认本机模式先起服，但**不落盘**。
-     * 仅用户在前端点「保存设置」走 apply 后才持久化并清除 createdDefault，
-     * 避免“什么都没保存就重启进登录”。
-     */
-    private fun activateMissingDefault(): AndroidRuntimeSnapshot {
-        val attempt = authorityValidate(sharedDefaultConfig)
-        if (!attempt.validation.valid) {
-            return publish(unconfiguredSnapshot(sharedDefaultConfig, attempt.error ?: configInvalid()))
-        }
-        val config = attempt.validation.normalizedConfig ?: sharedDefaultConfig
-        if (RuntimeModes.isRemote(config.mode)) {
-            // 远端默认也不自动写盘；须用户保存确认。
-            return publish(remoteSnapshot(config, createdDefault = true, nativeAvailable = localAvailable()))
-        }
-
-        val localCandidate =
-            if (config.mode == RuntimeModes.SELF_HOSTED) config.copy(port = 0) else config
-
-        publish(localSnapshot("unconfigured", localCandidate, "starting", createdDefault = false))
-        return when (val started = startLocalNative(localCandidate)) {
-            is NativeCallResult.Failure ->
-                publish(unconfiguredSnapshot(localCandidate, started.error))
-            is NativeCallResult.Success -> {
-                val effectiveConfig = effectiveLocalConfig(localCandidate, started.value)
-                // 故意不 safeSaveConfig：配置文件保持 Missing，冷启动仍会 createdDefault。
-                publish(localRunningSnapshot(effectiveConfig, started.value, createdDefault = true))
-            }
-        }
-    }
-
     private fun activatePersisted(config: EditableRuntimeConfig): AndroidRuntimeSnapshot {
         val attempt = authorityValidate(config)
         if (!attempt.validation.valid) {
+            // 持久配置字段本身无效才需要重新初始化；native/JNI 或存储故障仍表示配置已确认，
+            // 让前端进入服务失败/恢复路径，而不是误显示首次设置漏斗。
+            if (attempt.error != null && !isPersistedConfigInvalid(attempt.error)) {
+                if (RuntimeModes.isRemote(config.mode)) {
+                    val fallback = RemoteRuntimeConfigFallbackValidator.validate(config)
+                    if (fallback.valid) {
+                        return publish(
+                            remoteSnapshot(
+                                config = fallback.normalizedConfig ?: config,
+                                nativeAvailable = localAvailable(),
+                            ),
+                        )
+                    }
+                    return publish(
+                        remoteSnapshot(
+                            config = config,
+                            nativeAvailable = localAvailable(),
+                            phase = "failed",
+                            error = attempt.error,
+                        ),
+                    )
+                }
+                return publish(
+                    localSnapshot(
+                        configStatus = "configured",
+                        config = config,
+                        phase = "failed",
+                        initialized = true,
+                        error = attempt.error,
+                    ),
+                )
+            }
             return publish(invalidSnapshot(config, attempt.error ?: configInvalid()))
         }
         val normalized = attempt.validation.normalizedConfig ?: config
         if (RuntimeModes.isRemote(normalized.mode)) {
             if (normalized != config && !safeSaveConfig(normalized)) {
-                return publish(remoteSnapshot(config, false, localAvailable(), configUnavailable()))
+                return publish(
+                    remoteSnapshot(
+                        config = config,
+                        nativeAvailable = localAvailable(),
+                        error = configUnavailable(),
+                    ),
+                )
             }
-            return publish(remoteSnapshot(normalized, false, localAvailable()))
+            return publish(
+                remoteSnapshot(
+                    config = normalized,
+                    nativeAvailable = localAvailable(),
+                ),
+            )
         }
 
         publish(localSnapshot("configured", normalized, "starting"))
@@ -244,8 +261,15 @@ class LocalCoreRuntimeManager(
                 error = attempt.error,
             )
         }
-        val candidate = attempt.validation.normalizedConfig ?: config
         val previous = snapshot
+        val normalizedCandidate = attempt.validation.normalizedConfig ?: config
+        // UI 不暴露 self-hosted 端口；首次确认后才用端口 0 请求系统分配并持久化实际端口。
+        val candidate =
+            if (!previous.initialized && normalizedCandidate.mode == RuntimeModes.SELF_HOSTED) {
+                normalizedCandidate.copy(port = 0)
+            } else {
+                normalizedCandidate
+            }
 
         if (RuntimeModes.isRemote(candidate.mode)) {
             if (previous.service.ownership == "local" && previous.service.phase == "running") {
@@ -268,7 +292,7 @@ class LocalCoreRuntimeManager(
                     configUnavailable(),
                 )
             }
-            val applied = remoteSnapshot(candidate, false, localAvailable())
+            val applied = remoteSnapshot(candidate, nativeAvailable = localAvailable())
             publish(applied)
             return ApplyRuntimeConfigResult(attempt.validation, true, applied)
         }
@@ -292,7 +316,8 @@ class LocalCoreRuntimeManager(
             }
         }
 
-        publish(localSnapshot("configured", candidate, "starting"))
+        // 首次应用尚未完成持久化前保持 initialized=false；已有配置替换时沿用 true。
+        publish(localSnapshot("configured", candidate, "starting", initialized = previous.initialized))
         return when (val started = startLocalNative(candidate)) {
             is NativeCallResult.Failure -> {
                 val restored = restorePrevious(previous, started.error)
@@ -428,7 +453,7 @@ class LocalCoreRuntimeManager(
                             localRunningSnapshot(
                                 effectiveConfig,
                                 restarted.value,
-                                createdDefault = previous.createdDefault,
+                                initialized = previous.initialized,
                             )
                         }
                     }
@@ -460,6 +485,13 @@ class LocalCoreRuntimeManager(
                 )
             is NativeCallResult.Failure -> {
                 handleNativeAvailabilityFailure(result.error)
+                // 远端模式不依赖本地 native/storage；组件故障时仍允许保存并连接远端。
+                if (RuntimeModes.isRemote(config.mode)) {
+                    val fallback = RemoteRuntimeConfigFallbackValidator.validate(config)
+                    if (fallback.valid) {
+                        return ValidationAttempt(fallback, null)
+                    }
+                }
                 ValidationAttempt(validationForError(result.error), result.error)
             }
         }
@@ -534,13 +566,13 @@ class LocalCoreRuntimeManager(
     private fun localRunningSnapshot(
         config: EditableRuntimeConfig,
         state: NativeServiceState,
-        createdDefault: Boolean = false,
+        initialized: Boolean = true,
     ): AndroidRuntimeSnapshot =
         localSnapshot(
             configStatus = "configured",
             config = config,
             phase = state.phase,
-            createdDefault = createdDefault,
+            initialized = initialized,
             state = state,
             error = state.error,
         )
@@ -549,14 +581,14 @@ class LocalCoreRuntimeManager(
         configStatus: String,
         config: EditableRuntimeConfig,
         phase: String,
-        createdDefault: Boolean = false,
+        initialized: Boolean = configStatus == "configured",
         state: NativeServiceState? = null,
         error: ShellRuntimeError? = null,
     ) =
         AndroidRuntimeSnapshot(
             configStatus = configStatus,
             config = config,
-            createdDefault = createdDefault,
+            initialized = initialized,
             service =
                 RuntimeServiceSnapshot(
                     ownership = "local",
@@ -570,18 +602,18 @@ class LocalCoreRuntimeManager(
 
     private fun remoteSnapshot(
         config: EditableRuntimeConfig,
-        createdDefault: Boolean,
         nativeAvailable: Boolean,
+        phase: String = "running",
         error: ShellRuntimeError? = null,
     ) =
         AndroidRuntimeSnapshot(
             configStatus = "configured",
             config = config,
-            createdDefault = createdDefault,
+            initialized = true,
             service =
                 RuntimeServiceSnapshot(
                     ownership = "remote",
-                    phase = "running",
+                    phase = phase,
                     apiBaseUrl = RemoteRuntimeConfigFallbackValidator.normalizeApiBaseUrl(config.remoteBaseUrl),
                     error = error,
                 ),
@@ -592,7 +624,7 @@ class LocalCoreRuntimeManager(
         AndroidRuntimeSnapshot(
             configStatus = "invalid",
             config = config,
-            createdDefault = false,
+            initialized = false,
             service =
                 RuntimeServiceSnapshot(
                     ownership = if (RuntimeModes.isRemote(config.mode)) "remote" else "local",
@@ -606,7 +638,7 @@ class LocalCoreRuntimeManager(
         AndroidRuntimeSnapshot(
             configStatus = "unconfigured",
             config = config,
-            createdDefault = false,
+            initialized = false,
             service = RuntimeServiceSnapshot("local", if (error == null) "stopped" else "failed", error = error),
             nativeAvailable = localAvailable(),
         )
@@ -653,6 +685,12 @@ class LocalCoreRuntimeManager(
 
     private fun configInvalid() =
         ShellRuntimeError(ShellErrorCodes.CONFIG_INVALID, "运行配置无效")
+
+    /** 判断错误是否明确说明持久配置字段本身无效，而非运行环境或 native 组件故障。 */
+    private fun isPersistedConfigInvalid(error: ShellRuntimeError): Boolean =
+        error.code == ShellErrorCodes.CONFIG_INVALID ||
+            error.code == ShellErrorCodes.INVALID_BIND_HOST ||
+            error.code == ShellErrorCodes.UNSUPPORTED_RUNTIME_MODE
 
     private fun nativeUnavailable() =
         ShellRuntimeError(

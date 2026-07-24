@@ -61,7 +61,9 @@ Shell 启动
   -> 注册 Shell Bridge
   -> 加载平台打包的 frontend/dist
   -> 前端读取 RuntimeSnapshot
-  -> Shell 根据有效配置启动本地服务或选择远端地址
+  -> initialized=true：Shell 根据持久配置启动本地服务或选择远端地址
+  -> initialized=false：保持服务 stopped，由前端展示默认草稿并等待用户选择
+  -> 用户 apply 后，Shell 校验、激活并持久化配置
   -> 前端订阅状态并启动 HTTP 健康检查
   -> 前端挂载设置页、错误页或业务路由
   -> 前端发送 frontendReady
@@ -96,7 +98,8 @@ interface EditableRuntimeConfig {
 
 字段语义必须映射到 `winestock_shared::AppConfig`，但桥 DTO 可以使用适合 TypeScript 的命名并由平台适配层转换。
 配置文件仍由各平台 Shell 决定位置，并使用 shared 的模型和校验作为权威结果。
-`auto_start_server` 不是 UI 配置项：本地模式固定映射为 `true` 并在应用启动时运行服务，远端模式不启动本地服务。
+`auto_start_server` 不是 UI 配置项：本地模式在配置已 initialized 后固定映射为 `true` 并在应用启动时运行服务；
+首次缺少配置时仍需等待前端 apply，远端模式不启动本地服务。
 
 ### 地址区分
 
@@ -122,7 +125,7 @@ interface RuntimeSnapshot {
   platform: "web" | "desktop" | "android";
   configStatus: "configured" | "unconfigured" | "invalid";
   config: EditableRuntimeConfig;
-  createdDefault: boolean;
+  initialized: boolean;
   service: {
     ownership: "local" | "remote";
     phase: "stopped" | "starting" | "running" | "stopping" | "failed";
@@ -141,6 +144,16 @@ interface RuntimeSnapshot {
   };
 }
 ```
+
+`initialized` 是 Shell 对运行配置初始化状态的权威判断：
+
+- `false`：没有可用的持久配置，或保存记录已经损坏；Shell 可以返回默认表单草稿，但不得据此启动本地 HTTP 服务。
+- `true`：交互式 Shell 的配置已经由用户成功应用并持久化，或 Web 部署提供了明确的权威地址；
+  后续冷启动按该配置自动启动本地服务或选择远端地址。
+- 它不表示 core 当前健康。已初始化配置仍可能对应 `starting`、`failed` 或暂时不可达的远端服务。
+
+前端不得根据 `configStatus`、`apiBaseUrl`、默认端口或本地存储自行推断 initialized。设置漏斗完成条件为
+`initialized && configured && apiBaseUrl`；服务错误仍由设置/恢复界面处理。
 
 `lanAccessUrls` 只用于 Shell 管理的本地 `server-mode` 服务。Shell 必须根据当前真实网络接口和
 实际监听端口返回可供其它设备输入的 HTTP/HTTPS 根地址，并在服务或网络状态变化时发布新快照。
@@ -298,7 +311,7 @@ Desktop 和 Android Shell 应：
 
 - 在前端加载前注册桥传输。
 - 决定配置文件、数据库和文件目录的实际平台路径。
-- 调用 shared 加载、创建和校验配置。
+- 调用 shared 加载和校验配置；首次缺失时只向前端提供默认草稿。
 - 调用 core 启动、停止和查询本地服务。
 - 生成本机 loopback 和实际 LAN 访问地址。
 - 持久化成功激活的配置。
@@ -388,11 +401,19 @@ Axum 不服务 Desktop 或 Android 前端构建产物。
 
 ## 默认配置与首次启动
 
-平台 Shell 应继续使用缺失配置自愈策略，创建 shared 默认配置而不是要求用户手工编写文件。
-默认配置为本机自托管、loopback、固定默认端口 `17890` 和自动启动。
+UI 平台缺少持久配置时不得自动创建配置文件，也不得启动本地 Axum HTTP 服务。
+Shell 返回 `initialized=false`、`configStatus=unconfigured`、`service.phase=stopped`，并把 shared 默认配置
+（本机自托管、loopback、默认端口 `17890`）仅作为前端表单草稿。
 
-创建默认配置后可以直接尝试启动；如果失败，前端加载失败状态和默认草稿，让用户修改后重新应用。
-首次启动不强制经过向导，但运行设置必须始终可达。
+用户在前端选择模式并提交 `applyRuntimeConfig` 后：
+
+- 本地模式先使用候选配置启动 core，成功后持久化实际配置并发布 `initialized=true`；
+- 远端模式校验并持久化地址，然后发布 `initialized=true`，且不启动本地 HTTP 服务；
+- 首次应用任一步骤失败都保持 `initialized=false`；已有配置的变更失败则恢复旧配置及其初始化状态，
+  不把失败草稿伪装成正式配置。
+
+已有有效持久配置的后续冷启动仍自动激活，不重复展示首次选择；Activity/窗口重建和 WebView reload 复用
+Shell 的进程级运行状态，不重复启动服务。
 
 ## 稳定错误码
 
@@ -435,7 +456,9 @@ unsupported_runtime_mode
 
 实现完成后至少验证：
 
-- 无配置文件时自动创建默认配置并可进入前端。
+- 无配置文件时前端可进入运行设置，Shell 返回 `initialized=false` 且不启动本地 HTTP 服务、不写配置。
+- 首次应用本地配置成功后才启动 core、写入配置并发布 `initialized=true`。
+- 首次应用远端配置后不启动本地 core，后续冷启动直接恢复远端模式。
 - 配置损坏时仍能打开运行设置并修复。
 - 本地服务正常启动并返回真实 loopback API 地址。
 - 端口占用时设置页显示稳定错误并可修改重试。
