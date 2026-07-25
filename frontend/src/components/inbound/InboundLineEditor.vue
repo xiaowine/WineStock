@@ -1,37 +1,6 @@
 <!-- 本组件拥有单条入库明细的完整编辑区；它不选择物品、不提交整张入库单，也不管理路由。 -->
 <template>
-  <section
-    ref="editor"
-    class="inbound-line-editor inbound-line-editor--drawer"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="inbound-line-editor-title"
-    tabindex="-1"
-  >
-    <header>
-      <AuthenticatedImage
-        :file-id="line.item.image_file_id"
-        :alt="line.item.name + ' 主图'"
-        :size="34"
-        previewable
-      />
-      <div>
-        <strong id="inbound-line-editor-title">配置入库明细</strong>
-        <span>{{ line.item.name }} · {{ line.item.sku }} · {{ line.item.unit }}</span>
-      </div>
-      <button
-        class="icon-button inbound-line-editor__close"
-        type="button"
-        aria-label="关闭当前入库明细"
-        title="关闭"
-        @click="$emit('close')"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M6 6l12 12M18 6 6 18" />
-        </svg>
-      </button>
-    </header>
-
+  <div class="inbound-line-editor">
     <section class="inbound-line-editor__operation-fields" aria-label="本次入库参数">
       <label>
         <span>数量 *</span>
@@ -40,12 +9,15 @@
           :name="'quantity_' + line.lineId"
           :data-line-id="line.lineId"
           data-field="quantity"
-          :class="{ 'inbound-control--error': validationAttempted && !validQuantity(line.quantity) }"
+          :class="{
+            'inbound-control--error': validationAttempted && !validQuantity(line.quantity),
+          }"
           type="number"
           min="0.01"
           step="0.01"
           inputmode="decimal"
           :aria-label="line.item.name + ' 入库数量'"
+          autofocus
         />
       </label>
       <label>
@@ -55,7 +27,9 @@
           :name="'unit_price_' + line.lineId"
           :data-line-id="line.lineId"
           data-field="unitPrice"
-          :class="{ 'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice) }"
+          :class="{
+            'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice),
+          }"
           type="number"
           min="0"
           step="0.01"
@@ -102,11 +76,7 @@
       </label>
       <label>
         <span>有效期</span>
-        <input
-          v-model="line.expiresAt"
-          :name="'expires_at_' + line.lineId"
-          type="date"
-        />
+        <input v-model="line.expiresAt" :name="'expires_at_' + line.lineId" type="date" />
       </label>
     </div>
 
@@ -243,18 +213,11 @@
     <p v-else class="inbound-line-editor__empty">
       当前未使用入库模板，没有需要填写的本次收货属性。
     </p>
-
-    <footer class="inbound-line-editor__footer">
-      <button class="secondary-button" type="button" @click="$emit('close')">暂存并关闭</button>
-      <button class="primary-button" type="button" @click="$emit('complete-and-continue')">
-        完成并继续添加
-      </button>
-    </footer>
-  </section>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed } from "vue";
 import type { TemplateFieldResponse, TemplateFieldType } from "../../api/inbound";
 import type { InboundTemplateResponse } from "../../api/inboundTemplates";
 import type { LocationResponse } from "../../api/locations";
@@ -266,7 +229,6 @@ import {
   type InboundDraftLine,
 } from "../../pages/inbound-draft/model";
 import AttributeImageField from "../attributes/AttributeImageField.vue";
-import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 import SelectControl from "../forms/SelectControl.vue";
 
 const props = defineProps<{
@@ -280,15 +242,12 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  close: [];
-  "complete-and-continue": [];
   "retry-template": [line: InboundDraftLine];
   "retry-templates": [];
   "retry-locations": [];
   "select-template": [templateId: number | null];
 }>();
 
-const editor = ref<HTMLElement | null>(null);
 const unresolvedSelectedTemplate = computed(
   () => props.line.templateState === "unresolved" && props.line.templateId !== null,
 );
@@ -300,10 +259,6 @@ const locationGroups = computed(() => {
     groups.set(location.group_name, list);
   }
   return Array.from(groups, ([name, locations]) => ({ name, locations }));
-});
-
-onMounted(() => {
-  void nextTick(() => editor.value?.focus());
 });
 
 function emitTemplateSelection(value: unknown): void {

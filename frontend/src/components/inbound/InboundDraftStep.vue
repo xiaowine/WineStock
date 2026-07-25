@@ -4,20 +4,19 @@
     <header class="inbound-step__header">
       <div>
         <h2 id="inbound-draft-step-title">入库单信息与明细</h2>
-        <p>添加后立即配置该物品；未完成明细会锁定下一次添加。</p>
+        <p>添加后立即配置该物品；再次添加会先返回未完成明细。</p>
       </div>
       <button
         class="primary-button inbound-add-item-button"
         type="button"
-        :disabled="!canAddItem"
-        :title="canAddItem ? '选择物品并配置明细' : addItemDisabledReason"
+        title="选择物品并配置明细"
         @click="$emit('add-item')"
       >
         添加物品
       </button>
     </header>
 
-    <div class="inbound-order__body" :inert="drawerOpen ? true : undefined">
+    <div class="inbound-order__body" :inert="dialogOpen ? true : undefined">
       <section class="inbound-order-meta" aria-label="入库单基础信息">
         <label class="inbound-order-meta__source">
           <span>来源 *</span>
@@ -86,10 +85,12 @@
         <table>
           <thead>
             <tr>
-              <th>物品</th>
-              <th>本次入库</th>
-              <th>模板与批次</th>
-              <th><span class="visually-hidden">操作</span></th>
+              <th scope="col">物品</th>
+              <th scope="col">数量</th>
+              <th scope="col">单价 / 小计</th>
+              <th scope="col">库位</th>
+              <th scope="col">模板 / 批次</th>
+              <th scope="col"><span class="visually-hidden">操作</span></th>
             </tr>
           </thead>
           <tbody>
@@ -112,41 +113,60 @@
                   </div>
                 </div>
               </td>
-              <td data-label="本次入库">
-                <div class="inbound-line__summary">
-                  <span>数量：{{ quantityLabel(line) }}</span>
-                  <span>单价：{{ priceLabel(line) }}</span>
-                  <span>库位：{{ locationLabel(line) }}</span>
-                  <strong v-if="validQuantity(line.quantity) && validUnitPrice(line.unitPrice)">
-                    小计 ¥{{ formatMoney(lineSubtotal(line)) }}
+              <td data-label="数量">
+                <strong
+                  class="inbound-line__value"
+                  :class="{ 'inbound-line__value--warning': !validQuantity(line.quantity) }"
+                >
+                  {{ quantityLabel(line) }}
+                </strong>
+              </td>
+              <td data-label="单价 / 小计">
+                <div class="inbound-line__value-stack">
+                  <strong
+                    class="inbound-line__value"
+                    :class="{ 'inbound-line__value--warning': !validUnitPrice(line.unitPrice) }"
+                  >
+                    {{ priceLabel(line) }}
                   </strong>
+                  <span v-if="validQuantity(line.quantity) && validUnitPrice(line.unitPrice)">
+                    小计 ¥{{ formatMoney(lineSubtotal(line)) }}
+                  </span>
                 </div>
               </td>
-              <td data-label="模板与批次">
-                <div class="inbound-line__summary inbound-line__summary--secondary">
+              <td data-label="库位">
+                <strong
+                  class="inbound-line__value inbound-line__value--truncate"
+                  :class="{
+                    'inbound-line__value--warning': line.locationId === null,
+                    'inbound-line__value--danger':
+                      line.locationId !== null && !locationMap.has(line.locationId),
+                  }"
+                  :title="locationLabel(line)"
+                >
+                  {{ locationLabel(line) }}
+                </strong>
+              </td>
+              <td data-label="模板 / 批次">
+                <div class="inbound-line__value-stack">
                   <small
                     class="inbound-line__template-summary"
                     :class="'inbound-line__template-summary--' + templateSummary(line).tone"
+                    :title="templateSummary(line).label"
                   >
-                    <span>入库模板：</span>{{ templateSummary(line).label }}
+                    <span>{{ templateSummary(line).label }}</span>
                     <em
                       v-if="line.templateSource === 'recommended' && line.templateState === 'ready'"
                       >已推荐</em
                     >
                   </small>
-                  <span>批次：{{ line.batchNo.trim() || "由服务端生成" }}</span>
-                  <span>有效期：{{ line.expiresAt || "未设置" }}</span>
+                  <span class="inbound-line__value--truncate" :title="batchDetail(line)">
+                    {{ batchDetail(line) }}
+                  </span>
                 </div>
               </td>
               <td data-label="操作">
                 <div class="inbound-line__actions">
-                  <span
-                    v-if="lineStatusLabel(line)"
-                    class="inbound-line__status"
-                    :class="'inbound-line__status--' + lineStatusTone(line)"
-                  >
-                    {{ lineStatusLabel(line) }}
-                  </span>
                   <button
                     class="icon-button inbound-line__edit"
                     type="button"
@@ -208,9 +228,7 @@ const props = defineProps<{
   notesOpen: boolean;
   validationAttempted: boolean;
   selectedLineId: string | null;
-  drawerOpen: boolean;
-  canAddItem: boolean;
-  addItemDisabledReason: string;
+  dialogOpen: boolean;
 }>();
 
 defineEmits<{
@@ -224,10 +242,14 @@ defineEmits<{
   "add-item": [];
 }>();
 
-const locationMap = computed(() => new Map(props.locations.map((location) => [location.id, location])));
+const locationMap = computed(
+  () => new Map(props.locations.map((location) => [location.id, location])),
+);
 
 function quantityLabel(line: InboundDraftLine): string {
-  return validQuantity(line.quantity) ? formatQuantity(line.quantity) + " " + line.item.unit : "待填写";
+  return validQuantity(line.quantity)
+    ? formatQuantity(line.quantity) + " " + line.item.unit
+    : "待填写";
 }
 
 function priceLabel(line: InboundDraftLine): string {
@@ -240,59 +262,32 @@ function locationLabel(line: InboundDraftLine): string {
     : (locationMap.value.get(line.locationId)?.name ?? "库位已失效");
 }
 
+function batchDetail(line: InboundDraftLine): string {
+  const batch = line.batchNo.trim() || "自动生成批次";
+  const expiry = line.expiresAt || "无有效期";
+  return `${batch} · ${expiry}`;
+}
+
 function templateSummary(line: InboundDraftLine): {
   label: string;
-  status: string;
   tone: "muted" | "accent" | "warning" | "danger";
 } {
   if (line.templateState === "resolving")
     return {
       label: line.templateSource === "recommended" ? "正在匹配推荐模板…" : "正在加载…",
-      status: "模板加载中",
       tone: "muted",
     };
   if (line.templateState === "unresolved")
     return {
-      label:
-        line.templateSource === "recommended"
-          ? "推荐模板已失效"
-          : "所选模板已失效",
-      status: "需要处理",
+      label: line.templateSource === "recommended" ? "推荐模板已失效" : "所选模板已失效",
       tone: "warning",
     };
-  if (line.templateState === "error")
-    return { label: "加载失败", status: "需要处理", tone: "danger" };
-  if (!line.template) return { label: "未设置", status: "无需填写", tone: "muted" };
+  if (line.templateState === "error") return { label: "加载失败", tone: "danger" };
+  if (!line.template) return { label: "未设置模板", tone: "muted" };
   const incompleteCount = incompleteTemplateFieldCount(line);
   return {
     label: line.template.name,
-    status: incompleteCount > 0 ? "待填写 " + incompleteCount + " 项" : "属性已完成",
     tone: incompleteCount > 0 ? "warning" : "accent",
   };
-}
-
-function lineStatusLabel(line: InboundDraftLine): string | null {
-  if (!validQuantity(line.quantity)) return "待填写数量";
-  if (!validUnitPrice(line.unitPrice)) return "待填写单价";
-  if (line.locationId === null) return "待选择库位";
-  if (line.templateState === "resolving") return "模板加载中";
-  if (line.templateState === "unresolved" || line.templateState === "error")
-    return "需要处理";
-  if (line.template && incompleteTemplateFieldCount(line) > 0) return "待补充属性";
-  return null;
-}
-
-function lineStatusTone(line: InboundDraftLine): "muted" | "warning" | "danger" {
-  if (line.templateState === "error") return "danger";
-  if (
-    !validQuantity(line.quantity) ||
-    !validUnitPrice(line.unitPrice) ||
-    line.locationId === null ||
-    line.templateState === "unresolved" ||
-    (line.template !== null && incompleteTemplateFieldCount(line) > 0)
-  )
-    return "warning";
-  if (line.templateState === "resolving") return "muted";
-  return "muted";
 }
 </script>

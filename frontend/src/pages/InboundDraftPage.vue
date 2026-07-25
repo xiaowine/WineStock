@@ -24,7 +24,9 @@
         >
         <template v-if="draftAmountReady">
           <span aria-hidden="true">·</span>
-          <span>预计金额 <strong>¥{{ formatMoney(draftTotal) }}</strong></span>
+          <span
+            >预计金额 <strong>¥{{ formatMoney(draftTotal) }}</strong></span
+          >
         </template>
       </div>
       <div class="inbound-page-actions">
@@ -61,9 +63,7 @@
         :notes-open="notesOpen"
         :validation-attempted="validationAttempted"
         :selected-line-id="selectedLineId"
-        :drawer-open="selectedLine !== null"
-        :can-add-item="canAddItem"
-        :add-item-disabled-reason="addItemDisabledReason"
+        :dialog-open="selectedLine !== null"
         @update:source="source = $event"
         @update:notes="notes = $event"
         @update:notes-open="notesOpen = $event"
@@ -75,32 +75,59 @@
       />
     </div>
 
-    <Teleport to="body">
-      <Transition name="inbound-editor" @after-leave="handleLineEditorAfterLeave">
-        <div v-if="selectedLine" class="inbound-line-editor-layer">
-          <div
-            class="inbound-line-editor-backdrop"
-            role="presentation"
-            @click="closeLineEditor"
-          ></div>
-          <InboundLineEditor
-            :line="selectedLine"
-            :locations="locations"
-            :location-error="locationError"
-            :templates="inboundTemplates"
-            :templates-loading="templateOptionsLoading"
-            :templates-error="templateOptionsError"
-            :validation-attempted="validationAttempted"
-            @close="closeLineEditor"
-            @complete-and-continue="completeLineAndContinue"
-            @select-template="selectInboundTemplate"
-            @retry-template="retryLineTemplate"
-            @retry-templates="loadInboundTemplateOptions"
-            @retry-locations="loadLocationOptions"
+    <ModalDialog
+      :open="selectedLine !== null"
+      title="入库物品明细"
+      description="数量、收货信息和模板属性属于同一条明细；完成后才能继续添加下一项。"
+      workspace
+      @close="closeLineEditor"
+      @after-close="handleLineEditorAfterClose"
+    >
+      <template v-if="selectedLine" #context>
+        <div class="inbound-line-editor-context">
+          <AuthenticatedImage
+            :file-id="selectedLine.item.image_file_id"
+            :alt="selectedLine.item.name + ' 主图'"
+            :size="34"
+            previewable
           />
+          <div>
+            <strong :title="selectedLine.item.name">{{ selectedLine.item.name }}</strong>
+            <span>{{ selectedLine.item.sku }} · {{ selectedLine.item.unit }}</span>
+          </div>
         </div>
-      </Transition>
-    </Teleport>
+      </template>
+      <InboundLineEditor
+        v-if="selectedLine"
+        :line="selectedLine"
+        :locations="locations"
+        :location-error="locationError"
+        :templates="inboundTemplates"
+        :templates-loading="templateOptionsLoading"
+        :templates-error="templateOptionsError"
+        :validation-attempted="validationAttempted"
+        @select-template="selectInboundTemplate"
+        @retry-template="retryLineTemplate"
+        @retry-templates="loadInboundTemplateOptions"
+        @retry-locations="loadLocationOptions"
+      />
+      <template #actions>
+        <button
+          class="secondary-button inbound-line-editor-action"
+          type="button"
+          @click="closeLineEditor"
+        >
+          暂存并关闭
+        </button>
+        <button
+          class="primary-button inbound-line-editor-action"
+          type="button"
+          @click="completeLineAndContinue"
+        >
+          完成并继续添加
+        </button>
+      </template>
+    </ModalDialog>
 
     <ItemSelectionDialog
       :open="itemPickerOpen"
@@ -258,6 +285,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import ModalDialog from "../components/ModalDialog.vue";
+import AuthenticatedImage from "../components/attributes/AuthenticatedImage.vue";
 import InboundDraftStep from "../components/inbound/InboundDraftStep.vue";
 import InboundLineEditor from "../components/inbound/InboundLineEditor.vue";
 import ItemCreateDialog from "../components/items/ItemCreateDialog.vue";
@@ -278,8 +306,6 @@ import { deleteImage } from "../api/files";
 import { ApiError } from "../api/errors";
 import { useInboundDraftPersistence } from "../composables/useInboundDraftPersistence";
 import { useInboundItemCatalog } from "../composables/useInboundItemCatalog";
-import { useNativeBackHandler } from "../composables/useNativeBackHandler";
-import { NativeBackPriority } from "../navigation/nativeBack";
 import { notice } from "../notices/notice";
 import { authSession } from "../auth/session";
 import { hasPermission, stockPermissions } from "../auth/permissions";
@@ -337,17 +363,6 @@ const templateAbortControllers = new Map<string, AbortController>();
 const templateRequestVersions = new Map<string, number>();
 const templateCache = new Map<number, InboundTemplateResponse>();
 
-useNativeBackHandler({
-  id: "inbound-line-editor-drawer",
-  active: () => selectedLineId.value !== null,
-  priority: NativeBackPriority.Drawer,
-  handle: () => {
-    if (selectedLineId.value === null) return { handled: false };
-    closeLineEditor();
-    return { handled: true, reason: "drawer" };
-  },
-});
-
 const {
   items,
   searchInput,
@@ -396,14 +411,6 @@ const draftReady = computed(
     draftItems.value.every(lineReady),
 );
 const incompleteLine = computed(() => draftItems.value.find((line) => !lineReady(line)) ?? null);
-const canAddItem = computed(
-  () => selectedLineId.value === null && incompleteLine.value === null,
-);
-const addItemDisabledReason = computed(() => {
-  if (selectedLineId.value !== null) return "请先完成或暂存当前打开的明细。";
-  if (incompleteLine.value) return `请先完成“${incompleteLine.value.item.name}”的入库明细。`;
-  return "";
-});
 const canDirectInbound = computed(() =>
   hasPermission(authSession.value?.user.permissions, stockPermissions.inboundApprove),
 );
@@ -511,9 +518,11 @@ function addItem(item: ItemOptionResponse, showNotice = true): InboundDraftLine 
 }
 
 function openItemPicker(): void {
-  if (!canAddItem.value) {
-    if (incompleteLine.value)
-      notice.warning(`请先完成“${incompleteLine.value.item.name}”的入库明细。`);
+  if (incompleteLine.value) {
+    selectedLineId.value = incompleteLine.value.lineId;
+    notice.warning("请先完成当前入库明细", {
+      detail: `已重新打开“${incompleteLine.value.item.name}”的配置界面。`,
+    });
     return;
   }
   itemPickerOpen.value = true;
@@ -759,15 +768,10 @@ function selectLine(lineId: string): void {
 
 function closeLineEditor(): void {
   openPickerAfterLineEditor = false;
-  const lineId = selectedLineId.value;
   selectedLineId.value = null;
-  if (lineId)
-    void nextTick(() =>
-      document.querySelector<HTMLElement>(`[data-line-action="${lineId}"]`)?.focus(),
-    );
 }
 
-function handleLineEditorAfterLeave(): void {
+function handleLineEditorAfterClose(): void {
   if (!openPickerAfterLineEditor) return;
   openPickerAfterLineEditor = false;
   itemPickerOpen.value = true;
