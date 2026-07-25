@@ -63,9 +63,9 @@ export const appRouteCatalog = {
     navigation: { group: "primary", icon: "inbound-create", order: 30 },
   },
   "inbound-orders": {
-    title: "入库单",
+    title: "入库记录",
     requiredPermission: stockPermissions.inboundRead,
-    navigation: { group: "primary", icon: "inbound-orders", order: 40 },
+    navigation: { group: "primary", icon: "inbound-orders", order: 50 },
   },
   outbound: {
     title: "新建出库",
@@ -73,12 +73,12 @@ export const appRouteCatalog = {
     navigation: {
       group: "primary",
       icon: "outbound-create",
-      order: 50,
+      order: 40,
       desktopOnly: true,
     },
   },
   "outbound-orders": {
-    title: "出库单",
+    title: "出库记录",
     requiredPermission: stockPermissions.outboundRead,
     navigation: { group: "primary", icon: "outbound-orders", order: 60 },
   },
