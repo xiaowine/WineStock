@@ -132,8 +132,9 @@
   padding: 0 18px 24px;
 }
 
-.item-workspace__content > .item-editor .item-editor__section:first-child {
-  padding-top: 16px;
+.item-workspace__content > .item-editor .item-editor__section:first-child,
+.modal-body > .item-editor--embedded .item-editor__section:first-child {
+  padding-top: 24px;
 }
 
 .item-workspace-panel-enter-active,
@@ -316,6 +317,11 @@
   .item-workspace__content > .item-editor .item-editor__content {
     padding-right: 14px;
     padding-left: 14px;
+  }
+
+  .item-workspace__content > .item-editor .item-editor__section:first-child,
+  .modal-body > .item-editor--embedded .item-editor__section:first-child {
+    padding-top: 20px;
   }
 
   .item-inventory {
