@@ -62,15 +62,6 @@
   line-height: 1.5;
 }
 
-.outbound-add-item-hint {
-  margin: 0;
-  padding: 9px 16px;
-  border-bottom: 1px solid rgb(138 90 18 / 22%);
-  background: var(--color-warn-soft);
-  color: var(--color-warn);
-  font-size: 12px;
-}
-
 .outbound-blocked {
   display: grid;
   min-height: 360px;
@@ -484,10 +475,6 @@ label:has(input[type="radio"]:checked) > .outbound-radio-indicator::after {
 
   .outbound-workspace__header .primary-button {
     width: 100%;
-  }
-
-  .outbound-add-item-hint {
-    padding: 9px 12px;
   }
 
   .outbound-meta {

@@ -17,10 +17,6 @@
       </button>
     </header>
 
-    <p v-if="!canAddItem && addItemDisabledReason" class="inbound-add-item-hint" role="status">
-      {{ addItemDisabledReason }}
-    </p>
-
     <div class="inbound-order__body" :inert="drawerOpen ? true : undefined">
       <section class="inbound-order-meta" aria-label="入库单基础信息">
         <label class="inbound-order-meta__source">

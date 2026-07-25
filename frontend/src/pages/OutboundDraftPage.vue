@@ -66,10 +66,6 @@
         </button>
       </header>
 
-      <p v-if="!canAddItem && addItemDisabledReason" class="outbound-add-item-hint" role="status">
-        {{ addItemDisabledReason }}
-      </p>
-
       <section class="outbound-meta" aria-label="出库单基础信息">
         <label>
           <span>出库去向 *</span>
