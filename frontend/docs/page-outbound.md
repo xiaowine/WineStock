@@ -14,6 +14,18 @@
 `ui-design-guidelines.md`、`ui-consistency-checklist.md`、`async-state-transitions.md` 和
 `mobile-interactions.md` 为准。
 
+## 扫码添加（立创料袋）
+
+“扫码添加”与“添加物品”并排放置，共用入库的 `BarcodeScanDialog` 与串行会话节奏
+（明细关闭后自动重开扫码）。出库域语义与入库不同：
+
+- 命中（C 号按物品编号精确匹配）：进入该物品的出库明细配置，**不预填数量**（袋上是包装量，
+  与本次出库量无关），订单号一律忽略；
+- 未命中：仅在扫码 Dialog 内提示“库中没有编号 …”，**不提供快速新建**——不能出库不存在的物品；
+- 重复扫到已在草稿的物品：不新增，Notice 提示并打开该行明细。
+
+识别、忽略与格式规则见 [`../../docs/implementation-notes/lcsc-bag-scanning.md`](../../docs/implementation-notes/lcsc-bag-scanning.md)。
+
 ## 当前信息架构
 
 ```text

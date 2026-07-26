@@ -16,8 +16,13 @@
 
 ## 立创资料查询
 
-只有具备 `stock.item.manage` 权限、从物品管理打开的 `create` 模式 Dialog 显示“查询立创资料”。入库选品中复用的
-快速新建 Dialog 不显示该入口，编辑已有物品也不允许通过此能力覆盖资料。
+只有具备 `stock.item.manage` 权限、从物品管理打开的 `create` 模式 Dialog 显示“查询立创资料”和
+“扫码填写”两个入口（并排放置）。“扫码填写”打开通用 `BarcodeScanDialog`：识别到立创料袋码即取
+其 C 号进入查询 Dialog 并自动执行；非立创内容在扫码层内提示已忽略，不关闭扫码。
+
+入库选品中复用的快速新建 Dialog 不显示这两个入口，但入库扫码未命中转入的新建会话会以扫到的
+C 号自动执行一次立创查询预填（见 `docs/implementation-notes/lcsc-bag-scanning.md`）。
+编辑已有物品不允许通过此能力覆盖资料。
 
 查询流程：
 
