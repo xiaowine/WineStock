@@ -1,0 +1,85 @@
+/* 本文件拥有跨页面复用的单选卡片样式：初始化向导「使用方式」与运行设置「运行方式」共用，
+   不定义页面布局。约定：选中态 = accent 边框 + 底色；焦点环只服务键盘导航
+   （:has(input:focus-visible)，禁止 :focus-within 误伤鼠标）；父容器不得对焦点光环做
+   overflow 裁切。见 docs/implementation-notes/first-run-setup-wizard.md 的 UI 实现约束。 */
+@use "../foundation/mixins" as mixins;
+
+.choice-card-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice-card {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    background var(--motion-duration-fast) var(--motion-ease-standard);
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  strong {
+    color: var(--color-text);
+    font-size: 15px;
+  }
+
+  > span {
+    color: var(--color-muted);
+    font-size: 13px;
+  }
+
+  /* 不可用原因：明确的告警语义，不伪装成普通说明文字。 */
+  > em {
+    color: var(--color-warn);
+    font-size: 12px;
+    font-style: normal;
+  }
+
+  &__badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--color-teal-soft);
+    color: var(--color-teal);
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: 1px;
+  }
+
+  &--selected {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: 0.66;
+  }
+
+  &:has(input:focus-visible) {
+    @include mixins.focus-ring(rgb(111 42 54 / 24%), 2px);
+  }
+}
+
+@include mixins.hover-capable {
+  .choice-card:not(.choice-card--selected, .choice-card--disabled):hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-raised);
+  }
+}

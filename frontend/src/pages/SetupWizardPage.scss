@@ -32,70 +32,7 @@
   }
 }
 
-.setup-mode-group {
-  display: grid;
-  gap: 10px;
-}
-
-.setup-mode-option {
-  display: grid;
-  gap: 3px;
-  padding: 14px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  cursor: pointer;
-  transition:
-    border-color var(--motion-duration-fast) var(--motion-ease-standard),
-    background var(--motion-duration-fast) var(--motion-ease-standard);
-
-  input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  strong {
-    color: var(--color-text);
-    font-size: 15px;
-  }
-
-  > span {
-    color: var(--color-muted);
-    font-size: 13px;
-  }
-
-  &__badge {
-    display: inline-block;
-    margin-left: 6px;
-    padding: 1px 8px;
-    border-radius: var(--radius-sm);
-    background: var(--color-teal-soft);
-    color: var(--color-teal);
-    font-size: 11px;
-    font-weight: 600;
-    vertical-align: 1px;
-  }
-
-  &--selected {
-    border-color: var(--color-accent);
-    background: var(--color-accent-soft);
-  }
-
-  /* 焦点环只服务键盘导航；鼠标点选靠边框+底色表达，禁止 :focus-within（会误伤鼠标）。 */
-  &:has(input:focus-visible) {
-    @include mixins.focus-ring(rgb(111 42 54 / 24%), 2px);
-  }
-}
-
-@include mixins.hover-capable {
-  .setup-mode-option:not(.setup-mode-option--selected):hover {
-    border-color: var(--color-border-strong);
-    background: var(--color-surface-raised);
-  }
-}
+/* 使用方式卡片复用全局 .choice-card（styles/shared/_choice-cards.scss）。 */
 
 .setup-wizard__test-row {
   display: flex;

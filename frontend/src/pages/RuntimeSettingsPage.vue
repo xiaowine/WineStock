@@ -1,35 +1,63 @@
 <!--
-  本文件拥有正式运行设置界面，复用既有 Shell 契约并不直接管理 core 生命周期。
+  本文件拥有正式运行设置界面：视觉对齐初始化向导/认证页体系（auth-panel 骨架、
+  分段 tab 运行方式、tone 状态卡），逻辑复用既有 Shell 契约、runtime-settings
+  纯模块与共享 Dialog；含本机静默会话切 server-mode 的强制设密门。
   它不读写平台文件、不直接管理 core 生命周期，也不改变业务 API 契约。
 -->
 <template>
-  <main class="simple-runtime-page">
-    <header class="simple-runtime-header">
-      <div class="simple-runtime-header__inner">
-        <div class="simple-runtime-header__side simple-runtime-header__side--start">
+  <main class="auth-page">
+    <section class="auth-panel runtime-next" aria-labelledby="runtime-next-title">
+      <header class="auth-header">
+        <div class="runtime-next__masthead">
+          <div class="brand-lockup">
+            <span class="brand-mark">W</span>
+            <span class="brand-name">WineStock</span>
+          </div>
+          <!-- 已登录用返回图标；匿名完成设置后的「继续」是漏斗动作，保持文字按钮。 -->
           <button
-            v-if="showLeaveAction"
+            v-if="showLeaveAction && authStatus === 'authenticated'"
+            class="icon-button runtime-next__leave"
+            type="button"
+            aria-label="返回应用"
+            title="返回应用"
+            @click="leaveRuntimeSettings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+          </button>
+          <button
+            v-else-if="showLeaveAction"
             class="text-button"
             type="button"
             @click="leaveRuntimeSettings"
           >
-            {{ leaveActionLabel }}
+            继续
           </button>
         </div>
-        <div class="simple-runtime-header__title"><h1>运行设置</h1></div>
-        <div
-          class="simple-runtime-header__side simple-runtime-header__side--end"
-          aria-hidden="true"
-        ></div>
-      </div>
-    </header>
-
-    <div class="simple-runtime-content">
-      <section class="simple-runtime-status" :class="`simple-runtime-status--${statusTone}`">
-        <span class="simple-runtime-status__indicator" aria-hidden="true"></span>
         <div>
+          <h1 id="runtime-next-title">运行设置</h1>
+          <p>
+            {{
+              setupFinished
+                ? "调整这台设备连接 WineStock 的方式。"
+                : "先确认这台设备的使用方式，保存后继续。"
+            }}
+          </p>
+        </div>
+      </header>
+
+      <div v-if="shellRuntimeError" class="form-error" role="alert">{{ shellRuntimeError }}</div>
+
+      <section
+        class="runtime-next-status"
+        :class="`runtime-next-status--${statusTone}`"
+        aria-label="当前服务状态"
+      >
+        <span class="runtime-next-status__dot" aria-hidden="true"></span>
+        <div class="runtime-next-status__copy">
           <strong>{{ statusTitle }}</strong>
-          <span v-if="activeAddress">{{ activeAddress }}</span>
+          <span v-if="displayAddress">{{ displayAddress }}</span>
         </div>
         <button
           v-if="canRetryActiveService"
@@ -42,40 +70,38 @@
         </button>
       </section>
 
-      <div v-if="shellRuntimeError" class="form-error" role="alert">{{ shellRuntimeError }}</div>
+      <form class="runtime-next__form" novalidate @submit.prevent="requestApply">
+        <div>
+          <fieldset class="runtime-next-tabs" :disabled="applying" aria-label="运行方式">
+            <label
+              v-for="option in modeOptions"
+              :key="option.value"
+              class="runtime-next-tab"
+              :class="{
+                'runtime-next-tab--selected': option.selected,
+                'runtime-next-tab--disabled': option.disabled,
+              }"
+              :title="option.disabled && option.disabledReason ? option.disabledReason : undefined"
+            >
+              <input
+                type="radio"
+                name="runtime_next_mode"
+                :value="option.value"
+                :checked="option.selected"
+                :disabled="option.disabled"
+                @change="changeMode(option.value)"
+              />
+              <span>{{ option.label }}</span>
+            </label>
+          </fieldset>
+          <p v-if="isPureWebPlatform" class="runtime-next__tabs-note">
+            浏览器无法在本机启动服务，仅支持连接已有服务器。
+          </p>
+        </div>
 
-      <form class="simple-runtime-form" novalidate @submit.prevent="requestApply">
-        <fieldset class="simple-runtime-modes" :disabled="applying">
-          <legend>这台设备怎么使用 WineStock？</legend>
-          <label
-            v-for="option in modeOptions"
-            :key="option.value"
-            class="simple-runtime-mode"
-            :class="{
-              'simple-runtime-mode--selected': option.selected,
-              'simple-runtime-mode--disabled': option.disabled,
-            }"
-          >
-            <input
-              type="radio"
-              name="simple_runtime_mode"
-              :value="option.value"
-              :checked="option.selected"
-              :disabled="option.disabled"
-              @change="changeMode(option.value)"
-            />
-            <span class="simple-runtime-mode__radio" aria-hidden="true"></span>
-            <span>
-              <strong>{{ option.label }}</strong>
-              <small>{{ option.description }}</small>
-              <em v-if="option.disabled">{{ option.disabledReason }}</em>
-            </span>
-          </label>
-        </fieldset>
-
-        <section class="simple-runtime-settings" aria-labelledby="simple-runtime-settings-title">
-          <div class="simple-runtime-section-heading">
-            <h2 id="simple-runtime-settings-title">{{ modeTitle }}</h2>
+        <section class="runtime-next__config" aria-labelledby="runtime-next-config-title">
+          <div class="runtime-next__config-heading">
+            <h2 id="runtime-next-config-title">{{ modeTitle }}</h2>
             <span v-if="!setupFinished">请保存以确认运行方式</span>
             <span v-else-if="dirty">有未保存的更改</span>
           </div>
@@ -87,7 +113,7 @@
               validation-key="remoteBaseUrl"
               :error="fieldError('remoteBaseUrl')"
               hint="例如：https://server.example.com:17890"
-              name="simple_runtime_remote_base_url"
+              name="runtime_next_remote_base_url"
               type="url"
               inputmode="url"
               autocomplete="url"
@@ -95,7 +121,7 @@
               :disabled="applying"
               required
             />
-            <div class="simple-runtime-test">
+            <div class="runtime-next__test-row">
               <button
                 class="secondary-button"
                 type="button"
@@ -106,7 +132,8 @@
               </button>
               <span
                 v-if="remoteTestMessage"
-                :class="`simple-runtime-test__result--${remoteTestTone}`"
+                class="runtime-next__test-result"
+                :class="`runtime-next__test-result--${remoteTestTone}`"
                 role="status"
               >
                 {{ remoteTestMessage }}
@@ -125,7 +152,7 @@
               validation-key="port"
               :error="fieldError('port')"
               hint="一般无需修改。"
-              name="simple_runtime_port"
+              name="runtime_next_port"
               type="number"
               inputmode="numeric"
               min="1"
@@ -133,13 +160,13 @@
               :disabled="applying"
               required
             />
-            <p v-if="!serverMode" class="simple-runtime-note">
+            <p v-if="!serverMode" class="runtime-next__note">
               打开应用时，本机服务会自动启动并选择可用端口。
             </p>
             <div v-else class="form-warning" role="status">
               同一网络中的其他设备将能够连接此服务。
             </div>
-            <details v-if="serverMode" class="simple-runtime-advanced">
+            <details v-if="serverMode" class="runtime-next__advanced">
               <summary>高级设置</summary>
               <FormInput
                 v-model="draft.bindHost"
@@ -147,7 +174,7 @@
                 validation-key="bindHost"
                 :error="fieldError('bindHost')"
                 :hint="bindHostHint"
-                name="simple_runtime_bind_host"
+                name="runtime_next_bind_host"
                 type="text"
                 autocomplete="off"
                 :disabled="applying"
@@ -158,7 +185,7 @@
 
           <button
             v-if="lanAccessUrls.length"
-            class="secondary-button simple-runtime-lan-action"
+            class="secondary-button runtime-next__lan-action"
             type="button"
             @click="lanAccessDialogOpen = true"
           >
@@ -167,7 +194,7 @@
           <div v-if="pageError" class="form-error" role="alert">{{ pageError }}</div>
         </section>
 
-        <footer class="simple-runtime-actions">
+        <footer class="auth-page-actions runtime-next__actions">
           <button
             class="secondary-button"
             type="button"
@@ -181,7 +208,7 @@
           </button>
         </footer>
       </form>
-    </div>
+    </section>
 
     <ModalDialog
       :open="confirmationOpen"
@@ -191,7 +218,7 @@
       compact
       @close="confirmationOpen = false"
     >
-      <p class="simple-runtime-confirmation">{{ confirmationDetail }}</p>
+      <p class="runtime-next__confirmation">{{ confirmationDetail }}</p>
       <template #actions>
         <button
           class="secondary-button"
@@ -221,7 +248,7 @@
         validation-key="gatePassword"
         :error="gateFieldError"
         hint="至少 8 个字符。"
-        name="simple_runtime_gate_password"
+        name="runtime_next_gate_password"
         type="password"
         autocomplete="new-password"
         :disabled="gateSubmitting"
@@ -232,7 +259,7 @@
         label="确认密码"
         validation-key="gatePasswordConfirm"
         :error="gateConfirmError"
-        name="simple_runtime_gate_password_confirm"
+        name="runtime_next_gate_password_confirm"
         type="password"
         autocomplete="new-password"
         :disabled="gateSubmitting"
@@ -336,6 +363,10 @@ const isPureWebPlatform = computed(() => snapshot.value?.platform === "web");
 const remoteMode = computed(() => isRemoteRuntimeMode(draft.value.mode));
 const serverMode = computed(() => draft.value.mode === "server-mode");
 const activeAddress = computed(() => snapshot.value?.service.apiBaseUrl ?? "");
+/** 本机服务的回环地址是实现细节，对用户无意义：状态卡只在远端模式展示服务器地址。 */
+const displayAddress = computed(() =>
+  snapshot.value?.service.ownership === "remote" ? activeAddress.value : "",
+);
 const previewAddress = computed(() => previewApiBaseUrl(draft.value));
 const lanAccessUrls = computed(() => getUsableLanAccessUrls(snapshot.value));
 const dirty = computed(
@@ -362,16 +393,10 @@ const checkingActiveService = computed(() => isCheckingServiceAvailability.value
 const canRetryActiveService = computed(() => Boolean(activeAddress.value));
 /** 用户已通过「保存设置」确认（Shell 已发布 initialized=true）。 */
 const setupFinished = computed(() => isRuntimeSetupFinished(snapshot.value));
-/**
- * 未初始化时即使表单与草稿一致也允许保存，
- * 由保存按钮触发 apply，把确认权收在保存路径上。
- */
+/** 未初始化时即使表单与草稿一致也允许保存，把确认权收在保存路径上。 */
 const canSave = computed(() => dirty.value || !setupFinished.value);
 /** 仅设置已确认后才展示离开；未确认必须先「保存设置」。 */
 const showLeaveAction = computed(() => setupFinished.value || authStatus.value === "authenticated");
-const leaveActionLabel = computed(() =>
-  authStatus.value === "authenticated" ? "← 返回应用" : "继续",
-);
 const modeTitle = computed(() =>
   remoteMode.value ? "连接已有服务器" : serverMode.value ? "允许其他设备连接" : "在本机使用",
 );
@@ -404,7 +429,7 @@ const modeOptions = computed(() => [
   {
     value: "self-hosted" as const,
     label: "在本机使用",
-    description: "适合只在这台设备上使用。",
+    description: "数据保存在这台设备上，适合只在这台设备使用。",
     selected: draft.value.mode === "self-hosted",
     disabled: isPureWebPlatform.value,
     disabledReason: isPureWebPlatform.value ? "浏览器无法在本机启动服务，请连接已有服务器。" : "",
@@ -412,7 +437,7 @@ const modeOptions = computed(() => [
   {
     value: "client-only" as const,
     label: "连接已有服务器",
-    description: "输入另一台 WineStock 服务器的地址。",
+    description: "多台设备共享同一台服务器上的数据。",
     selected: remoteMode.value,
     disabled: false,
     disabledReason: "",
@@ -495,7 +520,12 @@ function restoreDraft(): void {
 /** 纯网页端把本机类草稿纠正为远端；平台 shell 内原样返回。 */
 function coerceDraftForPlatform(config: EditableRuntimeConfig): EditableRuntimeConfig {
   if (isPureWebPlatform.value && !isRemoteRuntimeMode(config.mode)) {
-    return applyRuntimeModeDefaults(config, "client-only");
+    const coerced = applyRuntimeModeDefaults(config, "client-only");
+    // 本机类配置没有远端地址：用当前实际生效的服务地址预填，重进页面不丢"原来的地址"。
+    if (!coerced.remoteBaseUrl && activeAddress.value) {
+      return { ...coerced, remoteBaseUrl: activeAddress.value };
+    }
+    return coerced;
   }
   return config;
 }
@@ -707,4 +737,4 @@ function isHealthPayload(value: unknown): value is { status: "OK" } {
 }
 </script>
 
-<style lang="scss" src="./RuntimeSettingsPage.scss"></style>
+<style scoped lang="scss" src="./RuntimeSettingsPage.scss"></style>

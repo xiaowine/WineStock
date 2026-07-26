@@ -110,11 +110,12 @@
       calc(14px + var(--safe-area-left));
   }
 
-  .brand-lockup {
+  /* 只收紧应用壳顶栏内的品牌：AppShell 样式未 scoped，裸类名会泄漏到认证/向导等独立页面。 */
+  .app-topbar .brand-lockup {
     min-width: 132px;
   }
 
-  .brand-name {
+  .app-topbar .brand-name {
     display: none;
   }
 }
@@ -150,7 +151,8 @@
     stroke-width: 1.8;
   }
 
-  .brand-lockup {
+  /* 移动端顶栏由页面标题接管品牌位；仅隐藏顶栏内的品牌，不得泄漏到独立页面。 */
+  .app-topbar .brand-lockup {
     display: none;
   }
 
@@ -329,5 +331,4 @@
   .mobile-nav-backdrop-leave-to {
     opacity: 0;
   }
-
 }

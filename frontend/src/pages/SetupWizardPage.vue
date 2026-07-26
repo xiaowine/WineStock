@@ -21,17 +21,17 @@
               <h1 id="setup-wizard-title">欢迎使用 WineStock</h1>
               <p>先选择这台设备的使用方式，稍后可以随时在设置中更改。</p>
             </div>
-            <div class="setup-mode-group" role="radiogroup" aria-label="使用方式">
+            <div class="choice-card-group" role="radiogroup" aria-label="使用方式">
               <label
                 v-for="option in modeOptions"
                 :key="option.value"
-                class="setup-mode-option"
-                :class="{ 'setup-mode-option--selected': mode === option.value }"
+                class="choice-card"
+                :class="{ 'choice-card--selected': mode === option.value }"
               >
                 <input v-model="mode" type="radio" name="setup_mode" :value="option.value" />
                 <strong>
                   {{ option.label }}
-                  <span v-if="option.recommended" class="setup-mode-option__badge">推荐</span>
+                  <span v-if="option.recommended" class="choice-card__badge">推荐</span>
                 </strong>
                 <span>{{ option.description }}</span>
               </label>
