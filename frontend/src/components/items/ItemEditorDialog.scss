@@ -1,5 +1,9 @@
 /* 本文件拥有物品工作区 Dialog 的多页导航、库存摘要和批次布局，不改变共享编辑器字段规则。 */
 @use "../../styles/foundation/mixins" as mixins;
+
+.item-editor-dialog__lcsc-lookup {
+  margin-right: auto;
+}
 .item-workspace__context {
   display: flex;
   min-width: 0;

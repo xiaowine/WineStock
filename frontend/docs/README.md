@@ -26,6 +26,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `page-outbound.md`：新建出库单物品选择、数量/FIFO/批次分配、草稿、提交审核、响应式和验收设计。
 - `page-templates.md`：分类、物品属性模板与入库模板页面的信息架构、字段编辑、危险操作、响应式和实施验收设计。
 - `page-substitutes.md`：替代关系全局治理页面的关系分组、物品 Dialog 复用、整体保存、权限、响应式和实施验收设计。
+- `page-items.md`：物品目录、新建/详情 Dialog，以及新建会话中的立创商品资料查询和覆盖回填规则。
 - `page-runtime-settings.md`：无 API 依赖的本机运行设置、默认端口 `17890`、模式切换、Shell Bridge 边界和恢复入口。
 - `routes.md`：当前路由、history 策略、嵌套 Shell 边界和鉴权元数据状态。
 - `api-client.md`：运行时 API 地址、统一请求、错误契约、内存会话和当前注册/登录接入状态。

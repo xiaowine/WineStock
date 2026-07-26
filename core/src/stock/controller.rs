@@ -8,6 +8,7 @@ pub(crate) mod dashboard;
 pub(crate) mod events;
 pub(crate) mod inbound;
 pub(crate) mod item_attributes;
+pub(crate) mod item_lookup;
 pub(crate) mod items;
 pub(crate) mod locations;
 pub(crate) mod outbound;
@@ -29,6 +30,10 @@ pub(crate) use inbound::{
     InboundListQuery, InboundResponse, InboundSubmissionMode,
 };
 pub(crate) use item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
+pub(crate) use item_lookup::{
+    lookup_lcsc_item, lookup_lcsc_item_image, ItemLookupSource, LcscItemLookupResponse,
+    LcscLookupParameterResponse,
+};
 pub(crate) use items::{
     create_item, delete_item, get_item, get_item_inventory, item_filter_values, list_item_batches,
     list_item_options, list_items, update_item, CatalogAttributeResponse, ItemBatchPageResponse,

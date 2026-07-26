@@ -16,6 +16,7 @@
       v-model="model"
       v-bind="controlAttrs"
       :required="required"
+      :match-trigger-width="matchTriggerWidth"
       :aria-invalid="invalid || undefined"
       :aria-describedby="mergeDescribedBy(controlAttrs['aria-describedby'], describedBy)"
     >
@@ -37,6 +38,7 @@ const props = withDefaults(
     validationKey?: string;
     error?: string;
     hint?: string;
+    matchTriggerWidth?: boolean;
     required?: boolean;
     id?: string;
   }>(),
@@ -44,6 +46,7 @@ const props = withDefaults(
     validationKey: "",
     error: "",
     hint: "",
+    matchTriggerWidth: false,
     required: false,
     id: undefined,
   },

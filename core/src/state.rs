@@ -6,7 +6,8 @@
 use sea_orm::DatabaseConnection;
 
 use crate::{
-    bootstrap::LocalServiceBootstrap, persistence::StorageRuntime, security::SecurityRuntime,
+    bootstrap::LocalServiceBootstrap, external::ExternalCatalogRuntime,
+    persistence::StorageRuntime, security::SecurityRuntime,
 };
 
 /// Axum 路由共享的全局状态根对象。
@@ -14,6 +15,7 @@ use crate::{
 pub(crate) struct CoreState {
     storage: StorageRuntime,
     security: SecurityRuntime,
+    external_catalog: ExternalCatalogRuntime,
 }
 
 impl CoreState {
@@ -22,6 +24,7 @@ impl CoreState {
         Self {
             storage: local_service.storage.clone(),
             security: SecurityRuntime::from_auth_bootstrap(&local_service.auth),
+            external_catalog: local_service.external_catalog.clone(),
         }
     }
 
@@ -33,6 +36,11 @@ impl CoreState {
     /// 返回安全前置层运行时。
     pub(crate) fn security(&self) -> &SecurityRuntime {
         &self.security
+    }
+
+    /// 返回只读外部商品资料运行时；业务请求不能覆盖其 endpoint。
+    pub(crate) fn external_catalog(&self) -> &ExternalCatalogRuntime {
+        &self.external_catalog
     }
 
     /// 返回存储运行时，供后续文件或附件领域读取公共路径信息。

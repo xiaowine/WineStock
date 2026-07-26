@@ -303,10 +303,12 @@
       :read-only="!canManageItems"
       :can-view-substitutes="canViewSubstitutes"
       :can-manage-substitutes="canManageSubstitutes"
+      allow-lcsc-lookup
       @request-data="loadSelectedEditor"
       @save="save"
       @close="requestCloseEditor"
       @substitutes-dirty="substituteDirty = $event"
+      @apply-lcsc="applyLcscLookup"
     />
 
     <ItemCatalogAttributeDialog
@@ -386,6 +388,7 @@ import {
   getItem,
   getItemFilterValues,
   listItemCatalog,
+  readLcscItemImage,
   updateItem,
   type CatalogAttributeResponse,
   type ItemCatalogFilters,
@@ -395,6 +398,7 @@ import {
   type ItemFilterFieldResponse,
   type ItemStockFilter,
   type ItemStockState,
+  type LcscItemLookupResponse,
 } from "../api/items";
 import { listItemCategories, type ItemCategoryResponse } from "../api/itemCategories";
 import {
@@ -411,6 +415,7 @@ import { notice } from "../notices/notice";
 import {
   draftFromItem,
   emptyItemDraft,
+  applyLcscLookupToDraft,
   itemCreateRequest,
   itemDraftFingerprint,
   itemUpdateRequest,
@@ -419,7 +424,12 @@ import {
   type ItemDraft,
 } from "./items/model";
 import { discardTemporaryItemFiles } from "./items/fileCleanup";
-import { isImageDraftValue, uploadImageDrafts } from "../components/attributes/imageDraft";
+import {
+  createPendingImageDraft,
+  isImageDraftValue,
+  releaseImageDraft,
+  uploadImageDrafts,
+} from "../components/attributes/imageDraft";
 import { deleteImage } from "../api/files";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
 import { useFormValidation } from "../composables/useFormValidation";
@@ -777,6 +787,28 @@ async function prepareNewDraft(): Promise<void> {
   baselineDraft.value = emptyItemDraft();
   baselineFingerprint.value = itemDraftFingerprint(draft.value);
   editorOpen.value = true;
+}
+
+async function applyLcscLookup(
+  candidate: LcscItemLookupResponse,
+  templateId: number | null,
+): Promise<void> {
+  if (dialogMode.value !== "create" || !canManageItems.value) return;
+  const template = templates.value.find((candidate) => candidate.id === templateId) ?? null;
+  applyLcscLookupToDraft(draft.value, candidate, template);
+  validationErrors.value = {};
+  notice.info("已填写立创商品资料", { detail: candidate.product_code });
+  try {
+    const blob = await readLcscItemImage(candidate.product_code);
+    if (dialogMode.value !== "create" || draft.value.sku !== candidate.product_code) return;
+    const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+    const file = new File([blob], `${candidate.product_code}.${extension}`, { type: blob.type });
+    releaseImageDraft(draft.value.image ?? undefined);
+    draft.value.image = createPendingImageDraft(file);
+    draft.value.imageTemporary = true;
+  } catch {
+    notice.warning("立创商品图片未能填写", { detail: "已保留当前物品主图。" });
+  }
 }
 
 async function openExisting(

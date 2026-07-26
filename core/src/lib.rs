@@ -8,6 +8,7 @@
 
 mod auth;
 mod bootstrap;
+mod external;
 mod files;
 mod http;
 mod local_service;
@@ -28,6 +29,7 @@ pub use auth::{
 pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
 };
+pub use external::ExternalCatalogBootstrapError;
 pub use files::FileCleanupError;
 #[cfg(debug_assertions)]
 pub use http::OPENAPI_JSON_PATH;

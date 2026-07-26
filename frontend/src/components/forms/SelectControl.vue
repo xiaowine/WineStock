@@ -100,11 +100,13 @@ const props = withDefaults(
   defineProps<{
     compact?: boolean;
     disabled?: boolean;
+    matchTriggerWidth?: boolean;
     name?: string;
   }>(),
   {
     compact: false,
     disabled: false,
+    matchTriggerWidth: false,
     name: "",
   },
 );
@@ -300,11 +302,13 @@ function positionPopover(): void {
   const placeAbove =
     availableBelow < Math.min(180, estimatedHeight) && availableAbove > availableBelow;
   const maxHeight = Math.max(120, Math.min(280, placeAbove ? availableAbove : availableBelow));
-  const popoverWidth = Math.min(
-    Math.max(anchor.width, preferredPopoverWidth(triggerStyle)),
-    320,
-    viewportWidth - viewportPadding * 2,
-  );
+  const popoverWidth = props.matchTriggerWidth
+    ? Math.min(anchor.width, viewportWidth - viewportPadding * 2)
+    : Math.min(
+        Math.max(anchor.width, preferredPopoverWidth(triggerStyle)),
+        320,
+        viewportWidth - viewportPadding * 2,
+      );
   const popoverLeft = Math.min(
     Math.max(viewportPadding, anchor.left),
     Math.max(viewportPadding, viewportWidth - popoverWidth - viewportPadding),

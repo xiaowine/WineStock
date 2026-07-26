@@ -11,6 +11,7 @@
     "test:lan-access": "node --test tests/lanAccess.test.mjs",
     "test:native-back": "node --test tests/nativeBackCore.test.mjs",
     "test:runtime-funnel": "node --test tests/runtimeFunnel.test.mjs",
+    "test:item-lcsc": "node --test tests/itemLcscMapping.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

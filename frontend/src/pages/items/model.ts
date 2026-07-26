@@ -6,6 +6,7 @@ import type {
   ItemCreateRequest,
   ItemEditorResponse,
   ItemUpdateRequest,
+  LcscItemLookupResponse,
 } from "../../api/items";
 import type {
   ItemAttributeTemplateFieldResponse,
@@ -64,6 +65,96 @@ export function emptyItemDraft(): ItemDraft {
     reorderPoint: null,
     attributes: [],
   };
+}
+
+/** 将用户确认的立创候选资料一次性覆盖到当前新建草稿，不改变本地分类、模板或库存设置。 */
+export function applyLcscLookupToDraft(
+  draft: ItemDraft,
+  lookup: LcscItemLookupResponse,
+  template: ItemAttributeTemplateResponse | null,
+): void {
+  applyLookupTemplate(draft, template);
+  draft.sku = lookup.product_code;
+  if (lookup.name.trim()) draft.name = lookup.name.trim();
+  if (lookup.description?.trim()) draft.description = lookup.description.trim();
+  if (lookup.default_price !== null && lookup.default_price > 0) {
+    draft.defaultPrice = lookup.default_price;
+  }
+
+  upsertLookupAttribute(draft, "型号", "text", lookup.manufacturer_part);
+  upsertLookupAttribute(draft, "品牌", "text", lookup.manufacturer);
+  upsertLookupAttribute(draft, "封装", "text", lookup.footprint);
+  upsertLookupAttribute(draft, "数据手册", "url", lookup.datasheet_url);
+  upsertLookupAttribute(
+    draft,
+    "参数",
+    "text",
+    lookup.parameters.map((parameter) => `${parameter.name}：${parameter.value}`).join("\n"),
+  );
+}
+
+function applyLookupTemplate(
+  draft: ItemDraft,
+  template: ItemAttributeTemplateResponse | null,
+): void {
+  if (!template) {
+    applyAttributeTemplate(draft, null);
+    return;
+  }
+
+  const templateNames = new Set(template.fields.map((field) => field.field_name.toLowerCase()));
+  const carriedValues = new Map(
+    draft.attributes
+      .filter(
+        (attribute) =>
+          attribute.custom && templateNames.has(attribute.fieldName.trim().toLowerCase()),
+      )
+      .map((attribute) => [
+        attribute.fieldName.trim().toLowerCase(),
+        { value: attribute.value, unit: attribute.unit },
+      ]),
+  );
+  draft.attributes = draft.attributes.filter(
+    (attribute) =>
+      !attribute.custom || !templateNames.has(attribute.fieldName.trim().toLowerCase()),
+  );
+  applyAttributeTemplate(draft, template);
+  for (const attribute of draft.attributes.filter((attribute) => !attribute.custom)) {
+    const carried = carriedValues.get(attribute.fieldName.trim().toLowerCase());
+    if (!carried) continue;
+    attribute.value = carried.value;
+    attribute.unit = carried.unit;
+  }
+}
+
+function upsertLookupAttribute(
+  draft: ItemDraft,
+  fieldName: string,
+  fieldType: "text" | "url",
+  candidate: string | null,
+): void {
+  const value = candidate?.trim();
+  if (!value) return;
+  const normalizedName = fieldName.toLocaleLowerCase();
+  let attribute = draft.attributes.find(
+    (current) => current.fieldName.trim().toLocaleLowerCase() === normalizedName,
+  );
+
+  if (!attribute) {
+    attribute = newCustomAttribute();
+    attribute.fieldName = fieldName;
+    attribute.fieldType = fieldType;
+    draft.attributes.push(attribute);
+  } else if (attribute.custom && attribute.fieldType !== fieldType) {
+    attribute.fieldType = fieldType;
+    attribute.options = [];
+    attribute.unitMode = "none";
+    attribute.fixedUnit = "";
+    attribute.unitOptions = [];
+    attribute.unit = "";
+  }
+
+  attribute.value = value;
 }
 
 export function draftFromItem(

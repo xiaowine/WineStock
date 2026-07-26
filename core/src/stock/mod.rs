@@ -104,6 +104,14 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 auth.outbound_draft_item_read(get(controller::list_item_options)),
             )
             .route(
+                "/items/lookups/lcsc/{product_code}",
+                auth.item_manage(get(controller::lookup_lcsc_item)),
+            )
+            .route(
+                "/items/lookups/lcsc/{product_code}/image",
+                auth.item_manage(get(controller::lookup_lcsc_item_image)),
+            )
+            .route(
                 "/items/{id}",
                 auth.item_read(get(controller::get_item))
                     .merge(auth.item_manage(put(controller::update_item)))
@@ -307,6 +315,10 @@ impl StockRouteAuth {
 #[cfg(test)]
 #[path = "../tests/stock_items.rs"]
 mod stock_items_tests;
+
+#[cfg(test)]
+#[path = "../tests/stock_item_lookup.rs"]
+mod stock_item_lookup_tests;
 
 #[cfg(test)]
 #[path = "../tests/stock_attribute_templates.rs"]

@@ -31,7 +31,8 @@
 
 - `core/src/external/`
   - core 共享的外部资料查询运行时，不向业务请求开放第三方 endpoint。
-  - 立创适配固定调用 EDA `/api/devices/search` 单客编搜索接口，限制并发、超时、重定向和响应大小；请求固定 path/uid、分页、空 tag/attributes，只有 wd 使用规范化客编，禁止改用 `searchByCodes`。
+  - 立创适配固定并发调用 EDA `/api/devices/search` 单客编资料接口和 `/api/components/getSmtPartInfo`
+    价格接口，并受控读取精确命中器件的首张商品图；统一限制并发、超时、重定向和响应大小，不公开第三方地址。
   - 客编格式校验、唯一结果选择和 WineStock DTO 投影仍由库存 service 拥有；外部适配层不写数据库。
 
 ## 启动与服务生命周期

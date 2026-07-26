@@ -264,6 +264,15 @@
 
     <template #actions>
       <button
+        v-if="allowLcscLookup && mode === 'create' && !readOnly"
+        class="secondary-button item-editor-dialog__lcsc-lookup"
+        type="button"
+        :disabled="saving"
+        @click="lcscLookupOpen = true"
+      >
+        查询立创资料
+      </button>
+      <button
         class="secondary-button"
         type="button"
         :disabled="saving || substitutesSaving"
@@ -283,6 +292,14 @@
       </button>
     </template>
   </ModalDialog>
+
+  <LcscItemLookupDialog
+    :open="open && lcscLookupOpen"
+    :initial-code="draft.sku"
+    :templates="templates"
+    @close="lcscLookupOpen = false"
+    @apply="forwardLcscCandidate"
+  />
 </template>
 
 <script setup lang="ts">
@@ -295,11 +312,13 @@ import {
   type ItemBatchStockResponse,
   type ItemInventoryResponse,
   type ItemStockState,
+  type LcscItemLookupResponse,
 } from "../../api/items";
 import type { ItemDraft } from "../../pages/items/model";
 import { ApiError } from "../../api/errors";
 import ModalDialog from "../ModalDialog.vue";
 import ItemEditor from "./ItemEditor.vue";
+import LcscItemLookupDialog from "./LcscItemLookupDialog.vue";
 import ItemSubstitutesPanel from "./ItemSubstitutesPanel.vue";
 
 type ItemDialogPage = "data" | "inventory" | "substitutes";
@@ -327,6 +346,8 @@ const props = withDefaults(
     canViewSubstitutes?: boolean;
     /** 当前用户是否可以修改替代关系。 */
     canManageSubstitutes?: boolean;
+    /** 是否允许从本页面的新建会话查询立创资料。 */
+    allowLcscLookup?: boolean;
   }>(),
   {
     itemId: null,
@@ -339,6 +360,7 @@ const props = withDefaults(
     readOnly: false,
     canViewSubstitutes: false,
     canManageSubstitutes: false,
+    allowLcscLookup: false,
   },
 );
 
@@ -347,6 +369,7 @@ const emit = defineEmits<{
   close: [];
   "request-data": [];
   "substitutes-dirty": [dirty: boolean];
+  "apply-lcsc": [candidate: LcscItemLookupResponse, templateId: number | null];
 }>();
 const formId = `item-editor-${useId()}`;
 const activePage = ref<ItemDialogPage>("data");
@@ -359,6 +382,7 @@ const inventoryError = ref("");
 const batchesError = ref("");
 const substitutesDirty = ref(false);
 const substitutesSaving = ref(false);
+const lcscLookupOpen = ref(false);
 const batchPage = ref(0);
 const batchTotalPages = ref(0);
 const itemPageCount = computed(() => 2 + (props.canViewSubstitutes ? 1 : 0));
@@ -372,6 +396,7 @@ watch(
   (open) => {
     if (!open) {
       abortRequests();
+      lcscLookupOpen.value = false;
       substitutesDirty.value = false;
       substitutesSaving.value = false;
       emit("substitutes-dirty", false);
@@ -414,6 +439,10 @@ function selectPage(page: ItemDialogPage): void {
 function handleSubstitutesDirty(value: boolean): void {
   substitutesDirty.value = value;
   emit("substitutes-dirty", value);
+}
+
+function forwardLcscCandidate(candidate: LcscItemLookupResponse, templateId: number | null): void {
+  emit("apply-lcsc", candidate, templateId);
 }
 
 async function loadInventory(force = false): Promise<void> {

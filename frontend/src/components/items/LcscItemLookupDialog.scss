@@ -1,0 +1,56 @@
+/* 本文件拥有立创单商品查询 Dialog 的输入、状态和结果布局。 */
+.lcsc-lookup {
+  display: grid;
+  gap: 16px;
+
+  &__status,
+  &__error {
+    min-height: 48px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+  }
+
+  &__error {
+    display: grid;
+    gap: 4px;
+    border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
+
+    strong {
+      color: var(--color-danger);
+    }
+
+    span {
+      color: var(--color-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  }
+}
+
+.lcsc-lookup-result {
+  display: grid;
+  gap: 7px;
+
+  > strong {
+    overflow-wrap: anywhere;
+    font-size: 17px;
+  }
+
+  > span {
+    color: var(--color-muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: 10px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border);
+    line-height: 1.6;
+  }
+
+  &__template {
+    margin-top: 8px;
+  }
+}

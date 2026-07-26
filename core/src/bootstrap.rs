@@ -9,6 +9,7 @@ use winestock_shared::AppConfig;
 
 use crate::{
     auth::{bootstrap_auth, AuthBootstrap, AuthBootstrapError},
+    external::{ExternalCatalogBootstrapError, ExternalCatalogRuntime},
     files::cleanup_orphaned_images,
     persistence::{
         migrate_storage_schema, open_sqlite_storage, StorageBootstrapError, StorageRuntime,
@@ -40,6 +41,9 @@ pub struct LocalServiceBootstrap {
 
     /// 鉴权启动结果，包括数据库托管设置和签名密钥。
     pub auth: AuthBootstrap,
+
+    /// 外部商品资料查询 client，不包含第三方 Cookie 或会话。
+    pub(crate) external_catalog: ExternalCatalogRuntime,
 }
 
 /// core 启动配置初始化错误。
@@ -59,6 +63,9 @@ pub enum CoreBootstrapError {
 
     /// 临时图片孤儿文件清理失败。
     Files(FileCleanupError),
+
+    /// 外部商品资料 HTTP client 初始化失败。
+    ExternalCatalog(ExternalCatalogBootstrapError),
 }
 
 impl fmt::Display for CoreBootstrapError {
@@ -69,6 +76,7 @@ impl fmt::Display for CoreBootstrapError {
             Self::Rbac(source) => write!(f, "{source}"),
             Self::Stock(source) => write!(f, "{source}"),
             Self::Files(source) => write!(f, "{source}"),
+            Self::ExternalCatalog(source) => write!(f, "{source}"),
         }
     }
 }
@@ -81,6 +89,7 @@ impl Error for CoreBootstrapError {
             Self::Rbac(source) => Some(source),
             Self::Stock(source) => Some(source),
             Self::Files(source) => Some(source),
+            Self::ExternalCatalog(source) => Some(source),
         }
     }
 }
@@ -122,8 +131,15 @@ pub async fn bootstrap_from_config(
         .await
         .map_err(CoreBootstrapError::Auth)?;
 
+    let external_catalog =
+        ExternalCatalogRuntime::build().map_err(CoreBootstrapError::ExternalCatalog)?;
+
     Ok(CoreBootstrap {
-        local_service: Some(LocalServiceBootstrap { storage, auth }),
+        local_service: Some(LocalServiceBootstrap {
+            storage,
+            auth,
+            external_catalog,
+        }),
     })
 }
 

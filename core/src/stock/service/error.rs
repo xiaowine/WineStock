@@ -35,6 +35,24 @@ pub(crate) enum StockApiError {
     /// SKU 已被其他未软删除物品占用。
     SkuTaken,
 
+    /// 立创商品编号不符合 C + 数字格式。
+    InvalidLcscProductCode,
+
+    /// 立创上游没有返回精确匹配的商品。
+    LcscProductNotFound,
+
+    /// 立创查询已达到进程并发上限。
+    LcscLookupBusy,
+
+    /// 立创查询连接或读取超时。
+    LcscLookupTimeout,
+
+    /// 立创查询网络或 HTTP 状态失败。
+    LcscLookupFailed,
+
+    /// 立创响应超限、损坏或不符合预期结构。
+    LcscInvalidResponse,
+
     /// 物品主图不存在、无权使用、内容损坏或已经被其它业务记录绑定。
     ItemImageUnavailable { file_id: i64 },
 
@@ -208,6 +226,36 @@ impl StockApiError {
                 "出库单不存在",
             ),
             Self::SkuTaken => (StatusCode::CONFLICT, "sku_taken", "SKU 已存在"),
+            Self::InvalidLcscProductCode => (
+                StatusCode::BAD_REQUEST,
+                "invalid_lcsc_product_code",
+                "立创商品编号格式无效",
+            ),
+            Self::LcscProductNotFound => (
+                StatusCode::NOT_FOUND,
+                "lcsc_product_not_found",
+                "未查询到该立创商品",
+            ),
+            Self::LcscLookupBusy => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "lcsc_lookup_busy",
+                "立创资料查询繁忙",
+            ),
+            Self::LcscLookupTimeout => (
+                StatusCode::GATEWAY_TIMEOUT,
+                "lcsc_lookup_timeout",
+                "立创资料查询超时",
+            ),
+            Self::LcscLookupFailed => (
+                StatusCode::BAD_GATEWAY,
+                "lcsc_lookup_failed",
+                "暂时无法查询立创资料",
+            ),
+            Self::LcscInvalidResponse => (
+                StatusCode::BAD_GATEWAY,
+                "lcsc_invalid_response",
+                "立创返回了无法识别的数据",
+            ),
             Self::TemplateNameTaken => (
                 StatusCode::CONFLICT,
                 "template_name_taken",

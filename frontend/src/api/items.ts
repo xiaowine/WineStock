@@ -53,6 +53,25 @@ export interface ItemMutationResponse {
   updated_at: string;
 }
 
+export interface LcscItemLookupParameterResponse {
+  name: string;
+  value: string;
+}
+
+/** 立创资料服务返回的单物品候选信息；应用前不会修改物品草稿。 */
+export interface LcscItemLookupResponse {
+  source: "lcsc";
+  product_code: string;
+  name: string;
+  description: string | null;
+  manufacturer: string | null;
+  manufacturer_part: string | null;
+  footprint: string | null;
+  datasheet_url: string | null;
+  default_price: number | null;
+  parameters: LcscItemLookupParameterResponse[];
+}
+
 export type ItemStockState = "out_of_stock" | "reorder_due" | "needs_configuration" | "normal";
 export type ItemStockFilter =
   "all" | "needs_attention" | "out_of_stock" | "reorder_due" | "needs_configuration";
@@ -246,6 +265,21 @@ export function deleteItem(id: number) {
 
 export function getItem(id: number, signal?: AbortSignal) {
   return apiClient.request<ItemEditorResponse>(`/api/items/${id}`, { signal });
+}
+
+export function lookupLcscItem(productCode: string, signal?: AbortSignal) {
+  return apiClient.request<LcscItemLookupResponse>(
+    `/api/items/lookups/lcsc/${encodeURIComponent(productCode)}`,
+    { signal },
+  );
+}
+
+/** 通过 WineStock Core 读取立创商品首图；浏览器不直接访问第三方图片地址。 */
+export function readLcscItemImage(productCode: string, signal?: AbortSignal) {
+  return apiClient.request<Blob>(
+    `/api/items/lookups/lcsc/${encodeURIComponent(productCode)}/image`,
+    { signal, responseType: "blob" },
+  );
 }
 
 export function listItemCatalog(

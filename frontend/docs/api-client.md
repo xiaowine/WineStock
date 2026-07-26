@@ -88,6 +88,15 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 
 `outboundOrders.ts` 负责出库单分页和按需详情读取。列表筛选把关键词、`pending`/`approved`/`rejected` 状态和日期范围提交给 `GET /api/outbound`；物品名称、编码、单位和主图文件 ID 必须由该接口批量投影，不能逐行补请求。
 
+`items.ts` 的 `lookupLcscItem` 只调用 WineStock 的
+`GET /api/items/lookups/lcsc/{product_code}`，浏览器和 WebView 不直接访问立创域名。响应是新建物品候选资料；
+用户确认“覆盖填写”时同时提交确认态选择的物品属性模板 ID，前端先应用该模板，再覆盖同名属性并把模板缺少的
+候选字段创建为自定义属性。有效候选价格覆盖参考单价。确认覆盖后，前端通过
+`GET /api/items/lookups/lcsc/{product_code}/image` 从 WineStock Core 读取受控图片 Blob，转换为与本地选图相同的
+待上传图片草稿；浏览器不直接请求立创图片域名。查询阶段不创建 WineStock 文件对象，最终保存仍统一调用图片上传接口。
+图片请求只在用户确认覆盖后发起；图片缺失或读取失败时保留当前主图，不回滚已经应用的资料、模板属性和参考价格；
+分类、单位和库存设置保持不变。
+
 `stockApprovals.ts` 集中实现入库、出库的 approve/reject 写操作。审批工作台固定以 `status=pending` 调用对应订单列表，再按需读取详情；新建出库的直接审批也复用同一函数，不在创建 API 文件中保留重复请求。审批接口没有请求体，因此前端不伪造审批意见或拒绝原因。
 
 请求路径必须以 `/` 开头且作为当前根地址的相对 API 路径处理，调用方不能传入外部绝对 URL，以免 Bearer token 泄漏到其它 host。

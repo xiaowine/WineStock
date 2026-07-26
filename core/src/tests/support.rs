@@ -63,6 +63,15 @@ pub(crate) async fn seeded_app() -> TestApp {
 }
 
 pub(crate) async fn empty_app() -> TestApp {
+    empty_app_with_lcsc_endpoint(None).await
+}
+
+pub(crate) async fn empty_app_with_mock_lcsc(endpoint: String) -> TestApp {
+    let price_endpoint = endpoint.replace("/api/devices/search", "/api/components/getSmtPartInfo");
+    empty_app_with_lcsc_endpoint(Some((endpoint, price_endpoint))).await
+}
+
+async fn empty_app_with_lcsc_endpoint(lcsc_endpoints: Option<(String, String)>) -> TestApp {
     let temp = tempdir().expect("temp dir should exist");
     let config = AppConfig {
         server: ServerConfig {
@@ -82,7 +91,14 @@ pub(crate) async fn empty_app() -> TestApp {
     let bootstrap = bootstrap_from_config(&config)
         .await
         .expect("bootstrap should succeed");
-    let local = bootstrap.local_service.expect("local service should exist");
+    let mut local = bootstrap.local_service.expect("local service should exist");
+    if let Some((search_endpoint, price_endpoint)) = lcsc_endpoints {
+        local.external_catalog = crate::external::ExternalCatalogRuntime::with_lcsc_endpoints(
+            search_endpoint,
+            price_endpoint,
+        )
+        .expect("mock LCSC client should build");
+    }
     let state = CoreState::from_local_service(&local);
     let router = crate::build_router_with_local_service(&local);
 
