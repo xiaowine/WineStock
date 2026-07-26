@@ -191,6 +191,15 @@
     letter-spacing: 0.04em;
   }
 
+  /* 顶栏品牌小字旁的阶段徽标压缩一档，避免盖过 10px 的品牌名。 */
+  .app-topbar__context-copy small .brand-badge {
+    margin-left: 5px;
+    padding: 0 5px;
+    font-size: 8px;
+    line-height: 1.6;
+    vertical-align: 1px;
+  }
+
   .app-topbar__context-copy strong {
     max-width: 100%;
     overflow: hidden;
@@ -307,7 +316,12 @@
     font-size: 15px;
   }
 
-  .app-navigation-pane__brand span:not(.brand-mark) {
+  .app-navigation-pane__brand strong .brand-badge {
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+
+  .app-navigation-pane__brand span:not(.brand-mark, .brand-badge) {
     color: var(--color-nav-muted);
     font-size: 12px;
   }

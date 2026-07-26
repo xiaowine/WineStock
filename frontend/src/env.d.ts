@@ -18,6 +18,9 @@ interface ImportMeta {
 }
 
 declare global {
+  /** 构建期由 vite.config.ts 从 package.json `appStage` 注入的前端发布阶段徽标文案；空串表示不展示。 */
+  const __APP_STAGE_LABEL__: string;
+
   interface Window {
     /** Desktop、Android 或 Web shell 在应用挂载前注入的运行时配置。 */
     __WINESTOCK_RUNTIME_CONFIG__?: FrontendRuntimeConfig;

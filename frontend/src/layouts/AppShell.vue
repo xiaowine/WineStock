@@ -23,12 +23,17 @@
         <div class="brand-lockup">
           <span class="brand-mark">W</span>
           <span class="brand-name">WineStock</span>
+          <span v-if="APP_STAGE_LABEL" class="brand-badge">{{ APP_STAGE_LABEL }}</span>
         </div>
 
         <div class="app-topbar__context">
           <span class="app-topbar__context-mark" aria-hidden="true">W</span>
           <span class="app-topbar__context-copy">
-            <small>WineStock</small>
+            <small
+              >WineStock<span v-if="APP_STAGE_LABEL" class="brand-badge">{{
+                APP_STAGE_LABEL
+              }}</span></small
+            >
             <strong>{{ pageTitle }}</strong>
           </span>
         </div>
@@ -86,7 +91,11 @@
           <div class="app-navigation-pane__brand">
             <span class="brand-mark" aria-hidden="true">W</span>
             <div>
-              <strong>WineStock</strong>
+              <strong
+                >WineStock<span v-if="APP_STAGE_LABEL" class="brand-badge">{{
+                  APP_STAGE_LABEL
+                }}</span></strong
+              >
               <span>应用导航</span>
             </div>
           </div>
@@ -151,6 +160,8 @@ import { pendingNavigationRouteName } from "../router/navigationPending";
 import { getUsableLanAccessUrls } from "../shell/lanAccess";
 import { runtimeSnapshot } from "../shell/runtime";
 
+/** 品牌名后的前端发布阶段徽标文案，来自 package.json `appStage`；为空时徽标整体隐藏。 */
+const APP_STAGE_LABEL = __APP_STAGE_LABEL__;
 const DESKTOP_QUERY = "(min-width: 768px)";
 const navOpen = ref(false);
 const navTrigger = ref<HTMLButtonElement | null>(null);
