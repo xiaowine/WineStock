@@ -29,6 +29,10 @@
   - 图片 multipart 上传、受控读取/删除的 DTO/handler、签名/MIME/大小校验、SHA-256 内容寻址、动态授权、稳定错误码和 24 小时孤儿清理。
   - 处理物品属性和入库属性共用的受控图片，不拥有前端文件选择器或客户端路径。
 
+- `core/examples/dump_openapi.rs`
+  - 开发期契约导出工具：调用 Debug-only 公开函数 `openapi_document_json()` 把 OpenAPI 文档写入
+    `target/openapi/openapi.json`（不入库的中间产物），供前端 `pnpm gen:api-types` 生成 TypeScript 类型。
+
 - `core/src/external/`
   - core 共享的外部资料查询运行时，不向业务请求开放第三方 endpoint。
   - 立创适配固定并发调用 EDA `/api/devices/search` 单客编资料接口和 `/api/components/getSmtPartInfo`

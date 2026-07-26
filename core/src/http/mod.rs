@@ -10,10 +10,10 @@ mod health;
 mod router;
 mod validation;
 
-#[cfg(debug_assertions)]
-pub use docs::OPENAPI_JSON_PATH;
 #[cfg(all(debug_assertions, feature = "swagger-ui"))]
 pub use docs::SWAGGER_UI_PATH;
+#[cfg(debug_assertions)]
+pub use docs::{openapi_document_json, OPENAPI_JSON_PATH};
 pub(crate) use error_response::{
     api_error_response, api_error_response_with_details, ApiErrorResponse,
 };

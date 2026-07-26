@@ -75,6 +75,33 @@ impl FilterValueType {
     }
 }
 
+/// 文件类型属性的引用值；`file_id` 指向已上传的文件对象。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct FileAttributeReference {
+    /// 已上传文件对象 ID。
+    pub file_id: i64,
+}
+
+/// 类型化属性值的公开契约：text/select/date/url 为字符串，number 为数字，boolean 为布尔，file 为文件引用。
+///
+/// 仅用于 OpenAPI `value_type` 标注，使前端生成精确联合类型；
+/// 运行时字段仍以 `serde_json::Value` 承载，值与属性类型的匹配校验由 service 完成。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(untagged)]
+pub(crate) enum ItemAttributeValue {
+    /// 文本、select 候选、日期或链接字符串值。
+    Text(String),
+
+    /// 数字值。
+    Number(f64),
+
+    /// 布尔值。
+    Flag(bool),
+
+    /// 文件引用值。
+    File(FileAttributeReference),
+}
+
 /// 筛选值响应项。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 pub(crate) struct FilterValueResponse {

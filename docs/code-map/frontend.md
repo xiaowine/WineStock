@@ -26,7 +26,8 @@
 ## API 层
 
 - `frontend/src/api/client.ts`、`errors.ts`、`pagination.ts`：基于 fetch 的统一 JSON 请求、Bearer 注入、`invalid_access_token` 单次强制刷新重试、XHR multipart 上传进度、API 地址切换时统一中止旧请求，以及后端错误契约解析和泛型分页；只允许相对 API 路径。
-- `frontend/src/api/` 其余模块：按业务域拆分的手写 HTTP 契约与请求函数（auth、users、events、items、substitutes、分类/属性模板/入库模板、inbound/outbound 及其单据查询、stockApprovals、locations、files、health、dashboard）；立创候选资料与受控图片读取属于 items 契约，浏览器不直接访问立创域名。
+- `frontend/src/api/generated/`：由 `pnpm gen:api-types` 从 core 导出的 OpenAPI 生成并入库的 TypeScript 契约类型；只允许生成器写入，已在 `.prettierignore` 排除。`api/contract.ts` 拥有生成契约的桥接辅助（schema 索引与响应 Option 字段必填化），不定义业务 DTO。
+- `frontend/src/api/` 其余模块：按业务域拆分的 HTTP 契约与请求函数（auth、users、events、items、substitutes、分类/属性模板/入库模板、inbound/outbound 及其单据查询、stockApprovals、locations、files、health、dashboard）；全部 HTTP DTO 已通过 `contract.ts` 别名映射到生成类型（导出名不变），查询参数模型与前端本地类型仍手写。立创候选资料、可选参考单价与受控图片读取属于 items 契约，浏览器不直接访问立创域名；图片 Blob 转换为现有待上传图片草稿，保存时继续走 files 上传契约。
 
 ## 鉴权会话
 

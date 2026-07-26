@@ -347,6 +347,7 @@ pub(crate) struct CatalogAttributeResponse {
     /// 模板定义的属性名称。
     pub name: String,
     /// 类型化 JSON 属性值。
+    #[schema(value_type = super::common::ItemAttributeValue)]
     pub value: serde_json::Value,
     /// 数字属性的实际单位。
     pub unit: Option<String>,

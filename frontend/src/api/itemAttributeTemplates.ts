@@ -1,75 +1,35 @@
 // 本文件拥有物品属性模板 DTO 和请求，属于 frontend HTTP 边界；模板只提供可选预设。
+// DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定。
 import { apiClient } from "./client";
-import type { TemplateFieldResponse } from "./templateFields";
+import type { ApiResponse, ApiSchema } from "./contract";
 
 /** 物品模板字段支持的单位交互模式。 */
-export type ItemAttributeUnitMode = "none" | "fixed" | "select";
+export type ItemAttributeUnitMode = ApiSchema<"ItemAttributeUnitMode">;
 
-/** 由物品属性模板显式定义的单位规则。 */
-export interface ItemAttributeUnitRule {
-  /** 控制物品录入时隐藏、只读、选择或自由填写单位。 */
-  mode: ItemAttributeUnitMode;
-  /** fixed 模式的固定单位，其它模式为空。 */
-  value: string | null;
-  /** select 模式的单位候选项，其它模式为空。 */
-  options: string[] | null;
-}
+/** 由物品属性模板显式定义的单位规则；响应中经服务端归一化后各字段始终存在。 */
+export type ItemAttributeUnitRule = ApiResponse<ApiSchema<"ItemAttributeUnitRule">>;
 
 /** 带物品专属单位规则的模板字段响应。 */
-export interface ItemAttributeTemplateFieldResponse extends TemplateFieldResponse {
-  /** 服务端归一化后的必需单位规则。 */
-  unit: ItemAttributeUnitRule;
-  /** 是否作为物品目录中的关键属性展示。 */
-  catalog_visible: boolean;
-}
+export type ItemAttributeTemplateFieldResponse = ApiResponse<
+  ApiSchema<"ItemAttributeTemplateFieldResponse">
+>;
 
-export interface ItemAttributeTemplateResponse {
-  id: number;
-  name: string;
-  description: string | null;
-  default_inbound_template_id: number | null;
-  item_usage_count: number;
-  fields: ItemAttributeTemplateFieldResponse[];
-  created_at: string;
-  updated_at: string;
-}
+export type ItemAttributeTemplateResponse = ApiResponse<ApiSchema<"ItemAttributeTemplateResponse">>;
 
-export interface ItemAttributeTemplateDeletionResponse {
-  affected_active_item_count: number;
-}
+export type ItemAttributeTemplateDeletionResponse = ApiResponse<
+  ApiSchema<"ItemAttributeTemplateDeleteResponse">
+>;
 
-/** 更新物品属性模板时整体提交的字段定义。 */
-export interface ItemAttributeTemplateFieldRequest {
-  definition_id: number | null;
-  field_name: string;
-  field_type: TemplateFieldResponse["field_type"];
-  default_value: string | null;
-  options: string[] | null;
-  required: boolean;
-  searchable: boolean;
-  catalog_visible: boolean;
-  unit: ItemAttributeUnitRule;
-}
+/** 更新物品属性模板时整体提交的字段定义；生成 schema 名为 ItemAttributeTemplateFieldDef。 */
+export type ItemAttributeTemplateFieldRequest = ApiSchema<"ItemAttributeTemplateFieldDef">;
 
 /** 物品属性模板创建与整体保存请求。 */
-export interface ItemAttributeTemplateWriteRequest {
-  name: string;
-  description: string | null;
-  default_inbound_template_id: number | null;
-  fields: ItemAttributeTemplateFieldRequest[];
-}
+export type ItemAttributeTemplateWriteRequest = ApiSchema<"ItemAttributeTemplateCreateRequest">;
 
 /** 更新接口允许只提交发生变化的部分；字段存在时仍按完整数组替换。 */
-export interface ItemAttributeTemplateUpdateRequest {
-  name?: string;
-  description?: string | null;
-  default_inbound_template_id?: number | null;
-  fields?: ItemAttributeTemplateFieldRequest[];
-}
+export type ItemAttributeTemplateUpdateRequest = ApiSchema<"ItemAttributeTemplateUpdateRequest">;
 
-export interface TemplateCopyRequest {
-  name: string;
-}
+export type TemplateCopyRequest = ApiSchema<"TemplateCopyRequest">;
 
 export function listItemAttributeTemplates(signal?: AbortSignal) {
   return apiClient.request<ItemAttributeTemplateResponse[]>("/api/item-attribute-templates", {

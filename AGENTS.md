@@ -53,6 +53,7 @@ desktop/android shell -> core/shared + packaged frontend assets
 - 优先沿用现有模块、组件、token、API 契约和局部模式，不建立重复实现。
 - 引入依赖、修改数据库、删除兼容行为、更新代码地图、编写中文注释和选择验证范围时，完整执行 [`docs/agent-checklist.md`](docs/agent-checklist.md)。
 - 判断 HTTP 接口时先核对运行服务的 `/api-docs/openapi.json`，再读 core 业务文档，最后才追踪 controller/service/repository 源码。
+- 修改 core HTTP 契约时，必须在同一改动中执行 `cd frontend && pnpm gen:api` 重新生成并提交前端契约类型（见 `docs/agent-checklist.md` 的前端契约类型同步）。
 - UI 改动必须依次读取前端视觉规范、`frontend/docs/ui-design-guidelines.md`、一致性清单和异步动效文档，并在桌面、断点附近和移动视口检查真实尺寸、溢出、状态与控制台。
 - 普通查询列表的服务端分页只作为数据获取协议，界面统一采用列表尾部哨兵触底加载；不得新增“上一页/下一页”翻页器。确有例外时，必须在对应页面文档记录业务原因、替代交互和验收结果。
 - 不硬编码 IP 或端口；`0.0.0.0` 只能用于绑定，不能作为浏览器或 WebView 访问 URL。

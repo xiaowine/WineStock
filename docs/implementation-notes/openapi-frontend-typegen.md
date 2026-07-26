@@ -110,6 +110,30 @@ export type ItemMutationResponse = components["schemas"]["ItemMutationResponse"]
 - **`ApiErrorResponse`/错误契约**：`api/errors.ts` 的错误解析逻辑保持手写，仅其结构类型指向生成类型。
 - **Windows 环境**：脚本使用相对路径与 pnpm/cargo 原生命令，无 shell 特定语法，Windows/CI 通用。
 
+## 实施记录
+
+### 阶段 0 + 阶段 1（2026-07-26 完成）
+
+- core：`http/docs.rs` 新增 Debug-only `openapi_document_json()` 并经 `http`/`lib` 重新导出；新增 `core/examples/dump_openapi.rs`（默认写 `target/openapi/openapi.json`，支持路径参数覆盖）。
+- frontend：devDependency `openapi-typescript@7.13.0`；`package.json` 新增 `gen:api-types`（仅生成）与 `gen:api`（dump + 生成）；生成产物 `src/api/generated/schema.d.ts` 入库并加入 `.prettierignore`。
+- 桥接层：新增 `src/api/contract.ts`，提供 `ApiSchema`（组件索引）与 `ApiResponse`（响应 Option 字段必填化映射——serde 序列化 Option 时 None 输出 null、字段始终存在，utoipa 却标记为可缺省；该映射一次性修正整类偏差，请求类型保持生成的可缺省语义）。
+- 试点迁移 `api/items.ts`：全部 HTTP DTO 改为生成类型别名，导出名不变；`ItemCatalogFilters` 等前端本地类型保留手写；`vue-tsc` 全量零错误通过。
+- 试点发现并回补的 Rust schema 精度问题（均不改变 wire 格式）：
+  - `ItemAttributeRequest`/`ItemAttributeResponse` 的 `unit_mode` 由裸 string 标注为 `ItemAttributeUnitMode` 枚举；
+  - `value` 字段（含 `CatalogAttributeResponse`）由 unknown 标注为新增共享契约类型 `ItemAttributeValue`（string | number | boolean | `FileAttributeReference`，定义于 `controller/common.rs`，运行时仍以 `serde_json::Value` 承载）；
+  - `LcscItemLookupResponse.source` 由 `String` 改为新增 `ItemLookupSource` 枚举（serde 序列化仍为 `"lcsc"`）。
+- 验证：`cargo check -p winestock-core --tests` 通过；`item_lookup`、`http_openapi` 相关 11 个测试通过；`pnpm build` 通过；漂移抽样——篡改生成契约中 `sku` 类型后 `vue-tsc` 在 7 处使用点报错，重新生成即还原。
+- 代码地图已同步：`core.md`、`core/http-auth-users.md`、`frontend.md`。
+
+### 阶段 2 + 阶段 3（2026-07-26 完成）
+
+- 全量桥接完成：auth、users、health、events、substitutes、locations、files、dashboard、templateFields、itemCategories、itemAttributeTemplates、inboundTemplates、inbound、inboundOrders、outbound、outboundOrders、errors 的 HTTP DTO 全部改为生成类型别名，导出名不变；stockApprovals 仅复用其它模块类型无需改动。保留手写的仅剩前端本地类型：查询参数模型（UserListQuery、EventListQuery、LocationListQuery、出入库单查询）、`ItemCatalogFilters`、`ApiValidationField`、`pagination.ts` 泛型分页壳和 `client.ts` 的传输选项。
+- 名称映射经桥接层吸收：`AuthPasswordChangeRequest`→`UserPasswordChangeRequest`、`ItemCategoryDeletionResponse`→`ItemCategoryDeleteResponse`、`TemplateFieldRequest`→`TemplateFieldDef`、`DashboardTrendsResponse`→`TrendsResponse`、`InboundOrderStatus`/`OutboundOrderStatus`→`OrderStatus`、单据明细→`InboundItemResponse`/`OutboundItemResponse` 等；创建/更新共用完整写入模型的模块统一采用创建请求 schema。
+- 阶段 2 回补的 Rust schema 精度（wire 格式均不变）：`HealthResponse.status` 由裸 String 改为 `HealthStatus` 枚举（serde 仍输出 `"OK"`）；入库请求与明细响应的 `ext_attributes` 由 unknown 标注为 `HashMap<String, ItemAttributeValue>` 映射。
+- Release 边界：纯契约类型的 controller 重新导出统一按 `#[cfg(any(test, debug_assertions))]` 门控——新增的 `FileAttributeReference`/`ItemAttributeValue` 与既有的 `InboundItemRequest`/`OutboundItemRequest`/`SubstituteReplacementItem` 都只被 Debug OpenAPI 注册和测试点名，Release 运行时仅由父请求结构携带；门控含 `test` 是因为测试经 controller 门面导入，纯 `debug_assertions` 会让 release 模式测试编译失败。Release 构建现为零未使用导入告警。
+- 流程固化：`docs/agent-checklist.md` 新增“前端契约类型同步”规则（同改动内 `pnpm gen:api`、`git diff --exit-code` 验证、Rust 侧补标注不做前端收窄）并更新 openapi.json 来源描述；`AGENTS.md` 实施规则同步；`frontend/docs/api-client.md` 新增“契约类型生成”一节；`docs/code-map/frontend.md` API 层条目更新为全量桥接状态。
+- 验证：`cargo check -p winestock-core`（dev 无告警）与 `--release`（仅三个先前已存在告警）通过；`cargo test -p winestock-core` 107 个测试全部通过；`cargo fmt --all --check` 通过；`pnpm build`（vue-tsc 全量）零错误；重新生成后 `git diff --exit-code frontend/src/api/generated/` 无差异；前端四个 Node 纯逻辑测试套件 23 个测试全部通过。
+
 ## 验收标准
 
 - `cargo run -p winestock-core --example dump_openapi` 离线产出合法 OpenAPI 3.1 JSON；`cargo +stable check -p winestock-core` 通过且 Release 构建不包含新增导出。

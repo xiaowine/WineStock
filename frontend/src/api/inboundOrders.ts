@@ -1,42 +1,17 @@
 // 本文件拥有入库单列表与详情 HTTP 契约，不管理页面筛选、分页或审批操作。
+// DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定；查询参数模型仍手写。
 import { apiClient } from "./client";
+import type { ApiResponse, ApiSchema } from "./contract";
 import type { PaginatedResponse } from "./pagination";
 
-export type InboundOrderStatus = "pending" | "approved" | "rejected";
+/** 单据状态；生成 schema 名为 OrderStatus。 */
+export type InboundOrderStatus = ApiSchema<"OrderStatus">;
 
-export interface InboundOrderItemResponse {
-  id: number;
-  order_id: number;
-  item_id: number;
-  item_name: string;
-  item_sku: string;
-  item_unit: string;
-  item_image_file_id: number;
-  quantity: number;
-  unit_price: number;
-  location_id: number;
-  location_name: string;
-  batch_no: string | null;
-  expires_at: string | null;
-  inbound_template_id: number | null;
-  ext_attributes: Record<string, unknown> | null;
-  created_at: string;
-}
+/** 入库单明细行；生成 schema 名为 InboundItemResponse。 */
+export type InboundOrderItemResponse = ApiResponse<ApiSchema<"InboundItemResponse">>;
 
-export interface InboundOrderResponse {
-  id: number;
-  source: string;
-  status: InboundOrderStatus;
-  notes: string | null;
-  created_by_user_id: number | null;
-  approved_by_user_id: number | null;
-  rejected_by_user_id: number | null;
-  created_at: string;
-  updated_at: string;
-  approved_at: string | null;
-  rejected_at: string | null;
-  items: InboundOrderItemResponse[];
-}
+/** 入库单详情；生成 schema 名为 InboundResponse。 */
+export type InboundOrderResponse = ApiResponse<ApiSchema<"InboundResponse">>;
 
 export interface InboundOrderListQuery {
   page: number;

@@ -5,7 +5,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::templates::TemplateFieldType;
+use super::common::ItemAttributeValue;
+use super::templates::{ItemAttributeUnitMode, TemplateFieldType};
 use crate::validation::{validate_not_blank, validate_optional_not_blank};
 
 /// 创建或整体替换物品属性时的字段值。
@@ -26,6 +27,7 @@ pub(crate) struct ItemAttributeRequest {
     pub options: Option<Vec<String>>,
     /// number 单位模式。
     #[garde(skip)]
+    #[schema(value_type = Option<ItemAttributeUnitMode>)]
     pub unit_mode: Option<String>,
     /// fixed 模式的固定单位。
     #[garde(skip)]
@@ -35,6 +37,7 @@ pub(crate) struct ItemAttributeRequest {
     pub unit_options: Option<Vec<String>>,
     /// 类型化 JSON 值；file 使用 `{ "file_id": id }`。
     #[garde(skip)]
+    #[schema(value_type = ItemAttributeValue)]
     pub value: Value,
     /// 可选计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
@@ -64,6 +67,7 @@ pub(crate) struct ItemAttributeResponse {
     pub options: Option<Vec<String>>,
     /// 单位模式。
     #[garde(skip)]
+    #[schema(value_type = ItemAttributeUnitMode)]
     pub unit_mode: String,
     /// 固定单位。
     #[garde(skip)]
@@ -73,6 +77,7 @@ pub(crate) struct ItemAttributeResponse {
     pub unit_options: Option<Vec<String>>,
     /// 类型化 JSON 值。
     #[garde(skip)]
+    #[schema(value_type = ItemAttributeValue)]
     pub value: Value,
     /// 可选计量单位。
     #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]

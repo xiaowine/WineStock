@@ -19,15 +19,21 @@ pub(crate) use common::{
     FilterFieldResponse, FilterFieldSource, FilterValueResponse, FilterValueType,
     FilterValuesResponse, OrderStatus,
 };
+// 以下纯契约类型只被 Debug OpenAPI 组件注册和 #[cfg(test)] 测试点名，Release 运行时仅由父请求结构携带；
+// 统一按 any(test, debug_assertions) 门控，保持 Release 构建零未使用导入告警。
+#[cfg(any(test, debug_assertions))]
+pub(crate) use common::{FileAttributeReference, ItemAttributeValue};
 pub(crate) use dashboard::{
     dashboard_overview, dashboard_trends, DailyTrend, DashboardOverviewResponse, SlowMovingItem,
     TrendsQuery, TrendsResponse,
 };
 pub(crate) use events::{list_events, EventListQuery, EventLogResponse};
+#[cfg(any(test, debug_assertions))]
+pub(crate) use inbound::InboundItemRequest;
 pub(crate) use inbound::{
     approve_inbound, create_inbound, get_inbound, inbound_filter_values, list_inbound,
-    reject_inbound, InboundCreateRequest, InboundItemRequest, InboundItemResponse,
-    InboundListQuery, InboundResponse, InboundSubmissionMode,
+    reject_inbound, InboundCreateRequest, InboundItemResponse, InboundListQuery, InboundResponse,
+    InboundSubmissionMode,
 };
 pub(crate) use item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
 pub(crate) use item_lookup::{
@@ -51,15 +57,19 @@ pub(crate) use locations::{
     LocationResponse, LocationTransferCreateRequest, LocationTransferResponse,
     LocationUpdateRequest,
 };
+#[cfg(any(test, debug_assertions))]
+pub(crate) use outbound::OutboundItemRequest;
 pub(crate) use outbound::{
     approve_outbound, create_outbound, get_outbound, list_outbound, outbound_filter_values,
-    reject_outbound, OutboundCreateRequest, OutboundItemRequest, OutboundItemResponse,
-    OutboundListQuery, OutboundResponse,
+    reject_outbound, OutboundCreateRequest, OutboundItemResponse, OutboundListQuery,
+    OutboundResponse,
 };
+#[cfg(any(test, debug_assertions))]
+pub(crate) use substitutes::SubstituteReplacementItem;
 pub(crate) use substitutes::{
     delete_substitute_relation, list_item_substitutes, list_substitute_relations,
     replace_substitutes, ItemSubstituteResponse, SubstituteRelationResponse,
-    SubstituteReplaceRequest, SubstituteReplacementItem,
+    SubstituteReplaceRequest,
 };
 pub(crate) use templates::{
     copy_inbound_template, copy_item_attribute_template, create_inbound_template,

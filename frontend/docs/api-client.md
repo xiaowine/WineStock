@@ -26,7 +26,14 @@ API client 不负责：
 
 新增、删除或判断前端 API 能力时，优先读取当前运行服务的 `/api-docs/openapi.json`，确认路径、方法、查询参数、请求体和响应结构。领域文档用于补充业务语义，后端源码只用于追踪实现或排查契约与实际行为不一致。
 
-不能仅根据前端现有调用、手写 DTO 或页面是否展示某个控件来判断后端接口不存在。删除搜索、筛选或其它 API 相关交互前，必须先完成 OpenAPI 核对。
+不能仅根据前端现有调用、DTO 定义或页面是否展示某个控件来判断后端接口不存在。删除搜索、筛选或其它 API 相关交互前，必须先完成 OpenAPI 核对。
+
+## 契约类型生成
+
+- `src/api/generated/schema.d.ts` 由 `pnpm gen:api` 从 core 导出的 OpenAPI 生成并入库；该目录只允许生成器写入，已在 `.prettierignore` 排除。`gen:api-types` 只执行生成步骤，复用已导出的 `../target/openapi/openapi.json`。
+- `src/api/contract.ts` 提供 `ApiSchema`（按组件名索引生成 schema）和 `ApiResponse`（响应 Option 字段必填化：serde 序列化 Option 时 None 输出 null、字段始终存在，utoipa 却标记为可缺省；请求类型保持可缺省语义）。
+- 各 `api/*.ts` 的 HTTP DTO 是生成类型的别名，导出名与模块归属保持稳定；查询参数模型、筛选草稿等前端本地类型仍手写。
+- 修改 core HTTP 契约的改动必须同改动内重新生成并提交产物；发现生成 schema 比真实契约宽时在 Rust 侧补齐标注，不在前端手工收窄。规则详见根 `docs/agent-checklist.md`。
 
 ## API 根地址
 

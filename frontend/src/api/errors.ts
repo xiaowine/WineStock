@@ -1,6 +1,8 @@
 // 本文件拥有 frontend API client 的稳定错误类型和后端错误响应解析；它不决定页面提示文案。
+// 错误响应结构类型指向生成 schema，解析与错误类实现仍由本文件拥有。
+import type { ApiResponse, ApiSchema } from "./contract";
 
-/** 后端字段级校验错误。 */
+/** 后端字段级校验错误；details 内部结构由解析函数兼容，不在 OpenAPI schema 中定义。 */
 export interface ApiValidationField {
   /** 后端 DTO 字段路径。 */
   path: string;
@@ -9,20 +11,10 @@ export interface ApiValidationField {
 }
 
 /** 后端统一错误响应主体。 */
-export interface ApiErrorBody {
-  /** 稳定错误代码，页面逻辑应优先按此值分支。 */
-  code: string;
-  /** 后端提供的安全默认提示。 */
-  message: string;
-  /** 字段校验或其它结构化错误详情。 */
-  details: unknown;
-}
+export type ApiErrorBody = ApiResponse<ApiSchema<"ApiErrorBody">>;
 
 /** 后端统一错误响应外层结构。 */
-export interface ApiErrorResponse {
-  /** 统一错误主体。 */
-  error: ApiErrorBody;
-}
+export type ApiErrorResponse = ApiResponse<ApiSchema<"ApiErrorResponse">>;
 
 /** API 运行时配置缺失或无效。 */
 export class ApiConfigurationError extends Error {

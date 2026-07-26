@@ -1,22 +1,10 @@
 // 本文件拥有两类属性模板共享的字段 DTO，属于 frontend HTTP 类型边界；它不发起请求。
-export type TemplateFieldType = "text" | "number" | "select" | "date" | "file" | "url" | "boolean";
+// DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定。
+import type { ApiResponse, ApiSchema } from "./contract";
 
-export interface TemplateFieldResponse {
-  id: number;
-  field_name: string;
-  field_type: TemplateFieldType;
-  default_value: string | null;
-  options: string[] | null;
-  required: boolean;
-  searchable: boolean;
-  sort_order: number;
-}
+export type TemplateFieldType = ApiSchema<"TemplateFieldType">;
 
-export interface TemplateFieldRequest {
-  field_name: string;
-  field_type: TemplateFieldType;
-  default_value: string | null;
-  options: string[] | null;
-  required: boolean;
-  searchable: boolean;
-}
+export type TemplateFieldResponse = ApiResponse<ApiSchema<"TemplateFieldResponse">>;
+
+/** 创建或整体保存模板时的字段定义；生成 schema 名为 TemplateFieldDef。 */
+export type TemplateFieldRequest = ApiSchema<"TemplateFieldDef">;

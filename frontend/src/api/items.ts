@@ -1,149 +1,41 @@
 // 本文件拥有物品命令、目录、选择器、编辑资料和库存详情 HTTP 契约；不同场景不共享万能响应。
+// DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定；仅前端本地的筛选草稿类型仍手写。
 import { apiClient } from "./client";
-import type { FileAttributeReference } from "./inbound";
-import type { TemplateFieldType } from "./templateFields";
+import type { ApiResponse, ApiSchema } from "./contract";
 
-export interface ItemAttributeResponse {
-  id: number;
-  definition_id: number;
-  custom: boolean;
-  field_name: string;
-  field_type: TemplateFieldType;
-  options: string[] | null;
-  unit_mode: "none" | "fixed" | "select";
-  fixed_unit: string | null;
-  unit_options: string[] | null;
-  value: string | number | boolean | FileAttributeReference;
-  unit: string | null;
-  sort_order: number;
-}
+export type ItemAttributeResponse = ApiResponse<ApiSchema<"ItemAttributeResponse">>;
 
-export interface ItemAttributeRequest {
-  definition_id?: number;
-  field_name: string;
-  field_type: TemplateFieldType;
-  options?: string[];
-  unit_mode?: "none" | "fixed" | "select";
-  fixed_unit?: string;
-  unit_options?: string[];
-  value: string | number | boolean | FileAttributeReference;
-  unit?: string;
-}
+export type ItemAttributeRequest = ApiSchema<"ItemAttributeRequest">;
 
 /** 已有物品编辑器恢复草稿所需的完整资料。 */
-export interface ItemEditorResponse {
-  id: number;
-  name: string;
-  sku: string;
-  category_id: number | null;
-  attribute_template_id: number | null;
-  image_file_id: number;
-  image_url: string;
-  unit: string;
-  description: string | null;
-  default_price: number | null;
-  reorder_point: number | null;
-  attributes: ItemAttributeResponse[];
-  created_at: string;
-  updated_at: string;
-}
+export type ItemEditorResponse = ApiResponse<ApiSchema<"ItemEditorResponse">>;
 
-export interface ItemMutationResponse {
-  id: number;
-  updated_at: string;
-}
+export type ItemMutationResponse = ApiResponse<ApiSchema<"ItemMutationResponse">>;
 
-export interface LcscItemLookupParameterResponse {
-  name: string;
-  value: string;
-}
+export type LcscItemLookupParameterResponse = ApiResponse<ApiSchema<"LcscLookupParameterResponse">>;
 
 /** 立创资料服务返回的单物品候选信息；应用前不会修改物品草稿。 */
-export interface LcscItemLookupResponse {
-  source: "lcsc";
-  product_code: string;
-  name: string;
-  description: string | null;
-  manufacturer: string | null;
-  manufacturer_part: string | null;
-  footprint: string | null;
-  datasheet_url: string | null;
-  default_price: number | null;
-  parameters: LcscItemLookupParameterResponse[];
-}
+export type LcscItemLookupResponse = ApiResponse<ApiSchema<"LcscItemLookupResponse">>;
 
-export type ItemStockState = "out_of_stock" | "reorder_due" | "needs_configuration" | "normal";
-export type ItemStockFilter =
-  "all" | "needs_attention" | "out_of_stock" | "reorder_due" | "needs_configuration";
-export type ItemCatalogSort =
-  | "replenishment_priority"
-  | "name"
-  | "quantity_asc"
-  | "quantity_desc"
-  | "inventory_value_desc"
-  | "updated_desc";
+export type ItemStockState = ApiSchema<"ItemStockState">;
+export type ItemStockFilter = ApiSchema<"ItemStockFilter">;
+export type ItemCatalogSort = ApiSchema<"ItemCatalogSort">;
 
-export interface CatalogAttributeResponse {
-  name: string;
-  value: string | number | boolean | FileAttributeReference;
-  unit: string | null;
-}
+export type CatalogAttributeResponse = ApiResponse<ApiSchema<"CatalogAttributeResponse">>;
 
-export interface ItemCatalogEntryResponse {
-  id: number;
-  name: string;
-  sku: string;
-  category_id: number | null;
-  category_name: string | null;
-  attribute_template_id: number | null;
-  image_file_id: number;
-  image_url: string;
-  unit: string;
-  default_price: number | null;
-  reorder_point: number | null;
-  catalog_attributes: CatalogAttributeResponse[];
-  current_quantity: number;
-  inventory_value: number;
-  location_count: number;
-  batch_count: number;
-  stock_state: ItemStockState;
-  updated_at: string;
-}
+export type ItemCatalogEntryResponse = ApiResponse<ApiSchema<"ItemCatalogEntryResponse">>;
 
-export interface ItemCatalogCountsResponse {
-  total: number;
-  needs_attention: number;
-  out_of_stock: number;
-  reorder_due: number;
-  needs_configuration: number;
-}
+export type ItemCatalogCountsResponse = ApiResponse<ApiSchema<"ItemCatalogCountsResponse">>;
 
-export interface ItemCatalogPageResponse {
-  items: ItemCatalogEntryResponse[];
-  counts: ItemCatalogCountsResponse;
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
+export type ItemCatalogPageResponse = ApiResponse<ApiSchema<"ItemCatalogPageResponse">>;
 
-export interface ItemFilterValueResponse {
-  value: string;
-  count: number;
-}
+export type ItemFilterValueResponse = ApiResponse<ApiSchema<"FilterValueResponse">>;
 
-export interface ItemFilterFieldResponse {
-  key: string;
-  label: string;
-  source: "base" | "template";
-  value_type: TemplateFieldType | "mixed";
-  values: ItemFilterValueResponse[];
-}
+export type ItemFilterFieldResponse = ApiResponse<ApiSchema<"FilterFieldResponse">>;
 
-export interface ItemFilterValuesResponse {
-  fields: ItemFilterFieldResponse[];
-}
+export type ItemFilterValuesResponse = ApiResponse<ApiSchema<"FilterValuesResponse">>;
 
+/** 目录页高级筛选草稿；仅前端本地状态，不是 HTTP 契约。 */
 export interface ItemCatalogFilters {
   categoryId: number | null;
   attributeTemplateId: number | null;
@@ -151,101 +43,21 @@ export interface ItemCatalogFilters {
 }
 
 /** 入库等业务选择器使用的轻量物品资料。 */
-export interface ItemOptionResponse {
-  id: number;
-  name: string;
-  sku: string;
-  category_id: number | null;
-  category_name: string | null;
-  attribute_template_id: number | null;
-  recommended_inbound_template_id: number | null;
-  recommended_inbound_template_available: boolean;
-  image_file_id: number;
-  image_url: string;
-  unit: string;
-}
+export type ItemOptionResponse = ApiResponse<ApiSchema<"ItemOptionResponse">>;
 
-export interface ItemOptionPageResponse {
-  items: ItemOptionResponse[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
+export type ItemOptionPageResponse = ApiResponse<ApiSchema<"ItemOptionPageResponse">>;
 
-export interface ItemLocationStockResponse {
-  location_id: number;
-  location_name: string;
-  quantity: number;
-  value: number;
-  batch_count: number;
-}
+export type ItemLocationStockResponse = ApiResponse<ApiSchema<"ItemLocationStockResponse">>;
 
-export interface ItemInventoryResponse {
-  id: number;
-  name: string;
-  sku: string;
-  unit: string;
-  reorder_point: number | null;
-  current_quantity: number;
-  inventory_value: number;
-  stock_state: ItemStockState;
-  batch_count: number;
-  locations: ItemLocationStockResponse[];
-}
+export type ItemInventoryResponse = ApiResponse<ApiSchema<"ItemInventoryResponse">>;
 
-export interface ItemBatchStockResponse {
-  id: number;
-  batch_no: string;
-  location_id: number;
-  location_name: string;
-  initial_quantity: number;
-  remaining_quantity: number;
-  unit_cost: number;
-  value: number;
-  received_at: string;
-  expires_at: string | null;
-}
+export type ItemBatchStockResponse = ApiResponse<ApiSchema<"ItemBatchStockResponse">>;
 
-export interface ItemBatchPageResponse {
-  items: ItemBatchStockResponse[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
+export type ItemBatchPageResponse = ApiResponse<ApiSchema<"ItemBatchPageResponse">>;
 
-export interface ItemCreateRequest {
-  name: string;
-  sku: string;
-  category_id?: number;
-  attribute_template_id?: number;
-  image_file_id: number;
-  unit: string;
-  description?: string;
-  default_price?: number;
-  reorder_point?: number;
-  attributes: ItemAttributeRequest[];
-}
+export type ItemCreateRequest = ApiSchema<"ItemCreateRequest">;
 
-export interface ItemUpdateRequest extends Partial<
-  Omit<
-    ItemCreateRequest,
-    | "attributes"
-    | "category_id"
-    | "attribute_template_id"
-    | "description"
-    | "default_price"
-    | "reorder_point"
-  >
-> {
-  category_id?: number | null;
-  attribute_template_id?: number | null;
-  description?: string | null;
-  default_price?: number | null;
-  reorder_point?: number | null;
-  attributes?: ItemAttributeRequest[];
-}
+export type ItemUpdateRequest = ApiSchema<"ItemUpdateRequest">;
 
 export function createItem(request: ItemCreateRequest) {
   return apiClient.request<ItemMutationResponse>("/api/items", { method: "POST", json: request });

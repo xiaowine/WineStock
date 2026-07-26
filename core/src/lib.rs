@@ -31,11 +31,11 @@ pub use bootstrap::{
 };
 pub use external::ExternalCatalogBootstrapError;
 pub use files::FileCleanupError;
-#[cfg(debug_assertions)]
-pub use http::OPENAPI_JSON_PATH;
 #[cfg(all(debug_assertions, feature = "swagger-ui"))]
 pub use http::SWAGGER_UI_PATH;
 pub use http::{build_router, build_router_with_local_service};
+#[cfg(debug_assertions)]
+pub use http::{openapi_document_json, OPENAPI_JSON_PATH};
 pub use local_service::{
     start_local_service, LocalServiceInfo, LocalServiceRuntimeError, RunningLocalService,
 };

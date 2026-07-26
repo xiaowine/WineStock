@@ -12,6 +12,8 @@
     "test:native-back": "node --test tests/nativeBackCore.test.mjs",
     "test:runtime-funnel": "node --test tests/runtimeFunnel.test.mjs",
     "test:item-lcsc": "node --test tests/itemLcscMapping.test.mjs",
+    "gen:api-types": "openapi-typescript ../target/openapi/openapi.json -o src/api/generated/schema.d.ts",
+    "gen:api": "cargo run -p winestock-core --example dump_openapi && pnpm gen:api-types",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -23,6 +25,7 @@
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/tsconfig": "^0.9.1",
+    "openapi-typescript": "^7.13.0",
     "prettier": "3.9.5",
     "sass-embedded": "1.100.0",
     "typescript": "~6.0.2",

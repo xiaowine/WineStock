@@ -1,23 +1,14 @@
 // 本文件拥有物品与入库图片属性共用的 DTO、客户端签名预检和文件 HTTP 调用；它不管理页面草稿或缩略图生命周期。
+// DTO 通过 contract.ts 别名映射到生成 schema；签名预检常量与规则仍由前端拥有。
 import { apiClient, type ApiUploadProgress } from "./client";
+import type { ApiResponse, ApiSchema } from "./contract";
 
 /** 单张模板图片最大字节数，与服务端固定规则一致。 */
 export const maxImageBytes = 15 * 1024 * 1024;
 export const allowedImageTypes = ["image/png", "image/jpeg", "image/webp"] as const;
 
 /** 图片上传后返回的稳定文件引用信息。 */
-export interface ImageFileResponse {
-  /** 服务端文件对象 ID。 */
-  id: number;
-  /** 原始文件名。 */
-  name: string;
-  /** 服务端确认的 MIME 类型。 */
-  mime_type: string;
-  /** 文件大小，单位字节。 */
-  size_bytes: number;
-  /** 受控读取地址。 */
-  url: string;
-}
+export type ImageFileResponse = ApiResponse<ApiSchema<"ImageFileResponse">>;
 
 /** 上传单张图片；XHR 仅用于提供真实上传进度。 */
 export function uploadImage(

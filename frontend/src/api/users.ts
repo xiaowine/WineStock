@@ -1,28 +1,15 @@
 // 本文件拥有 frontend 用户管理 HTTP 契约和请求函数；它不保存会话或决定页面权限展示。
+// DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定；查询参数模型仍手写。
 import type { AuthRegisterRequest, AuthUserResponse } from "./auth";
 import { apiClient } from "./client";
+import type { ApiResponse, ApiSchema } from "./contract";
 import type { PaginatedResponse } from "./pagination";
 
 /** 用户账号状态。 */
-export type UserStatus = "active" | "disabled";
+export type UserStatus = ApiSchema<"UserStatus">;
 
 /** 用户管理接口返回的用户详情。 */
-export interface UserAdminResponse {
-  /** 数字形式的用户 ID。 */
-  id: number;
-  /** 登录用户名。 */
-  username: string;
-  /** 当前账号状态。 */
-  status: UserStatus;
-  /** 用户直接拥有的权限代码。 */
-  permissions: string[];
-  /** 是否必须在下次登录后修改临时密码。 */
-  password_change_required: boolean;
-  /** 创建时间，使用服务端 UTC 字符串。 */
-  created_at: string;
-  /** 最近更新时间，使用服务端 UTC 字符串。 */
-  updated_at: string;
-}
+export type UserAdminResponse = ApiResponse<ApiSchema<"UserAdminResponse">>;
 
 /** 用户列表查询参数。 */
 export interface UserListQuery {
@@ -37,30 +24,16 @@ export interface UserListQuery {
 }
 
 /** 权限定义。 */
-export interface PermissionResponse {
-  /** 稳定权限代码。 */
-  code: string;
-  /** 面向管理者的权限说明。 */
-  description: string | null;
-}
+export type PermissionResponse = ApiResponse<ApiSchema<"PermissionResponse">>;
 
 /** 用户状态更新请求。 */
-export interface UserStatusUpdateRequest {
-  /** 目标账号状态。 */
-  status: UserStatus;
-}
+export type UserStatusUpdateRequest = ApiSchema<"UserStatusUpdateRequest">;
 
 /** 用户权限整体替换请求。 */
-export interface UserPermissionsUpdateRequest {
-  /** 替换后的完整权限代码列表。 */
-  permissions: string[];
-}
+export type UserPermissionsUpdateRequest = ApiSchema<"UserPermissionsUpdateRequest">;
 
 /** 管理员设置临时密码请求。 */
-export interface UserPasswordResetRequest {
-  /** 临时明文密码，只允许发送到本接口。 */
-  password: string;
-}
+export type UserPasswordResetRequest = ApiSchema<"UserPasswordResetRequest">;
 
 /** 分页查询用户。 */
 export function listUsers(

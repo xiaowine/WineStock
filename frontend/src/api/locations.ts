@@ -1,84 +1,28 @@
 // 本文件拥有库位分组、库位和整批次移库的 HTTP 契约；它不管理页面树状态或库存数量。
+// DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定；查询参数模型仍手写。
 import { apiClient } from "./client";
+import type { ApiResponse, ApiSchema } from "./contract";
 
 /** 库位分组基础响应。 */
-export interface LocationGroupResponse {
-  /** 分组 ID。 */
-  id: number;
-  /** 上级分组 ID；为空表示根分组。 */
-  parent_id: number | null;
-  /** 分组名称。 */
-  name: string;
-  /** 同级排序值。 */
-  sort_order: number;
-  /** 创建时间。 */
-  created_at: string;
-  /** 最近更新时间。 */
-  updated_at: string;
-}
+export type LocationGroupResponse = ApiResponse<ApiSchema<"LocationGroupResponse">>;
 
 /** 可被入库明细和库存批次引用的库位。 */
-export interface LocationResponse {
-  /** 库位 ID。 */
-  id: number;
-  /** 所属分组 ID。 */
-  group_id: number;
-  /** 所属分组名称。 */
-  group_name: string;
-  /** 全局唯一库位名称。 */
-  name: string;
-  /** 可选库位备注。 */
-  notes: string | null;
-  /** 同组排序值。 */
-  sort_order: number;
-  /** 创建时间。 */
-  created_at: string;
-  /** 最近更新时间。 */
-  updated_at: string;
-}
+export type LocationResponse = ApiResponse<ApiSchema<"LocationResponse">>;
 
 /** 库位分组树节点，包含直接库位和直接子分组。 */
-export interface LocationGroupTreeNode extends LocationGroupResponse {
-  /** 当前分组直接拥有的库位。 */
-  locations: LocationResponse[];
-  /** 当前分组直接拥有的子分组。 */
-  children: LocationGroupTreeNode[];
-}
+export type LocationGroupTreeNode = ApiResponse<ApiSchema<"LocationGroupTreeNode">>;
 
 /** 创建库位分组请求。 */
-export interface LocationGroupCreateRequest {
-  /** 上级分组 ID；为空表示根分组。 */
-  parent_id?: number | null;
-  /** 分组名称。 */
-  name: string;
-  /** 同级排序值。 */
-  sort_order?: number | null;
-}
+export type LocationGroupCreateRequest = ApiSchema<"LocationGroupCreateRequest">;
 
 /** 更新库位分组请求。 */
-export interface LocationGroupUpdateRequest {
-  /** 上级分组 ID；为空表示根分组。 */
-  parent_id: number | null;
-  /** 分组名称。 */
-  name: string;
-  /** 同级排序值。 */
-  sort_order?: number | null;
-}
+export type LocationGroupUpdateRequest = ApiSchema<"LocationGroupUpdateRequest">;
 
 /** 创建库位请求。 */
-export interface LocationCreateRequest {
-  /** 所属分组 ID。 */
-  group_id: number;
-  /** 全局唯一库位名称。 */
-  name: string;
-  /** 可选库位备注。 */
-  notes?: string | null;
-  /** 同组排序值。 */
-  sort_order?: number | null;
-}
+export type LocationCreateRequest = ApiSchema<"LocationCreateRequest">;
 
 /** 更新库位请求。 */
-export type LocationUpdateRequest = LocationCreateRequest;
+export type LocationUpdateRequest = ApiSchema<"LocationUpdateRequest">;
 
 /** 库位列表查询条件。 */
 export interface LocationListQuery {
@@ -89,38 +33,10 @@ export interface LocationListQuery {
 }
 
 /** 整批次移库请求。 */
-export interface LocationTransferCreateRequest {
-  /** 被移动库存批次 ID。 */
-  batch_id: number;
-  /** 调用方确认的当前原库位 ID。 */
-  from_location_id: number;
-  /** 目标库位 ID。 */
-  to_location_id: number;
-  /** 可选移库备注。 */
-  notes?: string;
-}
+export type LocationTransferCreateRequest = ApiSchema<"LocationTransferCreateRequest">;
 
 /** 整批次移库结果。 */
-export interface LocationTransferResponse {
-  /** 移库记录 ID。 */
-  id: number;
-  /** 被移动批次 ID。 */
-  batch_id: number;
-  /** 被移动物品 ID。 */
-  item_id: number;
-  /** 原库位 ID。 */
-  from_location_id: number;
-  /** 目标库位 ID。 */
-  to_location_id: number;
-  /** 被移动的完整当前批次余额。 */
-  quantity: number;
-  /** 可选移库备注。 */
-  notes: string | null;
-  /** 操作人用户 ID。 */
-  created_by_user_id: number | null;
-  /** 移库时间。 */
-  created_at: string;
-}
+export type LocationTransferResponse = ApiResponse<ApiSchema<"LocationTransferResponse">>;
 
 /** 查询未删除库位分组树。 */
 export function listLocationGroupTree(signal?: AbortSignal) {

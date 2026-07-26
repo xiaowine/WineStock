@@ -20,7 +20,7 @@ use crate::{
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 
-use super::common::{validate_positive_number, OrderStatus};
+use super::common::{validate_positive_number, ItemAttributeValue, OrderStatus};
 
 /// 创建入库单时采用的处理方式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
@@ -67,6 +67,7 @@ pub(crate) struct InboundItemRequest {
 
     /// 模板扩展属性；创建和审批阶段都按物品当前模板校验，file 值使用 `{ "file_id": id }`。
     #[garde(skip)]
+    #[schema(value_type = Option<std::collections::HashMap<String, ItemAttributeValue>>)]
     pub ext_attributes: Option<Value>,
 }
 
@@ -177,6 +178,7 @@ pub(crate) struct InboundItemResponse {
 
     /// 模板扩展属性。
     #[garde(skip)]
+    #[schema(value_type = Option<std::collections::HashMap<String, ItemAttributeValue>>)]
     pub ext_attributes: Option<Value>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。

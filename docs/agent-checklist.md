@@ -226,11 +226,20 @@ pnpm build
 2. 再核对 `core/docs/business-api.md`、`core/docs/business-api/` 和对应领域 API 文档，理解业务语义与权限要求。
 3. 只有需要追踪实现、排查契约与行为不一致或修改后端时，才继续查看 controller、service 和 repository 源码。
 
-不要因为前端未调用、页面未展示、手写 TypeScript DTO 缺少字段或源码搜索没有命中预期名称，就判断 API 不存在。删除前端 API 能力或交互入口前，必须先核对 OpenAPI 契约。
+不要因为前端未调用、页面未展示、TypeScript DTO 缺少字段或源码搜索没有命中预期名称，就判断 API 不存在。删除前端 API 能力或交互入口前，必须先核对 OpenAPI 契约。
+`frontend/src/api/generated/schema.d.ts` 是契约的派生证据，可用于快速核对字段；判断接口存在性仍以 OpenAPI 输出和业务 API 文档为准。
 
-仓库不提交静态 `openapi.json`；OpenAPI JSON 仅由 Debug core/Axum 服务动态生成。Release 服务不暴露
-`/api-docs/openapi.json`。Debug 服务已经运行时直接读取当前服务地址下的 `/api-docs/openapi.json`，
-不需要重新启动服务。
+仓库不提交静态 `openapi.json`；OpenAPI JSON 由 Debug core/Axum 服务动态生成，或由
+`cargo run -p winestock-core --example dump_openapi` 离线导出到 `target/openapi/openapi.json`（不入库的中间产物）。
+Release 服务不暴露 `/api-docs/openapi.json`。Debug 服务已经运行时直接读取当前服务地址下的
+`/api-docs/openapi.json`，不需要重新启动服务。
+
+### 前端契约类型同步
+
+- 前端 `frontend/src/api/generated/schema.d.ts` 由 `pnpm gen:api`（dump + 生成）产出并入库；该目录只允许生成器写入。
+- 修改 core HTTP 契约（路径、DTO、查询参数、错误响应、OpenAPI 标注）的改动，必须在同一改动中运行 `cd frontend && pnpm gen:api` 并提交生成产物；验证方式为重新生成后 `git diff --exit-code frontend/src/api/generated/`。
+- `api/*.ts` 的 DTO 通过 `api/contract.ts` 的 `ApiSchema`/`ApiResponse` 别名映射到生成类型，导出名保持稳定；发现生成 schema 比真实契约宽（裸 string 枚举、unknown JSON 值等）时，在 Rust 侧补齐枚举或 `#[schema(value_type = ...)]` 标注，不得在前端保留手工收窄。
+- 只为 OpenAPI 组件注册而在 controller 入口重新导出、Release 运行时不被点名的纯契约类型，统一用 `#[cfg(any(test, debug_assertions))]` 门控重新导出（含 `test` 是因为测试经 controller 门面导入）；Release 构建保持零未使用导入告警。
 
 For local API documentation smoke testing, run:
 

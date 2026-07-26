@@ -4,7 +4,10 @@
 //! Release 构建不注册 OpenAPI JSON 或 Swagger UI，也不编译 Swagger UI 依赖；它不承载平台前端资源。
 
 #[cfg(debug_assertions)]
-use super::{health::HealthResponse, ApiErrorResponse};
+use super::{
+    health::{HealthResponse, HealthStatus},
+    ApiErrorResponse,
+};
 #[cfg(debug_assertions)]
 use crate::auth::{
     AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest,
@@ -127,6 +130,7 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         AuthTokenResponse,
         ApiErrorResponse,
         HealthResponse,
+        HealthStatus,
         crate::files::controller::ImageFileResponse,
         crate::users::controller::UserStatus,
         crate::users::controller::UserAdminResponse,
@@ -156,6 +160,8 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::stock::controller::InboundTemplateUpdateRequest,
         crate::stock::controller::InboundTemplateResponse,
         crate::stock::controller::ItemCreateRequest,
+        crate::stock::controller::FileAttributeReference,
+        crate::stock::controller::ItemAttributeValue,
         crate::stock::controller::ItemAttributeRequest,
         crate::stock::controller::ItemAttributeResponse,
         crate::stock::controller::ItemUpdateRequest,
@@ -338,4 +344,13 @@ where
 #[cfg(debug_assertions)]
 async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
     Json(ApiDoc::openapi())
+}
+
+/// 返回当前 OpenAPI 文档的格式化 JSON 字符串。
+///
+/// 仅供开发期契约导出工具（`examples/dump_openapi.rs`）生成前端 TypeScript 类型使用，
+/// 不参与运行时路由；Release 构建不编译本函数。
+#[cfg(debug_assertions)]
+pub fn openapi_document_json() -> Result<String, serde_json::Error> {
+    ApiDoc::openapi().to_pretty_json()
 }
