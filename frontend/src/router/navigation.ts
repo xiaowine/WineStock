@@ -23,8 +23,6 @@ export interface AppNavigationItem {
   requiredPermission?: string;
   /** 页面入口必须同时满足的权限组合。 */
   requiredPermissions?: readonly string[];
-  /** 是否只在桌面应用壳中展示。 */
-  desktopOnly?: boolean;
 }
 
 /** 应用壳当前可见的一级导航入口。 */
@@ -49,20 +47,15 @@ export const appNavigation: readonly AppNavigationItem[] = (
       requiredPermission: entry.requiredPermission,
       requiredPermissions:
         "requiredPermissions" in entry ? entry.requiredPermissions : [entry.requiredPermission],
-      desktopOnly: "desktopOnly" in entry.navigation ? entry.navigation.desktopOnly : undefined,
     };
   });
 
 /** 根据当前会话权限返回可见导航，不把前端隐藏当作安全边界。 */
-export function getVisibleAppNavigation(
-  permissions: readonly string[] | undefined,
-  options: { includeDesktopOnly?: boolean } = { includeDesktopOnly: true },
-) {
+export function getVisibleAppNavigation(permissions: readonly string[] | undefined) {
   return appNavigation.filter(
     (item) =>
       hasPermission(permissions, item.requiredPermission) &&
-      hasPermissions(permissions, item.requiredPermissions) &&
-      (options.includeDesktopOnly !== false || item.desktopOnly !== true),
+      hasPermissions(permissions, item.requiredPermissions),
   );
 }
 

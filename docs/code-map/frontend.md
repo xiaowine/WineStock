@@ -14,7 +14,7 @@
 
 ## 路由与导航
 
-- `frontend/src/router/`：hash history 路由、鉴权/权限/强制改密守卫和页面元数据；`appRouteCatalog.ts` 是应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源，导航入口按会话权限快照和平台可见性过滤。页面组件懒加载入口集中在 `appPageLoaders.ts` 并在进入应用壳后按权限空闲预取；`navigationPending.ts` 拥有路由切换的稳定等待状态（驱动全局进度条与侧栏乐观高亮）和懒加载 chunk 失败的 Notice 重试。
+- `frontend/src/router/`：hash history 路由、鉴权/权限/强制改密守卫和页面元数据；`appRouteCatalog.ts` 是应用壳一级页面名称、权限、导航分组和顺序的唯一声明来源，导航入口按会话权限快照过滤。页面组件懒加载入口集中在 `appPageLoaders.ts` 并在进入应用壳后按权限空闲预取；`navigationPending.ts` 拥有路由切换的稳定等待状态（驱动全局进度条与侧栏乐观高亮）和懒加载 chunk 失败的 Notice 重试。
 - `frontend/src/navigation/`：平台无关的原生返回 registry 与请求调度纯逻辑（priority 降序、同级 LIFO、异常安全、requestId 去重），以及接到 Shell Bridge 与 Vue Router 的装配层。
 
 ## Shell 运行时与服务可用性
@@ -32,6 +32,12 @@
 ## 鉴权会话
 
 - `frontend/src/auth/`：内存 access token 与五态会话模型、跨标签页 Web Locks 协调、到期前自动续期、版本化 refresh token 持久化（绑定 API 根地址）和前端权限快照；任何登出结果都清除本地会话，权限快照只收敛导航与操作入口，不替代服务端实时授权。
+
+## 扫码与立创料袋
+
+- `frontend/src/barcode/decoder.ts`：zxing-wasm reader 懒加载、wasm 自托管定位与 QRCode 解码入口；相机帧走速度优先、静态图片走精度优先，模块与 wasm 均不进主包。
+- `frontend/src/lcsc/bagCode.ts`：立创料袋二维码文本的解析纯逻辑（node 单测覆盖）；非料袋格式一律返回 null 由调用方静默忽略。
+- `frontend/src/components/barcode/BarcodeScanDialog.vue`：业务无关扫码 Dialog——摄像头流（可切换设备并记住选择、torch）、拍照/选图/拖放/粘贴降级、识别去重、震动反馈；只回传原文。业务语义（入库/出库/新建物品）由各调用方决定，方案见 `docs/implementation-notes/lcsc-bag-scanning.md`。
 
 ## 全局反馈
 

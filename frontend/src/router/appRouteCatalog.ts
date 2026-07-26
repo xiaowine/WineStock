@@ -29,8 +29,6 @@ export interface AppRouteNavigation {
   icon: AppNavigationIcon;
   /** 在所属分组内的稳定排序值。 */
   order: number;
-  /** 是否只在桌面应用壳中展示。 */
-  desktopOnly?: boolean;
 }
 
 /** 应用壳一级路由的共享元数据来源。 */
@@ -70,12 +68,7 @@ export const appRouteCatalog = {
   outbound: {
     title: "新建出库",
     requiredPermission: stockPermissions.outboundCreate,
-    navigation: {
-      group: "primary",
-      icon: "outbound-create",
-      order: 40,
-      desktopOnly: true,
-    },
+    navigation: { group: "primary", icon: "outbound-create", order: 40 },
   },
   "outbound-orders": {
     title: "出库记录",

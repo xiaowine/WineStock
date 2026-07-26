@@ -16,10 +16,7 @@
         :key="item.routeName"
         :to="{ name: item.routeName }"
         class="menu-item"
-        :class="{
-          'menu-item--desktop-only': item.desktopOnly,
-          'menu-item--pending': item.routeName === pendingRouteName,
-        }"
+        :class="{ 'menu-item--pending': item.routeName === pendingRouteName }"
         active-class="menu-item--active"
         @click="emit('navigate')"
       >

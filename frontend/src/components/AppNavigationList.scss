@@ -107,12 +107,6 @@
       min-height: 38px;
     }
   }
-
-  @include mixins.mobile {
-    .menu-item--desktop-only {
-      display: none;
-    }
-  }
 }
 
 @keyframes menu-item-icon-pending {
