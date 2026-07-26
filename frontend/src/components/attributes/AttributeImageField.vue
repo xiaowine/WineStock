@@ -152,6 +152,7 @@ import { notice } from "../../notices/notice";
 import type { ImageDraftValue } from "./imageDraft";
 import { useNativeBackHandler } from "../../composables/useNativeBackHandler";
 import { NativeBackPriority } from "../../navigation/nativeBack";
+import { readSafeAreaInsets } from "../../shell/safeArea";
 import PreviewImage from "../PreviewImage.vue";
 import {
   createPendingImageDraft,
@@ -271,19 +272,22 @@ function positionPicker(): void {
   const trigger = pickerTrigger.value;
   const popover = pickerPopover.value;
   if (!trigger || !popover) return;
+  // edge-to-edge 视口包含系统栏覆盖区域；定位边界必须扣除安全区。
+  const inset = readSafeAreaInsets();
   const viewportPadding = 12;
   const gap = 6;
   const triggerRect = trigger.getBoundingClientRect();
-  const width = Math.min(276, window.innerWidth - viewportPadding * 2);
+  const width = Math.min(276, window.innerWidth - inset.left - inset.right - viewportPadding * 2);
   const left = Math.min(
-    Math.max(triggerRect.left, viewportPadding),
-    window.innerWidth - width - viewportPadding,
+    Math.max(triggerRect.left, inset.left + viewportPadding),
+    window.innerWidth - inset.right - width - viewportPadding,
   );
   const popoverHeight = popover.offsetHeight;
   const belowTop = triggerRect.bottom + gap;
   const aboveTop = triggerRect.top - popoverHeight - gap;
   const useAbove =
-    belowTop + popoverHeight > window.innerHeight - viewportPadding && aboveTop >= viewportPadding;
+    belowTop + popoverHeight > window.innerHeight - inset.bottom - viewportPadding &&
+    aboveTop >= inset.top + viewportPadding;
   pickerPlacement.value = useAbove ? "above" : "below";
   pickerPosition.value = {
     top: useAbove ? aboveTop : belowTop,

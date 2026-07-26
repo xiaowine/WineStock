@@ -198,6 +198,11 @@
     padding-left: calc(18px + var(--safe-area-left));
   }
 
+  /* 底部安全区通常由 actions 栏消费；没有 actions 的 Dialog（如扫码）由 body 兜底，避免内容顶进导航栏。 */
+  .modal-panel:not(:has(.modal-actions)) .modal-body {
+    padding-bottom: calc(18px + var(--safe-area-bottom));
+  }
+
   .modal-context {
     padding: 12px 14px 0;
   }

@@ -62,11 +62,14 @@
   }
 }
 
+/* 悬停反馈只在具备悬停能力的指针设备生效：触屏 tap 会让 :hover 粘滞到下一次触摸，表现为点击效果残留。 */
 .icon-button,
 .secondary-button,
 .app-navigation-pane .menu-item {
-  &:hover {
-    background: rgb(23 32 42 / 4%);
+  @include mixins.hover-capable {
+    &:hover {
+      background: rgb(23 32 42 / 4%);
+    }
   }
 }
 

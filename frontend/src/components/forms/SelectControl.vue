@@ -84,6 +84,7 @@ import {
 } from "vue";
 import { useNativeBackHandler } from "../../composables/useNativeBackHandler";
 import { NativeBackPriority } from "../../navigation/nativeBack";
+import { readSafeAreaInsets } from "../../shell/safeArea";
 
 interface NormalizedOption {
   key: string;
@@ -294,31 +295,31 @@ function positionPopover(): void {
   const triggerStyle = window.getComputedStyle(triggerElement);
   const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
   const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+  // edge-to-edge 视口包含系统栏覆盖区域；可用空间必须扣除安全区，避免浮层被状态栏或导航栏遮挡。
+  const inset = readSafeAreaInsets();
   const gap = 5;
   const viewportPadding = 8;
-  const availableBelow = viewportHeight - anchor.bottom - gap - viewportPadding;
-  const availableAbove = anchor.top - gap - viewportPadding;
+  const availableBelow = viewportHeight - inset.bottom - anchor.bottom - gap - viewportPadding;
+  const availableAbove = anchor.top - inset.top - gap - viewportPadding;
   const estimatedHeight = Math.min(280, options.value.length * 38 + 12);
   const placeAbove =
     availableBelow < Math.min(180, estimatedHeight) && availableAbove > availableBelow;
   const maxHeight = Math.max(120, Math.min(280, placeAbove ? availableAbove : availableBelow));
+  const horizontalSpace = viewportWidth - inset.left - inset.right - viewportPadding * 2;
   const popoverWidth = props.matchTriggerWidth
-    ? Math.min(anchor.width, viewportWidth - viewportPadding * 2)
-    : Math.min(
-        Math.max(anchor.width, preferredPopoverWidth(triggerStyle)),
-        320,
-        viewportWidth - viewportPadding * 2,
-      );
+    ? Math.min(anchor.width, horizontalSpace)
+    : Math.min(Math.max(anchor.width, preferredPopoverWidth(triggerStyle)), 320, horizontalSpace);
+  const minLeft = inset.left + viewportPadding;
   const popoverLeft = Math.min(
-    Math.max(viewportPadding, anchor.left),
-    Math.max(viewportPadding, viewportWidth - popoverWidth - viewportPadding),
+    Math.max(minLeft, anchor.left),
+    Math.max(minLeft, viewportWidth - inset.right - popoverWidth - viewportPadding),
   );
   popoverStyle.value = {
     left: `${popoverLeft}px`,
     top: placeAbove ? "auto" : `${anchor.bottom + gap}px`,
     bottom: placeAbove ? `${viewportHeight - anchor.top + gap}px` : "auto",
     width: `${popoverWidth}px`,
-    maxWidth: `calc(100vw - ${viewportPadding * 2}px)`,
+    maxWidth: `${Math.max(120, horizontalSpace)}px`,
     maxHeight: `${maxHeight}px`,
     fontSize: triggerStyle.fontSize,
     lineHeight: triggerStyle.lineHeight,
