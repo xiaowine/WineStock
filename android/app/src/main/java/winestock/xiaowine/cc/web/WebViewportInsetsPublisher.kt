@@ -41,14 +41,16 @@ internal class WebViewportInsetsPublisher(
             if (!disposed) {
                 latestPhysicalInsets = extractContentSafeInsets(insets)
                 hasReceivedInsets = true
+                updateImeAccommodation(insets)
                 publishIfPossible(force = false)
             }
-            // 让其它 View 继续收到原始 inset；本类不执行全局 padding 或消费。
+            // 键盘避让通过根布局 padding 完成，inset 本身原样下发给子 View。
             insets
         }
         // WebView 也可能单独收到 inset 变化；两边都监听，取较大边写 CSS 变量。
         ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
             if (!disposed) {
+                updateImeAccommodation(insets)
                 val candidate = extractContentSafeInsets(insets)
                 if (isStrictlyLarger(candidate, latestPhysicalInsets) || !hasReceivedInsets) {
                     latestPhysicalInsets = mergeInsets(latestPhysicalInsets, candidate)
@@ -84,10 +86,28 @@ internal class WebViewportInsetsPublisher(
         ViewCompat.setOnApplyWindowInsetsListener(webView, null)
     }
 
+    /**
+     * 键盘弹出/收起时压缩或还原内容根布局：edge-to-edge 关闭了框架的
+     * `adjustResize`，必须由 shell 自行消费 IME inset，否则输入法直接盖住 WebView。
+     * 键盘弹出同时触发一次安全区重发（底边此时应为 0）。
+     */
+    private fun updateImeAccommodation(insets: WindowInsetsCompat) {
+        val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+        if (imeBottom == imeBottomPhysicalPx) return
+        imeBottomPhysicalPx = imeBottom
+        insetTarget.setPadding(
+            insetTarget.paddingLeft,
+            insetTarget.paddingTop,
+            insetTarget.paddingRight,
+            imeBottom,
+        )
+        publishIfPossible(force = false)
+    }
+
     private fun publishIfPossible(force: Boolean) {
         if (disposed || !isTrustedPage(webView.url)) return
 
-        val cssInsets = latestPhysicalInsets.toCssInsets()
+        val cssInsets = effectiveSafeInsets().toCssInsets()
         if (!force && cssInsets == lastPublished) return
 
         val script = buildPublishScript(cssInsets)
@@ -112,6 +132,14 @@ internal class WebViewportInsetsPublisher(
             })();
         """.trimIndent()
     }
+
+    /** 键盘弹出期间视口底边贴着输入法顶部，导航栏被输入法覆盖，安全区底边为 0。 */
+    private fun effectiveSafeInsets(): Insets =
+        if (imeBottomPhysicalPx > 0) {
+            Insets.of(latestPhysicalInsets.left, latestPhysicalInsets.top, latestPhysicalInsets.right, 0)
+        } else {
+            latestPhysicalInsets
+        }
 
     private fun isTrustedPage(url: String?): Boolean {
         val page = url?.let { runCatching { it.toUri() }.getOrNull() } ?: return false

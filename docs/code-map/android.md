@@ -23,7 +23,7 @@
 
 - 资源加载：`WebViewAssetLoader` 把受信任 origin 根路径映射到 `assets/frontend`，根路径回退 `index.html`，不做 SPA 回退（前端使用 hash 路由）；`ShellWebViewConfigurator.kt` 集中 WebView 配置。
 - 摄像头授权：`WebViewCameraPermissionHost.kt` 处理 `onPermissionRequest`——仅受信任 origin 的 VIDEO_CAPTURE 且原生 CAMERA 运行时权限获准后才 grant，权限未授时经 Activity launcher 请求后结算，其余来源与资源一律 deny；manifest 声明 `CAMERA` 并以 `uses-feature required=false` 保持无摄像头设备可安装。
-- 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏浅色/深色外观经独立 JS 接口控制，resume 时重放。
+- 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏浅色/深色外观经独立 JS 接口控制，resume 时重放。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时给内容根布局加底部 padding 压缩 WebView 视口（Chromium 自行滚动聚焦输入框），期间安全区底边发布为 0。
 - 文件选择：单 pending 回调的纯状态机 Session（supersede/cancel/destroy 一次结算，JVM 单元测试覆盖竞态）加启动系统选择器的 Host；不声明存储/媒体权限。
 - `SplashFrontendGate.kt`：SplashScreen keep-on-screen 与超时/前端 ready 门闩。
 
