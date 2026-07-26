@@ -37,6 +37,7 @@
 
 - `frontend/src/barcode/decoder.ts`：zxing-wasm reader 懒加载、wasm 自托管定位与 QRCode 解码入口；相机帧走速度优先、静态图片走精度优先，模块与 wasm 均不进主包。
 - `frontend/src/lcsc/bagCode.ts`：立创料袋二维码文本的解析纯逻辑（node 单测覆盖）；非料袋格式一律返回 null 由调用方静默忽略。
+- `frontend/src/lcsc/orderExport.ts` 与 `orderExportFile.ts`：立创商城订单导出表格的解析纯逻辑（行数组进、四字段明细出，node 单测覆盖）与文件读取入口；SheetJS（CDN tarball 版 `xlsx`）只经动态 import 进入订单导入路径，不进主包。
 - `frontend/src/components/barcode/`：业务无关扫码层，只回传原文，业务语义由调用方决定（方案见 `docs/implementation-notes/lcsc-bag-scanning.md`）。`BarcodeCameraView.vue` 拥有取景区——摄像头会话、逐帧解码、检测框、设备循环切换（记住选择）、torch、点击触发单次对焦（全局 single-shot 后回连续；Chromium 未实现区域对焦 pointsOfInterest）；`BarcodeScanDialog.vue` 拥有 Dialog 编排——画面上方稳定状态行、图标工具栏、拍照/选图/拖放/粘贴降级。
 
 ## 全局反馈
@@ -59,7 +60,7 @@
 - 认证：`AuthEntryPage`/`LoginPage`/`RegisterPage`/`ChangePasswordPage`；首用户 bootstrap 状态按 API 根地址缓存，强制改密与安全回跳由守卫协同。
 - 看板：`DashboardPage` 与原生 SVG 出入库趋势图组件。
 - 物品：`ItemsPage` 服务端筛选目录与多页详情 Dialog、立创查询 Dialog（确认后覆盖回填草稿）、目录筛选与列表展示字段维护；读写入口按 `stock.item.read`/`stock.item.manage` 区分。
-- 出入库草稿：`/inbound` 与 `/outbound` 共用 `StockDraftPage`，按路由 kind 装配 `components/stock-draft/` 泛型工作台壳与出库分配编辑器；`pages/stock-draft/` 拥有壳契约、两域装配与域样式，行模型/持久化沿用 `pages/inbound-draft/`、`pages/outbound-draft/` 与对应 composable，入库行编辑复用 `components/inbound/InboundLineEditor`。
+- 出入库草稿：`/inbound` 与 `/outbound` 共用 `StockDraftPage`，按路由 kind 装配 `components/stock-draft/` 泛型工作台壳与出库分配编辑器；`pages/stock-draft/` 拥有壳契约、两域装配与域样式，行模型/持久化沿用 `pages/inbound-draft/`、`pages/outbound-draft/` 与对应 composable，入库行编辑复用 `components/inbound/InboundLineEditor`；入库域另有 `components/stock-draft/LcscOrderImportDialog` 订单导入预览（匹配/新建/来源勾选，写入草稿由入库装配完成）。
 - 入库单据：`InboundOrdersPage` 单据列表，`components/inbound/` 行编辑器、筛选与列表件。
 - 出库单据：`OutboundOrdersPage` 单据列表与 `components/outbound/` 筛选件。
 - 审批：两个薄审批路由页与 `pages/approvals/catalog.ts` 领域目录，共同挂载 `components/approvals/StockApprovalWorkspace`（请求与队列协调集中于此）。
@@ -77,7 +78,7 @@
 
 ## 测试
 
-- `frontend/tests/*.test.mjs`：Node test runner 复用现有 TypeScript 转译验证纯逻辑（原生返回 core、局域网地址、启动漏斗、立创映射），不新增测试依赖。
+- `frontend/tests/*.test.mjs`：Node test runner 复用现有 TypeScript 转译验证纯逻辑（原生返回 core、局域网地址、启动漏斗、立创映射、料袋码与订单导出解析），不新增测试依赖。`tests/fixtures/lcsc-orders/` 存放本机立创订单导出样本（含真实收货人信息，`.gitignore` 排除不入库）；样本存在时订单解析测试追加真实文件断言，否则自动跳过。
 
 ## 文档
 

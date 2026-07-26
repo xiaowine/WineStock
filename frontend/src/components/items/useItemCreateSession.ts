@@ -1,6 +1,12 @@
 // 本文件拥有可跨业务页面复用的物品新建会话，负责元数据、草稿、上传、保存与临时文件清理；它不决定编辑器呈现方式。
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { createItem, listItemOptions, type ItemOptionResponse } from "../../api/items";
+import {
+  createItem,
+  listItemOptions,
+  readLcscItemImage,
+  type ItemOptionResponse,
+  type LcscItemLookupResponse,
+} from "../../api/items";
 import { listItemCategories, type ItemCategoryResponse } from "../../api/itemCategories";
 import {
   listItemAttributeTemplates,
@@ -10,6 +16,7 @@ import { ApiError } from "../../api/errors";
 import { notice } from "../../notices/notice";
 import {
   applyDefaultTemplateToPristineDraft,
+  applyLcscLookupToDraft,
   emptyItemDraft,
   itemCreateRequest,
   itemDraftFingerprint,
@@ -17,7 +24,12 @@ import {
   validateItemDraft,
 } from "../../pages/items/model";
 import { discardTemporaryItemFiles } from "../../pages/items/fileCleanup";
-import { isImageDraftValue, uploadImageDrafts } from "../attributes/imageDraft";
+import {
+  createPendingImageDraft,
+  isImageDraftValue,
+  releaseImageDraft,
+  uploadImageDrafts,
+} from "../attributes/imageDraft";
 import { useFormValidation } from "../../composables/useFormValidation";
 
 /** 创建独立物品新建会话；调用方只处理打开、关闭和创建成功后的业务动作。 */
@@ -121,6 +133,30 @@ export function useItemCreateSession() {
     }
   }
 
+  /** 应用用户确认的立创候选资料，并异步补拉商品首图作为主图（扫码/订单导入新建路径）。 */
+  async function applyLcscCandidate(
+    candidate: LcscItemLookupResponse,
+    templateId: number | null,
+  ): Promise<void> {
+    const template = templates.value.find((entry) => entry.id === templateId) ?? null;
+    applyLcscLookupToDraft(draft.value, candidate, template);
+    validationErrors.value = {};
+    notice.info("已填写立创商品资料", { detail: candidate.product_code });
+    try {
+      const blob = await readLcscItemImage(candidate.product_code);
+      // 图片返回前草稿可能已被重置或改填其他编号，此时丢弃结果。
+      if (draft.value.sku !== candidate.product_code) return;
+      const extension =
+        blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+      const file = new File([blob], `${candidate.product_code}.${extension}`, { type: blob.type });
+      releaseImageDraft(draft.value.image ?? undefined);
+      draft.value.image = createPendingImageDraft(file);
+      draft.value.imageTemporary = true;
+    } catch {
+      notice.warning("立创商品图片未能填写", { detail: "已保留当前物品主图。" });
+    }
+  }
+
   /** 放弃当前新建会话并清理所有尚未绑定的图片。 */
   async function discard(): Promise<void> {
     if (!saved) {
@@ -146,6 +182,7 @@ export function useItemCreateSession() {
     validationErrors,
     hasUnsavedChanges,
     loadMetadata,
+    applyLcscCandidate,
     save,
     discard,
   };

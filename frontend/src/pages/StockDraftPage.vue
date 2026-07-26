@@ -26,6 +26,17 @@
       </template>
     </template>
 
+    <template #actions>
+      <button
+        class="secondary-button inbound-add-item-button"
+        type="button"
+        title="导入立创商城订单导出的表格"
+        @click="inbound.orderImportOpen.value = true"
+      >
+        导入订单
+      </button>
+    </template>
+
     <template #line-cells="{ line }">
       <td data-label="数量">
         <strong
@@ -116,6 +127,14 @@
         :initial-lcsc-code="inbound.scanLcscCode.value"
         @close="inbound.handleItemCreateClosed"
         @created="inbound.handleItemCreated"
+      />
+      <LcscOrderImportDialog
+        :open="inbound.orderImportOpen.value"
+        :existing-skus="inboundDraftSkus"
+        :can-create-item="inbound.canCreateItem.value"
+        :source-filled="inbound.flow.source.value.trim().length > 0"
+        @close="inbound.orderImportOpen.value = false"
+        @import="inbound.importOrderLines"
       />
     </template>
   </StockDraftWorkspace>
@@ -260,6 +279,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import StockDraftWorkspace from "../components/stock-draft/StockDraftWorkspace.vue";
+import LcscOrderImportDialog from "../components/stock-draft/LcscOrderImportDialog.vue";
 import OutboundAllocationEditor from "../components/stock-draft/OutboundAllocationEditor.vue";
 import InboundLineEditor from "../components/inbound/InboundLineEditor.vue";
 import ItemCreateDialog from "../components/items/ItemCreateDialog.vue";
@@ -288,6 +308,12 @@ const outbound = props.kind === "outbound" ? useOutboundDraft(handle) : null;
 
 const inboundLocationMap = computed(
   () => new Map((inbound?.locations.value ?? []).map((location) => [location.id, location])),
+);
+
+// 订单导入按 SKU（立创 C 号）预排除已在草稿中的物品。
+const inboundDraftSkus = computed<ReadonlySet<string>>(
+  () =>
+    new Set((inbound?.flow.lines.value ?? []).map((line) => line.item.sku.trim().toUpperCase())),
 );
 
 function inboundQuantityLabel(line: InboundDraftLine): string {

@@ -6,6 +6,7 @@ import type { ItemOptionResponse } from "../../api/items";
 import { ApiError } from "../../api/errors";
 import { useInboundDraftPersistence } from "../../composables/useInboundDraftPersistence";
 import type { LcscBagCode } from "../../lcsc/bagCode";
+import type { LcscOrderImportPayload } from "../../components/stock-draft/LcscOrderImportDialog.vue";
 import { notice } from "../../notices/notice";
 import { authSession } from "../../auth/session";
 import { hasPermission, stockPermissions } from "../../auth/permissions";
@@ -76,6 +77,7 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
   const locations = ref<LocationResponse[]>([]);
   const locationError = ref("");
   const itemCreateOpen = ref(false);
+  const orderImportOpen = ref(false);
   let locationAbortController: AbortController | null = null;
 
   // 扫码状态：来源提示条、同单去重、快速新建的待应用料袋信息。
@@ -316,6 +318,31 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
   }
 
   /**
+   * 订单导入确认：命中行以订购数量与单价批量入草稿，库位留待逐条补齐；
+   * 已在草稿中的物品由导入 Dialog 预先排除，这里的去重仅是兜底。
+   */
+  function importOrderLines(payload: LcscOrderImportPayload): void {
+    let added = 0;
+    for (const row of payload.rows) {
+      if (lines.value.some((line) => line.item.id === row.item.id)) continue;
+      const line = addItem(row.item, { silent: true });
+      line.quantity = row.quantity;
+      line.unitPrice = row.unitPrice;
+      added += 1;
+    }
+    if (payload.applySource && payload.orderNo && !source.value.trim()) {
+      source.value = `立创 ${payload.orderNo}`;
+      askedOrderNos.add(payload.orderNo);
+    }
+    orderImportOpen.value = false;
+    if (added > 0) {
+      notice.success(`已导入 ${added} 条入库明细`, { detail: "请逐条补齐库位后提交。" });
+    } else {
+      notice.info("没有新的明细需要导入");
+    }
+  }
+
+  /**
    * 扫码命中（或扫码新建完成）后的入库预填：袋内数量可改，来源按规则询问。
    * 扫码路径的行总是刚创建的（重复扫描在工作台层已拦截），覆盖默认数量是安全的。
    */
@@ -399,6 +426,8 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     itemCreateOpen,
     handleItemCreated,
     handleItemCreateClosed,
+    orderImportOpen,
+    importOrderLines,
     scanOrderPrompt,
     applyScanOrderNo,
     ignoreScanOrderNo,

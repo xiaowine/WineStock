@@ -15,6 +15,7 @@
     :auto-lcsc-code="initialLcscCode"
     @save="saveItem"
     @close="requestClose"
+    @apply-lcsc="applyLcscCandidate"
   />
 
   <ModalDialog
@@ -63,6 +64,7 @@ const {
   validationErrors,
   hasUnsavedChanges,
   loadMetadata,
+  applyLcscCandidate,
   save,
   discard,
 } = useItemCreateSession();

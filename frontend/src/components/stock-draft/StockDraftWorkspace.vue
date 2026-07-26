@@ -54,6 +54,8 @@
             <p>添加后立即配置该物品；再次添加会先返回未完成明细。</p>
           </div>
           <div class="inbound-step__actions">
+            <!-- 领域附加入口（如入库的订单导入）排在通用入口之前。 -->
+            <slot name="actions" />
             <button
               class="secondary-button inbound-add-item-button"
               type="button"
@@ -346,6 +348,7 @@ const props = defineProps<{
 
 defineSlots<{
   summary(): unknown;
+  actions?(): unknown;
   "line-cells"(props: { line: L }): unknown;
   "line-editor"(props: { line: L }): unknown;
   "submit-summary"(): unknown;
