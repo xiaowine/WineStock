@@ -2,6 +2,7 @@
 import { isAbsolute } from "node:path";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { compression } from "vite-plugin-compression2";
 
 const ANDROID_MODE = "android";
 const ANDROID_OUTPUT_ENV = "WINESTOCK_FRONTEND_OUT_DIR";
@@ -9,7 +10,16 @@ const ANDROID_OUTPUT_ENV = "WINESTOCK_FRONTEND_OUT_DIR";
 export default defineConfig(({ mode }) => {
   if (mode !== ANDROID_MODE) {
     return {
-      plugins: [vue()],
+      plugins: [
+        vue(),
+        // 仅 web 构建产出 .gz/.br 伴生文件，供未来静态部署的服务器直接送预压缩内容；
+        // Android 构建不加：APK 打包本身已对 assets 做 deflate，预压缩文件只会撑大包体。
+        compression({
+          include: [/\.(js|mjs|css|html|svg|json|wasm)$/],
+          threshold: 1024,
+          algorithms: ["gzip", "brotliCompress"],
+        }),
+      ],
     };
   }
 
