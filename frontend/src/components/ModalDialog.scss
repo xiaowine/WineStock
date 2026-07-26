@@ -133,6 +133,8 @@
 .modal-actions {
   grid-area: actions;
   display: flex;
+  /* 三个及以上操作在窄视口按行回绕，保持右对齐；宽度充足时无差异。 */
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 18px;

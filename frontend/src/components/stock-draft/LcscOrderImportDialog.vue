@@ -44,6 +44,18 @@
           <table class="lcsc-order-import__table">
             <thead>
               <tr>
+                <th scope="col" class="lcsc-order-import__select-col">
+                  <input
+                    v-if="canCreateItem && creatableCount > 0"
+                    type="checkbox"
+                    class="lcsc-order-import__select"
+                    :checked="allCreatableSelected"
+                    :indeterminate.prop="someCreatableSelected"
+                    :disabled="batchRunning"
+                    aria-label="全选待创建物品"
+                    @change="toggleSelectAllCreatable(($event.target as HTMLInputElement).checked)"
+                  />
+                </th>
                 <th scope="col">#</th>
                 <th scope="col">商品编号</th>
                 <th scope="col">数量</th>
@@ -53,6 +65,16 @@
             </thead>
             <tbody>
               <tr v-for="row in rows" :key="row.key" :class="rowClass(row)">
+                <td class="lcsc-order-import__select-col">
+                  <input
+                    v-if="canCreateItem && isCreatable(row)"
+                    v-model="row.selected"
+                    type="checkbox"
+                    class="lcsc-order-import__select"
+                    :disabled="batchRunning"
+                    :aria-label="`选择 ${row.productCode}`"
+                  />
+                </td>
                 <td>{{ row.rowLabel }}</td>
                 <td>{{ row.productCode ?? "—" }}</td>
                 <td>{{ row.quantity ?? "—" }}</td>
@@ -64,6 +86,7 @@
                     </span>
                   </template>
                   <template v-else-if="row.status === 'matching'">匹配中…</template>
+                  <template v-else-if="row.status === 'creating'">创建中…</template>
                   <template v-else-if="row.status === 'missing'">
                     <span>库中没有该编号</span>
                     <button
@@ -73,6 +96,25 @@
                       @click="openCreateFor(row)"
                     >
                       新建
+                    </button>
+                  </template>
+                  <template v-else-if="row.status === 'create-failed'">
+                    <span :title="row.reason">{{ row.reason }}</span>
+                    <button
+                      class="text-button"
+                      type="button"
+                      :disabled="batchRunning"
+                      @click="retryBatchCreate(row)"
+                    >
+                      重试
+                    </button>
+                    <button
+                      class="text-button"
+                      type="button"
+                      :disabled="batchRunning"
+                      @click="openCreateFor(row)"
+                    >
+                      手动新建
                     </button>
                   </template>
                   <span v-else :title="row.reason">{{ row.reason }}</span>
@@ -94,11 +136,26 @@
     </div>
 
     <template #actions>
+      <button
+        v-if="canCreateItem && (creatableCount > 0 || batchRunning)"
+        class="secondary-button lcsc-order-import__batch-action"
+        type="button"
+        :disabled="batch.metadataLoading.value || batchRunning || selectedCreatableCount === 0"
+        @click="openBatchCreate"
+      >
+        {{
+          batchRunning
+            ? `正在创建 ${batch.progressLabel.value}…`
+            : batch.metadataLoading.value
+              ? "准备中…"
+              : `创建选中的 ${selectedCreatableCount} 个物品`
+        }}
+      </button>
       <button class="secondary-button" type="button" @click="emit('close')">取消</button>
       <button
         class="primary-button"
         type="button"
-        :disabled="matchedCount === 0 || matching"
+        :disabled="matchedCount === 0 || matching || batchRunning"
         @click="confirmImport"
       >
         {{ matching ? "正在匹配…" : `加入 ${matchedCount} 条明细` }}
@@ -111,6 +168,17 @@
     :initial-lcsc-code="createTargetCode"
     @close="createTargetKey = null"
     @created="handleItemCreated"
+  />
+
+  <BatchLcscCreateOptionsDialog
+    :open="batchOptionsOpen"
+    :count="selectedCreatableCount"
+    :templates="batch.templates.value"
+    :categories="batch.categories.value"
+    :metadata-error="batch.metadataError.value"
+    :initial-options="batch.defaultOptions()"
+    @close="batchOptionsOpen = false"
+    @confirm="startBatchCreate"
   />
 </template>
 
@@ -136,10 +204,16 @@ export interface LcscOrderImportPayload {
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { listItemOptions } from "../../api/items";
 import { parseLcscOrderFile } from "../../lcsc/orderExportFile";
+import BatchLcscCreateOptionsDialog from "../items/BatchLcscCreateOptionsDialog.vue";
 import ItemCreateDialog from "../items/ItemCreateDialog.vue";
+import {
+  useBatchLcscItemCreation,
+  type BatchLcscCreationOptions,
+} from "../items/useBatchLcscItemCreation";
 import ModalDialog from "../ModalDialog.vue";
 
-type PreviewStatus = "matching" | "matched" | "missing" | "excluded" | "failed";
+type PreviewStatus =
+  "matching" | "matched" | "missing" | "excluded" | "failed" | "creating" | "create-failed";
 
 interface PreviewRow {
   key: string;
@@ -150,6 +224,8 @@ interface PreviewRow {
   status: PreviewStatus;
   reason: string;
   item: ItemOptionResponse | null;
+  /** 是否被勾选参与一键批量创建；仅对可创建行有意义，默认全选。 */
+  selected: boolean;
 }
 
 const props = defineProps<{
@@ -173,15 +249,45 @@ const orderNo = ref<string | null>(null);
 const rows = ref<PreviewRow[]>([]);
 const applySource = ref(true);
 const createTargetKey = ref<string | null>(null);
+const batchOptionsOpen = ref(false);
+const batch = useBatchLcscItemCreation();
+const batchRunning = batch.running;
 let matchAbortController: AbortController | null = null;
 
 const matchedCount = computed(() => rows.value.filter((row) => row.status === "matched").length);
-const missingCount = computed(() => rows.value.filter((row) => row.status === "missing").length);
+const missingCount = computed(
+  () =>
+    rows.value.filter((row) => row.status === "missing" || row.status === "create-failed").length,
+);
 const failedCount = computed(() => rows.value.filter((row) => row.status === "failed").length);
 const excludedCount = computed(
   () => rows.value.filter((row) => row.status === "excluded" || row.status === "failed").length,
 );
 const matching = computed(() => rows.value.some((row) => row.status === "matching"));
+/** 可参与一键创建的行：未命中或上次批量创建失败，且携带 C 号。 */
+const creatableRows = computed(() =>
+  rows.value.filter(
+    (row) =>
+      (row.status === "missing" || row.status === "create-failed") && row.productCode !== null,
+  ),
+);
+const creatableCount = computed(() => creatableRows.value.length);
+/** 勾选后将实际创建的行数；一键创建只作用于勾选项。 */
+const selectedCreatableCount = computed(
+  () => creatableRows.value.filter((row) => row.selected).length,
+);
+const allCreatableSelected = computed(
+  () => creatableRows.value.length > 0 && creatableRows.value.every((row) => row.selected),
+);
+const someCreatableSelected = computed(
+  () => creatableRows.value.some((row) => row.selected) && !allCreatableSelected.value,
+);
+function isCreatable(row: PreviewRow): boolean {
+  return (row.status === "missing" || row.status === "create-failed") && row.productCode !== null;
+}
+function toggleSelectAllCreatable(checked: boolean): void {
+  for (const row of creatableRows.value) row.selected = checked;
+}
 const createTargetCode = computed(
   () => rows.value.find((row) => row.key === createTargetKey.value)?.productCode ?? "",
 );
@@ -190,7 +296,10 @@ watch(
   () => props.open,
   (open) => {
     if (open) resetState();
-    else matchAbortController?.abort();
+    else {
+      matchAbortController?.abort();
+      batch.cancel();
+    }
   },
 );
 
@@ -199,6 +308,7 @@ onBeforeUnmount(() => matchAbortController?.abort());
 function resetState(): void {
   matchAbortController?.abort();
   matchAbortController = null;
+  batch.cancel();
   fileName.value = "";
   parsing.value = false;
   parseError.value = "";
@@ -206,6 +316,7 @@ function resetState(): void {
   rows.value = [];
   applySource.value = true;
   createTargetKey.value = null;
+  batchOptionsOpen.value = false;
 }
 
 async function handleFileChange(event: Event): Promise<void> {
@@ -237,6 +348,7 @@ async function handleFileChange(event: Event): Promise<void> {
       status: duplicated || inDraft ? "excluded" : "matching",
       reason: duplicated ? "与前面的行重复" : inDraft ? "已在草稿中" : "",
       item: null,
+      selected: true,
     };
   });
   preview.push(
@@ -249,6 +361,7 @@ async function handleFileChange(event: Event): Promise<void> {
       status: "excluded",
       reason: line.reason,
       item: null,
+      selected: false,
     })),
   );
   rows.value = preview;
@@ -304,6 +417,68 @@ function openCreateFor(row: PreviewRow): void {
   createTargetKey.value = row.key;
 }
 
+/** 打开批量创建选项对话框；模板与分类元数据首次点击时懒加载。 */
+async function openBatchCreate(): Promise<void> {
+  if (batchRunning.value) return;
+  await batch.loadMetadata();
+  batchOptionsOpen.value = true;
+}
+
+/** 确认选项后串行批量创建勾选的未匹配行；单项失败不阻塞后续。 */
+async function startBatchCreate(options: BatchLcscCreationOptions): Promise<void> {
+  batchOptionsOpen.value = false;
+  const codes = creatableRows.value
+    .filter((row) => row.selected)
+    .map((row) => row.productCode as string);
+  await runBatchCreate(codes, options);
+}
+
+/** 单行重试：沿用本次会话记住的批次选项，不再弹选项对话框。 */
+async function retryBatchCreate(row: PreviewRow): Promise<void> {
+  if (!row.productCode || batchRunning.value) return;
+  await runBatchCreate([row.productCode], batch.defaultOptions());
+}
+
+async function runBatchCreate(codes: string[], options: BatchLcscCreationOptions): Promise<void> {
+  if (codes.length === 0) return;
+  await batch.run(codes, options, {
+    onItemStarted: (code) => {
+      for (const row of rowsByCode(code)) {
+        row.status = "creating";
+        row.reason = "";
+      }
+    },
+    onItemCreated: (code, item) => {
+      for (const row of rowsByCode(code)) {
+        row.item = item;
+        row.status = "matched";
+        row.reason = "";
+      }
+    },
+    onItemFailed: (code, reason) => {
+      for (const row of rowsByCode(code)) {
+        row.status = "create-failed";
+        row.reason = reason;
+      }
+    },
+  });
+  // 中止（关闭 Dialog 等）时把仍处于"创建中"的行放回未命中，避免状态卡死。
+  for (const row of rows.value) {
+    if (row.status === "creating") {
+      row.status = "missing";
+      row.reason = "";
+    }
+  }
+}
+
+function rowsByCode(code: string): PreviewRow[] {
+  return rows.value.filter(
+    (row) =>
+      row.productCode === code &&
+      (row.status === "missing" || row.status === "create-failed" || row.status === "creating"),
+  );
+}
+
 function handleItemCreated(item: ItemOptionResponse): void {
   const row = rows.value.find((candidate) => candidate.key === createTargetKey.value);
   createTargetKey.value = null;
@@ -331,7 +506,8 @@ function confirmImport(): void {
 
 function rowClass(row: PreviewRow): string | undefined {
   if (row.status === "excluded" || row.status === "failed") return "lcsc-order-import__row--muted";
-  if (row.status === "missing") return "lcsc-order-import__row--missing";
+  if (row.status === "missing" || row.status === "create-failed")
+    return "lcsc-order-import__row--missing";
   return undefined;
 }
 </script>
@@ -419,6 +595,18 @@ function rowClass(row: PreviewRow): string | undefined {
   }
 }
 
+.lcsc-order-import__select-col {
+  width: 1%;
+  padding-right: 4px;
+  text-align: center;
+}
+
+.lcsc-order-import__select {
+  margin: 0;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
 .lcsc-order-import__row--muted td {
   color: var(--color-muted);
 }
@@ -434,6 +622,11 @@ function rowClass(row: PreviewRow): string | undefined {
   vertical-align: bottom;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 批量创建是独立于"取消/加入明细"决策流的辅助操作，按项目惯例左置。 */
+.lcsc-order-import__batch-action {
+  margin-right: auto;
 }
 
 .lcsc-order-import__source {
