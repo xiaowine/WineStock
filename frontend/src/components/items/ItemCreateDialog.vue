@@ -12,6 +12,7 @@
     :saving="saving"
     :metadata-error="metadataError"
     :validation-errors="validationErrors"
+    :auto-lcsc-code="initialLcscCode"
     @save="saveItem"
     @close="requestClose"
   />
@@ -38,7 +39,14 @@ import ModalDialog from "../ModalDialog.vue";
 import ItemEditorDialog from "./ItemEditorDialog.vue";
 import { useItemCreateSession } from "./useItemCreateSession";
 
-const props = defineProps<{ open: boolean }>();
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    /** 打开时自动以该 C 号拉取立创资料预填（入库扫码未命中路径）。 */
+    initialLcscCode?: string;
+  }>(),
+  { initialLcscCode: "" },
+);
 const emit = defineEmits<{
   close: [];
   created: [item: ItemOptionResponse];

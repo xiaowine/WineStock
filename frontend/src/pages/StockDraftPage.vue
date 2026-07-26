@@ -69,6 +69,14 @@
     </template>
 
     <template #line-editor="{ line }">
+      <div v-if="inbound.scanOrderPrompt.value" class="inbound-scan-source-prompt" role="status">
+        <span>识别到立创订单 {{ inbound.scanOrderPrompt.value }}，填入本单来源？</span>
+        <button class="text-button" type="button" @click="inbound.applyScanOrderNo">填入</button>
+        <button class="text-button" type="button" @click="inbound.ignoreScanOrderNo">忽略</button>
+        <button class="text-button" type="button" @click="inbound.suppressScanOrderPrompt">
+          本单不再提示
+        </button>
+      </div>
       <InboundLineEditor
         :line="line"
         :locations="inbound.locations.value"
@@ -105,7 +113,8 @@
     <template #extras>
       <ItemCreateDialog
         :open="inbound.itemCreateOpen.value"
-        @close="inbound.itemCreateOpen.value = false"
+        :initial-lcsc-code="inbound.scanLcscCode.value"
+        @close="inbound.handleItemCreateClosed"
         @created="inbound.handleItemCreated"
       />
     </template>

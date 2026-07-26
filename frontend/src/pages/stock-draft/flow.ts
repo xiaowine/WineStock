@@ -1,6 +1,7 @@
 // 本文件拥有出入库草稿工作台的共享契约类型；它不实现任何领域行为或 HTTP 请求。
 import type { ComputedRef, Ref } from "vue";
 import type { ItemOptionResponse } from "../../api/items";
+import type { LcscBagCode } from "../../lcsc/bagCode";
 
 /** 工作台可承载的最小行形状；具体字段由各领域行模型扩展。 */
 export interface StockDraftLineBase {
@@ -64,6 +65,10 @@ export interface StockDraftFlow<L extends StockDraftLineBase> {
   clearDraft(): void;
   /** 物品选择器请求新建物品（仅入库域提供）。 */
   onCreateItemRequest?: () => void;
+  /** 扫码命中并新加入物品行后的领域预填（如入库数量与来源提示）。 */
+  onScanItemAdded?: (line: L, bagCode: LcscBagCode) => void;
+  /** 扫码未命中库内物品时的领域接管（入库快速新建）；返回 true 表示已接管后续流程。 */
+  onScanItemMissing?: (bagCode: LcscBagCode) => boolean;
 }
 
 /** 工作台壳按领域渲染所需的稳定文案与列配置。 */

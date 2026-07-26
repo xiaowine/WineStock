@@ -12,6 +12,7 @@
     "test:native-back": "node --test tests/nativeBackCore.test.mjs",
     "test:runtime-funnel": "node --test tests/runtimeFunnel.test.mjs",
     "test:item-lcsc": "node --test tests/itemLcscMapping.test.mjs",
+    "test:lcsc-bag": "node --test tests/lcscBagCode.test.mjs",
     "gen:api-types": "openapi-typescript ../target/openapi/openapi.json -o src/api/generated/schema.d.ts",
     "gen:api": "cargo run -p winestock-core --example dump_openapi && pnpm gen:api-types",
     "format": "prettier --write .",
@@ -19,7 +20,8 @@
   },
   "dependencies": {
     "vue": "^3.5.39",
-    "vue-router": "^5.1.0"
+    "vue-router": "^5.1.0",
+    "zxing-wasm": "^3.1.2"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

@@ -5,6 +5,7 @@ import { createInbound, listLocations, type LocationResponse } from "../../api/i
 import type { ItemOptionResponse } from "../../api/items";
 import { ApiError } from "../../api/errors";
 import { useInboundDraftPersistence } from "../../composables/useInboundDraftPersistence";
+import type { LcscBagCode } from "../../lcsc/bagCode";
 import { notice } from "../../notices/notice";
 import { authSession } from "../../auth/session";
 import { hasPermission, stockPermissions } from "../../auth/permissions";
@@ -27,6 +28,8 @@ import {
 import type { StockDraftFlow, StockDraftTexts, StockDraftWorkspaceHandle } from "./flow";
 
 const restoredNoticeSessionKey = "winestock.inbound.restored-notice";
+/** 「本单不再提示」随入库草稿持久化；提交或清空草稿时移除。 */
+const scanSourceSuppressedKey = "winestock.inbound.scan-source-suppressed";
 
 /** 入库域的工作台文案与列配置。 */
 export const inboundDraftTexts: StockDraftTexts = {
@@ -75,6 +78,13 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
   const itemCreateOpen = ref(false);
   let locationAbortController: AbortController | null = null;
 
+  // 扫码状态：来源提示条、同单去重、快速新建的待应用料袋信息。
+  const scanOrderPrompt = ref<string | null>(null);
+  const scanSourceSuppressed = ref(false);
+  const scanLcscCode = ref("");
+  const askedOrderNos = new Set<string>();
+  let pendingScanBagCode: LcscBagCode | null = null;
+
   const hasDraft = computed(
     () => source.value.trim().length > 0 || notes.value.trim().length > 0 || lines.value.length > 0,
   );
@@ -113,6 +123,7 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
       notice.info("已恢复上次未提交的入库草稿");
     }
     if (removedDuplicates > 0) notice.info(`已移除 ${removedDuplicates} 条重复物品明细`);
+    scanSourceSuppressed.value = localStorage.getItem(scanSourceSuppressedKey) === "1";
     resumeDraftSaving();
     void loadLocationOptions();
   });
@@ -228,6 +239,11 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     notesOpen.value = false;
     lines.value = [];
     validationAttempted.value = false;
+    scanOrderPrompt.value = null;
+    scanSourceSuppressed.value = false;
+    askedOrderNos.clear();
+    pendingScanBagCode = null;
+    localStorage.removeItem(scanSourceSuppressedKey);
     removePersistedDraft();
   }
 
@@ -289,9 +305,50 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
 
   function handleItemCreated(item: ItemOptionResponse): void {
     itemCreateOpen.value = false;
+    scanLcscCode.value = "";
     const line = addItem(item, { silent: true });
+    if (pendingScanBagCode) {
+      applyScanToLine(line, pendingScanBagCode);
+      pendingScanBagCode = null;
+    }
     handle.openLineEditor(line.lineId);
     notice.success("物品已创建并加入入库单", { detail: item.name });
+  }
+
+  /**
+   * 扫码命中（或扫码新建完成）后的入库预填：袋内数量可改，来源按规则询问。
+   * 扫码路径的行总是刚创建的（重复扫描在工作台层已拦截），覆盖默认数量是安全的。
+   */
+  function applyScanToLine(line: InboundDraftLine, bagCode: LcscBagCode): void {
+    if (bagCode.quantity !== null) line.quantity = bagCode.quantity;
+    proposeScanSource(bagCode.orderNo);
+  }
+
+  /** 来源已填完全静默；「忽略」只挡同一订单号；「不再提示」挡整单。 */
+  function proposeScanSource(orderNo: string | null): void {
+    if (!orderNo || scanSourceSuppressed.value) return;
+    if (source.value.trim().length > 0) return;
+    if (askedOrderNos.has(orderNo)) return;
+    scanOrderPrompt.value = orderNo;
+  }
+
+  function applyScanOrderNo(): void {
+    const orderNo = scanOrderPrompt.value;
+    if (!orderNo) return;
+    if (!source.value.trim()) source.value = `立创 ${orderNo}`;
+    askedOrderNos.add(orderNo);
+    scanOrderPrompt.value = null;
+  }
+
+  function ignoreScanOrderNo(): void {
+    if (scanOrderPrompt.value) askedOrderNos.add(scanOrderPrompt.value);
+    scanOrderPrompt.value = null;
+  }
+
+  function suppressScanOrderPrompt(): void {
+    scanSourceSuppressed.value = true;
+    localStorage.setItem(scanSourceSuppressedKey, "1");
+    scanOrderPrompt.value = null;
   }
 
   const flow: StockDraftFlow<InboundDraftLine> = {
@@ -317,7 +374,21 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     onCreateItemRequest: () => {
       itemCreateOpen.value = true;
     },
+    onScanItemAdded: applyScanToLine,
+    onScanItemMissing: (bagCode) => {
+      // 库中没有该 C 号：转入快速新建，自动以 C 号拉立创资料预填；创建完成后回明细并应用 qty/来源。
+      pendingScanBagCode = bagCode;
+      scanLcscCode.value = bagCode.productCode;
+      itemCreateOpen.value = true;
+      return true;
+    },
   };
+
+  function handleItemCreateClosed(): void {
+    itemCreateOpen.value = false;
+    scanLcscCode.value = "";
+    pendingScanBagCode = null;
+  }
 
   return {
     flow,
@@ -327,6 +398,12 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     loadLocationOptions,
     itemCreateOpen,
     handleItemCreated,
+    handleItemCreateClosed,
+    scanOrderPrompt,
+    applyScanOrderNo,
+    ignoreScanOrderNo,
+    suppressScanOrderPrompt,
+    scanLcscCode,
     draftTotal,
     quantitySummary,
     draftAmountReady,

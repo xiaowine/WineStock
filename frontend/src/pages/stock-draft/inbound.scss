@@ -129,6 +129,29 @@
   flex: 0 0 auto;
 }
 
+/* 扫码来源提示条：出现在行编辑 Dialog 顶部，随入库域样式归本页所有。 */
+.inbound-scan-source-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+  font-size: 13px;
+
+  span {
+    flex: 1 1 auto;
+    min-width: 200px;
+  }
+
+  .text-button {
+    font-size: 13px;
+  }
+}
+
 .inbound-panel-state {
   display: flex;
   flex: 1 1 auto;
@@ -865,6 +888,17 @@
   .inbound-step__header .primary-button {
     width: 100%;
     min-height: 42px;
+  }
+
+  .inbound-step__header > .inbound-step__actions {
+    width: 100%;
+
+    .primary-button,
+    .secondary-button {
+      width: auto;
+      min-height: 42px;
+      flex: 1 1 0;
+    }
   }
 
   .inbound-order__body {

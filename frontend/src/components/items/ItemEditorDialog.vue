@@ -268,9 +268,18 @@
         class="secondary-button item-editor-dialog__lcsc-lookup"
         type="button"
         :disabled="saving"
-        @click="lcscLookupOpen = true"
+        @click="openManualLookup"
       >
         查询立创资料
+      </button>
+      <button
+        v-if="allowLcscLookup && mode === 'create' && !readOnly"
+        class="secondary-button item-editor-dialog__lcsc-lookup"
+        type="button"
+        :disabled="saving"
+        @click="openScanDialog"
+      >
+        扫码填写
       </button>
       <button
         class="secondary-button"
@@ -295,10 +304,21 @@
 
   <LcscItemLookupDialog
     :open="open && lcscLookupOpen"
-    :initial-code="draft.sku"
+    :initial-code="scannedProductCode || draft.sku"
+    :auto-query="Boolean(scannedProductCode)"
     :templates="templates"
-    @close="lcscLookupOpen = false"
+    @close="closeLcscLookup"
     @apply="forwardLcscCandidate"
+  />
+
+  <BarcodeScanDialog
+    :open="open && scanDialogOpen"
+    nested
+    title="扫码填写立创资料"
+    description="对准立创料袋上的二维码。"
+    :status-text="scanStatusText"
+    @close="scanDialogOpen = false"
+    @detect="handleScanDetect"
   />
 </template>
 
@@ -316,6 +336,8 @@ import {
 } from "../../api/items";
 import type { ItemDraft } from "../../pages/items/model";
 import { ApiError } from "../../api/errors";
+import { parseLcscBagCode } from "../../lcsc/bagCode";
+import BarcodeScanDialog from "../barcode/BarcodeScanDialog.vue";
 import ModalDialog from "../ModalDialog.vue";
 import ItemEditor from "./ItemEditor.vue";
 import LcscItemLookupDialog from "./LcscItemLookupDialog.vue";
@@ -348,6 +370,8 @@ const props = withDefaults(
     canManageSubstitutes?: boolean;
     /** 是否允许从本页面的新建会话查询立创资料。 */
     allowLcscLookup?: boolean;
+    /** 打开时自动以该 C 号执行立创查询并预填（扫码新建路径）；不受 allowLcscLookup 按钮开关影响。 */
+    autoLcscCode?: string;
   }>(),
   {
     itemId: null,
@@ -361,6 +385,7 @@ const props = withDefaults(
     canViewSubstitutes: false,
     canManageSubstitutes: false,
     allowLcscLookup: false,
+    autoLcscCode: "",
   },
 );
 
@@ -383,6 +408,9 @@ const batchesError = ref("");
 const substitutesDirty = ref(false);
 const substitutesSaving = ref(false);
 const lcscLookupOpen = ref(false);
+const scanDialogOpen = ref(false);
+const scannedProductCode = ref("");
+const scanStatusText = ref("");
 const batchPage = ref(0);
 const batchTotalPages = ref(0);
 const itemPageCount = computed(() => 2 + (props.canViewSubstitutes ? 1 : 0));
@@ -397,12 +425,18 @@ watch(
     if (!open) {
       abortRequests();
       lcscLookupOpen.value = false;
+      scanDialogOpen.value = false;
+      scannedProductCode.value = "";
       substitutesDirty.value = false;
       substitutesSaving.value = false;
       emit("substitutes-dirty", false);
       return;
     }
     activePage.value = props.mode === "existing" ? props.initialPage : "data";
+    if (props.mode === "create" && props.autoLcscCode) {
+      scannedProductCode.value = props.autoLcscCode;
+      lcscLookupOpen.value = true;
+    }
     inventory.value = null;
     batches.value = [];
     batchPage.value = 0;
@@ -443,6 +477,34 @@ function handleSubstitutesDirty(value: boolean): void {
 
 function forwardLcscCandidate(candidate: LcscItemLookupResponse, templateId: number | null): void {
   emit("apply-lcsc", candidate, templateId);
+}
+
+function openManualLookup(): void {
+  scannedProductCode.value = "";
+  lcscLookupOpen.value = true;
+}
+
+function openScanDialog(): void {
+  scanStatusText.value = "";
+  scanDialogOpen.value = true;
+}
+
+function closeLcscLookup(): void {
+  lcscLookupOpen.value = false;
+  scannedProductCode.value = "";
+}
+
+/** 扫码结果只接受立创料袋码：取 C 号转入立创查询并自动执行，其余内容静默忽略。 */
+function handleScanDetect(text: string): void {
+  const bagCode = parseLcscBagCode(text);
+  if (!bagCode) {
+    scanStatusText.value = "识别到的内容不是立创料袋码，已忽略。";
+    return;
+  }
+  scanStatusText.value = "";
+  scannedProductCode.value = bagCode.productCode;
+  scanDialogOpen.value = false;
+  lcscLookupOpen.value = true;
 }
 
 async function loadInventory(force = false): Promise<void> {

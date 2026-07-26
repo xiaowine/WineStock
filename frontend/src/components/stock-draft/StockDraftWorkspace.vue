@@ -53,14 +53,24 @@
             <h2 id="stock-draft-step-title">{{ texts.workspaceTitle }}</h2>
             <p>添加后立即配置该物品；再次添加会先返回未完成明细。</p>
           </div>
-          <button
-            class="primary-button inbound-add-item-button"
-            type="button"
-            title="选择物品并配置明细"
-            @click="openPicker"
-          >
-            添加物品
-          </button>
+          <div class="inbound-step__actions">
+            <button
+              class="secondary-button inbound-add-item-button"
+              type="button"
+              title="扫描立创料袋二维码添加物品"
+              @click="openScan"
+            >
+              扫码添加
+            </button>
+            <button
+              class="primary-button inbound-add-item-button"
+              type="button"
+              title="选择物品并配置明细"
+              @click="openPicker"
+            >
+              添加物品
+            </button>
+          </div>
         </header>
 
         <div class="inbound-order__body" :inert="selectedLine !== null ? true : undefined">
@@ -289,6 +299,15 @@
       </template>
     </ModalDialog>
 
+    <BarcodeScanDialog
+      :open="scanOpen"
+      title="扫码添加物品"
+      description="对准立创料袋上的二维码，识别后进入该物品的明细配置。"
+      :status-text="scanStatusText"
+      @close="closeScan"
+      @detect="handleScanDetect"
+    />
+
     <!-- 领域附加 Dialog（如入库的新建物品）挂在工作台根节点内，保证页面保持单根以配合路由切换动效。 -->
     <slot name="extras" />
   </section>
@@ -297,14 +316,16 @@
 <script setup lang="ts" generic="L extends StockDraftLineBase">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
-import type { ItemOptionResponse } from "../../api/items";
+import { listItemOptions, type ItemOptionResponse } from "../../api/items";
 import {
   ApiConfigurationError,
   ApiError,
   ApiNetworkError,
   ApiResponseError,
 } from "../../api/errors";
+import { parseLcscBagCode } from "../../lcsc/bagCode";
 import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
+import BarcodeScanDialog from "../barcode/BarcodeScanDialog.vue";
 import ItemSelectionDialog from "../items/ItemSelectionDialog.vue";
 import ModalDialog from "../ModalDialog.vue";
 import { useStockItemCatalog } from "../../composables/useStockItemCatalog";
@@ -337,9 +358,14 @@ const selectedLineId = ref<string | null>(null);
 const itemPickerOpen = ref(false);
 const confirmMode = ref<ConfirmMode>(null);
 const sourceInput = ref<HTMLInputElement | null>(null);
+const scanOpen = ref(false);
+const scanStatusText = ref("");
+/** 扫码串行会话进行中：行编辑或快速新建结束后自动回到扫码，直到用户主动关闭扫码。 */
+const scanFlowActive = ref(false);
+let scanLookupBusy = false;
 let pendingPickerItem: ItemOptionResponse | null = null;
 let openCreateItemAfterPicker = false;
-let openPickerAfterEditor = false;
+let afterEditorTarget: "picker" | "scan" | null = null;
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null;
 
 const {
@@ -429,15 +455,81 @@ function pickerErrorMessage(error: unknown): string {
 }
 
 function openPicker(): void {
-  if (incompleteLine.value) {
-    selectLine(incompleteLine.value.lineId);
-    notice.warning("请先完成当前明细", {
-      detail: `已重新打开“${incompleteLine.value.item.name}”的配置界面。`,
-    });
-    return;
-  }
+  // 用户显式选择手动添加即结束扫码会话，后续行编辑完成回到选择器。
+  scanFlowActive.value = false;
+  if (focusIncompleteLine()) return;
   itemPickerOpen.value = true;
   void resetItems();
+}
+
+function openScan(): void {
+  // 先声明扫码意图：被未完成明细拦截时，完成该行后仍自动回到扫码。
+  scanFlowActive.value = true;
+  if (focusIncompleteLine()) return;
+  scanStatusText.value = "";
+  scanOpen.value = true;
+}
+
+function closeScan(): void {
+  scanOpen.value = false;
+  scanFlowActive.value = false;
+  scanStatusText.value = "";
+}
+
+/** 存在未完成明细时打开该行并阻止新增入口。 */
+function focusIncompleteLine(): boolean {
+  if (!incompleteLine.value) return false;
+  selectLine(incompleteLine.value.lineId);
+  notice.warning("请先完成当前明细", {
+    detail: `已重新打开“${incompleteLine.value.item.name}”的配置界面。`,
+  });
+  return true;
+}
+
+/** 扫码识别：只接受立创料袋码；命中即进入串行明细确认，未命中交由领域接管或就地提示。 */
+async function handleScanDetect(text: string): Promise<void> {
+  if (scanLookupBusy) return;
+  const bagCode = parseLcscBagCode(text);
+  if (!bagCode) {
+    scanStatusText.value = "识别到的内容不是立创料袋码，已忽略。";
+    return;
+  }
+  const sku = bagCode.productCode;
+  const existing = props.flow.lines.value.find(
+    (line) => line.item.sku.trim().toUpperCase() === sku,
+  );
+  if (existing) {
+    notice.info(`“${existing.item.name}”已在草稿中`, { detail: "已打开该行明细。" });
+    scanOpen.value = false;
+    selectLine(existing.lineId);
+    return;
+  }
+
+  scanLookupBusy = true;
+  scanStatusText.value = `正在查找 ${sku}…`;
+  try {
+    const response = await listItemOptions(sku, 1, 20);
+    const item =
+      response.items.find((candidate) => candidate.sku.trim().toUpperCase() === sku) ?? null;
+    if (!item) {
+      if (props.flow.onScanItemMissing?.(bagCode)) {
+        scanStatusText.value = "";
+        scanOpen.value = false;
+      } else {
+        scanStatusText.value = `库中没有编号 ${sku} 的物品。`;
+      }
+      return;
+    }
+    const line = props.flow.addItem(item, { silent: true });
+    props.flow.onScanItemAdded?.(line, bagCode);
+    scanStatusText.value = `已添加 ${item.name}，可继续扫下一袋。`;
+    scanOpen.value = false;
+    selectLine(line.lineId);
+  } catch (error) {
+    scanStatusText.value = `${pickerErrorMessage(error)}，请再扫一次。`;
+  } finally {
+    scanLookupBusy = false;
+  }
 }
 
 function closePicker(): void {
@@ -478,7 +570,8 @@ function selectLine(lineId: string): void {
 }
 
 function stashAndCloseEditor(): void {
-  openPickerAfterEditor = false;
+  // 扫码会话中暂存同样回到扫码，保持批量节奏；非扫码会话保持原样不弹层。
+  afterEditorTarget = scanFlowActive.value ? "scan" : null;
   const line = selectedLine.value;
   if (line) props.flow.onEditorStash(line);
   selectedLineId.value = null;
@@ -488,15 +581,21 @@ function completeEditorAndContinue(): void {
   const line = selectedLine.value;
   if (!line) return;
   if (!props.flow.commitEditor(line)) return;
-  openPickerAfterEditor = true;
+  afterEditorTarget = scanFlowActive.value ? "scan" : "picker";
   selectedLineId.value = null;
 }
 
 function handleEditorAfterClose(): void {
-  if (!openPickerAfterEditor) return;
-  openPickerAfterEditor = false;
-  itemPickerOpen.value = true;
-  void resetItems();
+  const target = afterEditorTarget;
+  afterEditorTarget = null;
+  if (target === "scan") {
+    scanOpen.value = true;
+    return;
+  }
+  if (target === "picker") {
+    itemPickerOpen.value = true;
+    void resetItems();
+  }
 }
 
 function requestClear(): void {

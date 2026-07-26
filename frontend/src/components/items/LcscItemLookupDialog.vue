@@ -89,9 +89,11 @@ const props = withDefaults(
   defineProps<{
     open: boolean;
     initialCode?: string;
+    /** 打开时若 initialCode 是合法 C 号则立即查询；用于扫码入口跳过手动提交。 */
+    autoQuery?: boolean;
     templates: ItemAttributeTemplateResponse[];
   }>(),
-  { initialCode: "" },
+  { initialCode: "", autoQuery: false },
 );
 
 const emit = defineEmits<{
@@ -119,6 +121,10 @@ watch(
     lookupError.value = "";
     candidate.value = null;
     selectedTemplateId.value = props.templates[0]?.id ?? null;
+    if (props.autoQuery && /^C[0-9]+$/.test(productCode.value)) {
+      void submitLookup();
+      return;
+    }
     await nextTick();
     focusCodeInput();
   },
