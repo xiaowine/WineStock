@@ -24,6 +24,7 @@ getrandom = { workspace = true }
 garde = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
+rustls = { workspace = true }
 sea-orm = { workspace = true }
 sea-orm-migration = { workspace = true }
 serde = { workspace = true }
@@ -35,6 +36,7 @@ utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
 utoipa-swagger-ui = { workspace = true, optional = true }
 url = { workspace = true }
+webpki-roots = { workspace = true }
 winestock-shared = { workspace = true }
 
 [dev-dependencies]

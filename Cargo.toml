@@ -24,6 +24,10 @@ jsonwebtoken = { version = "10.4.0", default-features = false, features = ["rust
 jni = "0.22.4"
 log = "0.4"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
+# 出站 TLS 使用内置 webpki 根证书：reqwest 默认的 rustls-platform-verifier 在 Android 上需要
+# JNI 初始化，未初始化时首次握手直接 panic；上游只有固定公网域名，内置根即可且三端行为一致。
+rustls = "0.23"
+webpki-roots = "1"
 sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio", "sqlx-sqlite"] }
 sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }

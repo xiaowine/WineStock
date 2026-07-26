@@ -99,6 +99,7 @@ impl LcscLookupClient {
         https_only: bool,
     ) -> Result<Self, ExternalCatalogBootstrapError> {
         let client = Client::builder()
+            .use_preconfigured_tls(webpki_tls_config())
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(REQUEST_TIMEOUT)
             .https_only(https_only)
@@ -212,6 +213,21 @@ impl LcscLookupClient {
         }
         Ok(LcscProductImage { bytes, mime_type })
     }
+}
+
+/// 使用内置 webpki 根证书的 rustls 配置。
+/// reqwest 默认的 rustls-platform-verifier 在 Android 上依赖未接入的 JNI 初始化，
+/// 首次 TLS 握手会 panic 并使该连接以空响应中断；上游只有固定公网域名，内置根证书足够且三端一致。
+fn webpki_tls_config() -> rustls::ClientConfig {
+    let mut roots = rustls::RootCertStore::empty();
+    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let mut config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    // 只声明 http/1.1：工作区 reqwest 未启用 http2 feature，若 ALPN 协商出 h2（如立创图片主机）
+    // hyper 会直接 panic。
+    config.alpn_protocols = vec![b"http/1.1".to_vec()];
+    config
 }
 
 fn image_candidates(source: &str) -> Result<Vec<Url>, LcscLookupError> {

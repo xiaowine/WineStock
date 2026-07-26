@@ -144,4 +144,13 @@ fn init_android_logger() {
             .with_tag("WineStockCore")
             .with_max_level(log::LevelFilter::Info),
     );
+    // Rust panic 默认只写 stderr，在 Android 上会无声丢失；转发到 logcat 便于定位请求线程 panic。
+    static PANIC_HOOK: std::sync::Once = std::sync::Once::new();
+    PANIC_HOOK.call_once(|| {
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            log::error!("core panic: {info}");
+            previous(info);
+        }));
+    });
 }
