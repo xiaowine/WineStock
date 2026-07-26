@@ -58,6 +58,11 @@
   box-shadow: var(--shadow-menu);
   transform-origin: center;
 
+  // 面板仅作为无 autoFocus 时的程序化焦点落点，不显示焦点环。
+  &:focus {
+    outline: none;
+  }
+
   &--wide {
     width: min(100%, 720px);
   }

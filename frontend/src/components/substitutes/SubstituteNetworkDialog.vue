@@ -6,6 +6,7 @@
     description="查看物品之间的有向替代链、共同依赖和直接上下游。"
     network-workspace
     :restore-focus="!transitioning"
+    :auto-focus="false"
     @close="requestClose"
   >
     <div class="substitute-network-workspace">
@@ -18,7 +19,6 @@
             name="substitute_network_search"
             placeholder="搜索物品名称或 SKU"
             hide-label
-            autofocus
             @search="applySearch"
           />
           <div

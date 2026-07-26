@@ -21,6 +21,7 @@
         <section
           ref="panel"
           class="modal-panel"
+          tabindex="-1"
           :class="{
             'modal-panel--wide': wide,
             'modal-panel--workspace': workspace,
@@ -83,6 +84,8 @@ const props = withDefaults(
     workspace?: boolean;
     networkWorkspace?: boolean;
     restoreFocus?: boolean;
+    /** 打开时是否自动聚焦首个可交互控件；关闭后焦点落在面板本身（移动端可避免立即弹出输入法）。 */
+    autoFocus?: boolean;
     compact?: boolean;
     nested?: boolean;
   }>(),
@@ -93,6 +96,7 @@ const props = withDefaults(
     workspace: false,
     networkWorkspace: false,
     restoreFocus: true,
+    autoFocus: true,
     compact: false,
     nested: false,
   },
@@ -138,10 +142,11 @@ watch(
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     window.addEventListener("keydown", handleKeydown);
     await nextTick();
-    const target =
-      panel.value?.querySelector<HTMLElement>("[autofocus]") ??
-      panel.value?.querySelector<HTMLElement>("input, select, button");
-    target?.focus();
+    const target = props.autoFocus
+      ? (panel.value?.querySelector<HTMLElement>("[autofocus]") ??
+        panel.value?.querySelector<HTMLElement>("input, select, button"))
+      : null;
+    (target ?? panel.value)?.focus();
   },
   { immediate: true },
 );
