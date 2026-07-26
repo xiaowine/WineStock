@@ -6,6 +6,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import winestock.xiaowine.cc.shell.AndroidRuntimeSnapshot
 import winestock.xiaowine.cc.shell.DEFAULT_RUNTIME_CONFIG
 import winestock.xiaowine.cc.shell.EditableRuntimeConfig
@@ -40,6 +42,12 @@ class LocalCoreRuntimeManager(
         Executors.newSingleThreadExecutor { runnable ->
             Thread(runnable, "winestock-core-manager").apply { isDaemon = true }
         },
+    private val restartScheduler: ScheduledExecutorService =
+        Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "winestock-core-restart").apply { isDaemon = true }
+        },
+    /** 意外失败后自动重启的退避序列；长度即最大自动尝试次数。 */
+    private val autoRestartDelaysMs: LongArray = longArrayOf(1_000, 3_000),
 ) {
     private val listeners = CopyOnWriteArraySet<(AndroidRuntimeSnapshot) -> Unit>()
 
@@ -56,6 +64,10 @@ class LocalCoreRuntimeManager(
     private var nativeReady = false
     private var storagePaths: NativeStoragePaths? = null
     private var sharedDefaultConfig = DEFAULT_RUNTIME_CONFIG
+
+    // 自动重启状态只在 manager executor 线程上读写；手动操作会推进 epoch 作废挂起的尝试。
+    private var autoRestartAttempts = 0
+    private var autoRestartEpoch = 0
 
     init {
         submit { initializeInternal() }
@@ -94,6 +106,7 @@ class LocalCoreRuntimeManager(
     /** 仅供 JVM 单元测试清理后台线程；生产进程生命周期不由 Activity 关闭。 */
     fun shutdownForTests() {
         executor.shutdownNow()
+        restartScheduler.shutdownNow()
     }
 
     private fun initializeInternal(): AndroidRuntimeSnapshot {
@@ -252,6 +265,7 @@ class LocalCoreRuntimeManager(
     }
 
     private fun applyInternal(config: EditableRuntimeConfig): ApplyRuntimeConfigResult {
+        cancelPendingAutoRestart()
         val attempt = authorityValidate(config)
         if (!attempt.validation.valid) {
             return ApplyRuntimeConfigResult(
@@ -340,6 +354,7 @@ class LocalCoreRuntimeManager(
     }
 
     private fun startCurrentInternal(): AndroidRuntimeSnapshot {
+        cancelPendingAutoRestart()
         val current = snapshot
         if (current.configStatus != "configured" || current.service.ownership != "local") {
             return publish(current.withError(unsupportedMode()))
@@ -369,6 +384,7 @@ class LocalCoreRuntimeManager(
     }
 
     private fun stopCurrentInternal(): AndroidRuntimeSnapshot {
+        cancelPendingAutoRestart()
         val current = snapshot
         if (current.service.ownership != "local") {
             return publish(current.withError(unsupportedMode()))
@@ -384,11 +400,20 @@ class LocalCoreRuntimeManager(
     }
 
     private fun restartCurrentInternal(): AndroidRuntimeSnapshot {
+        cancelPendingAutoRestart()
         val current = snapshot
         if (current.configStatus != "configured" || current.service.ownership != "local") {
             return publish(current.withError(unsupportedMode()))
         }
         val paths = storagePaths ?: return publish(current.withError(nativeUnavailable()))
+        return performLocalRestart(current, paths)
+    }
+
+    /** 手动与自动重启共用的恢复流程；调用前提是本地 configured 快照。 */
+    private fun performLocalRestart(
+        current: AndroidRuntimeSnapshot,
+        paths: NativeStoragePaths,
+    ): AndroidRuntimeSnapshot {
         publish(current.copy(service = current.service.copy(phase = "starting", error = null)))
         return when (val restarted = restartLocalNative(current.config, paths)) {
             is NativeCallResult.Success -> {
@@ -412,6 +437,50 @@ class LocalCoreRuntimeManager(
         }
     }
 
+    /**
+     * 意外失败（此前 running 的服务变为 failed，或自动恢复链上的再次失败）时按退避
+     * 自动重启，最多 autoRestartDelaysMs.size 次；手动操作与成功 running 都会复位。
+     */
+    private fun maybeScheduleAutoRestart(
+        previous: AndroidRuntimeSnapshot,
+        next: AndroidRuntimeSnapshot,
+    ) {
+        if (next.service.ownership != "local" || next.service.phase != "failed") return
+        if (next.configStatus != "configured" || !next.initialized || !localAvailable()) return
+        val unexpectedDeath =
+            previous.service.ownership == "local" && previous.service.phase == "running"
+        val recoveryChain = autoRestartAttempts > 0
+        if (!unexpectedDeath && !recoveryChain) return
+        if (autoRestartAttempts >= autoRestartDelaysMs.size) return
+        val delayMs = autoRestartDelaysMs[autoRestartAttempts]
+        autoRestartAttempts += 1
+        val epoch = autoRestartEpoch
+        restartScheduler.schedule(
+            { submit { autoRestartInternal(epoch) } },
+            delayMs,
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun autoRestartInternal(epoch: Int): AndroidRuntimeSnapshot {
+        val current = snapshot
+        if (epoch != autoRestartEpoch) return current
+        if (
+            current.configStatus != "configured" ||
+            current.service.ownership != "local" ||
+            current.service.phase != "failed"
+        ) {
+            return current
+        }
+        val paths = storagePaths ?: return current
+        return performLocalRestart(current, paths)
+    }
+
+    private fun cancelPendingAutoRestart() {
+        autoRestartEpoch += 1
+        autoRestartAttempts = 0
+    }
+
     private fun refreshNativeStateIfNeeded() {
         val current = snapshot
         if (!localAvailable() || current.service.ownership != "local" || current.service.phase != "running") {
@@ -420,7 +489,22 @@ class LocalCoreRuntimeManager(
         when (val state = nativeClient.getRuntimeState()) {
             is NativeCallResult.Success -> {
                 if (state.value.phase != "running" || state.value.error != null) {
-                    publish(localSnapshot(current.configStatus, current.config, state.value.phase, state = state.value, error = state.value.error))
+                    // 用户停止只经 stopLocalService 产生；此处观察到的非 running 一律按异常退出
+                    // 映射为 failed，保证前端进入恢复语义而不是"已停止"。
+                    val unexpectedPhase = state.value.phase
+                    val phase =
+                        if (unexpectedPhase == "stopped" || unexpectedPhase == "failed") "failed"
+                        else unexpectedPhase
+                    val error = state.value.error ?: serviceCrashed()
+                    publish(
+                        localSnapshot(
+                            current.configStatus,
+                            current.config,
+                            phase,
+                            state = state.value,
+                            error = error,
+                        ),
+                    )
                 }
             }
             is NativeCallResult.Failure -> publish(current.withError(state.error))
@@ -650,7 +734,12 @@ class LocalCoreRuntimeManager(
         )
 
     private fun publish(next: AndroidRuntimeSnapshot): AndroidRuntimeSnapshot {
+        val previous = snapshot
         snapshot = next
+        if (next.service.ownership == "local" && next.service.phase == "running") {
+            autoRestartAttempts = 0
+        }
+        maybeScheduleAutoRestart(previous, next)
         listeners.forEach { listener ->
             try {
                 listener(next)
@@ -696,6 +785,12 @@ class LocalCoreRuntimeManager(
         ShellRuntimeError(
             ShellErrorCodes.NATIVE_LIBRARY_UNAVAILABLE,
             "Android 本地服务组件不可用，可切换为远端连接模式",
+        )
+
+    private fun serviceCrashed() =
+        ShellRuntimeError(
+            ShellErrorCodes.SERVICE_CRASHED,
+            "本地服务意外退出",
         )
 
     private fun unsupportedMode() =

@@ -398,9 +398,107 @@ class LocalCoreRuntimeManagerTest {
         assertEquals("https://example.com/api", store.current?.remoteBaseUrl)
     }
 
+    @Test
+    fun unexpectedRuntimeDeathMapsToFailedAndAutoRestartRecovers() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(DEFAULT_RUNTIME_CONFIG))
+        val native = FakeNativeCoreClient()
+        val manager = manager(native, store)
+        assertEquals("running", manager.getRuntimeSnapshot().await().service.phase)
+        val startsBeforeCrash = native.startCalls
+
+        // native 报告意外 stopped（无用户 stop 调用），必须映射为 failed 而不是 stopped。
+        native.runtimeStateOverride =
+            NativeCallResult.Success(NativeServiceState("stopped", null, null, null))
+        val crashed = manager.getRuntimeSnapshot().await()
+        assertEquals("failed", crashed.service.phase)
+        assertEquals(ShellErrorCodes.SERVICE_CRASHED, crashed.service.error?.code)
+
+        val recovered = awaitPhase(manager, "running")
+        assertEquals("running", recovered.service.phase)
+        assertEquals(null, recovered.service.error)
+        assertEquals(startsBeforeCrash + 1, native.startCalls)
+    }
+
+    @Test
+    fun userStopDoesNotTriggerAutoRestart() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(DEFAULT_RUNTIME_CONFIG))
+        val native = FakeNativeCoreClient()
+        val manager = manager(native, store)
+        manager.getRuntimeSnapshot().await()
+        val startsBeforeStop = native.startCalls
+
+        val stopped = manager.stopLocalService().await()
+
+        assertEquals("stopped", stopped.service.phase)
+        Thread.sleep(100)
+        assertEquals("stopped", manager.getRuntimeSnapshot().await().service.phase)
+        assertEquals(startsBeforeStop, native.startCalls)
+    }
+
+    @Test
+    fun autoRestartGivesUpAfterConfiguredAttempts() {
+        val store = FakeConfigRepository(RuntimeConfigRepository.Loaded.Present(DEFAULT_RUNTIME_CONFIG))
+        val native = FakeNativeCoreClient()
+        val manager = manager(native, store)
+        manager.getRuntimeSnapshot().await()
+        val startsBeforeCrash = native.startCalls
+
+        native.startResults +=
+            NativeCallResult.Failure(
+                ShellRuntimeError(ShellErrorCodes.SERVICE_START_FAILED, "重启失败一"),
+            )
+        native.startResults +=
+            NativeCallResult.Failure(
+                ShellRuntimeError(ShellErrorCodes.SERVICE_START_FAILED, "重启失败二"),
+            )
+        native.runtimeStateOverride =
+            NativeCallResult.Success(
+                NativeServiceState(
+                    "failed",
+                    null,
+                    null,
+                    ShellRuntimeError(ShellErrorCodes.SERVICE_CRASHED, "本地服务意外退出"),
+                ),
+            )
+        assertEquals("failed", manager.getRuntimeSnapshot().await().service.phase)
+
+        awaitCondition { native.startCalls == startsBeforeCrash + 2 }
+        Thread.sleep(100)
+        val exhausted = manager.getRuntimeSnapshot().await()
+        assertEquals("failed", exhausted.service.phase)
+        assertEquals(ShellErrorCodes.SERVICE_START_FAILED, exhausted.service.error?.code)
+        // 自动重启窗口耗尽后不再有第三次尝试；手动 restart 仍可用并成功。
+        assertEquals(startsBeforeCrash + 2, native.startCalls)
+        val manual = manager.restartLocalService().await()
+        assertEquals("running", manual.service.phase)
+    }
+
+    private fun awaitPhase(
+        manager: LocalCoreRuntimeManager,
+        phase: String,
+    ): winestock.xiaowine.cc.shell.AndroidRuntimeSnapshot {
+        val deadline = System.currentTimeMillis() + 2_000
+        while (System.currentTimeMillis() < deadline) {
+            val snapshot = manager.getRuntimeSnapshot().await()
+            if (snapshot.service.phase == phase) return snapshot
+            Thread.sleep(10)
+        }
+        throw AssertionError("等待快照进入 $phase 超时")
+    }
+
+    private fun awaitCondition(condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 2_000
+        while (System.currentTimeMillis() < deadline) {
+            if (condition()) return
+            Thread.sleep(10)
+        }
+        throw AssertionError("等待条件成立超时")
+    }
+
     private fun manager(
         native: FakeNativeCoreClient,
         store: FakeConfigRepository,
+        autoRestartDelaysMs: LongArray = longArrayOf(1, 1),
     ): LocalCoreRuntimeManager =
         LocalCoreRuntimeManager(
             nativeClient = native,
@@ -410,6 +508,7 @@ class LocalCoreRuntimeManagerTest {
                     NativeStoragePaths("C:/data/winestock.sqlite", "C:/data/files"),
                 )
             },
+            autoRestartDelaysMs = autoRestartDelaysMs,
         ).also(managers::add)
 
     private fun <T> java.util.concurrent.CompletableFuture<T>.await(): T =
@@ -442,6 +541,10 @@ class LocalCoreRuntimeManagerTest {
         val startConfigs = mutableListOf<EditableRuntimeConfig>()
         var startCalls = 0
         var stopCalls = 0
+
+        /** 模拟运行中服务意外死亡：getRuntimeState 返回该值直到下一次 start 尝试。 */
+        @Volatile
+        var runtimeStateOverride: NativeCallResult<NativeServiceState>? = null
         private var state = NativeServiceState("stopped", null, null, null)
 
         override fun initialize(): NativeCallResult<Unit> = initializeResult
@@ -463,6 +566,7 @@ class LocalCoreRuntimeManagerTest {
         ): NativeCallResult<NativeServiceState> {
             startCalls += 1
             startConfigs += config
+            runtimeStateOverride = null
             val result =
                 if (startResults.isEmpty()) successState(config) else startResults.removeFirst()
             if (result is NativeCallResult.Success) state = result.value
@@ -484,7 +588,7 @@ class LocalCoreRuntimeManagerTest {
         }
 
         override fun getRuntimeState(): NativeCallResult<NativeServiceState> =
-            NativeCallResult.Success(state)
+            runtimeStateOverride ?: NativeCallResult.Success(state)
 
         fun successState(config: EditableRuntimeConfig): NativeCallResult.Success<NativeServiceState> =
             NativeCallResult.Success(
