@@ -5,6 +5,10 @@
 const STORAGE_KEY = "winestock.telemetry.consent";
 const CONSENT_VERSION = 1;
 
+/** 采集由 Microsoft Clarity 提供；数据处理遵循 Microsoft 隐私声明，供各同意入口展示链接。 */
+export const TELEMETRY_PROVIDER_NAME = "Microsoft Clarity";
+export const TELEMETRY_POLICY_URL = "https://privacy.microsoft.com/zh-cn/privacystatement";
+
 interface StoredTelemetryConsent {
   readonly version: number;
   readonly granted: boolean;

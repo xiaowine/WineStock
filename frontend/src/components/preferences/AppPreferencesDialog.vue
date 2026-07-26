@@ -21,9 +21,15 @@
         />
         <span class="consent-toggle__copy">
           <strong>发送匿名使用数据</strong>
-          <small>帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。</small>
+          <small
+            >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
+            Microsoft Clarity 提供。</small
+          >
         </span>
       </label>
+      <p class="app-preferences__policy">
+        <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
+      </p>
     </section>
 
     <template #actions>
@@ -36,7 +42,12 @@
 import { ref, watch } from "vue";
 import ModalDialog from "../ModalDialog.vue";
 import { startTelemetryIfConsented, stopTelemetry } from "../../telemetry/clarity";
-import { readTelemetryConsent, saveTelemetryConsent } from "../../telemetry/consent";
+import {
+  TELEMETRY_POLICY_URL,
+  readTelemetryConsent,
+  saveTelemetryConsent,
+} from "../../telemetry/consent";
+import { openExternal } from "../../shell/runtime";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -60,10 +71,15 @@ function handleTelemetryChange(): void {
   }
   stopTelemetry();
 }
+
+/** 打开 Microsoft 隐私声明；平台不支持外链能力时静默忽略。 */
+function openTelemetryPolicy(): void {
+  void openExternal(TELEMETRY_POLICY_URL).catch(() => undefined);
+}
 </script>
 
 <style scoped lang="scss">
-/* 同意开关卡片复用 shared/_consent-toggle.scss；这里只保留分节标题。 */
+/* 同意开关卡片复用 shared/_consent-toggle.scss；这里只保留分节标题与政策链接。 */
 .app-preferences__section {
   display: grid;
   gap: 10px;
@@ -71,6 +87,21 @@ function handleTelemetryChange(): void {
   h3 {
     margin: 0;
     font-size: 13px;
+  }
+}
+
+.app-preferences__policy {
+  margin: 0;
+  font-size: 12px;
+
+  a {
+    color: var(--color-accent);
+    font-weight: 650;
+  }
+
+  a:hover {
+    color: var(--color-accent-strong);
+    text-decoration: underline;
   }
 }
 </style>

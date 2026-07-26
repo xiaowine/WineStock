@@ -99,12 +99,14 @@
                 <span class="consent-toggle__copy">
                   <strong>发送匿名使用数据</strong>
                   <small
-                    >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。</small
+                    >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
+                    Microsoft Clarity 提供。</small
                   >
                 </span>
               </label>
               <p class="auth-runtime-note setup-wizard__consent-note">
                 默认关闭，可随时在「偏好设置」中更改。
+                <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
               </p>
             </div>
           </div>
@@ -159,9 +161,14 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import FormInput from "../components/forms/FormInput.vue";
 import { startTelemetryIfConsented } from "../telemetry/clarity";
-import { saveTelemetryConsent } from "../telemetry/consent";
+import { TELEMETRY_POLICY_URL, saveTelemetryConsent } from "../telemetry/consent";
 import type { EditableRuntimeConfig } from "../shell/contract";
-import { applyRuntimeConfig, runtimeSnapshot, validateRuntimeConfig } from "../shell/runtime";
+import {
+  applyRuntimeConfig,
+  openExternal,
+  runtimeSnapshot,
+  validateRuntimeConfig,
+} from "../shell/runtime";
 
 type SetupMode = "local" | "remote";
 type SetupStep = "mode" | "server" | "consent" | "applying";
@@ -315,6 +322,11 @@ async function applyConfiguration(): Promise<void> {
   } finally {
     applying.value = false;
   }
+}
+
+/** 打开 Microsoft 隐私声明；平台不支持外链能力时静默忽略，不阻断向导。 */
+function openTelemetryPolicy(): void {
+  void openExternal(TELEMETRY_POLICY_URL).catch(() => undefined);
 }
 
 /** apply 失败后返回首个决策页重来；已填选择保留。 */
