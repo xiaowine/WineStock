@@ -89,8 +89,16 @@ pub(crate) async fn list_outbound(
         .page_size
         .unwrap_or(DEFAULT_PAGE_SIZE)
         .clamp(1, MAX_PAGE_SIZE);
-    let status = query.status.map(|value| normalize_required_text(&value)).transpose()?;
-    if status.as_deref().is_some_and(|value| !matches!(value, "pending" | "approved" | "rejected")) { return Err(StockApiError::InvalidRequest); }
+    let status = query
+        .status
+        .map(|value| normalize_required_text(&value))
+        .transpose()?;
+    if status
+        .as_deref()
+        .is_some_and(|value| !matches!(value, "pending" | "approved" | "rejected"))
+    {
+        return Err(StockApiError::InvalidRequest);
+    }
     let repository = StockRepository::new(state.database());
     let result = repository
         .list_outbound_orders(ListOutboundOrders {

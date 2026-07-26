@@ -6,9 +6,12 @@
 use axum::{extract::State, http::StatusCode, Json};
 
 use crate::{
-    auth::{AuthBootstrapStatus, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse},
-    persistence::repository::AuthRepository,
+    auth::{
+        AuthBootstrapStatus, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest,
+        AuthTokenResponse,
+    },
     http::ValidatedJson,
+    persistence::repository::AuthRepository,
     security::AuthApiError,
     state::CoreState,
 };
@@ -29,7 +32,9 @@ pub(crate) async fn bootstrap_status(
     State(state): State<CoreState>,
 ) -> Result<Json<AuthBootstrapStatus>, AuthApiError> {
     let requires_initial_user = !AuthRepository::new(state.database()).has_any_user().await?;
-    Ok(Json(AuthBootstrapStatus { requires_initial_user }))
+    Ok(Json(AuthBootstrapStatus {
+        requires_initial_user,
+    }))
 }
 
 #[utoipa::path(

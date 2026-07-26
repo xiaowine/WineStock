@@ -219,7 +219,8 @@ async fn authorize(
                     if matches!(
                         &state.policy,
                         AuthorizationPolicy::ConditionalPermission {
-                            anonymous_error: true, ..
+                            anonymous_error: true,
+                            ..
                         }
                     ) {
                         return AuthApiError::InitialUserAlreadyExists.into_response();

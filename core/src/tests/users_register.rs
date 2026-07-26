@@ -146,7 +146,10 @@ async fn bootstrap_status_distinguishes_empty_and_initialized_services() {
     let initialized_body = axum::body::to_bytes(initialized.into_body(), usize::MAX)
         .await
         .expect("response body should read");
-    assert_eq!(initialized_body.as_ref(), br#"{"requires_initial_user":false}"#);
+    assert_eq!(
+        initialized_body.as_ref(),
+        br#"{"requires_initial_user":false}"#
+    );
 }
 
 #[tokio::test]

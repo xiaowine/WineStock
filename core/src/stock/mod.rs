@@ -34,10 +34,8 @@ const INBOUND_TEMPLATE_READ_PERMISSIONS: &[&str] = &[
     STOCK_TEMPLATE_READ_PERMISSION,
 ];
 // 新建出库会话只能读取轻量物品与批次候选，不能借此访问物品详情或库存总览。
-const OUTBOUND_DRAFT_ITEM_READ_PERMISSIONS: &[&str] = &[
-    STOCK_ITEM_READ_PERMISSION,
-    STOCK_OUTBOUND_CREATE_PERMISSION,
-];
+const OUTBOUND_DRAFT_ITEM_READ_PERMISSIONS: &[&str] =
+    &[STOCK_ITEM_READ_PERMISSION, STOCK_OUTBOUND_CREATE_PERMISSION];
 
 /// 注册库存业务 HTTP 路由集合。
 pub(crate) fn router(state: CoreState) -> Router<CoreState> {

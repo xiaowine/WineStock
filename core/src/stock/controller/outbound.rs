@@ -98,10 +98,14 @@ pub(crate) struct OutboundItemResponse {
     #[garde(skip)]
     pub item_id: i64,
 
-    #[garde(skip)] pub item_name: String,
-    #[garde(skip)] pub item_sku: String,
-    #[garde(skip)] pub item_unit: String,
-    #[garde(skip)] pub item_image_file_id: i64,
+    #[garde(skip)]
+    pub item_name: String,
+    #[garde(skip)]
+    pub item_sku: String,
+    #[garde(skip)]
+    pub item_unit: String,
+    #[garde(skip)]
+    pub item_image_file_id: i64,
 
     /// 出库数量。
     #[garde(skip)]

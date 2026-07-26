@@ -227,7 +227,8 @@ async fn outbound_reject_and_permissions_follow_business_rules() {
     let staff_token =
         seed_user_with_permissions_and_login(&app, "outbound-staff", &["stock.outbound.create"])
             .await;
-    let staff_options = authorized_empty_request(&app, "GET", "/api/items/options", &staff_token).await;
+    let staff_options =
+        authorized_empty_request(&app, "GET", "/api/items/options", &staff_token).await;
     assert_eq!(staff_options.status(), StatusCode::OK);
     let staff_batches = authorized_empty_request(
         &app,
