@@ -1,6 +1,8 @@
 // 本文件拥有物品命令、目录、选择器、编辑资料和库存详情 HTTP 契约；不同场景不共享万能响应。
 // DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定；仅前端本地的筛选草稿类型仍手写。
 import { apiClient } from "./client";
+import { ApiError } from "./errors";
+import { trackTelemetryEvent, trackTelemetryIssue } from "../telemetry/clarity";
 import type { ApiResponse, ApiSchema } from "./contract";
 
 export type ItemAttributeResponse = ApiResponse<ApiSchema<"ItemAttributeResponse">>;
@@ -62,8 +64,14 @@ export type ItemCreateRequest = ApiSchema<"ItemCreateRequest">;
 
 export type ItemUpdateRequest = ApiSchema<"ItemUpdateRequest">;
 
-export function createItem(request: ItemCreateRequest) {
-  return apiClient.request<ItemMutationResponse>("/api/items", { method: "POST", json: request });
+export async function createItem(request: ItemCreateRequest) {
+  const created = await apiClient.request<ItemMutationResponse>("/api/items", {
+    method: "POST",
+    json: request,
+  });
+  // 遥测在唯一入口记录，单项/扫码/批量创建路径都覆盖；只记事件名不含物品数据。
+  trackTelemetryEvent("item_created");
+  return created;
 }
 
 export function updateItem(id: number, request: ItemUpdateRequest) {
@@ -82,11 +90,20 @@ export function getItem(id: number, signal?: AbortSignal) {
   return apiClient.request<ItemEditorResponse>(`/api/items/${id}`, { signal });
 }
 
-export function lookupLcscItem(productCode: string, signal?: AbortSignal) {
-  return apiClient.request<LcscItemLookupResponse>(
-    `/api/items/lookups/lcsc/${encodeURIComponent(productCode)}`,
-    { signal },
-  );
+export async function lookupLcscItem(productCode: string, signal?: AbortSignal) {
+  try {
+    return await apiClient.request<LcscItemLookupResponse>(
+      `/api/items/lookups/lcsc/${encodeURIComponent(productCode)}`,
+      { signal },
+    );
+  } catch (error) {
+    // 立创接口是外部依赖，对方变更时会静默失效；在唯一入口记排查事件覆盖所有调用方。
+    // 用户主动取消与输错编号（lcsc_product_not_found）属正常路径，不计入。
+    const aborted = error instanceof DOMException && error.name === "AbortError";
+    const notFound = error instanceof ApiError && error.code === "lcsc_product_not_found";
+    if (!aborted && !notFound) trackTelemetryIssue("lcsc_lookup_failed");
+    throw error;
+  }
 }
 
 /** 通过 WineStock Core 读取立创商品首图；浏览器不直接访问第三方图片地址。 */

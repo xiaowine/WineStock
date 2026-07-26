@@ -332,6 +332,7 @@ import ItemSelectionDialog from "../items/ItemSelectionDialog.vue";
 import ModalDialog from "../ModalDialog.vue";
 import { useStockItemCatalog } from "../../composables/useStockItemCatalog";
 import { notice } from "../../notices/notice";
+import { trackTelemetryEvent } from "../../telemetry/clarity";
 import type {
   StockDraftFlow,
   StockDraftLineBase,
@@ -525,6 +526,7 @@ async function handleScanDetect(text: string): Promise<void> {
     }
     const line = props.flow.addItem(item, { silent: true });
     props.flow.onScanItemAdded?.(line, bagCode);
+    trackTelemetryEvent("bag_scan_matched");
     scanStatusText.value = `已添加 ${item.name}，可继续扫下一袋。`;
     scanOpen.value = false;
     selectLine(line.lineId);

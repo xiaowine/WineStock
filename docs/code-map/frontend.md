@@ -46,6 +46,11 @@
 - `frontend/src/notices/` 与 `components/NoticeViewport.vue`：全局 Notice 状态、四种类型、限量、倒计时与暂停交互；表单提交校验由 Notice 显示首个错误原因，字段附近保留红框且不插入可见错误行改变表单尺寸。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，不执行 HTTP 探测。
 
+## 遥测
+
+- `frontend/src/telemetry/`：匿名使用数据的同意偏好持久化（`consent.ts`，版本化、默认关、不进 Shell 运行配置）与 Microsoft Clarity 按需加载（`clarity.ts`，仅 consent=true 时动态 import SDK 并初始化，项目 ID 随 tag 脚本公开；拒绝或未作答时零请求）。启动入口：应用装配按持久化偏好补启动，初始化向导勾选同意后立即启动。
+- 采集事件：业务代码只经 `clarity.ts` 的 `trackTelemetryEvent`（流程完成：出入库提交、物品创建、订单导入、扫码命中）与 `trackTelemetryIssue`（问题 + 会话升级：断连、提交失败、立创查询/订单解析失败、摄像头故障）上报，未同意时全部空操作；事件只有固定名字，不携带业务数据；`identify` 与 deviceName 按隐私承诺不上报。启动时以 Shell 客户端元数据打 platform/appVersion 会话标签。立创查询与物品创建走 `api/items.ts` 唯一入口覆盖全部调用方，用户取消与输错编号不计入。
+
 ## 布局与通用组件
 
 - `frontend/src/layouts/AppShell.*`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。

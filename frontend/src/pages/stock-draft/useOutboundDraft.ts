@@ -16,6 +16,7 @@ import { authSession } from "../../auth/session";
 import { useOutboundDraftPersistence } from "../../composables/useOutboundDraftPersistence";
 import { useStablePendingIndicator } from "../../composables/useStablePendingIndicator";
 import { notice } from "../../notices/notice";
+import { trackTelemetryEvent, trackTelemetryIssue } from "../../telemetry/clarity";
 import {
   buildOutboundRequest,
   createOutboundDraftLine,
@@ -319,9 +320,12 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
           ? () => router.push({ name: "outbound-orders" })
           : undefined,
       });
+      trackTelemetryEvent("outbound_submitted");
       clearDraft();
       return "close";
     } catch (error) {
+      // 前端校验全过仍被拒（含直接出库的审批步骤失败），属于要抓的排查场景。
+      trackTelemetryIssue("outbound_submit_failed");
       notice.error(canDirect.value ? "直接出库失败" : "提交出库单失败", {
         detail: error instanceof ApiError ? error.message : "请检查网络后重试",
       });

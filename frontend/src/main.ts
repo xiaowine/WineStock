@@ -22,6 +22,7 @@ import {
   successfulServiceCheckSequence,
 } from "./service/availability";
 import { activeApiBaseUrl, initializeShellRuntime, reportFrontendReady } from "./shell/runtime";
+import { startTelemetryIfConsented } from "./telemetry/clarity";
 
 let stopNativeBackNavigation: (() => void) | null = null;
 
@@ -74,6 +75,8 @@ async function bootstrapFrontend(): Promise<void> {
 
   createApp(App).use(router).mount("#app");
   installOverlayScrollbars();
+  // 按已持久化的同意偏好补启动匿名采集；未同意时该调用不发起任何请求。
+  startTelemetryIfConsented();
   await nextTick();
   try {
     stopNativeBackNavigation = await installNativeBackNavigation(router);

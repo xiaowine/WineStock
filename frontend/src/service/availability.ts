@@ -1,8 +1,9 @@
 // 本文件拥有 frontend 服务可用性探测与恢复调度；它不启动 Axum、不管理鉴权 token，也不决定具体页面布局。
 // ownership=local 时 Shell phase 推送是权威信号，HTTP 探测降为看门狗；
 // 纯决策规则在 availabilityPolicy.ts，设计见 docs/implementation-notes/shell-aware-service-availability.md。
-import { readonly, ref } from "vue";
+import { readonly, ref, watch } from "vue";
 import { checkHealth } from "../api/health";
+import { trackTelemetryIssue } from "../telemetry/clarity";
 import {
   CONFIRM_RECHECK_DELAY_MS,
   DEFAULT_SHELL_SIGNAL,
@@ -35,6 +36,13 @@ let confirmRecheckPending = false;
 
 /** 只读服务可用性；根应用据此决定是否阻断业务页面。 */
 export const serviceAvailabilityStatus = readonly(mutableStatus);
+
+// 进入断连状态记一次排查事件（含会话升级）；按状态翻转去重，不随重复探测反复上报。
+watch(mutableStatus, (status, previous) => {
+  if (status === "unavailable" && previous !== "unavailable") {
+    trackTelemetryIssue("service_unavailable");
+  }
+});
 
 /** 只读探测进行状态；用于禁用重复手动重试。 */
 export const isCheckingServiceAvailability = readonly(mutableIsChecking);

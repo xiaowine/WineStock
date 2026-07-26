@@ -1,0 +1,31 @@
+/* 本文件拥有"同意开关"卡片的共享外观（复选框 + 主文案 + 弱化说明），
+   供初始化向导与偏好设置 Dialog 等复用；不承载任何偏好读写逻辑。 */
+.consent-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+
+  input {
+    margin-top: 3px;
+    accent-color: var(--color-accent);
+  }
+
+  &__copy {
+    display: grid;
+    gap: 2px;
+
+    strong {
+      font-size: 14px;
+    }
+
+    small {
+      color: var(--color-muted);
+      font-size: 12px;
+    }
+  }
+}

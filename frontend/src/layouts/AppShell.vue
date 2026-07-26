@@ -66,6 +66,7 @@
             :show-logout="!silentLocalMode"
             :logout-error="logoutError"
             :is-logging-out="isLoggingOut"
+            @preferences="openPreferencesDialog"
             @runtime-settings="openRuntimeSettings"
             @lan-access="openLanAccessDialog"
             @logout="handleLogout"
@@ -125,6 +126,8 @@
       :urls="lanAccessUrls"
       @close="closeLanAccessDialog"
     />
+
+    <AppPreferencesDialog :open="preferencesDialogOpen" @close="preferencesDialogOpen = false" />
   </div>
 </template>
 
@@ -137,6 +140,7 @@ import AccountUserSummary from "../components/AccountUserSummary.vue";
 import AppNavigationList from "../components/AppNavigationList.vue";
 import RouteContentView from "../components/RouteContentView.vue";
 import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
+import AppPreferencesDialog from "../components/preferences/AppPreferencesDialog.vue";
 import { useAccountPopover } from "../composables/useAccountPopover";
 import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useShellLogout } from "../composables/useShellLogout";
@@ -152,6 +156,7 @@ const navOpen = ref(false);
 const navTrigger = ref<HTMLButtonElement | null>(null);
 const accountTrigger = ref<HTMLButtonElement | null>(null);
 const lanAccessDialogOpen = ref(false);
+const preferencesDialogOpen = ref(false);
 const route = useRoute();
 const router = useRouter();
 const {
@@ -209,6 +214,13 @@ function openRuntimeSettings(): void {
     name: "runtime-settings",
     query: { returnTo: route.fullPath },
   });
+}
+
+async function openPreferencesDialog(): Promise<void> {
+  closeAccountMenu();
+  await nextTick();
+  accountTrigger.value?.focus();
+  preferencesDialogOpen.value = true;
 }
 
 async function openLanAccessDialog(): Promise<void> {

@@ -444,6 +444,7 @@ function rowClass(row: PreviewRow): string | undefined {
 
   input {
     margin: 0;
+    accent-color: var(--color-accent);
   }
 }
 </style>

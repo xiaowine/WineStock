@@ -91,18 +91,20 @@
           <div v-else-if="step === 'consent'" key="consent" class="setup-wizard__step">
             <div class="setup-wizard__head">
               <h1 id="setup-wizard-title">帮助改进 WineStock</h1>
-              <p>是否发送匿名使用数据，帮助我们了解功能的使用情况。</p>
+              <p>发送匿名使用数据，帮助开发者定位和排查问题。</p>
             </div>
             <div>
-              <label class="setup-consent">
+              <label class="consent-toggle">
                 <input v-model="telemetryConsent" type="checkbox" name="telemetry-consent" />
-                <span class="setup-consent__copy">
+                <span class="consent-toggle__copy">
                   <strong>发送匿名使用数据</strong>
-                  <small>不包含库存内容与账户信息，仅在联网时生效。</small>
+                  <small
+                    >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。</small
+                  >
                 </span>
               </label>
               <p class="auth-runtime-note setup-wizard__consent-note">
-                默认关闭，可随时在设置中更改。
+                默认关闭，可随时在「偏好设置」中更改。
               </p>
             </div>
           </div>
@@ -156,6 +158,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import FormInput from "../components/forms/FormInput.vue";
+import { startTelemetryIfConsented } from "../telemetry/clarity";
 import { saveTelemetryConsent } from "../telemetry/consent";
 import type { EditableRuntimeConfig } from "../shell/contract";
 import { applyRuntimeConfig, runtimeSnapshot, validateRuntimeConfig } from "../shell/runtime";
@@ -225,6 +228,8 @@ function goForward(): void {
   }
   if (step.value === "consent") {
     saveTelemetryConsent(telemetryConsent.value);
+    // 同意即从当前会话开始采集，不必等下次冷启动；未勾选时为空操作。
+    startTelemetryIfConsented();
     void applyConfiguration();
   }
 }

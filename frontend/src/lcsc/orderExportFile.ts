@@ -1,5 +1,7 @@
 // 本文件拥有立创订单导出文件的读取入口：动态加载 SheetJS，把 .xls 工作簿
 // 转成行数组后交给 orderExport.ts 的纯解析逻辑；不做物品匹配与草稿写入。
+// 解析失败在此唯一入口记排查事件——立创改导出格式时开发者能第一时间发现。
+import { trackTelemetryIssue } from "../telemetry/clarity";
 import {
   parseLcscOrderSheets,
   type LcscOrderParseResult,
@@ -11,6 +13,12 @@ import {
  * SheetJS 体积较大，这里按需动态加载，避免进入主包。
  */
 export async function parseLcscOrderFile(file: File): Promise<LcscOrderParseResult> {
+  const result = await readAndParse(file);
+  if (!result.ok) trackTelemetryIssue("lcsc_order_parse_failed");
+  return result;
+}
+
+async function readAndParse(file: File): Promise<LcscOrderParseResult> {
   let workbook: import("xlsx").WorkBook;
   try {
     const XLSX = await import("xlsx");

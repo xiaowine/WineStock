@@ -14,6 +14,14 @@
       {{ logoutError }}
     </p>
     <button
+      class="secondary-button account-popover__preferences"
+      type="button"
+      :disabled="isLoggingOut"
+      @click="emit('preferences')"
+    >
+      偏好设置
+    </button>
+    <button
       class="secondary-button account-popover__settings"
       type="button"
       :disabled="isLoggingOut"
@@ -70,6 +78,8 @@ withDefaults(
 );
 
 const emit = defineEmits<{
+  /** 打开本机偏好设置 Dialog（数据收集，后续语言/主题）。 */
+  preferences: [];
   /** 打开当前设备独立于业务服务的运行设置。 */
   runtimeSettings: [];
   /** 打开当前设备的局域网连接地址。 */

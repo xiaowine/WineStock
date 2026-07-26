@@ -27,7 +27,7 @@
         ref="cameraView"
         :active="open"
         @detect="emit('detect', $event)"
-        @error="cameraError = $event"
+        @error="handleCameraError"
         @hint="internalStatus = $event"
       />
 
@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { decodeQrImage } from "../../barcode/decoder";
+import { trackTelemetryIssue } from "../../telemetry/clarity";
 import ModalDialog from "../ModalDialog.vue";
 import BarcodeCameraView from "./BarcodeCameraView.vue";
 
@@ -145,6 +146,12 @@ watch(
   },
   { immediate: true },
 );
+
+/** 摄像头初始化/取流失败几乎无法本地复现，记排查事件；同一次打开只记首个错误。 */
+function handleCameraError(message: string): void {
+  if (!cameraError.value && message) trackTelemetryIssue("scan_camera_error");
+  cameraError.value = message;
+}
 
 function handleCycleCamera(event: MouseEvent): void {
   (event.currentTarget as HTMLElement | null)?.blur();

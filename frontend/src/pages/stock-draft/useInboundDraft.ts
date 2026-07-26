@@ -8,6 +8,7 @@ import { useInboundDraftPersistence } from "../../composables/useInboundDraftPer
 import type { LcscBagCode } from "../../lcsc/bagCode";
 import type { LcscOrderImportPayload } from "../../components/stock-draft/LcscOrderImportDialog.vue";
 import { notice } from "../../notices/notice";
+import { trackTelemetryEvent, trackTelemetryIssue } from "../../telemetry/clarity";
 import { authSession } from "../../auth/session";
 import { hasPermission, stockPermissions } from "../../auth/permissions";
 import {
@@ -218,9 +219,12 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
       } else {
         notice.success("入库单已提交", { detail: `单号 #${created.id} 已进入待审批状态。` });
       }
+      trackTelemetryEvent("inbound_submitted");
       clearDraft();
       return "close";
     } catch (error) {
+      // 走到这里说明前端校验全过仍被拒（契约或服务端问题），正是要抓的排查场景。
+      trackTelemetryIssue("inbound_submit_failed");
       const message = inboundSubmitErrorMessage(error);
       const errorLine = backendErrorLine(error);
       if (error instanceof ApiError && error.code === "item_not_found" && errorLine) {
@@ -336,6 +340,7 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     }
     orderImportOpen.value = false;
     if (added > 0) {
+      trackTelemetryEvent("lcsc_order_imported");
       notice.success(`已导入 ${added} 条入库明细`, { detail: "请逐条补齐库位后提交。" });
     } else {
       notice.info("没有新的明细需要导入");
