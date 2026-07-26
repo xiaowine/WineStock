@@ -1,19 +1,22 @@
 # 启动漏斗：运行设置优先于认证
 
 > 已实施基线。与 `routes.md`、`page-runtime-settings.md`、`auth-logout-and-route-guards.md` 一致。
+> 2026-07-27 起首次未配置状态改由初始化向导 `/setup` 接管（见
+> [`../../../docs/implementation-notes/first-run-setup-wizard.md`](../../../docs/implementation-notes/first-run-setup-wizard.md)）；
+> 本文其余规则不变，运行设置页继续承担 `invalid`/服务未就绪修复与登录后维护入口。
 
 ## 目标
 
-界面顺序：**运行设置 → `/auth` → 注册/登录 → 业务**。
+界面顺序：**首次 `/setup` 向导（或运行设置） → `/auth` → 注册/登录 → 业务**。
 
 首次先确认连哪个服务，再由 Shell 激活配置，最后进入认证。
 
 ## 双判定
 
-| 函数 | 含义 |
-| --- | --- |
-| `isRuntimeServiceReady` | `configured` + 有效 `apiBaseUrl`，只描述 HTTP 地址是否就绪 |
-| `isRuntimeSetupFinished` | 上式 **且** Shell `initialized === true` |
+| 函数                     | 含义                                                       |
+| ------------------------ | ---------------------------------------------------------- |
+| `isRuntimeServiceReady`  | `configured` + 有效 `apiBaseUrl`，只描述 HTTP 地址是否就绪 |
+| `isRuntimeSetupFinished` | 上式 **且** Shell `initialized === true`                   |
 
 守卫只看 **`runtimeSetupFinished`**。
 
@@ -29,35 +32,37 @@
 
 ## 路由参数
 
-| 参数 | 路由 | 含义 |
-| --- | --- | --- |
-| `returnTo` | `/settings/runtime` | 离开设置后的目标 |
-| `redirect` | `/auth`、`/login` 等 | 登录后业务目标 |
+| 参数       | 路由                 | 含义             |
+| ---------- | -------------------- | ---------------- |
+| `returnTo` | `/settings/runtime`  | 离开设置后的目标 |
+| `redirect` | `/auth`、`/login` 等 | 登录后业务目标   |
 
 `returnTo` 为业务路径 → 作为 `redirect`；为认证路径 → 提取其内嵌 `redirect`；设置页或非法 → 丢弃。
 
 ## 守卫顺序
 
-1. `requiresService === false` → 放行  
-2. `!runtimeSetupFinished` → 运行设置 + `returnTo`  
-3. 会话初始化 → 匿名/已认证、强制改密、权限  
+0. 目标是 `/setup` 且 `runtimeSetupFinished` → 业务默认页（初始化完成后不再进向导）
+1. `requiresService === false` → 放行
+2. `!runtimeSetupFinished` → `shouldEnterSetupWizard`（`unconfigured` 且未初始化）？
+   `/setup` 向导 : 运行设置 + `returnTo`
+3. 会话初始化 → 匿名/已认证、强制改密、权限
 
 ## 代码锚点
 
-| 位置 | 职责 |
-| --- | --- |
-| `shell/runtimeReadiness.ts` | 纯判定 |
-| `shell/runtime.ts` | `runtimeSetupFinished` |
-| `router/guards.ts` | 设置完成门禁 |
-| `pages/runtime-settings/leave.ts` | 离开目标与 redirect 桥接 |
-| `pages/RuntimeSettingsPage.vue` | 保存确认、自动前进 |
+| 位置                              | 职责                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `shell/runtimeReadiness.ts`       | 纯判定                                                                   |
+| `shell/runtime.ts`                | `runtimeSetupFinished`                                                   |
+| `router/guards.ts`                | 设置完成门禁                                                             |
+| `pages/runtime-settings/leave.ts` | 离开目标与 redirect 桥接                                                 |
+| `pages/RuntimeSettingsPage.vue`   | 保存确认、自动前进                                                       |
 | Android `LocalCoreRuntimeManager` | missing 时不启服；apply 成功后启服/切远端、落盘并发布 `initialized=true` |
-| `tests/runtimeFunnel.test.mjs` | 纯逻辑单测 |
+| `tests/runtimeFunnel.test.mjs`    | 纯逻辑单测                                                               |
 
 ## 验收要点
 
 1. 无配置 / `initialized=false` → 强制设置页（默认「在本机使用」），本地 core 保持 stopped。
 2. 未保存杀进程再进 → 仍是设置页，不进登录，也没有配置文件。
 3. 点「保存设置」→ Shell 启动本地 core 或选择远端；成功后 `initialized=true` 并落盘 → `/auth`。
-4. 已确认 + 未登录 → `/auth`，不强制设置。  
-5. 匿名离开设置不直达 `/login`。  
+4. 已确认 + 未登录 → `/auth`，不强制设置。
+5. 匿名离开设置不直达 `/login`。

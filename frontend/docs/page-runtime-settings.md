@@ -26,6 +26,7 @@
 - 连接远程服务：编辑完整 HTTP/HTTPS API 根地址，本设备不管理本地服务。
 - 局域网服务器：本机启动服务并允许其它设备连接，继续编辑固定端口和监听地址；是否可选由 Shell capability 决定。
 - Android 上“局域网服务器”会明确显示当前只能使用本机 `127.0.0.1` 的原因，不会伪装成普通禁用态。
+- 纯网页端（快照 `platform === "web"`）只有连接远程服务一种能力：“本机运行”和“局域网服务器”均禁用并显示“浏览器无法在本机启动服务”的原因；本机类持久配置在进入页面时被动纠正为远端草稿（须保存才生效）。与初始化向导在 web 下跳过使用方式页的语义一致（见 `docs/implementation-notes/first-run-setup-wizard.md`）。
 
 `bindHost`、`port` 和 `remoteBaseUrl` 形成可编辑 DTO。自动启动不是配置项：本地模式在配置 initialized 后由 Shell
 固定映射为 `auto_start_server = true`，首次缺少配置时等待 apply；远端模式不启动本地服务。前端不读写平台配置文件，

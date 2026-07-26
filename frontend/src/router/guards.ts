@@ -8,7 +8,7 @@ import {
   ensureAuthSessionInitialized,
   isLoggingOut,
 } from "../auth/session";
-import { runtimeSetupFinished } from "../shell/runtime";
+import { runtimeSetupFinished, runtimeSnapshot, shouldEnterSetupWizard } from "../shell/runtime";
 import { getDefaultAppRouteName } from "./navigation";
 
 let guardsInstalled = false;
@@ -21,13 +21,19 @@ export function installAuthGuards(router: Router): void {
   guardsInstalled = true;
 
   router.beforeEach(async (to) => {
-    // 1. 运行设置等无服务依赖路由直接放行。
+    // 0. 初始化已完成后不再允许进入向导，重定向到业务默认页。
+    if (to.name === "setup-wizard" && runtimeSetupFinished.value) {
+      return { name: getDefaultAppRouteName(authSession.value?.user.permissions) };
+    }
+    // 1. 向导、运行设置等无服务依赖路由直接放行。
     if (to.meta.requiresService === false) {
       return;
     }
-    // 2. Shell 尚未初始化配置或没有服务地址时先进入运行设置。
+    // 2. 首次未配置进入初始化向导；invalid 与其余未就绪状态维持运行设置修复路径。
     if (!runtimeSetupFinished.value) {
-      return createRuntimeSettingsRedirect(to.fullPath);
+      return shouldEnterSetupWizard(runtimeSnapshot.value)
+        ? { name: "setup-wizard" }
+        : createRuntimeSettingsRedirect(to.fullPath);
     }
 
     // 3. 会话初始化后再执行匿名/已认证与强制改密规则。

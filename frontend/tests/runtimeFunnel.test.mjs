@@ -18,7 +18,7 @@ async function loadModule(relativePath) {
   return import(moduleUrl);
 }
 
-const { isRuntimeServiceReady, isRuntimeSetupFinished } = await loadModule(
+const { isRuntimeServiceReady, isRuntimeSetupFinished, shouldEnterSetupWizard } = await loadModule(
   "../src/shell/runtimeReadiness.ts",
 );
 const { bridgeReturnToToAuthRedirect, isSafeInternalPath, resolveRuntimeSettingsLeave } =
@@ -73,6 +73,25 @@ test("uninitialized Shell snapshot stays in setup even if it exposes an API", ()
   assert.equal(isRuntimeSetupFinished(uninitialized), false);
   const afterApply = snapshot({ initialized: true });
   assert.equal(isRuntimeSetupFinished(afterApply), true);
+});
+
+test("setup wizard only serves the unconfigured uninitialized state", () => {
+  assert.equal(
+    shouldEnterSetupWizard(
+      snapshot({ configStatus: "unconfigured", initialized: false, service: {} }),
+    ),
+    true,
+  );
+  // invalid（配置损坏）走运行设置修复路径，不进向导。
+  assert.equal(
+    shouldEnterSetupWizard(snapshot({ configStatus: "invalid", initialized: false, service: {} })),
+    false,
+  );
+  // 已配置但服务未就绪同样维持运行设置页。
+  assert.equal(shouldEnterSetupWizard(snapshot({ initialized: true })), false);
+  // 快照缺失（Shell Bridge 初始化失败）由运行设置页呈现错误。
+  assert.equal(shouldEnterSetupWizard(null), false);
+  assert.equal(shouldEnterSetupWizard(undefined), false);
 });
 
 test("safe internal path rejects external-looking values", () => {

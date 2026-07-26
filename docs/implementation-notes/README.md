@@ -22,3 +22,5 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `openapi-frontend-typegen.md`：core Debug OpenAPI 离线导出、前端 openapi-typescript 类型生成、别名桥接与漂移防线的跨 core/frontend 实施方案。
 - `code-map-granularity-reduction.md`：代码地图从逐文件镜像收敛为模块/职责粒度的约定、逐地图整改与流程规则同步方案。
 - `inbound-template-removal.md`：删除入库模板概念的跨 core/frontend 影响评估、收货属性去留的方案取舍与实施决策记录（已按方案 B 实施）。
+- `shell-aware-service-availability.md`：前端服务可用性按 ownership 分层、Shell phase 权威信号 + HTTP 看门狗、本地故障自动恢复与去抖的跨 frontend/各 Shell 实施方案（已实施，真机验收待做）。
+- `first-run-setup-wizard.md`：首次启动漏斗从运行设置页迁移到初始化向导的页面结构、文案定稿、守卫分流、数据收集偏好与 UI 实现约束（已实施；含纯网页端单能力跳页/运行设置页 web 限制）。

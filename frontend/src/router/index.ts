@@ -100,6 +100,16 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    path: "/setup",
+    name: "setup-wizard",
+    component: () => import("../pages/SetupWizardPage.vue"),
+    meta: {
+      title: "欢迎使用 WineStock",
+      requiresAuth: false,
+      requiresService: false,
+    },
+  },
+  {
     path: "/settings/runtime",
     name: "runtime-settings",
     component: () => import("../pages/RuntimeSettingsPage.vue"),

@@ -40,3 +40,15 @@ export function isRuntimeSetupFinished(
   }
   return isRuntimeServiceReady(snapshot);
 }
+
+/**
+ * 首次未配置状态是否应进入初始化向导。
+ * 仅 `unconfigured` 且未初始化走向导；`invalid`（配置损坏）、已配置但服务未就绪
+ * 以及快照缺失（Shell Bridge 初始化失败）都维持运行设置页修复路径。
+ * 设计见 docs/implementation-notes/first-run-setup-wizard.md。
+ */
+export function shouldEnterSetupWizard(
+  snapshot: RuntimeReadinessSnapshot | null | undefined,
+): boolean {
+  return Boolean(snapshot && snapshot.configStatus === "unconfigured" && !snapshot.initialized);
+}

@@ -31,7 +31,11 @@ import {
 } from "./contract";
 import { isRuntimeSetupFinished as isRuntimeSetupFinishedSnapshot } from "./runtimeReadiness";
 
-export { isRuntimeServiceReady, isRuntimeSetupFinished } from "./runtimeReadiness";
+export {
+  isRuntimeServiceReady,
+  isRuntimeSetupFinished,
+  shouldEnterSetupWizard,
+} from "./runtimeReadiness";
 
 /** 前端读取 Shell 初始快照的状态。 */
 export type ShellRuntimeStatus = "idle" | "loading" | "ready" | "failed";

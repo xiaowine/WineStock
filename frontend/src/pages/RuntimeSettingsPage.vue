@@ -271,6 +271,8 @@ const lanAccessDialogOpen = ref(false);
 useFormValidation(fieldErrors);
 
 const snapshot = computed(() => runtimeSnapshot.value);
+/** 纯网页端只有连接远程服务一种能力：本机/局域网服务器模式禁用，草稿被动纠正为远端。 */
+const isPureWebPlatform = computed(() => snapshot.value?.platform === "web");
 const remoteMode = computed(() => isRemoteRuntimeMode(draft.value.mode));
 const serverMode = computed(() => draft.value.mode === "server-mode");
 const activeAddress = computed(() => snapshot.value?.service.apiBaseUrl ?? "");
@@ -317,6 +319,9 @@ const bindHostHint = computed(() =>
   serverMode.value ? "默认值适用于大多数局域网环境。" : "本机模式固定为 127.0.0.1。",
 );
 const serverModeDisabledReason = computed(() => {
+  if (isPureWebPlatform.value) {
+    return "浏览器无法在本机启动服务，不能作为局域网服务器。";
+  }
   if (snapshot.value?.capabilities.serverMode) return "";
   if (snapshot.value?.platform === "android") {
     return "Android 当前只支持本机 127.0.0.1，自身不能作为局域网服务器。";
@@ -341,7 +346,8 @@ const modeOptions = computed(() => [
     label: "在本机使用",
     description: "适合只在这台设备上使用。",
     selected: draft.value.mode === "self-hosted",
-    disabled: false,
+    disabled: isPureWebPlatform.value,
+    disabledReason: isPureWebPlatform.value ? "浏览器无法在本机启动服务，请连接已有服务器。" : "",
   },
   {
     value: "client-only" as const,
@@ -349,13 +355,14 @@ const modeOptions = computed(() => [
     description: "输入另一台 WineStock 服务器的地址。",
     selected: remoteMode.value,
     disabled: false,
+    disabledReason: "",
   },
   {
     value: "server-mode" as const,
     label: "允许其他设备连接",
     description: "让同一网络中的设备使用这台设备的数据。",
     selected: serverMode.value,
-    disabled: !(snapshot.value?.capabilities.serverMode ?? false),
+    disabled: isPureWebPlatform.value || !(snapshot.value?.capabilities.serverMode ?? false),
     disabledReason: serverModeDisabledReason.value,
   },
 ]);
@@ -393,7 +400,8 @@ const confirmationDetail = computed(() =>
 watch(
   runtimeSnapshot,
   (next) => {
-    if (next && !applying.value) draft.value = cloneRuntimeConfig(next.config);
+    if (next && !applying.value)
+      draft.value = coerceDraftForPlatform(cloneRuntimeConfig(next.config));
   },
   { immediate: true },
 );
@@ -419,9 +427,17 @@ function changeMode(mode: RuntimeMode): void {
 
 function restoreDraft(): void {
   if (!snapshot.value) return;
-  draft.value = cloneRuntimeConfig(snapshot.value.config);
+  draft.value = coerceDraftForPlatform(cloneRuntimeConfig(snapshot.value.config));
   fieldErrors.value = {};
   pageError.value = "";
+}
+
+/** 纯网页端把本机类草稿纠正为远端；平台 shell 内原样返回。 */
+function coerceDraftForPlatform(config: EditableRuntimeConfig): EditableRuntimeConfig {
+  if (isPureWebPlatform.value && !isRemoteRuntimeMode(config.mode)) {
+    return applyRuntimeModeDefaults(config, "client-only");
+  }
+  return config;
 }
 
 async function requestApply(): Promise<void> {
