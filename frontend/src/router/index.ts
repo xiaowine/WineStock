@@ -31,7 +31,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: "inbound",
         name: "inbound",
-        component: () => import("../pages/InboundDraftPage.vue"),
+        component: () => import("../pages/StockDraftPage.vue"),
+        props: { kind: "inbound" },
         meta: getAppRouteMeta("inbound"),
       },
       {
@@ -43,7 +44,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: "outbound",
         name: "outbound",
-        component: () => import("../pages/OutboundDraftPage.vue"),
+        component: () => import("../pages/StockDraftPage.vue"),
+        props: { kind: "outbound" },
         meta: getAppRouteMeta("outbound"),
       },
       {

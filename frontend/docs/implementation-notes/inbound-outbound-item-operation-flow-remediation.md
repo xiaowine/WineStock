@@ -2,6 +2,7 @@
 
 > 方案状态：已实施（前端工作流与视觉整改已落地）
 > 2026-07-26 更新：入库模板与收货属性（ext_attributes）已整体移除，本文涉及入库模板/推荐链的章节仅作历史记录。
+> 2026-07-26 更新：两个草稿页已合并为 `StockDraftPage` + `components/stock-draft/` 工作台壳，文中的 `InboundDraftPage.vue`、`OutboundDraftPage.vue`、`InboundDraftStep.vue` 为历史文件名。
 > 适用范围：/inbound 新建入库、/outbound 新建出库
 > 不包含：入库单/出库单查询、审批工作台、库存扣减算法、Shell Bridge 和运行模式
 

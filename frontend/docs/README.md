@@ -39,6 +39,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `mobile-interactions.md`：浏览器/Android WebView 安全区变量、full-bleed 背景、固定操作区和移动端验收规则。
 - [`../../docs/in-app-image-viewer.md`](../../docs/in-app-image-viewer.md)：应用内图片查看（不管理系统栏）。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
+- `implementation-notes/stock-draft-merged-workspace.md`：出入库合并草稿工作台的结构、与旧页的对齐差异、验证结论与切换记录（已正式启用）。
 - `implementation-notes/outbound-estimated-cost.md`：新建出库提交前的批次成本预估、FIFO 分摊、界面呈现、错误边界与验收方案。
 - `implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切的原因、单列条目重构、Dialog 适配与验收方案。
 - `implementation-notes/substitute-network-visualization.md`：替代关系星链网络的入口、力导向布局、交互、响应式、性能和分阶段实施方案。

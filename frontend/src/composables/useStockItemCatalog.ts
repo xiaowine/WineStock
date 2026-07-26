@@ -1,11 +1,11 @@
-// 本文件拥有入库工作台物品目录的搜索、取消、分页合并和滚动触底状态；它不管理入库明细。
+// 本文件拥有出入库草稿工作台物品目录的搜索、取消、分页合并和滚动触底状态；它不管理草稿明细。
 import { computed, onBeforeUnmount, ref } from "vue";
 import { listItemOptions, type ItemOptionResponse } from "../api/items";
 
 const pageSize = 50;
 
 /** 服务端分页物品目录。 */
-export function useInboundItemCatalog(errorMessage: (error: unknown) => string) {
+export function useStockItemCatalog(errorMessage: (error: unknown) => string) {
   const items = ref<ItemOptionResponse[]>([]);
   const totalItems = ref(0);
   const currentPage = ref(0);

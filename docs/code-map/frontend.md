@@ -53,8 +53,9 @@
 - 认证：`AuthEntryPage`/`LoginPage`/`RegisterPage`/`ChangePasswordPage`；首用户 bootstrap 状态按 API 根地址缓存，强制改密与安全回跳由守卫协同。
 - 看板：`DashboardPage` 与原生 SVG 出入库趋势图组件。
 - 物品：`ItemsPage` 服务端筛选目录与多页详情 Dialog、立创查询 Dialog（确认后覆盖回填草稿）、目录筛选与列表展示字段维护；读写入口按 `stock.item.read`/`stock.item.manage` 区分。
-- 入库：`InboundDraftPage` 单物品串行工作台（固定明细字段、版本化草稿）、`InboundOrdersPage` 单据列表，`components/inbound/` 明细编辑器、复核区、筛选与列表件。
-- 出库：`OutboundDraftPage` 串行工作台（FIFO/指定批次、成本预估、版本化草稿）、`OutboundOrdersPage` 单据列表与 `components/outbound/` 筛选件。
+- 出入库草稿：`/inbound` 与 `/outbound` 共用 `StockDraftPage`，按路由 kind 装配 `components/stock-draft/` 泛型工作台壳与出库分配编辑器；`pages/stock-draft/` 拥有壳契约、两域装配与域样式，行模型/持久化沿用 `pages/inbound-draft/`、`pages/outbound-draft/` 与对应 composable，入库行编辑复用 `components/inbound/InboundLineEditor`。
+- 入库单据：`InboundOrdersPage` 单据列表，`components/inbound/` 行编辑器、筛选与列表件。
+- 出库单据：`OutboundOrdersPage` 单据列表与 `components/outbound/` 筛选件。
 - 审批：两个薄审批路由页与 `pages/approvals/catalog.ts` 领域目录，共同挂载 `components/approvals/StockApprovalWorkspace`（请求与队列协调集中于此）。
 - 模板：`TemplatesPage` 分类/物品属性模板双资源工作区，`components/templates/` 字段编辑、复制与两类差异化删除确认。
 - 库位：`LocationsPage` 与 `components/locations/` 最多十层分组树、库位 CRUD 与删除确认。

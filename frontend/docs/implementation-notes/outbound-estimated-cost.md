@@ -1,5 +1,7 @@
 # 新建出库预计成本统计实施方案
 
+> 2026-07-26 更新：出库草稿页已并入 `StockDraftPage`，本文的成本估算逻辑现位于 `pages/stock-draft/useOutboundDraft.ts`；文中 `OutboundDraftPage.vue` 为历史文件名。
+
 ## 结论与范围
 
 `/outbound` 需要补充的是提交前的**预计出库成本**，与 `/inbound` 的“预计金额”同属前端草稿统计：用户填写数量、选择 FIFO 或指定批次后，页面基于当前批次库存快照估算本次出库的成本。

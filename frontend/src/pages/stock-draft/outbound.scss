@@ -1,5 +1,5 @@
-/* 新建出库工作台：单据基础信息、已配置明细和单物品选择/编辑弹窗。 */
-@use "../styles/foundation/mixins" as mixins;
+/* 出入库草稿工作台的出库域样式（类名沿用 outbound-* 前缀）：明细单元格、分配编辑与成本呈现。 */
+@use "../../styles/foundation/mixins" as mixins;
 
 .outbound-draft-page {
   min-height: 0;

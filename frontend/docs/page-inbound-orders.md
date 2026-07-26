@@ -1,6 +1,6 @@
 # 入库单页面实施设计
 
-本文定义 `/inbound/orders`“入库单”页面的实施方案。它负责查询、筛选和查看已创建的入库单；新建入库仍属于 [`/inbound`](../src/pages/InboundDraftPage.vue) 工作台，审批或拒绝仍属于 `/approvals/inbound`。页面不复制新建草稿、审批写入或库存调整逻辑。
+本文定义 `/inbound/orders`“入库单”页面的实施方案。它负责查询、筛选和查看已创建的入库单；新建入库仍属于 [`/inbound`](../src/pages/StockDraftPage.vue) 工作台，审批或拒绝仍属于 `/approvals/inbound`。页面不复制新建草稿、审批写入或库存调整逻辑。
 
 当前状态：已实现服务端分页协议下的触底追加、关键词/状态/日期筛选、按需详情和审批路由跳转；core 已补齐状态筛选契约。物品名称投影仍是后续扩展。
 

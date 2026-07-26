@@ -1,5 +1,5 @@
-/* 本文件拥有正式入库工作台的桌面与移动响应式布局；它不定义全局控件或其它业务页面样式。 */
-@use "../styles/foundation/mixins" as mixins;
+/* 出入库草稿工作台骨架与入库域样式（类名沿用 inbound-* 前缀）；它不定义全局控件或其它业务页面样式。 */
+@use "../../styles/foundation/mixins" as mixins;
 .inbound-draft-page {
   min-height: 0;
   gap: 12px;
