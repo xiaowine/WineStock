@@ -1,7 +1,14 @@
-// 本文件拥有 frontend 鉴权会话、启动恢复、refresh 轮换和登出用例；它不决定页面导航或平台生命周期。
-import { readonly, ref, shallowRef } from "vue";
-import { logout, refresh, type AuthTokenResponse, type AuthUserResponse } from "../api/auth";
+// 本文件拥有 frontend 鉴权会话、启动恢复、refresh 轮换、本机静默换取和登出用例；它不决定页面导航或平台生命周期。
+import { computed, readonly, ref, shallowRef } from "vue";
+import {
+  exchangeLocalSession,
+  logout,
+  refresh,
+  type AuthTokenResponse,
+  type AuthUserResponse,
+} from "../api/auth";
 import { ApiError } from "../api/errors";
+import { resolveApiClientMetadata } from "../api/runtime-config";
 import { runWithAuthSessionLock } from "./coordination";
 import {
   clearPersistedRefreshToken,
@@ -32,6 +39,7 @@ export interface AuthSession {
 const mutableAuthSession = shallowRef<AuthSession | null>(null);
 const mutableAuthStatus = ref<AuthStatus>("idle");
 const mutableIsLoggingOut = ref(false);
+const mutableLocalAuthExchangeToken = ref<string | undefined>(undefined);
 let initializationInFlight: Promise<AuthStatus> | null = null;
 let refreshInFlight: Promise<AuthSession | null> | null = null;
 let logoutInFlight: Promise<LogoutResult> | null = null;
@@ -46,6 +54,31 @@ export const authStatus = readonly(mutableAuthStatus);
 
 /** 只读登出进行状态，供所有平台入口防止重复提交。 */
 export const isLoggingOut = readonly(mutableIsLoggingOut);
+
+/**
+ * self-hosted 本机静默会话是否生效（壳内下发了换取凭据）。
+ * 该模式下界面隐藏账户身份与退出登录，会话失败走服务可用性错误呈现而非登录页。
+ */
+export const localSilentAuthActive = computed(
+  () => mutableLocalAuthExchangeToken.value !== undefined,
+);
+
+/**
+ * 由 Shell 快照写入当前换取凭据；仅 ownership=local 且 self-hosted 快照携带。
+ * core 重启后凭据更新，若会话正处于换取失败态则立即用新凭据重试。
+ */
+export function setLocalAuthExchangeToken(token: string | undefined): void {
+  const previous = mutableLocalAuthExchangeToken.value;
+  mutableLocalAuthExchangeToken.value = token;
+  if (
+    token !== undefined &&
+    token !== previous &&
+    mutableAuthStatus.value === "unavailable" &&
+    !mutableIsLoggingOut.value
+  ) {
+    void ensureAuthSessionInitialized();
+  }
+}
 
 /** 使用登录响应建立会话，并先持久化可供下次启动使用的 refresh token。 */
 export function establishAuthSession(response: AuthTokenResponse): void {
@@ -200,9 +233,12 @@ async function performInitialization(generation: number): Promise<AuthStatus> {
 
 async function performRefreshAndUpdateStatus(generation: number): Promise<AuthSession | null> {
   try {
-    const session = await runWithAuthSessionLock(() =>
+    let session = await runWithAuthSessionLock(() =>
       performRefreshWithLatestPersistedToken(generation),
     );
+    if (!session) {
+      session = await performLocalSilentExchange(generation);
+    }
     if (generation === runtimeGeneration && !mutableIsLoggingOut.value) {
       mutableAuthStatus.value = session ? "authenticated" : "anonymous";
     }
@@ -210,6 +246,42 @@ async function performRefreshAndUpdateStatus(generation: number): Promise<AuthSe
   } catch (error) {
     if (generation === runtimeGeneration && !mutableIsLoggingOut.value) {
       mutableAuthStatus.value = "unavailable";
+    }
+    throw error;
+  }
+}
+
+/**
+ * refresh 无法恢复会话时，用壳内换取凭据静默建立本机会话。
+ * 返回 null 表示当前不适用静默换取（无凭据，或服务端未配置换取目标——存量库未转换
+ * 与纯浏览器场景），调用方按普通匿名处理并进入登录流程。
+ * 其余失败（凭据不匹配、网络异常）抛出，由上层落入 unavailable，
+ * 经服务可用性覆盖层提示并在 core 重启/健康恢复后自动重试——本地静默模式不回落登录页。
+ */
+async function performLocalSilentExchange(generation: number): Promise<AuthSession | null> {
+  const exchangeToken = mutableLocalAuthExchangeToken.value;
+  if (exchangeToken === undefined || mutableIsLoggingOut.value) {
+    return null;
+  }
+
+  const metadata = resolveApiClientMetadata();
+  try {
+    const response = await exchangeLocalSession({
+      exchange_token: exchangeToken,
+      device_name: metadata.deviceName,
+      client_kind: metadata.clientKind,
+      version: metadata.appVersion,
+    });
+    if (generation !== runtimeGeneration) {
+      return null;
+    }
+    persistRefreshToken(response.refresh_token);
+    const session = toAuthSession(response);
+    mutableAuthSession.value = session;
+    return session;
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "local_session_unavailable") {
+      return null;
     }
     throw error;
   }

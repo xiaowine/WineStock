@@ -207,6 +207,58 @@
       </template>
     </ModalDialog>
 
+    <ModalDialog
+      :open="passwordGateOpen"
+      title="先设置管理员密码"
+      description="开放给其他设备连接前，需要为本机管理员 admin 设置一个真实密码；其他设备将用它登录。"
+      :busy="gateSubmitting"
+      compact
+      @close="closePasswordGate"
+    >
+      <FormInput
+        v-model="gatePassword"
+        label="管理员密码"
+        validation-key="gatePassword"
+        :error="gateFieldError"
+        hint="至少 8 个字符。"
+        name="simple_runtime_gate_password"
+        type="password"
+        autocomplete="new-password"
+        :disabled="gateSubmitting"
+        required
+      />
+      <FormInput
+        v-model="gatePasswordConfirm"
+        label="确认密码"
+        validation-key="gatePasswordConfirm"
+        :error="gateConfirmError"
+        name="simple_runtime_gate_password_confirm"
+        type="password"
+        autocomplete="new-password"
+        :disabled="gateSubmitting"
+        required
+      />
+      <p v-if="gateError" class="form-error" role="alert">{{ gateError }}</p>
+      <template #actions>
+        <button
+          class="secondary-button"
+          type="button"
+          :disabled="gateSubmitting"
+          @click="closePasswordGate"
+        >
+          取消
+        </button>
+        <button
+          class="primary-button"
+          type="button"
+          :disabled="gateSubmitting"
+          @click="submitPasswordGate"
+        >
+          {{ gateSubmitting ? "正在设置…" : "设置并继续" }}
+        </button>
+      </template>
+    </ModalDialog>
+
     <LanAccessDialog
       :open="lanAccessDialogOpen"
       :urls="lanAccessUrls"
@@ -218,7 +270,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { authSession, authStatus } from "../auth/session";
+import { changeOwnPassword, getLocalSessionStatus } from "../api/auth";
+import { authSession, authStatus, localSilentAuthActive } from "../auth/session";
 import FormInput from "../components/forms/FormInput.vue";
 import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import ModalDialog from "../components/ModalDialog.vue";
@@ -268,6 +321,13 @@ const remoteTestMessage = ref("");
 const remoteTestTone = ref<TestTone>("warning");
 const confirmationOpen = ref(false);
 const lanAccessDialogOpen = ref(false);
+const passwordGateOpen = ref(false);
+const gatePassword = ref("");
+const gatePasswordConfirm = ref("");
+const gateSubmitting = ref(false);
+const gateError = ref("");
+const gateFieldError = ref("");
+const gateConfirmError = ref("");
 useFormValidation(fieldErrors);
 
 const snapshot = computed(() => runtimeSnapshot.value);
@@ -445,11 +505,74 @@ async function requestApply(): Promise<void> {
   const validation = await validateRuntimeConfig(draft.value);
   fieldErrors.value = validation.fieldErrors;
   if (!validation.valid) return;
+  const gate = await resolveLocalAdminPasswordGate();
+  if (gate === "blocked") return;
+  if (gate === "required") {
+    openPasswordGate();
+    return;
+  }
   if (endpointChanging.value || modeChanging.value || enablingLanAccess.value) {
     confirmationOpen.value = true;
     return;
   }
   await executeApply();
+}
+
+/**
+ * 本机静默免登录切到 server-mode 前的强制设密门：
+ * 管理员密码仍为自动开通的随机占位值时，先设真实密码，否则局域网端无人能登录。
+ * 状态查询失败时阻止提交并提示，避免带着占位密码开放局域网。
+ */
+async function resolveLocalAdminPasswordGate(): Promise<"pass" | "required" | "blocked"> {
+  if (
+    draft.value.mode !== "server-mode" ||
+    !localSilentAuthActive.value ||
+    authStatus.value !== "authenticated"
+  ) {
+    return "pass";
+  }
+  try {
+    return (await getLocalSessionStatus()).password_placeholder ? "required" : "pass";
+  } catch {
+    pageError.value = "无法确认本机管理员密码状态，请稍后重试";
+    notice.error("设置保存失败", { detail: pageError.value });
+    return "blocked";
+  }
+}
+
+function openPasswordGate(): void {
+  gatePassword.value = "";
+  gatePasswordConfirm.value = "";
+  gateError.value = "";
+  gateFieldError.value = "";
+  gateConfirmError.value = "";
+  passwordGateOpen.value = true;
+}
+
+function closePasswordGate(): void {
+  if (gateSubmitting.value) return;
+  passwordGateOpen.value = false;
+}
+
+/** 占位态免旧密码设置真实密码；成功后回到正常的确认与保存流程。 */
+async function submitPasswordGate(): Promise<void> {
+  gateFieldError.value = gatePassword.value.length < 8 ? "密码至少需要 8 个字符" : "";
+  gateConfirmError.value =
+    gatePassword.value === gatePasswordConfirm.value ? "" : "两次输入的密码不一致";
+  if (gateFieldError.value || gateConfirmError.value) return;
+
+  gateSubmitting.value = true;
+  gateError.value = "";
+  try {
+    await changeOwnPassword({ current_password: "", new_password: gatePassword.value });
+    passwordGateOpen.value = false;
+    notice.success("管理员密码已设置");
+    confirmationOpen.value = true;
+  } catch (error) {
+    gateError.value = error instanceof Error ? error.message : "密码设置失败，请重试";
+  } finally {
+    gateSubmitting.value = false;
+  }
 }
 
 async function applyConfirmed(): Promise<void> {

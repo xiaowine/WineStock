@@ -11,6 +11,17 @@
 - 服务不可用覆盖层不得遮挡本页。
 - 首次未初始化时不要求或伪造 `apiBaseUrl`；Shell 只提供默认表单草稿，用户 apply 后才发布实际地址。
 
+## server-mode 强制设密门
+
+本机静默免登录会话（`localSilentAuthActive`）下把运行方式切到「局域网服务器」提交时：
+
+- 先经已鉴权接口 `GET /api/auth/local-session/status` 查询占位密码标记；
+- 仍为占位（自动开通的随机密码，无人可输）时弹出「先设置管理员密码」Dialog，
+  经免旧密码通道 `POST /api/auth/me/password`（`current_password` 留空）设置真实密码后
+  才回到正常的确认与保存流程；取消 Dialog 则本次不保存。
+- 状态查询失败时阻止提交并提示，避免带着占位密码开放局域网（届时局域网端无人能登录）。
+- 设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
+
 ## 启动漏斗中的位置
 
 界面顺序为：**运行设置 → 统一认证入口 `/auth` → 注册/登录 → 业务**。

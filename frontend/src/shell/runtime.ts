@@ -3,7 +3,7 @@ import { computed, readonly, ref, shallowRef } from "vue";
 import { apiClient } from "../api/client";
 import { resetAuthBootstrapStatus } from "../api/auth";
 import { configureRuntimeApiBaseUrl } from "../api/runtime-config";
-import { resetAuthSessionForRuntimeChange } from "../auth/session";
+import { resetAuthSessionForRuntimeChange, setLocalAuthExchangeToken } from "../auth/session";
 import {
   applyShellServiceStateSignal,
   resetServiceAvailabilityForRuntimeChange,
@@ -237,6 +237,12 @@ function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): 
     resetServiceAvailabilityForRuntimeChange();
   }
   mutableRuntimeSnapshot.value = nextSnapshot;
+  // 换取凭据仅在本地所有权快照下生效；切到远端或凭据缺失即清除，会话层退出静默模式。
+  setLocalAuthExchangeToken(
+    nextSnapshot.service.ownership === "local"
+      ? nextSnapshot.service.localAuthExchangeToken
+      : undefined,
+  );
   applyShellServiceStateSignal(
     nextSnapshot.service.ownership === "local"
       ? { ownership: "local", phase: nextSnapshot.service.phase }

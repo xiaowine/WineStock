@@ -49,6 +49,26 @@ export function markAuthBootstrapInitialized(): void {
   }
 }
 
+/** self-hosted 本机静默会话换取请求；凭据来自壳内可信通道。 */
+export type AuthLocalSessionRequest = ApiSchema<"AuthLocalSessionRequest">;
+
+/** 本机静默会话状态；切换 server-mode 前判断是否需要先设置真实密码。 */
+export type AuthLocalSessionStatus = ApiResponse<ApiSchema<"AuthLocalSessionStatus">>;
+
+/** 用壳内下发的换取凭据建立本机静默会话；返回与登录相同的 token 包。 */
+export function exchangeLocalSession(request: AuthLocalSessionRequest): Promise<AuthTokenResponse> {
+  return apiClient.request<AuthTokenResponse>("/api/auth/local-session", {
+    method: "POST",
+    json: request,
+    authenticated: false,
+  });
+}
+
+/** 查询本机静默会话状态；仅标记用户密码仍为占位时 password_placeholder 为 true。 */
+export function getLocalSessionStatus(): Promise<AuthLocalSessionStatus> {
+  return apiClient.request<AuthLocalSessionStatus>("/api/auth/local-session/status");
+}
+
 /** refresh token 换取新 token 包的请求。 */
 export type AuthRefreshRequest = ApiSchema<"AuthRefreshRequest">;
 

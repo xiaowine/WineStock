@@ -34,17 +34,19 @@
         </div>
       </div>
 
-      <div v-if="userDisplayName" class="app-account">
+      <div v-if="userDisplayName || silentLocalMode" class="app-account">
         <button
           ref="accountTrigger"
           class="app-account__trigger"
           type="button"
           :aria-expanded="accountMenuOpen"
           aria-controls="app-account-popover"
-          :aria-label="`查看当前用户 ${userDisplayName} 的账户与本机选项`"
+          :aria-label="
+            silentLocalMode ? '查看本机选项' : `查看当前用户 ${userDisplayName} 的账户与本机选项`
+          "
           @click="toggleAccountMenu"
         >
-          <AccountUserSummary :initials="userInitials" :display-name="userDisplayName" />
+          <AccountUserSummary :initials="accountInitials" :display-name="accountDisplayName" />
         </button>
         <button
           v-if="accountMenuOpen"
@@ -57,10 +59,11 @@
           <AccountPopover
             v-if="accountMenuOpen"
             id="app-account-popover"
-            :initials="userInitials"
-            :display-name="userDisplayName"
-            :show-user-summary="true"
+            :initials="accountInitials"
+            :display-name="accountDisplayName"
+            :show-user-summary="!silentLocalMode"
             :show-lan-access="lanAccessUrls.length > 0"
+            :show-logout="!silentLocalMode"
             :logout-error="logoutError"
             :is-logging-out="isLoggingOut"
             @runtime-settings="openRuntimeSettings"
@@ -128,7 +131,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { authSession } from "../auth/session";
+import { authSession, localSilentAuthActive } from "../auth/session";
 import AccountPopover from "../components/AccountPopover.vue";
 import AccountUserSummary from "../components/AccountUserSummary.vue";
 import AppNavigationList from "../components/AppNavigationList.vue";
@@ -158,12 +161,16 @@ const {
 } = useAccountPopover();
 const { handleLogout, isLoggingOut, logoutError } = useShellLogout();
 const pageTitle = computed(() => route.meta.title);
-const visibleNavigation = computed(() =>
-  getVisibleAppNavigation(authSession.value?.user.permissions),
-);
+// 本机静默免登录模式：界面彻底无账号感，只保留中性的"本机选项"入口与运行设置能力。
+const silentLocalMode = computed(() => localSilentAuthActive.value);
+const visibleNavigation = computed(() => {
+  const items = getVisibleAppNavigation(authSession.value?.user.permissions);
+  return silentLocalMode.value ? items.filter((item) => item.routeName !== "users") : items;
+});
 const userDisplayName = computed(() => authSession.value?.user.username ?? "");
-const userInitials = computed(() =>
-  Array.from(userDisplayName.value.trim()).slice(0, 2).join("").toUpperCase(),
+const accountDisplayName = computed(() => (silentLocalMode.value ? "本机" : userDisplayName.value));
+const accountInitials = computed(() =>
+  Array.from(accountDisplayName.value.trim()).slice(0, 2).join("").toUpperCase(),
 );
 const lanAccessUrls = computed(() => getUsableLanAccessUrls(runtimeSnapshot.value));
 let desktopMediaQuery: MediaQueryList | undefined;

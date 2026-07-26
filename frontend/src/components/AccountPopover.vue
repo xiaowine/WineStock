@@ -31,6 +31,7 @@
       本机局域网地址
     </button>
     <button
+      v-if="showLogout"
       class="secondary-button account-popover__logout"
       type="button"
       :disabled="isLoggingOut"
@@ -54,6 +55,8 @@ withDefaults(
     showUserSummary?: boolean;
     /** 当前 Shell 是否存在可向其它设备展示的真实局域网地址。 */
     showLanAccess?: boolean;
+    /** 本机静默免登录模式下隐藏退出登录（登出后会立即静默重建，无意义）。 */
+    showLogout?: boolean;
     /** 退出操作的可展示错误；空字符串表示没有错误。 */
     logoutError: string;
     /** 是否正在执行统一退出流程。 */
@@ -62,6 +65,7 @@ withDefaults(
   {
     showUserSummary: true,
     showLanAccess: false,
+    showLogout: true,
   },
 );
 

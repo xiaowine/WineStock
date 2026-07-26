@@ -32,6 +32,7 @@
 ## 鉴权会话
 
 - `frontend/src/auth/`：内存 access token 与五态会话模型、跨标签页 Web Locks 协调、到期前自动续期、版本化 refresh token 持久化（绑定 API 根地址）和前端权限快照；任何登出结果都清除本地会话，权限快照只收敛导航与操作入口，不替代服务端实时授权。
+- 本机静默会话：Shell 快照携带 `localAuthExchangeToken`（仅 ownership=local）时进入静默免登录模式——refresh 无法恢复会话则用换取凭据调 `/api/auth/local-session` 静默建会话；服务端返回 `local_session_unavailable`（存量库未转换/浏览器场景）按普通匿名回落登录流程，其余失败落 `unavailable` 并入服务可用性覆盖层（不回落登录页），core 重启带来新凭据或健康恢复时自动重试。静默模式下 AppShell 隐藏账户身份与退出登录、隐藏用户管理导航，只保留中性"本机"选项入口；设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
 
 ## 扫码与立创料袋
 

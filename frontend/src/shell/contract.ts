@@ -70,6 +70,8 @@ export interface RuntimeSnapshot {
     apiBaseUrl?: string;
     /** 本地服务真实监听地址，仅用于状态展示。 */
     boundAddress?: string;
+    /** self-hosted 本机静默会话换取凭据；仅 local+running 快照携带，不得写入日志。 */
+    localAuthExchangeToken?: string;
     /** Shell 探测到的局域网访问地址。 */
     lanAccessUrls?: string[];
     /** 最近一次配置或生命周期错误。 */
@@ -338,6 +340,7 @@ export function assertCompatibleRuntimeSnapshot(value: unknown): asserts value i
     !["stopped", "starting", "running", "stopping", "failed"].includes(String(service.phase)) ||
     !isOptionalString(service.apiBaseUrl) ||
     !isOptionalString(service.boundAddress) ||
+    !isOptionalString(service.localAuthExchangeToken) ||
     !isOptionalStringArray(service.lanAccessUrls) ||
     !isOptionalRuntimeError(service.error) ||
     !isRecord(capabilities) ||

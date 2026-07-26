@@ -16,6 +16,12 @@
 - 守卫在会话初始化之前先检查 `runtimeSetupFinished`（Shell `initialized` 且服务可 HTTP）；未完成时导向运行设置。首次未初始化时 Shell 不启动本地服务，由前端 apply 触发首次确认。
 - `password_change_required` 已由独立修改密码页面和全局守卫执行，受限会话不能进入其它前端页面。
 - 桌面应用壳已经提供登出入口、进行状态和本机退出警告；登出落地统一为 `/auth`（与运行设置完成出口一致）。
+- **本机静默免登录**（`self-hosted` + 可信壳，见 `docs/implementation-notes/self-hosted-silent-auth.md`）：
+  Shell 快照携带换取凭据时，refresh 恢复失败后会话层自动调 `/api/auth/local-session` 静默建会话，
+  登录页整个流程被跳过。`local_session_unavailable`（服务端未配置换取目标）按普通匿名回落现有登录流程；
+  其余失败落 `unavailable` 并入服务不可用覆盖层——本地静默模式绝不回落登录页，
+  core 重启带来新换取凭据或健康检查恢复时自动重试。静默模式下界面隐藏账户身份、
+  退出登录与用户管理入口，顶栏保留中性"本机"选项入口承载运行设置。
 
 ## 实现目标
 
@@ -273,6 +279,7 @@ router.beforeEach(async (to) => {
 ```text
 /auth?redirect=/items
 ```
+
 （认证入口分流到 login/register 时保留同一 `redirect` query。）
 
 登录成功后：
