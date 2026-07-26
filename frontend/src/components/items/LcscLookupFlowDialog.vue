@@ -45,6 +45,7 @@
 import { ref, watch } from "vue";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import type { LcscItemLookupResponse } from "../../api/items";
+import { defaultAttributeTemplate } from "../../pages/items/model";
 import ModalDialog from "../ModalDialog.vue";
 import LcscCandidateConfirmPanel from "./LcscCandidateConfirmPanel.vue";
 import { useLcscLookupRequest } from "./useLcscLookupRequest";
@@ -77,7 +78,8 @@ watch(
       request.abort();
       return;
     }
-    selectedTemplateId.value = props.templates[0]?.id ?? null;
+    selectedTemplateId.value =
+      (defaultAttributeTemplate(props.templates) ?? props.templates[0])?.id ?? null;
     request.reset();
     void request.lookup(props.productCode);
   },

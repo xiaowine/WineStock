@@ -1382,6 +1382,8 @@ export interface components {
              * @description 模板 ID。
              */
             id: number;
+            /** @description 是否为全站默认模板；有效模板中至多一个为真。 */
+            is_default: boolean;
             /**
              * Format: int64
              * @description 当前有效物品直接使用该模板的数量。
@@ -1398,6 +1400,8 @@ export interface components {
             description?: string | null;
             /** @description 字段存在时整体替换。 */
             fields?: components["schemas"]["ItemAttributeTemplateFieldDef"][] | null;
+            /** @description 是否设为全站默认模板；置真时服务端清除其它默认，为空表示不修改。 */
+            is_default?: boolean | null;
             /** @description 模板名称。 */
             name?: string | null;
         };

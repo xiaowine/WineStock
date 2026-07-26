@@ -380,6 +380,7 @@ async fn item_template_unit_rules_are_validated_and_copied() {
                     options: Some(vec!["mm".to_owned(), "cm".to_owned()]),
                 }),
             }]),
+            is_default: None,
         },
     )
     .await;
@@ -481,6 +482,123 @@ async fn item_attribute_template_limits_catalog_visible_fields_to_three() {
     .await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     assert_eq!(error_code(response).await, "invalid_request");
+}
+
+#[tokio::test]
+async fn item_template_default_is_globally_unique() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+
+    let create = |name: &str| ItemAttributeTemplateCreateRequest {
+        name: name.to_owned(),
+        description: None,
+        fields: vec![item_field("型号", TemplateFieldType::Text, false)],
+    };
+    let first: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "POST",
+            "/api/item-attribute-templates",
+            &token,
+            &create("默认候选甲"),
+        )
+        .await,
+    )
+    .await;
+    let second: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "POST",
+            "/api/item-attribute-templates",
+            &token,
+            &create("默认候选乙"),
+        )
+        .await,
+    )
+    .await;
+    assert!(
+        !first.is_default && !second.is_default,
+        "新建模板不应自动成为默认"
+    );
+
+    let set_default = |is_default: bool| ItemAttributeTemplateUpdateRequest {
+        name: None,
+        description: None,
+        fields: None,
+        is_default: Some(is_default),
+    };
+    let first_defaulted: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "PUT",
+            &format!("/api/item-attribute-templates/{}", first.id),
+            &token,
+            &set_default(true),
+        )
+        .await,
+    )
+    .await;
+    assert!(first_defaulted.is_default);
+
+    // 换默认：乙置真后甲必须被同事务清除，列表中恰好一个默认。
+    let second_defaulted: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "PUT",
+            &format!("/api/item-attribute-templates/{}", second.id),
+            &token,
+            &set_default(true),
+        )
+        .await,
+    )
+    .await;
+    assert!(second_defaulted.is_default);
+    let listed: Vec<ItemAttributeTemplateResponse> =
+        json_body(authorized_empty(&app, "GET", "/api/item-attribute-templates", &token).await)
+            .await;
+    let defaults: Vec<_> = listed.iter().filter(|entry| entry.is_default).collect();
+    assert_eq!(defaults.len(), 1);
+    assert_eq!(defaults[0].id, second.id);
+
+    // 取消默认后列表无默认；删除默认模板同样不留残余。
+    let cleared: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "PUT",
+            &format!("/api/item-attribute-templates/{}", second.id),
+            &token,
+            &set_default(false),
+        )
+        .await,
+    )
+    .await;
+    assert!(!cleared.is_default);
+    json_body::<ItemAttributeTemplateResponse>(
+        authorized_json(
+            &app,
+            "PUT",
+            &format!("/api/item-attribute-templates/{}", first.id),
+            &token,
+            &set_default(true),
+        )
+        .await,
+    )
+    .await;
+    let deleted = authorized_empty(
+        &app,
+        "DELETE",
+        &format!("/api/item-attribute-templates/{}", first.id),
+        &token,
+    )
+    .await;
+    assert_eq!(deleted.status(), StatusCode::OK);
+    let listed: Vec<ItemAttributeTemplateResponse> =
+        json_body(authorized_empty(&app, "GET", "/api/item-attribute-templates", &token).await)
+            .await;
+    assert!(listed.iter().all(|entry| !entry.is_default));
 }
 
 fn item_field(

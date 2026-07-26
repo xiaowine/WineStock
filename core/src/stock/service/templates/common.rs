@@ -229,6 +229,7 @@ pub(super) fn item_attribute_template_response(
         id: detail.template.id,
         name: detail.template.name,
         description: detail.template.description,
+        is_default: detail.template.is_default,
         item_usage_count,
         fields: item_fields(detail.fields)?,
         created_at: detail.template.created_at,

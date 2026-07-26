@@ -113,6 +113,7 @@ pub(crate) async fn update_item_attribute_template(
                     .fields
                     .map(normalize_item_template_fields)
                     .transpose()?,
+                is_default: request.is_default,
             },
             Some(user.user_id),
         )

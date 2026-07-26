@@ -215,6 +215,30 @@ export function draftFromItem(
   return draft;
 }
 
+/** 返回全站默认物品属性模板；未设置时为 null。 */
+export function defaultAttributeTemplate(
+  templates: ItemAttributeTemplateResponse[],
+): ItemAttributeTemplateResponse | null {
+  return templates.find((template) => template.is_default) ?? null;
+}
+
+/**
+ * 新建草稿仍为初始态（非编辑、未选模板、无任何属性）时应用全站默认模板。
+ * 返回是否发生了应用；应用后调用方必须刷新基线指纹，避免默认预填被当作未保存修改。
+ */
+export function applyDefaultTemplateToPristineDraft(
+  draft: ItemDraft,
+  templates: ItemAttributeTemplateResponse[],
+): boolean {
+  if (draft.id !== null || draft.attributeTemplateId !== null || draft.attributes.length > 0) {
+    return false;
+  }
+  const fallback = defaultAttributeTemplate(templates);
+  if (!fallback) return false;
+  applyAttributeTemplate(draft, fallback);
+  return true;
+}
+
 export function applyAttributeTemplate(
   draft: ItemDraft,
   template: ItemAttributeTemplateResponse | null,

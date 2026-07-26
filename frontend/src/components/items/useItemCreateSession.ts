@@ -9,6 +9,7 @@ import {
 import { ApiError } from "../../api/errors";
 import { notice } from "../../notices/notice";
 import {
+  applyDefaultTemplateToPristineDraft,
   emptyItemDraft,
   itemCreateRequest,
   itemDraftFingerprint,
@@ -59,6 +60,10 @@ export function useItemCreateSession() {
       if (metadataController !== controller) return;
       categories.value = nextCategories;
       templates.value = nextTemplates;
+      // 全站默认模板只预填初始态草稿；应用后刷新基线，避免预填被当作未保存修改。
+      if (applyDefaultTemplateToPristineDraft(draft.value, nextTemplates)) {
+        baselineFingerprint.value = itemDraftFingerprint(draft.value);
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       metadataError.value = itemCreateErrorMessage(error);
@@ -126,6 +131,7 @@ export function useItemCreateSession() {
       }
     }
     draft.value = emptyItemDraft();
+    applyDefaultTemplateToPristineDraft(draft.value, templates.value);
     validationErrors.value = {};
     baselineFingerprint.value = itemDraftFingerprint(draft.value);
     saved = false;

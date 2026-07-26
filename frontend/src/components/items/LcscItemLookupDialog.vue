@@ -77,6 +77,7 @@
 import { nextTick, ref, useId, watch } from "vue";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import type { LcscItemLookupResponse } from "../../api/items";
+import { defaultAttributeTemplate } from "../../pages/items/model";
 import FormInput from "../forms/FormInput.vue";
 import ModalDialog from "../ModalDialog.vue";
 import LcscCandidateConfirmPanel from "./LcscCandidateConfirmPanel.vue";
@@ -109,15 +110,20 @@ watch(
     if (!open) return;
     productCode.value = normalizeCode(props.initialCode);
     inputError.value = "";
-    selectedTemplateId.value = props.templates[0]?.id ?? null;
+    selectedTemplateId.value = preferredTemplateId();
     await nextTick();
     focusCodeInput();
   },
 );
 
 watch(request.candidate, (candidate) => {
-  if (candidate) selectedTemplateId.value = props.templates[0]?.id ?? null;
+  if (candidate) selectedTemplateId.value = preferredTemplateId();
 });
+
+/** 模板预选：全站默认优先，未设置时退回列表第一项。 */
+function preferredTemplateId(): number | null {
+  return (defaultAttributeTemplate(props.templates) ?? props.templates[0])?.id ?? null;
+}
 
 async function submitLookup(): Promise<void> {
   const normalized = normalizeCode(productCode.value);

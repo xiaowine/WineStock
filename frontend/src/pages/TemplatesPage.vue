@@ -220,7 +220,11 @@
                       role="cell"
                       @click="openTemplate(template, true)"
                     >
-                      <strong>{{ template.name }}</strong
+                      <strong
+                        >{{ template.name
+                        }}<em v-if="template.is_default" class="templates-table__default-badge"
+                          >默认</em
+                        ></strong
                       ><span>物品模板 #{{ template.id }}</span
                       ><small>{{ template.description || "暂无说明" }}</small>
                     </button>
@@ -259,6 +263,22 @@
                           <ViewIcon />
                         </button>
                         <template v-if="canManage">
+                          <button
+                            class="icon-button"
+                            :class="{ 'templates-table__default-active': template.is_default }"
+                            type="button"
+                            :title="template.is_default ? '取消默认模板' : '设为默认模板'"
+                            :aria-label="
+                              template.is_default
+                                ? `取消默认模板 ${template.name}`
+                                : `设为默认模板 ${template.name}`
+                            "
+                            :aria-pressed="template.is_default"
+                            :disabled="defaultUpdatingId !== null"
+                            @click="toggleDefaultTemplate(template)"
+                          >
+                            <StarIcon />
+                          </button>
                           <button
                             class="icon-button"
                             type="button"
@@ -777,6 +797,30 @@ function normalizeFieldPath(path: string): string {
     .replace(/\.unit\.options(?=\.|$)/, ".unit_options");
 }
 
+const defaultUpdatingId = ref<number | null>(null);
+
+/** 切换全站默认模板；服务端事务保证唯一，本地据结果同步清掉其它默认标记。 */
+async function toggleDefaultTemplate(template: ItemAttributeTemplateResponse): Promise<void> {
+  if (defaultUpdatingId.value !== null) return;
+  defaultUpdatingId.value = template.id;
+  try {
+    const updated = await updateItemAttributeTemplate(template.id, {
+      is_default: !template.is_default,
+    });
+    itemTemplates.value = itemTemplates.value.map((entry) => {
+      if (entry.id === updated.id) return updated;
+      return updated.is_default && entry.is_default ? { ...entry, is_default: false } : entry;
+    });
+    notice.success(updated.is_default ? `已将「${updated.name}」设为默认模板` : "已取消默认模板", {
+      detail: updated.is_default ? "新建物品将自动应用该模板。" : undefined,
+    });
+  } catch (error) {
+    notice.error("默认模板设置失败", { detail: errorMessage(error, "请稍后重试。") });
+  } finally {
+    defaultUpdatingId.value = null;
+  }
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     if (error.code === "category_name_taken") return "分类名称已存在";
@@ -809,6 +853,9 @@ const ViewIcon = icon([
   "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
 ]);
 const EditIcon = icon(["m5 17-1 3 3-1L19 7l-2-2L5 17Z", "m15 7 2 2"]);
+const StarIcon = icon([
+  "m12 3.5 2.5 5.4 5.9.6-4.4 4 1.3 5.8-5.3-3.1-5.3 3.1 1.3-5.8-4.4-4 5.9-.6z",
+]);
 const CopyIcon = icon(["M8 8h11v11H8z", "M5 16H4V5h11v1"]);
 const DeleteIcon = icon(["M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"]);
 </script>

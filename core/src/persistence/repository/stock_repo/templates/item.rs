@@ -162,12 +162,25 @@ where
             return Ok(None);
         };
         let now = sqlite_now(&transaction).await?;
+        // 全站至多一个默认：置真前在同一事务里清除其它有效模板的默认标记。
+        if input.is_default == Some(true) && !template.is_default {
+            transaction
+                .execute(Statement::from_sql_and_values(
+                    DatabaseBackend::Sqlite,
+                    "UPDATE stock_item_attribute_templates SET is_default = 0, updated_at = ? WHERE is_default = 1",
+                    vec![now.clone().into()],
+                ))
+                .await?;
+        }
         let mut active: item_attribute_template::ActiveModel = template.into();
         if let Some(name) = input.name {
             active.name = Set(name);
         }
         if let Some(description) = input.description {
             active.description = Set(description);
+        }
+        if let Some(is_default) = input.is_default {
+            active.is_default = Set(is_default);
         }
         active.updated_at = Set(now);
         let updated = active.update(&transaction).await?;

@@ -82,6 +82,9 @@ pub(crate) struct UpdateItemAttributeTemplate {
     /// 预设字段；存在时整体替换。
     #[garde(skip)]
     pub fields: Option<Vec<TemplateFieldInput>>,
+    /// 是否设为全站默认；置真时同事务清除其它默认，为空表示不修改。
+    #[garde(skip)]
+    pub is_default: Option<bool>,
 }
 
 /// 物品属性模板详情。

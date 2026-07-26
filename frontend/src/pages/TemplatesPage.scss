@@ -180,6 +180,25 @@
 .templates-table {
   --template-columns: minmax(220px, 0.85fr) minmax(320px, 1.7fr) minmax(220px, 0.75fr);
 
+  /* 全站默认模板标记与设默认按钮的激活态。 */
+  &__default-badge {
+    margin-left: 7px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 650;
+    vertical-align: 2px;
+  }
+
+  &__default-active {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
   &--category {
     --template-columns: minmax(220px, 0.8fr) minmax(300px, 1.6fr) minmax(240px, 0.75fr);
   }

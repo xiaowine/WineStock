@@ -415,6 +415,7 @@ import { notice } from "../notices/notice";
 import {
   draftFromItem,
   emptyItemDraft,
+  applyDefaultTemplateToPristineDraft,
   applyLcscLookupToDraft,
   itemCreateRequest,
   itemDraftFingerprint,
@@ -785,6 +786,9 @@ async function prepareNewDraft(): Promise<void> {
   editorDataReady.value = true;
   draft.value = emptyItemDraft();
   baselineDraft.value = emptyItemDraft();
+  // 全站默认模板预填新建草稿；基线同步应用，预填不计入未保存修改。
+  applyDefaultTemplateToPristineDraft(draft.value, templates.value);
+  applyDefaultTemplateToPristineDraft(baselineDraft.value, templates.value);
   baselineFingerprint.value = itemDraftFingerprint(draft.value);
   editorOpen.value = true;
 }
@@ -801,7 +805,8 @@ async function applyLcscLookup(
   try {
     const blob = await readLcscItemImage(candidate.product_code);
     if (dialogMode.value !== "create" || draft.value.sku !== candidate.product_code) return;
-    const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+    const extension =
+      blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
     const file = new File([blob], `${candidate.product_code}.${extension}`, { type: blob.type });
     releaseImageDraft(draft.value.image ?? undefined);
     draft.value.image = createPendingImageDraft(file);

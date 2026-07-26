@@ -1,4 +1,4 @@
-<!-- 本组件按业务域呈现差异化删除后果，不调用删除 API。 -->
+<!-- 本组件按业务域呈现删除后果与影响范围的普通确认，不调用删除 API，也不要求输入内容验证。 -->
 <template>
   <ModalDialog
     :open="Boolean(target)"
@@ -23,14 +23,6 @@
           <li>由该模板字段定义的物品属性值会被删除。</li>
           <li>此操作无法从当前界面恢复。</li>
         </ul>
-        <FormInput
-          v-model="confirmationName"
-          label="输入模板名称确认"
-          :error="confirmationError"
-          autocomplete="off"
-          :placeholder="target.name"
-          :disabled="submitting"
-        />
       </template>
       <section v-if="target" class="template-delete-copy__impact" aria-label="删除影响范围">
         <strong>影响范围</strong>
@@ -47,7 +39,7 @@
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
         取消
       </button>
-      <button class="danger-button" type="button" :disabled="submitting" @click="submit">
+      <button class="danger-button" type="button" :disabled="submitting" @click="emit('submit')">
         {{ submitting ? "正在删除…" : target?.kind === "item" ? "删除模板及属性" : "确认删除" }}
       </button>
     </template>
@@ -55,10 +47,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 import type { TemplateDomain } from "../../pages/templates/model";
 import ModalDialog from "../ModalDialog.vue";
-import FormInput from "../forms/FormInput.vue";
 
 export interface TemplateDeleteTarget {
   id: number;
@@ -79,25 +70,7 @@ const emit = defineEmits<{
   submit: [];
 }>();
 
-const confirmationName = ref("");
-const confirmationError = ref("");
 const dialogTitle = computed(() =>
   props.target?.kind === "category" ? "删除物品分类" : "删除物品属性模板",
 );
-
-watch(
-  () => props.target,
-  () => {
-    confirmationName.value = "";
-    confirmationError.value = "";
-  },
-);
-
-function submit(): void {
-  if (props.target?.kind === "item" && confirmationName.value.trim() !== props.target.name) {
-    confirmationError.value = "请输入完整模板名称以确认删除";
-    return;
-  }
-  emit("submit");
-}
 </script>

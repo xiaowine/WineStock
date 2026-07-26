@@ -15,6 +15,8 @@ pub struct Model {
     pub name: String,
     /// 模板说明。
     pub description: Option<String>,
+    /// 是否为全站默认模板；服务层保证有效模板中至多一个为真。
+    pub is_default: bool,
     /// 创建时间，使用 SQLite UTC 字符串格式。
     pub created_at: String,
     /// 最近更新时间，使用 SQLite UTC 字符串格式。

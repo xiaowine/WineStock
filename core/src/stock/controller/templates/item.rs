@@ -180,6 +180,9 @@ pub(crate) struct ItemAttributeTemplateUpdateRequest {
     /// 字段存在时整体替换。
     #[garde(skip)]
     pub fields: Option<Vec<ItemAttributeTemplateFieldDef>>,
+    /// 是否设为全站默认模板；置真时服务端清除其它默认，为空表示不修改。
+    #[garde(skip)]
+    pub is_default: Option<bool>,
 }
 
 /// 物品属性模板响应。
@@ -196,6 +199,9 @@ pub(crate) struct ItemAttributeTemplateResponse {
     /// 模板说明。
     #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
     pub description: Option<String>,
+    /// 是否为全站默认模板；有效模板中至多一个为真。
+    #[garde(skip)]
+    pub is_default: bool,
     /// 当前有效物品直接使用该模板的数量。
     #[garde(skip)]
     pub item_usage_count: u64,
