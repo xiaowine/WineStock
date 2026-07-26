@@ -45,7 +45,7 @@ pub(crate) struct ImageFileResponse {
         (status = 413, description = "Image exceeds 15MB", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 接收单张物品或入库属性图片并返回稳定文件引用。
+/// 接收单张物品图片并返回稳定文件引用。
 pub(crate) async fn upload_image(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,
@@ -129,7 +129,7 @@ pub(crate) async fn read_file(
         (status = 409, description = "Bound files cannot be deleted", body = crate::http::ApiErrorResponse)
     )
 )]
-/// 删除当前用户拥有且尚未绑定物品或入库属性的临时图片。
+/// 删除当前用户拥有且尚未绑定物品的临时图片。
 pub(crate) async fn delete_file(
     State(state): State<CoreState>,
     Extension(current_user): Extension<CurrentUser>,

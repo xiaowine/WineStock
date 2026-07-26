@@ -37,7 +37,7 @@
 
 - `POST /api/items`：创建物品、主图、属性和文件绑定，全部处于同一数据库事务；返回轻量命令结果。
 - `GET /api/items`：返回实时库存目录，支持分页、搜索、分类、属性模板、库存状态、单位、有效库位和可搜索模板属性筛选及服务端排序，并返回五项状态计数。
-- `GET /api/items/options`：返回入库等选择器使用的轻量物品资料，不返回参考价格、完整属性或库存聚合。响应包含 `recommended_inbound_template_id` 和 `recommended_inbound_template_available`：前者来自物品属性模板的推荐入库模板，模板失效时仍返回原始 ID；后者标记该推荐模板当前是否为活动入库模板，供入库页区分“自动推荐可用”“推荐模板已失效”与“未设置模板”。
+- `GET /api/items/options`：返回入库等选择器使用的轻量物品资料，不返回参考价格、完整属性或库存聚合。
 - `GET /api/items/filter-values`：按当前目录搜索、分类、模板、库存状态和结构化筛选上下文返回分面候选值；模板中只有 `searchable = true` 的共享属性定义参与。
 - `GET /api/items/{id}`：只返回编辑器恢复草稿需要的基础资料和全部固有属性。
 - `GET /api/items/{id}/inventory`：返回实时库存量、价值、补货状态、有效批次数和库位聚合。

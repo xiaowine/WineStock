@@ -1,6 +1,7 @@
 # 出入库“选择物品即配置明细”工作流整改方案
 
 > 方案状态：已实施（前端工作流与视觉整改已落地）
+> 2026-07-26 更新：入库模板与收货属性（ext_attributes）已整体移除，本文涉及入库模板/推荐链的章节仅作历史记录。
 > 适用范围：/inbound 新建入库、/outbound 新建出库
 > 不包含：入库单/出库单查询、审批工作台、库存扣减算法、Shell Bridge 和运行模式
 
@@ -10,13 +11,13 @@
 
 整改目标不是把所有字段永久铺在目录中，而是把工作流改为：
 
-~~~
+```
 搜索物品
   -> 添加并立即配置这一条明细
   -> 完成明细并继续添加
   -> 在明细列表复核
   -> 提交整张单据
-~~~
+```
 
 核心原则：
 
@@ -59,10 +60,10 @@
 
 前端草稿和 core 请求已经是明细行模型，不需要为了本次交互重做业务 API：
 
-| 领域 | 单据级字段 | 明细级字段 | 当前请求 |
-| --- | --- | --- | --- |
-| 入库 | source、notes、submission_mode | quantity、unit_price、location_id、batch_no、expires_at、inbound_template_id、ext_attributes | POST /api/inbound |
-| 出库 | destination、notes | quantity、batch_id、location_id | POST /api/outbound |
+| 领域 | 单据级字段                     | 明细级字段                                                                                   | 当前请求           |
+| ---- | ------------------------------ | -------------------------------------------------------------------------------------------- | ------------------ |
+| 入库 | source、notes、submission_mode | quantity、unit_price、location_id、batch_no、expires_at、inbound_template_id、ext_attributes | POST /api/inbound  |
+| 出库 | destination、notes             | quantity、batch_id、location_id                                                              | POST /api/outbound |
 
 core/src/stock/service/inbound.rs 和 outbound.rs 都逐条校验并保存明细；服务端最终校验仍是权威来源。整改的第一版不增加“操作类型”字段，也不让 Shell Bridge 介入业务请求。
 
@@ -78,7 +79,7 @@ core/src/stock/service/inbound.rs 和 outbound.rs 都逐条校验并保存明细
 
 取消“选品步骤/填写步骤”的业务分段，保留一个稳定的“新建入库/新建出库”工作台。页面结构如下：
 
-~~~
+```
 页面标题 + 单据摘要
 ├─ 单据基本信息
 │  ├─ 入库来源 / 出库去向（必填）
@@ -94,7 +95,7 @@ core/src/stock/service/inbound.rs 和 outbound.rs 都逐条校验并保存明细
 └─ 固定操作区
    ├─ 清空草稿
    └─ 提交审核 / 直接入库（按既有业务规则）
-~~~
+```
 
 桌面端保持目录和明细列表的连续工作区；编辑单条明细时使用现有通用 ModalDialog，背景列表仍可见。移动端使用同一业务状态的底部面板和安全区感知的固定底部操作区，不维护第二套业务逻辑。
 
@@ -102,11 +103,11 @@ core/src/stock/service/inbound.rs 和 outbound.rs 都逐条校验并保存明细
 
 目录按钮不再使用“已选时点击即移除”的 toggle 语义，避免误触删除已经配置好的明细：
 
-| 物品状态 | 目录动作 | 结果 |
-| --- | --- | --- |
-| 尚未加入 | 添加并配置 | 创建默认明细并立即打开该明细编辑器 |
-| 已加入且有阻塞项 | 继续配置 | 打开同一条明细并定位第一个阻塞字段 |
-| 已加入且可提交 | 继续配置 | 打开同一条明细进行复核 |
+| 物品状态         | 目录动作   | 结果                               |
+| ---------------- | ---------- | ---------------------------------- |
+| 尚未加入         | 添加并配置 | 创建默认明细并立即打开该明细编辑器 |
+| 已加入且有阻塞项 | 继续配置   | 打开同一条明细并定位第一个阻塞字段 |
+| 已加入且可提交   | 继续配置   | 打开同一条明细进行复核             |
 
 移除只在“已添加明细”列表中提供，使用明确的移除图标和可访问名称。加入/移除仍可发信息型 Notice，但不把本地草稿选择显示为业务成功。
 
@@ -172,14 +173,14 @@ InboundLineEditor.vue 已从原“批次与属性”侧栏扩展为通用 Dialog
 
 删除 currentStep/step 作为业务状态，以及 winestock.inbound.step 等步骤恢复逻辑。改为一个短生命周期的编辑器会话：
 
-~~~
+```
 type DraftEditorOrigin = "catalog-add" | "review-edit" | "error-focus";
 
 interface ActiveLineEditor {
   lineId: string;
   origin: DraftEditorOrigin;
 }
-~~~
+```
 
 activeLineEditor 不写入 localStorage 或 sessionStorage。应用刷新后只恢复草稿明细列表，用户可以从“继续配置”重新打开未完成明细。
 
@@ -216,29 +217,29 @@ activeLineEditor 不写入 localStorage 或 sessionStorage。应用刷新后只�
 
 ### 5.1 入库
 
-| 文件 | 整改动作 |
-| --- | --- |
-| pages/InboundDraftPage.vue | 已完成：移除步骤切换与步骤持久化；选择后立即打开编辑器，统一提交/清空/离开保护和焦点回收。 |
-| components/items/ItemSelectionDialog.vue | 已完成：复用入库/出库目录搜索、分页、单项选择和物品新建入口。 |
-| components/inbound/InboundCatalogStep.vue | 已删除：不再保留旧的批量选品步骤组件。 |
-| components/inbound/InboundDraftStep.vue | 已完成：只拥有单据基本信息与明细复核摘要，不再提供第二套数量/单价/库位编辑表单。 |
-| components/inbound/InboundLineEditor.vue | 已完成：集中编辑数量、单价、库位、批次、有效期、模板、属性和图片。 |
-| pages/inbound-draft/model.ts | 保持 buildInboundRequest 契约不变；增加统一的明细状态/摘要派生函数和首错定位辅助函数。 |
-| composables/useInboundDraftPersistence.ts | 保持 v5 数据字段兼容；停止依赖步骤键，编辑器打开状态不持久化。只有新增持久化字段时才升级版本。 |
-| pages/InboundDraftPage.scss | 删除步骤舞台和步骤动效样式，重排添加区、复核列表和编辑器；复用现有 motion、安全区和移动固定操作区规则。 |
+| 文件                                      | 整改动作                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| pages/InboundDraftPage.vue                | 已完成：移除步骤切换与步骤持久化；选择后立即打开编辑器，统一提交/清空/离开保护和焦点回收。              |
+| components/items/ItemSelectionDialog.vue  | 已完成：复用入库/出库目录搜索、分页、单项选择和物品新建入口。                                           |
+| components/inbound/InboundCatalogStep.vue | 已删除：不再保留旧的批量选品步骤组件。                                                                  |
+| components/inbound/InboundDraftStep.vue   | 已完成：只拥有单据基本信息与明细复核摘要，不再提供第二套数量/单价/库位编辑表单。                        |
+| components/inbound/InboundLineEditor.vue  | 已完成：集中编辑数量、单价、库位、批次、有效期、模板、属性和图片。                                      |
+| pages/inbound-draft/model.ts              | 保持 buildInboundRequest 契约不变；增加统一的明细状态/摘要派生函数和首错定位辅助函数。                  |
+| composables/useInboundDraftPersistence.ts | 保持 v5 数据字段兼容；停止依赖步骤键，编辑器打开状态不持久化。只有新增持久化字段时才升级版本。          |
+| pages/InboundDraftPage.scss               | 删除步骤舞台和步骤动效样式，重排添加区、复核列表和编辑器；复用现有 motion、安全区和移动固定操作区规则。 |
 
 模板整改文档 `implementation-notes/inbound-template-usability-remediation.md` 中关于推荐状态、权限、模板切换确认和异步竞态的结论继续有效；其中旧的两步流程表述已同步为当前连续明细配置。
 
 ### 5.2 出库
 
-| 文件 | 整改动作 |
-| --- | --- |
-| pages/OutboundDraftPage.vue | 合并目录与草稿工作区；toggle() 改为添加并打开编辑器；移除步骤状态和 PageState 返回；保留成本快照、提交确认和草稿保护。 |
+| 文件                                       | 整改动作                                                                                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| pages/OutboundDraftPage.vue                | 合并目录与草稿工作区；toggle() 改为添加并打开编辑器；移除步骤状态和 PageState 返回；保留成本快照、提交确认和草稿保护。                 |
 | components/outbound/OutboundLineEditor.vue | 当前未单独拆文件；等价的单条编辑器由 `OutboundDraftPage.vue` 中的宽 `ModalDialog` 承载，统一数量、FIFO/指定批次、库位/批次和成本提示。 |
-| pages/outbound-draft/model.ts | 保持 OutboundCreateRequest 构造；补充明细摘要、首错定位和批次失效派生。数量仍以字符串草稿保存，避免旧草稿恢复时发生类型破坏。 |
-| composables/useOutboundDraftPersistence.ts | 保持 v1 草稿兼容；不持久化活动编辑器。若引入显式重复明细或新字段，再单独增加迁移。 |
-| pages/OutboundDraftPage.scss | 合并目录/明细布局，使用桌面 Dialog 和移动底部面板，移除步骤相关样式。 |
-| api/outbound.ts | 第一阶段不增加业务接口；审批调用继续集中在 api/stockApprovals.ts。 |
+| pages/outbound-draft/model.ts              | 保持 OutboundCreateRequest 构造；补充明细摘要、首错定位和批次失效派生。数量仍以字符串草稿保存，避免旧草稿恢复时发生类型破坏。          |
+| composables/useOutboundDraftPersistence.ts | 保持 v1 草稿兼容；不持久化活动编辑器。若引入显式重复明细或新字段，再单独增加迁移。                                                     |
+| pages/OutboundDraftPage.scss               | 合并目录/明细布局，使用桌面 Dialog 和移动底部面板，移除步骤相关样式。                                                                  |
+| api/outbound.ts                            | 第一阶段不增加业务接口；审批调用继续集中在 api/stockApprovals.ts。                                                                     |
 
 ### 5.3 共享与文档
 
@@ -399,15 +400,15 @@ activeLineEditor 不写入 localStorage 或 sessionStorage。应用刷新后只�
 
 ## 10. 风险与控制
 
-| 风险 | 控制措施 |
-| --- | --- |
-| 用户想快速连续添加多个物品 | 完成明细后提供“完成并继续添加”；未来可增加显式默认值/应用到后续明细，不恢复隐式批量填充。 |
-| 新物品尚未配置就离开 | 保留不完整本地明细并显示待配置；提交时定位首错，删除是明确动作。 |
-| 入库编辑器字段过长 | 使用分组、内容区滚动和稳定底部操作，不拆成第二个业务步骤；移动端使用通用底部面板。 |
-| 模板/批次异步响应覆盖用户输入 | 继续使用每条明细请求版本、取消控制器和“用户选择优先”规则。 |
-| 目录误触导致已配置明细被删除 | 取消目录 toggle 移除，移除只在复核列表提供。 |
-| 旧草稿无法恢复 | 保持现有版本和字段，活动编辑器不持久化；真正改变序列化结构时增加显式迁移。 |
-| 过度抽象导致入库/出库业务分支难以维护 | 只共享目录、身份头部和布局原语，模板/批次/审批规则仍由领域组件拥有。 |
+| 风险                                  | 控制措施                                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 用户想快速连续添加多个物品            | 完成明细后提供“完成并继续添加”；未来可增加显式默认值/应用到后续明细，不恢复隐式批量填充。 |
+| 新物品尚未配置就离开                  | 保留不完整本地明细并显示待配置；提交时定位首错，删除是明确动作。                          |
+| 入库编辑器字段过长                    | 使用分组、内容区滚动和稳定底部操作，不拆成第二个业务步骤；移动端使用通用底部面板。        |
+| 模板/批次异步响应覆盖用户输入         | 继续使用每条明细请求版本、取消控制器和“用户选择优先”规则。                                |
+| 目录误触导致已配置明细被删除          | 取消目录 toggle 移除，移除只在复核列表提供。                                              |
+| 旧草稿无法恢复                        | 保持现有版本和字段，活动编辑器不持久化；真正改变序列化结构时增加显式迁移。                |
+| 过度抽象导致入库/出库业务分支难以维护 | 只共享目录、身份头部和布局原语，模板/批次/审批规则仍由领域组件拥有。                      |
 
 ## 11. 非目标
 

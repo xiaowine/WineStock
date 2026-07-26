@@ -1,6 +1,6 @@
-//! 两类属性模板共用的字段校验与响应投影。
+//! 物品属性模板的字段校验与响应投影。
 //!
-//! 本模块属于 stock 服务层，只复用字段格式规则，不决定字段属于物品还是本次入库。
+//! 本模块属于 stock 服务层，只复用字段格式规则，不决定模板业务语义。
 
 use std::collections::HashSet;
 
@@ -12,9 +12,7 @@ use super::super::{
     StockApiError,
 };
 use crate::{
-    persistence::repository::{
-        InboundTemplateDetail, ItemAttributeTemplateDetail, TemplateFieldInput,
-    },
+    persistence::repository::{ItemAttributeTemplateDetail, TemplateFieldInput},
     stock::controller,
 };
 
@@ -222,20 +220,6 @@ fn validate_default(
     }
 }
 
-/// 把入库模板读取模型转换为 HTTP 响应。
-pub(super) fn inbound_template_response(
-    detail: InboundTemplateDetail,
-) -> Result<controller::InboundTemplateResponse, StockApiError> {
-    Ok(controller::InboundTemplateResponse {
-        id: detail.template.id,
-        name: detail.template.name,
-        description: detail.template.description,
-        fields: inbound_fields(detail.fields)?,
-        created_at: detail.template.created_at,
-        updated_at: detail.template.updated_at,
-    })
-}
-
 /// 把物品属性模板读取模型转换为 HTTP 响应。
 pub(super) fn item_attribute_template_response(
     detail: ItemAttributeTemplateDetail,
@@ -245,7 +229,6 @@ pub(super) fn item_attribute_template_response(
         id: detail.template.id,
         name: detail.template.name,
         description: detail.template.description,
-        default_inbound_template_id: detail.template.default_inbound_template_id,
         item_usage_count,
         fields: item_fields(detail.fields)?,
         created_at: detail.template.created_at,
@@ -253,25 +236,6 @@ pub(super) fn item_attribute_template_response(
     })
 }
 
-fn inbound_fields(
-    fields: Vec<crate::persistence::entity::inbound_template_field::Model>,
-) -> Result<Vec<controller::TemplateFieldResponse>, StockApiError> {
-    fields
-        .into_iter()
-        .map(|field| {
-            field_response(
-                field.id,
-                field.field_name,
-                field.field_type,
-                field.required,
-                field.searchable,
-                field.options_json,
-                field.default_value,
-                field.sort_order,
-            )
-        })
-        .collect()
-}
 fn item_fields(
     fields: Vec<crate::persistence::entity::item_attribute_definition::Model>,
 ) -> Result<Vec<controller::ItemAttributeTemplateFieldResponse>, StockApiError> {

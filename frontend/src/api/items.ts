@@ -7,6 +7,9 @@ export type ItemAttributeResponse = ApiResponse<ApiSchema<"ItemAttributeResponse
 
 export type ItemAttributeRequest = ApiSchema<"ItemAttributeRequest">;
 
+/** 物品 file 属性保存的稳定服务端引用。 */
+export type FileAttributeReference = ApiSchema<"FileAttributeReference">;
+
 /** 已有物品编辑器恢复草稿所需的完整资料。 */
 export type ItemEditorResponse = ApiResponse<ApiSchema<"ItemEditorResponse">>;
 

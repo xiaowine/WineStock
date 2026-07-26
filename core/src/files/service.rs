@@ -18,10 +18,7 @@ use crate::{
     },
     security::CurrentUser,
     state::CoreState,
-    stock::{
-        STOCK_INBOUND_APPROVE_PERMISSION, STOCK_INBOUND_READ_PERMISSION,
-        STOCK_ITEM_MANAGE_PERMISSION, STOCK_ITEM_READ_PERMISSION,
-    },
+    stock::{STOCK_ITEM_MANAGE_PERMISSION, STOCK_ITEM_READ_PERMISSION},
 };
 
 use super::{
@@ -89,7 +86,7 @@ pub(super) async fn upload_image(
     })
 }
 
-/// 按临时所有权或已绑定物品/入库权限读取图片内容。
+/// 按临时所有权或已绑定物品权限读取图片内容。
 pub(super) async fn read_file(
     state: &CoreState,
     current_user: &CurrentUser,
@@ -103,10 +100,7 @@ pub(super) async fn read_file(
         .find_access_record(id)
         .await?
         .ok_or(FileApiError::NotFound)?;
-    let authorized = if record.inbound_order_item_id.is_some() {
-        current_user.has_permission(STOCK_INBOUND_READ_PERMISSION)
-            || current_user.has_permission(STOCK_INBOUND_APPROVE_PERMISSION)
-    } else if record.item_id.is_some() {
+    let authorized = if record.item_id.is_some() {
         current_user.has_permission(STOCK_ITEM_READ_PERMISSION)
             || current_user.has_permission(STOCK_ITEM_MANAGE_PERMISSION)
     } else {
@@ -136,7 +130,7 @@ pub(super) async fn read_file(
 
 /// 复核已保存图片的磁盘内容、大小、SHA-256、MIME 和文件签名是否仍与元数据一致。
 ///
-/// 入库创建和审批会调用本函数；任何路径异常、文件缺失或内容不一致都返回 false，
+/// 物品图片属性保存会调用本函数；任何路径异常、文件缺失或内容不一致都返回 false，
 /// 调用方应将其作为业务文件不可用处理，不向客户端暴露服务端路径。
 pub(crate) fn stored_image_matches_metadata(
     storage: &StorageRuntime,

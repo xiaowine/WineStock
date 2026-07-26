@@ -15,8 +15,6 @@ pub struct Model {
     pub name: String,
     /// 模板说明。
     pub description: Option<String>,
-    /// 推荐的默认入库模板 ID。
-    pub default_inbound_template_id: Option<i64>,
     /// 创建时间，使用 SQLite UTC 字符串格式。
     pub created_at: String,
     /// 最近更新时间，使用 SQLite UTC 字符串格式。
@@ -25,7 +23,7 @@ pub struct Model {
     pub deleted_at: Option<String>,
 }
 
-/// 模板字段和默认入库模板由仓储层组合读取。
+/// 模板字段由仓储层组合读取。
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 

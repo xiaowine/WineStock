@@ -1,6 +1,6 @@
 //! 两类属性模板共用的字段 HTTP DTO。
 //!
-//! 本模块属于 stock HTTP 层，只复用字段格式，不混合物品属性与入库属性的业务身份。
+//! 本模块属于 stock HTTP 层，只复用字段格式，不决定字段的业务归属。
 
 use serde::{Deserialize, Serialize};
 

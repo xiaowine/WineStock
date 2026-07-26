@@ -87,15 +87,11 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         "stock_item_categories",
         "stock_item_attribute_templates",
         "stock_item_attribute_definitions",
-        "stock_inbound_templates",
-        "stock_inbound_template_fields",
         "stock_items",
         "stock_item_attributes",
         "storage_item_file_bindings",
         "stock_inbound_orders",
         "stock_inbound_order_items",
-        "stock_inbound_order_item_attributes",
-        "storage_inbound_file_bindings",
         "stock_outbound_orders",
         "stock_outbound_order_items",
         "stock_batches",
@@ -121,15 +117,18 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         );
         assert_eq!(query_i64(&storage.database, &sql, "count").await, 1);
     }
-    assert_eq!(
-        query_i64(
-            &storage.database,
-            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'stock_item_attribute_template_fields'",
-            "count",
-        )
-        .await,
-        0
-    );
+    for removed_table in [
+        "stock_item_attribute_template_fields",
+        "stock_inbound_templates",
+        "stock_inbound_template_fields",
+        "stock_inbound_order_item_attributes",
+        "storage_inbound_file_bindings",
+    ] {
+        let sql = format!(
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = '{removed_table}'"
+        );
+        assert_eq!(query_i64(&storage.database, &sql, "count").await, 0);
+    }
     assert_eq!(
         query_i64(
             &storage.database,
@@ -151,7 +150,16 @@ async fn migration_is_idempotent_and_creates_current_schema() {
     assert_eq!(
         query_i64(
             &storage.database,
-            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_inbound_template_fields') WHERE name IN ('unit_mode', 'fixed_unit', 'unit_options_json')",
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_inbound_order_items') WHERE name = 'inbound_template_id'",
+            "count",
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM pragma_table_info('stock_item_attribute_templates') WHERE name = 'default_inbound_template_id'",
             "count",
         )
         .await,
@@ -279,7 +287,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "INSERT INTO stock_inbound_templates (name, description) VALUES ('URL Template', NULL)"
+            "INSERT INTO stock_item_attribute_templates (name, description) VALUES ('URL Template', NULL)"
                 .to_owned(),
         ))
         .await
@@ -288,7 +296,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "INSERT INTO stock_inbound_template_fields (template_id, field_name, field_type) VALUES (1, 'datasheet', 'url')"
+            "INSERT INTO stock_item_attribute_definitions (template_id, field_name, field_type) VALUES (1, 'datasheet', 'url')"
                 .to_owned(),
         ))
         .await

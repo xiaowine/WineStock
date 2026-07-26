@@ -1,4 +1,4 @@
-<!-- 本组件拥有入库单据基本信息与明细复核区域；它编辑父页面草稿，但不提交 API 或管理模板请求。 -->
+<!-- 本组件拥有入库单据基本信息与明细复核区域；它编辑父页面草稿，但不提交 API。 -->
 <template>
   <section class="inbound-step inbound-draft-step" aria-labelledby="inbound-draft-step-title">
     <header class="inbound-step__header">
@@ -64,18 +64,6 @@
         {{ locationError }}
         <button class="text-button" type="button" @click="$emit('retry-locations')">重试</button>
       </div>
-      <div v-if="templateOptionsError" class="inbound-template-options-error" role="alert">
-        <span>{{ templateOptionsError }}</span>
-        <button
-          class="text-button"
-          type="button"
-          :disabled="templateOptionsLoading"
-          @click="$emit('retry-templates')"
-        >
-          {{ templateOptionsLoading ? "正在重试…" : "重新加载模板" }}
-        </button>
-      </div>
-
       <section v-if="lines.length === 0" class="inbound-panel-state inbound-lines-empty">
         <strong>还没有入库明细</strong>
         <span>点击“添加物品”选择一项，完成对应入库明细。</span>
@@ -89,7 +77,7 @@
               <th scope="col">数量</th>
               <th scope="col">单价 / 小计</th>
               <th scope="col">库位</th>
-              <th scope="col">模板 / 批次</th>
+              <th scope="col">批次</th>
               <th scope="col"><span class="visually-hidden">操作</span></th>
             </tr>
           </thead>
@@ -147,23 +135,10 @@
                   {{ locationLabel(line) }}
                 </strong>
               </td>
-              <td data-label="模板 / 批次">
-                <div class="inbound-line__value-stack">
-                  <small
-                    class="inbound-line__template-summary"
-                    :class="'inbound-line__template-summary--' + templateSummary(line).tone"
-                    :title="templateSummary(line).label"
-                  >
-                    <span>{{ templateSummary(line).label }}</span>
-                    <em
-                      v-if="line.templateSource === 'recommended' && line.templateState === 'ready'"
-                      >已推荐</em
-                    >
-                  </small>
-                  <span class="inbound-line__value--truncate" :title="batchDetail(line)">
-                    {{ batchDetail(line) }}
-                  </span>
-                </div>
+              <td data-label="批次">
+                <span class="inbound-line__value--truncate" :title="batchDetail(line)">
+                  {{ batchDetail(line) }}
+                </span>
               </td>
               <td data-label="操作">
                 <div class="inbound-line__actions">
@@ -208,12 +183,7 @@
 import { computed } from "vue";
 import type { LocationResponse } from "../../api/inbound";
 import type { InboundDraftLine } from "../../pages/inbound-draft/model";
-import {
-  incompleteTemplateFieldCount,
-  lineSubtotal,
-  validQuantity,
-  validUnitPrice,
-} from "../../pages/inbound-draft/model";
+import { lineSubtotal, validQuantity, validUnitPrice } from "../../pages/inbound-draft/model";
 import { formatMoney, formatQuantity } from "../../pages/inbound-draft/presentation";
 import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 
@@ -221,8 +191,6 @@ const props = defineProps<{
   lines: InboundDraftLine[];
   locations: LocationResponse[];
   locationError: string;
-  templateOptionsLoading: boolean;
-  templateOptionsError: string;
   source: string;
   notes: string;
   notesOpen: boolean;
@@ -236,7 +204,6 @@ defineEmits<{
   "update:notes": [value: string];
   "update:notes-open": [value: boolean];
   "retry-locations": [];
-  "retry-templates": [];
   "select-line": [lineId: string];
   "remove-line": [lineId: string];
   "add-item": [];
@@ -266,28 +233,5 @@ function batchDetail(line: InboundDraftLine): string {
   const batch = line.batchNo.trim() || "自动生成批次";
   const expiry = line.expiresAt || "无有效期";
   return `${batch} · ${expiry}`;
-}
-
-function templateSummary(line: InboundDraftLine): {
-  label: string;
-  tone: "muted" | "accent" | "warning" | "danger";
-} {
-  if (line.templateState === "resolving")
-    return {
-      label: line.templateSource === "recommended" ? "正在匹配推荐模板…" : "正在加载…",
-      tone: "muted",
-    };
-  if (line.templateState === "unresolved")
-    return {
-      label: line.templateSource === "recommended" ? "推荐模板已失效" : "所选模板已失效",
-      tone: "warning",
-    };
-  if (line.templateState === "error") return { label: "加载失败", tone: "danger" };
-  if (!line.template) return { label: "未设置模板", tone: "muted" };
-  const incompleteCount = incompleteTemplateFieldCount(line);
-  return {
-    label: line.template.name,
-    tone: incompleteCount > 0 ? "warning" : "accent",
-  };
 }
 </script>

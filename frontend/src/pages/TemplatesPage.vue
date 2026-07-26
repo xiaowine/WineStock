@@ -1,5 +1,5 @@
 <!--
-  本文件拥有分类与模板页面的三业务域状态、权限入口和 CRUD 请求编排。
+  本文件拥有分类与模板页面的两业务域状态、权限入口和 CRUD 请求编排。
   它不编辑具体物品或入库记录，也不虚构服务端未提供的引用数量。
 -->
 <template>
@@ -7,7 +7,7 @@
     <header class="content-header templates-page__header">
       <div>
         <h1>分类与模板</h1>
-        <p>维护物品归类、长期属性结构与单次入库字段。</p>
+        <p>维护物品归类与长期属性结构。</p>
       </div>
     </header>
 
@@ -218,7 +218,7 @@
                       class="templates-table__identity templates-table__identity--button"
                       type="button"
                       role="cell"
-                      @click="openTemplate('item', template, true)"
+                      @click="openTemplate(template, true)"
                     >
                       <strong>{{ template.name }}</strong
                       ><span>物品模板 #{{ template.id }}</span
@@ -241,16 +241,6 @@
                           >{{ usageLabel(template.item_usage_count) }}</span
                         ></span
                       >
-                      <span
-                        class="templates-table__default"
-                        :class="{
-                          'templates-table__default--warning': isUnresolvedDefault(template),
-                        }"
-                        >默认入库模板
-                        <strong>{{
-                          defaultInboundLabel(template.default_inbound_template_id)
-                        }}</strong></span
-                      >
                     </div>
                     <div class="templates-table__decision" role="cell">
                       <time
@@ -264,7 +254,7 @@
                           type="button"
                           title="查看模板"
                           :aria-label="`查看模板 ${template.name}`"
-                          @click="openTemplate('item', template, true)"
+                          @click="openTemplate(template, true)"
                         >
                           <ViewIcon />
                         </button>
@@ -274,7 +264,7 @@
                             type="button"
                             title="编辑模板"
                             :aria-label="`编辑模板 ${template.name}`"
-                            @click="openTemplate('item', template, false)"
+                            @click="openTemplate(template, false)"
                           >
                             <EditIcon />
                           </button>
@@ -283,7 +273,7 @@
                             type="button"
                             title="复制模板"
                             :aria-label="`复制模板 ${template.name}`"
-                            @click="openCopy('item', template)"
+                            @click="openCopy(template)"
                           >
                             <CopyIcon />
                           </button>
@@ -293,95 +283,6 @@
                             title="删除模板"
                             :aria-label="`删除模板 ${template.name}`"
                             @click="openDelete('item', template)"
-                          >
-                            <DeleteIcon />
-                          </button>
-                        </template>
-                      </span>
-                    </div>
-                  </article>
-                </div>
-
-                <div
-                  v-else
-                  class="templates-table templates-table--template"
-                  role="table"
-                  aria-label="入库模板列表"
-                >
-                  <div class="templates-table__head" role="row">
-                    <span>入库模板</span><span>字段结构</span><span>更新与操作</span>
-                  </div>
-                  <article
-                    v-for="template in filteredInboundTemplates"
-                    :key="template.id"
-                    class="templates-table__row"
-                    role="row"
-                  >
-                    <button
-                      class="templates-table__identity templates-table__identity--button"
-                      type="button"
-                      role="cell"
-                      @click="openTemplate('inbound', template, true)"
-                    >
-                      <strong>{{ template.name }}</strong
-                      ><span>入库模板 #{{ template.id }}</span
-                      ><small>{{ template.description || "暂无说明" }}</small>
-                    </button>
-                    <div class="templates-table__information" role="cell">
-                      <span class="templates-table__metrics"
-                        ><span
-                          >字段 <strong>{{ template.fields.length }}</strong></span
-                        ><span
-                          >必填 <strong>{{ countRequired(template.fields) }}</strong></span
-                        ><span
-                          >可筛选 <strong>{{ countSearchable(template.fields) }}</strong></span
-                        ></span
-                      >
-                      <span class="templates-table__types">{{
-                        countFieldTypes(template.fields)
-                      }}</span>
-                    </div>
-                    <div class="templates-table__decision" role="cell">
-                      <time
-                        :datetime="template.updated_at"
-                        :title="formatFullDateTime(template.updated_at)"
-                        >{{ formatTime(template.updated_at) }}</time
-                      >
-                      <span class="templates-table__actions">
-                        <button
-                          class="icon-button"
-                          type="button"
-                          title="查看模板"
-                          :aria-label="`查看模板 ${template.name}`"
-                          @click="openTemplate('inbound', template, true)"
-                        >
-                          <ViewIcon />
-                        </button>
-                        <template v-if="canManage">
-                          <button
-                            class="icon-button"
-                            type="button"
-                            title="编辑模板"
-                            :aria-label="`编辑模板 ${template.name}`"
-                            @click="openTemplate('inbound', template, false)"
-                          >
-                            <EditIcon />
-                          </button>
-                          <button
-                            class="icon-button"
-                            type="button"
-                            title="复制模板"
-                            :aria-label="`复制模板 ${template.name}`"
-                            @click="openCopy('inbound', template)"
-                          >
-                            <CopyIcon />
-                          </button>
-                          <button
-                            class="icon-button templates-table__delete"
-                            type="button"
-                            title="删除模板"
-                            :aria-label="`删除模板 ${template.name}`"
-                            @click="openDelete('inbound', template)"
                           >
                             <DeleteIcon />
                           </button>
@@ -409,9 +310,7 @@
     />
     <TemplateEditorDialog
       :open="Boolean(editorState)"
-      :kind="editorState?.kind ?? 'item'"
       :template="editorState?.template ?? null"
-      :inbound-templates="inboundTemplates"
       :read-only="editorState?.readOnly ?? false"
       :can-edit="canManage"
       :submitting="actionSubmitting"
@@ -467,14 +366,6 @@ import {
   updateItemAttributeTemplate,
   type ItemAttributeTemplateResponse,
 } from "../api/itemAttributeTemplates";
-import {
-  copyInboundTemplate,
-  createInboundTemplate,
-  deleteInboundTemplate,
-  listInboundTemplates,
-  updateInboundTemplate,
-  type InboundTemplateResponse,
-} from "../api/inboundTemplates";
 import type { TemplateFieldResponse } from "../api/templateFields";
 import { hasPermission, stockPermissions } from "../auth/permissions";
 import { authSession } from "../auth/session";
@@ -490,10 +381,7 @@ import SearchField from "../components/SearchField.vue";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
 import { notice } from "../notices/notice";
 import {
-  buildInboundTemplateRequest,
   buildItemTemplateRequest,
-  countFieldTypes,
-  type AttributeTemplateKind,
   type TemplateDomain,
   type TemplateDraft,
 } from "./templates/model";
@@ -506,33 +394,25 @@ interface DomainState {
 }
 
 interface EditorState {
-  kind: AttributeTemplateKind;
-  template: ItemAttributeTemplateResponse | InboundTemplateResponse | null;
+  template: ItemAttributeTemplateResponse | null;
   readOnly: boolean;
 }
 
 const domains: { value: TemplateDomain; label: string }[] = [
   { value: "category", label: "物品分类" },
   { value: "item", label: "物品属性模板" },
-  { value: "inbound", label: "入库模板" },
 ];
 
 const activeDomain = ref<TemplateDomain>("category");
 const domainTransitionDirection = ref<"next" | "previous">("next");
 const categories = ref<ItemCategoryResponse[]>([]);
 const itemTemplates = ref<ItemAttributeTemplateResponse[]>([]);
-const inboundTemplates = ref<InboundTemplateResponse[]>([]);
 const states = reactive<Record<TemplateDomain, DomainState>>({
   category: { loaded: false, loading: false, error: "" },
   item: { loaded: false, loading: false, error: "" },
-  inbound: { loaded: false, loading: false, error: "" },
 });
-const searchInputs = reactive<Record<TemplateDomain, string>>({
-  category: "",
-  item: "",
-  inbound: "",
-});
-const searches = reactive<Record<TemplateDomain, string>>({ category: "", item: "", inbound: "" });
+const searchInputs = reactive<Record<TemplateDomain, string>>({ category: "", item: "" });
+const searches = reactive<Record<TemplateDomain, string>>({ category: "", item: "" });
 const categoryDialogOpen = ref(false);
 const editingCategory = ref<ItemCategoryResponse | null>(null);
 const editorState = ref<EditorState | null>(null);
@@ -554,7 +434,7 @@ const activeDomainLabel = computed(
 );
 const domainTransitionName = computed(() => `templates-domain-${domainTransitionDirection.value}`);
 const domainCountLabel = computed(
-  () => ({ category: "个分类", item: "个物品模板", inbound: "个入库模板" })[activeDomain.value],
+  () => ({ category: "个分类", item: "个物品模板" })[activeDomain.value],
 );
 const searchLabel = computed(() => `搜索${activeDomainLabel.value}`);
 const searchPlaceholder = computed(
@@ -579,15 +459,10 @@ const filteredCategories = computed(() =>
   ),
 );
 const filteredItemTemplates = computed(() => filterRecords(itemTemplates.value, searches.item));
-const filteredInboundTemplates = computed(() =>
-  filterRecords(inboundTemplates.value, searches.inbound),
-);
 const filteredCount = computed(() =>
   activeDomain.value === "category"
     ? filteredCategories.value.length
-    : activeDomain.value === "item"
-      ? filteredItemTemplates.value.length
-      : filteredInboundTemplates.value.length,
+    : filteredItemTemplates.value.length,
 );
 const defaultCategorySortOrder = computed(
   () => Math.max(-1, ...categories.value.map((item) => item.sort_order)) + 1,
@@ -614,10 +489,7 @@ async function loadDomain(domain: TemplateDomain, announce = false): Promise<boo
   states[domain].error = "";
   try {
     if (domain === "category") categories.value = await listItemCategories(controller.signal);
-    else if (domain === "item") {
-      itemTemplates.value = await listItemAttributeTemplates(controller.signal);
-      if (!states.inbound.loaded && !states.inbound.loading) void loadDomain("inbound");
-    } else inboundTemplates.value = await listInboundTemplates(controller.signal);
+    else itemTemplates.value = await listItemAttributeTemplates(controller.signal);
     states[domain].loaded = true;
     if (announce) notice.success(`${domains.find((item) => item.value === domain)?.label}已刷新`);
     return true;
@@ -673,7 +545,7 @@ function openCreate(): void {
   if (activeDomain.value === "category") {
     editingCategory.value = null;
     categoryDialogOpen.value = true;
-  } else editorState.value = { kind: activeDomain.value, template: null, readOnly: false };
+  } else editorState.value = { template: null, readOnly: false };
 }
 
 function openCategory(category: ItemCategoryResponse): void {
@@ -682,14 +554,9 @@ function openCategory(category: ItemCategoryResponse): void {
   categoryDialogOpen.value = true;
 }
 
-function openTemplate(
-  kind: AttributeTemplateKind,
-  template: ItemAttributeTemplateResponse | InboundTemplateResponse,
-  readOnly: boolean,
-): void {
+function openTemplate(template: ItemAttributeTemplateResponse, readOnly: boolean): void {
   resetActionState();
-  editorState.value = { kind, template, readOnly };
-  if (!states.inbound.loaded && !states.inbound.loading) void loadDomain("inbound");
+  editorState.value = { template, readOnly };
 }
 
 function enableEditor(): void {
@@ -697,12 +564,9 @@ function enableEditor(): void {
     editorState.value = { ...editorState.value, readOnly: false };
 }
 
-function openCopy(
-  kind: AttributeTemplateKind,
-  template: ItemAttributeTemplateResponse | InboundTemplateResponse,
-): void {
+function openCopy(template: ItemAttributeTemplateResponse): void {
   resetActionState();
-  copyTarget.value = { id: template.id, name: template.name, kind };
+  copyTarget.value = { id: template.id, name: template.name };
 }
 
 function openDelete(
@@ -749,21 +613,13 @@ async function saveTemplate(draft: TemplateDraft): Promise<void> {
   if (!editorState.value) return;
   actionSubmitting.value = true;
   resetActionErrors();
-  const { kind, template } = editorState.value;
+  const { template } = editorState.value;
   try {
-    if (kind === "item") {
-      const request = buildItemTemplateRequest(draft);
-      const updated = template
-        ? await updateItemAttributeTemplate(template.id, request)
-        : await createItemAttributeTemplate(request);
-      itemTemplates.value = upsert(itemTemplates.value, updated);
-    } else {
-      const request = buildInboundTemplateRequest(draft);
-      const updated = template
-        ? await updateInboundTemplate(template.id, request)
-        : await createInboundTemplate(request);
-      inboundTemplates.value = upsert(inboundTemplates.value, updated);
-    }
+    const request = buildItemTemplateRequest(draft);
+    const updated = template
+      ? await updateItemAttributeTemplate(template.id, request)
+      : await createItemAttributeTemplate(request);
+    itemTemplates.value = upsert(itemTemplates.value, updated);
     notice.success(template ? "模板已更新" : "模板已创建");
     closeActionsAfterSuccess();
   } catch (error) {
@@ -779,15 +635,9 @@ async function copyTemplate(name: string): Promise<void> {
   actionSubmitting.value = true;
   resetActionErrors();
   try {
-    if (target.kind === "item") {
-      const copied = await copyItemAttributeTemplate(target.id, { name });
-      itemTemplates.value = upsert(itemTemplates.value, copied);
-      editorState.value = { kind: "item", template: copied, readOnly: false };
-    } else {
-      const copied = await copyInboundTemplate(target.id, { name });
-      inboundTemplates.value = upsert(inboundTemplates.value, copied);
-      editorState.value = { kind: "inbound", template: copied, readOnly: false };
-    }
+    const copied = await copyItemAttributeTemplate(target.id, { name });
+    itemTemplates.value = upsert(itemTemplates.value, copied);
+    editorState.value = { template: copied, readOnly: false };
     copyTarget.value = null;
     notice.success("模板已复制，请检查后保存");
   } catch (error) {
@@ -811,7 +661,7 @@ async function deleteTargetRecord(): Promise<void> {
           ? `物品分类已删除；${result.affected_active_item_count} 个当前物品需要重新归类`
           : "物品分类已删除；未影响当前有效物品",
       );
-    } else if (target.kind === "item") {
+    } else {
       const result = await deleteItemAttributeTemplate(target.id);
       itemTemplates.value = itemTemplates.value.filter((item) => item.id !== target.id);
       notice.success(
@@ -819,10 +669,6 @@ async function deleteTargetRecord(): Promise<void> {
           ? `模板已删除；${result.affected_active_item_count} 个当前物品已解除模板关联`
           : "模板已删除；未影响当前有效物品",
       );
-    } else {
-      await deleteInboundTemplate(target.id);
-      inboundTemplates.value = inboundTemplates.value.filter((item) => item.id !== target.id);
-      notice.success("模板已删除");
     }
     closeActionsAfterSuccess();
   } catch (error) {
@@ -830,20 +676,6 @@ async function deleteTargetRecord(): Promise<void> {
   } finally {
     actionSubmitting.value = false;
   }
-}
-
-function defaultInboundLabel(id: number | null): string {
-  if (id === null) return "未设置";
-  return (
-    inboundTemplates.value.find((template) => template.id === id)?.name ?? `已删除入库模板 #${id}`
-  );
-}
-
-function isUnresolvedDefault(template: ItemAttributeTemplateResponse): boolean {
-  return (
-    template.default_inbound_template_id !== null &&
-    !inboundTemplates.value.some((item) => item.id === template.default_inbound_template_id)
-  );
 }
 
 function countRequired(fields: readonly TemplateFieldResponse[]): number {

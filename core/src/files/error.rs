@@ -26,7 +26,7 @@ pub(crate) enum FileApiError {
     NotFound,
     /// 当前用户无权读取或删除该文件。
     PermissionDenied,
-    /// 文件已经绑定物品或入库属性，不能通过临时删除接口删除。
+    /// 文件已经绑定物品，不能通过临时删除接口删除。
     AlreadyBound,
     /// 文件系统读写失败。
     Storage(io::Error),

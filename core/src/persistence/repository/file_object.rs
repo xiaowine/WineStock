@@ -44,17 +44,11 @@ pub(crate) struct CreateFileObject {
     pub owner_user_id: Option<i64>,
 }
 
-/// 文件读取授权所需的元数据和物品/入库可选业务绑定信息。
+/// 文件读取授权所需的元数据和物品可选业务绑定信息。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FileAccessRecord {
     /// 文件对象元数据。
     pub file: file_object::Model,
-
-    /// 已绑定入库明细 ID；为空表示仍是临时上传。
-    pub inbound_order_item_id: Option<i64>,
-
-    /// 已绑定入库单 ID；为空表示仍是临时上传。
-    pub inbound_order_id: Option<i64>,
 
     /// 已绑定物品 ID；可能来自必选主图或扩展图片属性。
     pub item_id: Option<i64>,
@@ -64,9 +58,9 @@ pub(crate) struct FileAccessRecord {
 }
 
 impl FileAccessRecord {
-    /// 判断文件是否已经绑定物品主图、物品属性或入库属性。
+    /// 判断文件是否已经绑定物品主图或物品属性。
     pub(crate) fn is_bound(&self) -> bool {
-        self.item_id.is_some() || self.inbound_order_item_id.is_some()
+        self.item_id.is_some()
     }
 }
 
@@ -133,7 +127,7 @@ impl<'db> FileObjectRepository<'db> {
             .await
     }
 
-    /// 查询文件元数据及物品/入库绑定关系，供受控读取和删除授权判断。
+    /// 查询文件元数据及物品绑定关系，供受控读取和删除授权判断。
     pub(crate) async fn find_access_record(
         &self,
         id: i64,
@@ -145,14 +139,10 @@ impl<'db> FileObjectRepository<'db> {
                 r#"
                 SELECT f.id, f.sha256, f.mime_type, f.size_bytes, f.storage_path,
                        f.original_name, f.created_at, f.owner_user_id,
-                       ia.inbound_order_item_id, i.order_id AS inbound_order_id,
                        COALESCE(main_item.id, item_attr.item_id) AS item_id,
-                       COALESCE(ia.field_name, item_definition.field_name,
+                       COALESCE(item_definition.field_name,
                          CASE WHEN main_item.id IS NOT NULL THEN '物品主图' END) AS field_name
                 FROM storage_file_objects f
-                LEFT JOIN storage_inbound_file_bindings inbound_binding ON inbound_binding.file_object_id = f.id
-                LEFT JOIN stock_inbound_order_item_attributes ia ON ia.id = inbound_binding.inbound_order_item_attribute_id
-                LEFT JOIN stock_inbound_order_items i ON i.id = ia.inbound_order_item_id
                 LEFT JOIN storage_item_file_bindings item_binding ON item_binding.file_object_id = f.id
                 LEFT JOIN stock_item_attributes item_attr ON item_attr.id = item_binding.item_attribute_id
                 LEFT JOIN stock_item_attribute_definitions item_definition ON item_definition.id = item_attr.definition_id
@@ -181,10 +171,6 @@ impl<'db> FileObjectRepository<'db> {
                 r#"
                 DELETE FROM storage_file_objects
                 WHERE id = ? AND owner_user_id = ?
-                  AND NOT EXISTS (
-                      SELECT 1 FROM storage_inbound_file_bindings b
-                      WHERE b.file_object_id = storage_file_objects.id
-                  )
                   AND NOT EXISTS (
                       SELECT 1 FROM storage_item_file_bindings b
                       WHERE b.file_object_id = storage_file_objects.id
@@ -215,10 +201,6 @@ impl<'db> FileObjectRepository<'db> {
                 FROM storage_file_objects f
                 WHERE julianday(f.created_at) < julianday('now', ?)
                   AND NOT EXISTS (
-                      SELECT 1 FROM storage_inbound_file_bindings b
-                      WHERE b.file_object_id = f.id
-                  )
-                  AND NOT EXISTS (
                       SELECT 1 FROM storage_item_file_bindings b
                       WHERE b.file_object_id = f.id
                   )
@@ -243,10 +225,6 @@ impl<'db> FileObjectRepository<'db> {
                 r#"
                 DELETE FROM storage_file_objects
                 WHERE id = ?
-                  AND NOT EXISTS (
-                      SELECT 1 FROM storage_inbound_file_bindings b
-                      WHERE b.file_object_id = storage_file_objects.id
-                  )
                   AND NOT EXISTS (
                       SELECT 1 FROM storage_item_file_bindings b
                       WHERE b.file_object_id = storage_file_objects.id
@@ -289,8 +267,6 @@ fn decode_access_record(row: QueryResult) -> Result<FileAccessRecord, DbErr> {
             created_at: row.try_get("", "created_at")?,
             owner_user_id: row.try_get("", "owner_user_id")?,
         },
-        inbound_order_item_id: row.try_get("", "inbound_order_item_id")?,
-        inbound_order_id: row.try_get("", "inbound_order_id")?,
         item_id: row.try_get("", "item_id")?,
         field_name: row.try_get("", "field_name")?,
     })

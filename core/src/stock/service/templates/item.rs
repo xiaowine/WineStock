@@ -16,22 +16,6 @@ use crate::{
     stock::controller,
 };
 
-async fn ensure_inbound_template(
-    repository: &StockRepository<'_>,
-    id: Option<i64>,
-) -> Result<(), StockApiError> {
-    if let Some(id) = id {
-        if repository
-            .find_active_inbound_template_by_id(id)
-            .await?
-            .is_none()
-        {
-            return Err(StockApiError::TemplateNotFound);
-        }
-    }
-    Ok(())
-}
-
 /// 创建物品属性模板。
 pub(crate) async fn create_item_attribute_template(
     state: &CoreState,
@@ -46,14 +30,12 @@ pub(crate) async fn create_item_attribute_template(
     {
         return Err(StockApiError::TemplateNameTaken);
     }
-    ensure_inbound_template(&repository, request.default_inbound_template_id).await?;
     item_attribute_template_response(
         repository
             .create_item_attribute_template(
                 CreateItemAttributeTemplate {
                     name,
                     description: normalize_optional_text(request.description)?,
-                    default_inbound_template_id: request.default_inbound_template_id,
                     fields: normalize_item_template_fields(request.fields)?,
                 },
                 Some(user.user_id),
@@ -117,7 +99,6 @@ pub(crate) async fn update_item_attribute_template(
             return Err(StockApiError::TemplateNameTaken);
         }
     }
-    ensure_inbound_template(&repository, request.default_inbound_template_id).await?;
     let Some(detail) = repository
         .update_item_attribute_template(
             id,
@@ -128,7 +109,6 @@ pub(crate) async fn update_item_attribute_template(
                     .map(|value| normalize_required_text(&value))
                     .transpose()?
                     .map(Some),
-                default_inbound_template_id: request.default_inbound_template_id.map(Some),
                 fields: request
                     .fields
                     .map(normalize_item_template_fields)

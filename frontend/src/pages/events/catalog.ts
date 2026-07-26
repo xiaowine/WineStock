@@ -11,7 +11,6 @@ export const eventEntityOptions: readonly EventCatalogOption[] = [
   { value: "item", label: "物品" },
   { value: "item_category", label: "物品分类" },
   { value: "item_attribute_template", label: "物品属性模板" },
-  { value: "inbound_template", label: "入库模板" },
   { value: "user", label: "用户" },
   { value: "inbound", label: "入库单" },
   { value: "outbound", label: "出库单" },

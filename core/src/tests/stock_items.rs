@@ -9,12 +9,11 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
-        InboundTemplateResponse, ItemAttributeRequest, ItemAttributeTemplateCreateRequest,
-        ItemAttributeTemplateFieldDef, ItemAttributeTemplateResponse, ItemAttributeUnitMode,
-        ItemAttributeUnitRule, ItemBatchPageResponse, ItemCreateRequest, ItemEditorResponse,
-        ItemInventoryResponse, ItemMutationResponse, ItemOptionPageResponse, ItemUpdateRequest,
-        TemplateFieldDef, TemplateFieldType,
+        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemAttributeRequest,
+        ItemAttributeTemplateCreateRequest, ItemAttributeTemplateFieldDef,
+        ItemAttributeTemplateResponse, ItemAttributeUnitMode, ItemAttributeUnitRule,
+        ItemBatchPageResponse, ItemCreateRequest, ItemEditorResponse, ItemInventoryResponse,
+        ItemMutationResponse, ItemUpdateRequest, TemplateFieldType,
     },
     test_support::{
         error_code, json_body, json_request, login_request, seed_stock_location, seeded_app,
@@ -170,135 +169,6 @@ async fn item_crud_uses_permissions_and_soft_delete() {
 }
 
 #[tokio::test]
-async fn item_options_expose_recommended_inbound_template_state() {
-    let app = seeded_app().await;
-    let token = login_request(&app, "admin", "password")
-        .await
-        .body
-        .access_token;
-    let inbound_template: InboundTemplateResponse = json_body(
-        authorized_json_request(
-            &app,
-            "POST",
-            "/api/inbound-templates",
-            &token,
-            &InboundTemplateCreateRequest {
-                name: "选品推荐入库模板".to_owned(),
-                description: None,
-                fields: vec![TemplateFieldDef {
-                    field_name: "包装状态".to_owned(),
-                    field_type: TemplateFieldType::Text,
-                    required: Some(false),
-                    searchable: Some(false),
-                    options: None,
-                    default_value: None,
-                }],
-            },
-        )
-        .await,
-    )
-    .await;
-    let item_template: ItemAttributeTemplateResponse = json_body(
-        authorized_json_request(
-            &app,
-            "POST",
-            "/api/item-attribute-templates",
-            &token,
-            &ItemAttributeTemplateCreateRequest {
-                name: "选品推荐物品模板".to_owned(),
-                description: None,
-                default_inbound_template_id: Some(inbound_template.id),
-                fields: vec![ItemAttributeTemplateFieldDef {
-                    definition_id: None,
-                    field_name: "规格".to_owned(),
-                    field_type: TemplateFieldType::Text,
-                    required: Some(false),
-                    searchable: Some(false),
-                    catalog_visible: Some(false),
-                    options: None,
-                    default_value: None,
-                    unit: None,
-                }],
-            },
-        )
-        .await,
-    )
-    .await;
-    let item: ItemMutationResponse = json_body(
-        authorized_json_request(
-            &app,
-            "POST",
-            "/api/items",
-            &token,
-            &ItemCreateRequest {
-                name: "推荐模板选品".to_owned(),
-                sku: "RECOMMENDED-INBOUND-OPTION".to_owned(),
-                category_id: None,
-                attribute_template_id: Some(item_template.id),
-                image_file_id: crate::test_support::upload_test_image(&app, &token).await,
-                unit: "件".to_owned(),
-                description: None,
-                default_price: None,
-                reorder_point: None,
-                attributes: Vec::new(),
-            },
-        )
-        .await,
-    )
-    .await;
-
-    let options: ItemOptionPageResponse = json_body(
-        authorized_empty_request(
-            &app,
-            "GET",
-            "/api/items/options?search=RECOMMENDED-INBOUND-OPTION",
-            &token,
-        )
-        .await,
-    )
-    .await;
-    let option = options
-        .items
-        .iter()
-        .find(|option| option.id == item.id)
-        .unwrap();
-    assert_eq!(
-        option.recommended_inbound_template_id,
-        Some(inbound_template.id)
-    );
-    assert!(option.recommended_inbound_template_available);
-
-    let deleted = authorized_empty_request(
-        &app,
-        "DELETE",
-        &format!("/api/inbound-templates/{}", inbound_template.id),
-        &token,
-    )
-    .await;
-    assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
-    let options: ItemOptionPageResponse = json_body(
-        authorized_empty_request(
-            &app,
-            "GET",
-            "/api/items/options?search=RECOMMENDED-INBOUND-OPTION",
-            &token,
-        )
-        .await,
-    )
-    .await;
-    let option = options
-        .items
-        .iter()
-        .find(|option| option.id == item.id)
-        .unwrap();
-    assert_eq!(
-        option.recommended_inbound_template_id,
-        Some(inbound_template.id)
-    );
-    assert!(!option.recommended_inbound_template_available);
-}
-
-#[tokio::test]
 async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
     let app = seeded_app().await;
     let token = login_request(&app, "admin", "password")
@@ -323,7 +193,6 @@ async fn item_update_distinguishes_omitted_fields_from_explicit_null() {
         &serde_json::json!({
             "name": "可清空物品模板",
             "description": null,
-            "default_inbound_template_id": null,
             "fields": [{
                 "field_name": "可选属性",
                 "field_type": "text",
@@ -415,7 +284,6 @@ async fn item_can_select_template_while_retaining_owned_custom_attributes() {
         &serde_json::json!({
             "name": "混合属性模板",
             "description": null,
-            "default_inbound_template_id": null,
             "fields": [{
                 "field_name": "材质",
                 "field_type": "select",
@@ -758,7 +626,6 @@ async fn item_attributes_follow_template_unit_rules() {
         &ItemAttributeTemplateCreateRequest {
             name: "物品单位规则".to_owned(),
             description: None,
-            default_inbound_template_id: None,
             fields: vec![
                 ItemAttributeTemplateFieldDef {
                     definition_id: None,
@@ -1152,7 +1019,6 @@ async fn seed_item_search_template(app: &crate::test_support::TestApp, access_to
         &ItemAttributeTemplateCreateRequest {
             name: "SearchFilterTemplate".to_owned(),
             description: Some("search metadata template".to_owned()),
-            default_inbound_template_id: None,
             fields: vec![
                 ItemAttributeTemplateFieldDef {
                     definition_id: None,
@@ -1307,8 +1173,6 @@ async fn create_and_approve_inbound(
                 location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2028-01-01".to_owned()),
-                inbound_template_id: None,
-                ext_attributes: None,
             }],
         },
     )

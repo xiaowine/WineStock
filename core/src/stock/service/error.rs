@@ -62,8 +62,6 @@ pub(crate) enum StockApiError {
     /// 分类名称已被其他未软删除分类占用。
     CategoryNameTaken,
 
-    /// 模板仍被未软删除物品引用，不能删除。
-
     /// 单据不是 pending 状态，不能执行审批或拒绝。
     OrderNotPending,
 
@@ -109,23 +107,6 @@ pub(crate) enum StockApiError {
     /// 创建入库单时某条明细引用的库位已经失效。
     InboundLocationInvalid { line_index: usize, location_id: i64 },
 
-    /// 创建入库单时某条明细关联的模板已经失效。
-    InboundTemplateInvalid { line_index: usize, template_id: i64 },
-
-    /// 创建或审批入库单时某个模板字段值不符合当前定义。
-    InboundFieldInvalid {
-        line_index: usize,
-        field_name: String,
-        reason: &'static str,
-    },
-
-    /// 入库明细引用的临时图片不存在、非当前用户所有或已被其它明细绑定。
-    InboundFileUnavailable {
-        line_index: usize,
-        field_name: String,
-        file_id: i64,
-    },
-
     /// 数据库读写失败。
     Database(DbErr),
 }
@@ -154,41 +135,6 @@ impl IntoResponse for StockApiError {
                     "location_not_found",
                     "入库明细中的库位不存在或已失效",
                     serde_json::json!({ "line_index": line_index, "location_id": location_id }),
-                );
-            }
-            Self::InboundTemplateInvalid {
-                line_index,
-                template_id,
-            } => {
-                return api_error_response_with_details(
-                    StatusCode::NOT_FOUND,
-                    "template_not_found",
-                    "入库明细关联的模板不存在或已失效",
-                    serde_json::json!({ "line_index": line_index, "template_id": template_id }),
-                );
-            }
-            Self::InboundFieldInvalid {
-                line_index,
-                field_name,
-                reason,
-            } => {
-                return api_error_response_with_details(
-                    StatusCode::BAD_REQUEST,
-                    "invalid_inbound_field",
-                    "入库模板字段不符合当前定义",
-                    serde_json::json!({ "line_index": line_index, "field_name": field_name, "reason": reason }),
-                );
-            }
-            Self::InboundFileUnavailable {
-                line_index,
-                field_name,
-                file_id,
-            } => {
-                return api_error_response_with_details(
-                    StatusCode::CONFLICT,
-                    "inbound_file_unavailable",
-                    "入库图片不存在、无权使用或已被其它明细绑定",
-                    serde_json::json!({ "line_index": line_index, "field_name": field_name, "file_id": file_id }),
                 );
             }
             Self::ItemImageUnavailable { file_id } => {
@@ -321,9 +267,6 @@ impl StockApiError {
             ),
             Self::InboundItemInvalid { .. }
             | Self::InboundLocationInvalid { .. }
-            | Self::InboundTemplateInvalid { .. }
-            | Self::InboundFieldInvalid { .. }
-            | Self::InboundFileUnavailable { .. }
             | Self::ItemImageUnavailable { .. } => unreachable!("结构化库存错误已提前处理"),
             Self::Database(source) => {
                 let _ = source;
@@ -366,9 +309,6 @@ pub(super) fn map_stock_db_error(source: DbErr) -> StockApiError {
         }
         DbErr::Custom(message) if message == "stock batch not found" => {
             StockApiError::StockBatchNotFound
-        }
-        DbErr::Custom(message) if message == "inbound file unavailable" => {
-            StockApiError::InvalidRequest
         }
         DbErr::Custom(message) if message == "item file unavailable" => {
             StockApiError::InvalidRequest

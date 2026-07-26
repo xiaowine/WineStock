@@ -149,7 +149,7 @@ import {
   ApiResponseError,
 } from "../../api/errors";
 import { notice } from "../../notices/notice";
-import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import type { ImageDraftValue } from "./imageDraft";
 import { useNativeBackHandler } from "../../composables/useNativeBackHandler";
 import { NativeBackPriority } from "../../navigation/nativeBack";
 import PreviewImage from "../PreviewImage.vue";
@@ -163,7 +163,7 @@ import AttributeColorPicker from "./AttributeColorPicker.vue";
 
 const props = withDefaults(
   defineProps<{
-    modelValue?: FileDraftValue;
+    modelValue?: ImageDraftValue;
     invalid?: boolean;
     title?: string;
     label?: string;
@@ -175,7 +175,7 @@ const props = withDefaults(
   },
 );
 
-const emit = defineEmits<{ "update:modelValue": [value: FileDraftValue | undefined] }>();
+const emit = defineEmits<{ "update:modelValue": [value: ImageDraftValue | undefined] }>();
 const value = toRef(props, "modelValue");
 const fieldRoot = ref<HTMLElement | null>(null);
 const pickerTrigger = ref<HTMLButtonElement | null>(null);
@@ -360,7 +360,7 @@ async function remove(): Promise<void> {
   pickerTrigger.value?.focus();
 }
 
-async function loadPreview(target: FileDraftValue): Promise<void> {
+async function loadPreview(target: ImageDraftValue): Promise<void> {
   try {
     target.previewUrl = URL.createObjectURL(await readImage(target.fileId as number));
   } catch (error) {

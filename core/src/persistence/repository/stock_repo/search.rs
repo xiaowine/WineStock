@@ -175,24 +175,17 @@ where
     pub(crate) async fn list_inbound_filter_values(
         &self,
     ) -> Result<Vec<StockFilterFieldRecord>, DbErr> {
-        let mut rows =
-            query_filter_value_rows(self.database, inbound_base_filter_values_sql()).await?;
-        rows.extend(
-            query_filter_value_rows(self.database, inbound_template_filter_values_sql()).await?,
-        );
+        let rows = query_filter_value_rows(self.database, inbound_base_filter_values_sql()).await?;
 
         Ok(group_filter_rows(rows))
     }
 
-    /// 查询出库历史视角下的筛选值；批次属性从指定批次或审批流水反查。
+    /// 查询出库历史视角下的筛选值。
     pub(crate) async fn list_outbound_filter_values(
         &self,
     ) -> Result<Vec<StockFilterFieldRecord>, DbErr> {
-        let mut rows =
+        let rows =
             query_filter_value_rows(self.database, outbound_base_filter_values_sql()).await?;
-        rows.extend(
-            query_filter_value_rows(self.database, outbound_template_filter_values_sql()).await?,
-        );
 
         Ok(group_filter_rows(rows))
     }
@@ -271,24 +264,18 @@ pub(super) fn append_inbound_search_filter(
                       OR lower(COALESCE(matched_items.sku, '')) LIKE ?
                       OR lower(COALESCE(matched_items.unit, '')) LIKE ?
                       OR lower(COALESCE(matched_items.description, '')) LIKE ?
-                      OR EXISTS (
-                          SELECT 1
-                          FROM stock_inbound_order_item_attributes attributes
-                          WHERE attributes.inbound_order_item_id = inbound_items.id
-                            AND lower(attributes.value_json) LIKE ?
-                      )
                   )
             )
         )
         "#
         .to_owned(),
     );
-    for _ in 0..11 {
+    for _ in 0..10 {
         values.push(search_like.into());
     }
 }
 
-/// 给出库历史追加自由搜索条件；批次和模板值从指定批次或审批流水反查。
+/// 给出库历史追加自由搜索条件；批次信息从指定批次或审批流水反查。
 pub(super) fn append_outbound_search_filter(
     clauses: &mut Vec<String>,
     values: &mut Vec<Value>,
@@ -316,8 +303,6 @@ pub(super) fn append_outbound_search_filter(
                       OR EXISTS (
                           SELECT 1
                           FROM stock_batches batches
-                          LEFT JOIN stock_inbound_order_items inbound_items
-                            ON inbound_items.id = batches.inbound_order_item_id
                           WHERE (
                               batches.id = outbound_items.batch_id
                               OR EXISTS (
@@ -331,12 +316,6 @@ pub(super) fn append_outbound_search_filter(
                             AND (
                                 lower(COALESCE(batches.batch_no, '')) LIKE ?
                                 OR lower(COALESCE(batches.expires_at, '')) LIKE ?
-                                OR EXISTS (
-                                    SELECT 1
-                                    FROM stock_inbound_order_item_attributes attributes
-                                    WHERE attributes.inbound_order_item_id = inbound_items.id
-                                      AND lower(attributes.value_json) LIKE ?
-                                )
                             )
                       )
                   )
@@ -345,7 +324,7 @@ pub(super) fn append_outbound_search_filter(
         "#
         .to_owned(),
     );
-    for _ in 0..11 {
+    for _ in 0..10 {
         values.push(search_like.into());
     }
 }
@@ -548,24 +527,6 @@ fn inbound_base_filter_values_sql() -> String {
     .to_owned()
 }
 
-fn inbound_template_filter_values_sql() -> String {
-    attribute_filter_values_sql(
-        "'template:' || fields.field_name",
-        "orders.id",
-        r#"
-        FROM stock_inbound_orders orders
-        JOIN stock_inbound_order_items inbound_items
-          ON inbound_items.order_id = orders.id
-        JOIN stock_inbound_order_item_attributes attributes
-          ON attributes.inbound_order_item_id = inbound_items.id
-        JOIN stock_inbound_template_fields fields
-          ON fields.id = attributes.template_field_id AND fields.searchable = 1
-        "#,
-        "1 = 1",
-        "attributes",
-    )
-}
-
 fn outbound_base_filter_values_sql() -> String {
     let outbound_batch_join = outbound_batch_join_sql();
     format!(
@@ -659,30 +620,6 @@ fn outbound_base_filter_values_sql() -> String {
     )
 }
 
-fn outbound_template_filter_values_sql() -> String {
-    attribute_filter_values_sql(
-        "'template:' || fields.field_name",
-        "orders.id",
-        &format!(
-            r#"
-        FROM stock_outbound_orders orders
-        JOIN stock_outbound_order_items outbound_items
-          ON outbound_items.order_id = orders.id
-        {}
-        JOIN stock_inbound_order_items inbound_items
-          ON inbound_items.id = batches.inbound_order_item_id
-        JOIN stock_inbound_order_item_attributes attributes
-          ON attributes.inbound_order_item_id = inbound_items.id
-        JOIN stock_inbound_template_fields fields
-          ON fields.id = attributes.template_field_id AND fields.searchable = 1
-        "#,
-            outbound_batch_join_sql()
-        ),
-        "1 = 1",
-        "attributes",
-    )
-}
-
 fn outbound_batch_join_sql() -> &'static str {
     r#"
     JOIN stock_batches batches
@@ -697,59 +634,4 @@ fn outbound_batch_join_sql() -> &'static str {
           )
       )
     "#
-}
-
-fn attribute_filter_values_sql(
-    field_key_expr: &str,
-    entity_id_expr: &str,
-    from_clause: &str,
-    where_clause: &str,
-    attribute_alias: &str,
-) -> String {
-    let json_type = format!("json_type({attribute_alias}.value_json)");
-    let json_value = format!("CASE {json_type} WHEN 'true' THEN 'true' WHEN 'false' THEN 'false' ELSE CAST(json_extract({attribute_alias}.value_json, '$') AS TEXT) END");
-    format!(
-        r#"
-        WITH template_values AS (
-            SELECT {field_key_expr} AS field_key,
-                   fields.field_name AS field_label,
-                   'template' AS field_source,
-                   fields.field_type AS raw_field_type,
-                   {json_value} AS field_value,
-                   {entity_id_expr} AS entity_id
-            {from_clause}
-            WHERE {where_clause}
-              AND json_valid({attribute_alias}.value_json)
-              AND {json_type} IN ('text', 'integer', 'real', 'true', 'false')
-              AND ({json_type} <> 'text' OR trim(CAST(json_extract({attribute_alias}.value_json, '$') AS TEXT)) <> '')
-        ),
-        template_field_types AS (
-            SELECT field_key,
-                   field_label,
-                   field_source,
-                   CASE
-                       WHEN COUNT(DISTINCT raw_field_type) = 1 THEN MIN(raw_field_type)
-                       ELSE 'mixed'
-                   END AS field_value_type
-            FROM template_values
-            GROUP BY field_key, field_label, field_source
-        )
-        SELECT values_rows.field_key AS field_key,
-               values_rows.field_label AS field_label,
-               values_rows.field_source AS field_source,
-               template_field_types.field_value_type AS field_value_type,
-               values_rows.field_value AS field_value,
-               COUNT(DISTINCT values_rows.entity_id) AS value_count,
-               1000 AS field_order
-        FROM template_values values_rows
-        JOIN template_field_types
-          ON template_field_types.field_key = values_rows.field_key
-        GROUP BY values_rows.field_key,
-                 values_rows.field_label,
-                 values_rows.field_source,
-                 template_field_types.field_value_type,
-                 values_rows.field_value
-        ORDER BY field_order ASC, values_rows.field_label ASC, value_count DESC, values_rows.field_value ASC
-        "#
-    )
 }

@@ -197,7 +197,7 @@
 import { computed, ref } from "vue";
 import AttributeImageField from "../attributes/AttributeImageField.vue";
 import type { ItemAttributeTemplateFieldResponse } from "../../api/itemAttributeTemplates";
-import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import type { ImageDraftValue } from "../attributes/imageDraft";
 import type { ItemAttributeDraft } from "../../pages/items/model";
 import { discardTemporaryAttributeFile } from "../../pages/items/fileCleanup";
 import { notice } from "../../notices/notice";
@@ -285,7 +285,7 @@ function applyUnitSettings(settings: {
   unitDialogOpen.value = false;
 }
 
-function updateFile(value: FileDraftValue | undefined): void {
+function updateFile(value: ImageDraftValue | undefined): void {
   props.attribute.value = value;
   props.attribute.fileTemporary = true;
 }

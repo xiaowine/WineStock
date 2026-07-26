@@ -54,7 +54,7 @@ const catalogs: Record<ApprovalKind, ApprovalCatalog> = {
   inbound: {
     kind: "inbound",
     pageSubtitle: "审核待入库单据，确认后写入批次与库存。",
-    searchPlaceholder: "搜索单号、来源、物品、批次或入库属性",
+    searchPlaceholder: "搜索单号、来源、物品或批次",
     emptyLabel: "当前没有待审批入库单",
     noResultLabel: "没有符合条件的待审批入库单",
     contextLabel: "来源",

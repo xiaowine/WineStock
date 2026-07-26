@@ -36,7 +36,6 @@ function template() {
     id: 21,
     name: "电子元器件",
     description: null,
-    default_inbound_template_id: null,
     item_usage_count: 0,
     fields: [field(101, "型号"), field(102, "品牌"), field(103, "封装")],
     created_at: "2026-01-01T00:00:00Z",

@@ -36,13 +36,9 @@ where
     {
         validate_repository_input(&input)?;
         let transaction = self.database.begin().await?;
-        let template = insert_item_attribute_template(
-            &transaction,
-            &input.name,
-            input.description.clone(),
-            input.default_inbound_template_id,
-        )
-        .await?;
+        let template =
+            insert_item_attribute_template(&transaction, &input.name, input.description.clone())
+                .await?;
         replace_item_attribute_fields(&transaction, template.id, &input.fields).await?;
         audit_template_change(
             &transaction,
@@ -145,7 +141,7 @@ where
         Ok(result)
     }
 
-    /// 更新物品属性模板及默认入库模板推荐。
+    /// 更新物品属性模板。
     pub(crate) async fn update_item_attribute_template(
         &self,
         id: i64,
@@ -173,9 +169,6 @@ where
         if let Some(description) = input.description {
             active.description = Set(description);
         }
-        if let Some(default_id) = input.default_inbound_template_id {
-            active.default_inbound_template_id = Set(default_id);
-        }
         active.updated_at = Set(now);
         let updated = active.update(&transaction).await?;
         if let Some(fields) = input.fields {
@@ -196,7 +189,7 @@ where
         self.find_active_item_attribute_template_by_id(id).await
     }
 
-    /// 复制物品属性模板及其默认入库模板推荐。
+    /// 复制物品属性模板。
     pub(crate) async fn copy_item_attribute_template(
         &self,
         id: i64,
@@ -214,7 +207,6 @@ where
                 CreateItemAttributeTemplate {
                     name: new_name,
                     description: source.template.description,
-                    default_inbound_template_id: source.template.default_inbound_template_id,
                     fields: item_attribute_field_inputs(&source.fields),
                 },
                 audit_user_id,

@@ -10,7 +10,7 @@
 
 - `item`：创建、更新和软删除物品，动作分别为 `created`、`updated`、`deleted`；更新详情包含关键字段前后快照和变更字段列表。
 - `item_category`：创建、更新和软删除物品分类，动作分别为 `created`、`updated`、`deleted`。
-- `item_attribute_template`、`inbound_template`：创建、更新、复制和软删除模板；复制模板复用创建流程并记录为新模板的 `created`。
+- `item_attribute_template`：创建、更新、复制和软删除模板；复制模板复用创建流程并记录为新模板的 `created`。
 - `user`：注册新用户、更新状态、替换权限、管理员设置临时密码、自助改密和软删除用户；注册使用 `created`，软删除使用 `deleted`，其它用户变更使用 `updated`。
 - `inbound`：创建、审批通过和驳回入库单，动作分别为 `created`、`approved`、`rejected`。
 - `outbound`：创建、审批通过和驳回出库单，动作分别为 `created`、`approved`、`rejected`。
@@ -39,7 +39,7 @@
 |------|------|------|
 | `page` | integer | 页码，默认 1 |
 | `page_size` | integer | 每页条数，默认 50 |
-| `entity_type` | string | 筛选实体类型（item / item_category / item_attribute_template / inbound_template / user / inbound / outbound / location_group / location / location_transfer / substitute） |
+| `entity_type` | string | 筛选实体类型（item / item_category / item_attribute_template / user / inbound / outbound / location_group / location / location_transfer / substitute） |
 | `entity_id` | integer | 筛选实体 ID |
 | `action` | string | 操作类型（created / updated / deleted / approved / rejected / linked / unlinked / moved） |
 | `user_id` | integer | 操作人 |

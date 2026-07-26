@@ -16,7 +16,7 @@
       <template v-if="target?.kind === 'category'">
         <p>分类将从活动列表移除。已有物品可能继续保存该分类 ID，但不会自动改到其他分类。</p>
       </template>
-      <template v-else-if="target?.kind === 'item'">
+      <template v-else-if="target">
         <p><strong>此操作会造成物品属性数据丢失：</strong></p>
         <ul>
           <li>已有物品与该模板的关联会被解除。</li>
@@ -32,16 +32,7 @@
           :disabled="submitting"
         />
       </template>
-      <template v-else>
-        <p>
-          模板将不再用于后续入库，历史入库实际属性仍会保留。将它设为默认值的物品模板会显示为已删除引用，需要另行调整。
-        </p>
-      </template>
-      <section
-        v-if="target && target.kind !== 'inbound'"
-        class="template-delete-copy__impact"
-        aria-label="删除影响范围"
-      >
+      <section v-if="target" class="template-delete-copy__impact" aria-label="删除影响范围">
         <strong>影响范围</strong>
         <p v-if="target.itemUsageCount !== null && target.itemUsageCount > 0">
           当前有 {{ target.itemUsageCount }} 个有效物品使用此{{
@@ -91,11 +82,7 @@ const emit = defineEmits<{
 const confirmationName = ref("");
 const confirmationError = ref("");
 const dialogTitle = computed(() =>
-  props.target?.kind === "category"
-    ? "删除物品分类"
-    : props.target?.kind === "item"
-      ? "删除物品属性模板"
-      : "删除入库模板",
+  props.target?.kind === "category" ? "删除物品分类" : "删除物品属性模板",
 );
 
 watch(

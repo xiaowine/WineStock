@@ -1,12 +1,12 @@
 // 本文件拥有物品编辑草稿中未绑定图片的共享清理逻辑；它不保存物品资料。
 import { deleteImage } from "../../api/files";
-import type { FileDraftValue } from "../inbound-draft/model";
+import type { ImageDraftValue } from "../../components/attributes/imageDraft";
 import type { ItemAttributeDraft, ItemDraft } from "./model";
 import { releaseImageDraft } from "../../components/attributes/imageDraft";
 
 /** 中止上传、释放预览，并删除当前属性尚未绑定的服务端文件。 */
 export async function discardTemporaryAttributeFile(attribute: ItemAttributeDraft): Promise<void> {
-  if (!attribute.fileTemporary || !isFileDraftValue(attribute.value)) return;
+  if (!attribute.fileTemporary || !isImageDraftValue(attribute.value)) return;
   attribute.value.abortController?.abort();
   if (attribute.value.previewUrl) URL.revokeObjectURL(attribute.value.previewUrl);
   if (attribute.value.fileId) await deleteImage(attribute.value.fileId);
@@ -22,6 +22,6 @@ export async function discardTemporaryItemFiles(draft: ItemDraft): Promise<void>
   await Promise.all(deletions);
 }
 
-function isFileDraftValue(value: ItemAttributeDraft["value"]): value is FileDraftValue {
+function isImageDraftValue(value: ItemAttributeDraft["value"]): value is ImageDraftValue {
   return typeof value === "object" && value?.kind === "file";
 }

@@ -6,17 +6,12 @@ import type {
   ItemAttributeUnitRule,
 } from "../../api/itemAttributeTemplates";
 import type {
-  InboundTemplateResponse,
-  InboundTemplateWriteRequest,
-} from "../../api/inboundTemplates";
-import type {
   TemplateFieldRequest,
   TemplateFieldResponse,
   TemplateFieldType,
 } from "../../api/templateFields";
 
-export type TemplateDomain = "category" | "item" | "inbound";
-export type AttributeTemplateKind = Exclude<TemplateDomain, "category">;
+export type TemplateDomain = "category" | "item";
 
 export interface TemplateFieldDraft {
   key: string;
@@ -37,7 +32,6 @@ export interface TemplateFieldDraft {
 export interface TemplateDraft {
   name: string;
   description: string;
-  defaultInboundTemplateId: number | null;
   fields: TemplateFieldDraft[];
 }
 
@@ -67,15 +61,11 @@ export function createEmptyField(): TemplateFieldDraft {
   };
 }
 
-export function createTemplateDraft(
-  template: ItemAttributeTemplateResponse | InboundTemplateResponse | null,
-  kind: AttributeTemplateKind,
-): TemplateDraft {
+export function createTemplateDraft(template: ItemAttributeTemplateResponse | null): TemplateDraft {
   if (!template) {
     return {
       name: "",
       description: "",
-      defaultInboundTemplateId: null,
       fields: [createEmptyField()],
     };
   }
@@ -83,13 +73,9 @@ export function createTemplateDraft(
   return {
     name: template.name,
     description: template.description ?? "",
-    defaultInboundTemplateId:
-      kind === "item" && "default_inbound_template_id" in template
-        ? template.default_inbound_template_id
-        : null,
     fields: [...template.fields]
       .sort((left, right) => left.sort_order - right.sort_order)
-      .map((field) => responseFieldToDraft(field, kind)),
+      .map(responseFieldToDraft),
   };
 }
 
@@ -100,10 +86,7 @@ export function serializeTemplateDraft(draft: TemplateDraft): string {
   });
 }
 
-export function validateTemplateDraft(
-  draft: TemplateDraft,
-  kind: AttributeTemplateKind,
-): TemplateDraftValidation {
+export function validateTemplateDraft(draft: TemplateDraft): TemplateDraftValidation {
   const errors: Record<string, string> = {};
   const name = draft.name.trim();
   const description = draft.description.trim();
@@ -133,10 +116,8 @@ export function validateTemplateDraft(
     validateDefaultValue(field, prefix, errors);
     if (field.fieldType === "select")
       validateStringOptions(field.options, prefix, "options", 128, 128, errors);
-    if (kind === "item") {
-      if (field.catalogVisible) catalogVisibleCount += 1;
-      validateUnit(field, prefix, errors);
-    }
+    if (field.catalogVisible) catalogVisibleCount += 1;
+    validateUnit(field, prefix, errors);
     if (
       firstFieldIndex === null &&
       Object.keys(errors).some((key) => key.startsWith(`${prefix}.`))
@@ -153,21 +134,12 @@ export function buildItemTemplateRequest(draft: TemplateDraft) {
   return {
     name: draft.name.trim(),
     description: nullableTrimmed(draft.description),
-    default_inbound_template_id: draft.defaultInboundTemplateId,
     fields: draft.fields.map<ItemAttributeTemplateFieldRequest>((field) => ({
       definition_id: field.definitionId,
       ...buildBaseFieldRequest(field),
       catalog_visible: field.catalogVisible,
       unit: buildUnitRule(field),
     })),
-  };
-}
-
-export function buildInboundTemplateRequest(draft: TemplateDraft): InboundTemplateWriteRequest {
-  return {
-    name: draft.name.trim(),
-    description: nullableTrimmed(draft.description),
-    fields: draft.fields.map(buildBaseFieldRequest),
   };
 }
 
@@ -195,22 +167,8 @@ export function fieldTypeLabel(type: TemplateFieldType): string {
   }[type];
 }
 
-export function countFieldTypes(fields: readonly TemplateFieldResponse[]): string {
-  const counts = new Map<TemplateFieldType, number>();
-  for (const field of fields) counts.set(field.field_type, (counts.get(field.field_type) ?? 0) + 1);
-  const parts = Array.from(counts.entries()).map(
-    ([type, count]) => `${fieldTypeLabel(type)} ${count}`,
-  );
-  return parts.length > 3
-    ? `${parts.slice(0, 3).join(" · ")} · 另 ${parts.length - 3} 类`
-    : parts.join(" · ");
-}
-
-function responseFieldToDraft(
-  field: TemplateFieldResponse,
-  kind: AttributeTemplateKind,
-): TemplateFieldDraft {
-  const itemField = kind === "item" ? (field as ItemAttributeTemplateFieldResponse) : null;
+function responseFieldToDraft(field: TemplateFieldResponse): TemplateFieldDraft {
+  const itemField = field as ItemAttributeTemplateFieldResponse;
   fieldKeySequence += 1;
   return {
     key: `template-field-${field.id}-${fieldKeySequence}`,
@@ -221,10 +179,10 @@ function responseFieldToDraft(
     options: [...(field.options ?? [])],
     required: field.required,
     searchable: field.searchable,
-    catalogVisible: itemField?.catalog_visible ?? false,
-    unitMode: itemField?.unit.mode ?? "none",
-    unitValue: itemField?.unit.value ?? "",
-    unitOptions: [...(itemField?.unit.options ?? [])],
+    catalogVisible: itemField.catalog_visible ?? false,
+    unitMode: itemField.unit?.mode ?? "none",
+    unitValue: itemField.unit?.value ?? "",
+    unitOptions: [...(itemField.unit?.options ?? [])],
     expanded: true,
   };
 }

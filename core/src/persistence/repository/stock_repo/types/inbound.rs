@@ -1,9 +1,9 @@
-//! 入库单及入库明细属性仓储模型。
+//! 入库单仓储模型。
 //!
 //! 本模块属于 `core` 持久化层，描述入库事务的写入和读取边界。
 
 use super::validate_positive_f64;
-use crate::validation::{validate_json_text, validate_not_blank, validate_optional_not_blank};
+use crate::validation::{validate_not_blank, validate_optional_not_blank};
 
 /// 创建入库单明细的仓储输入。
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
@@ -26,45 +26,6 @@ pub(crate) struct CreateInboundOrderItem {
     /// 有效期日期文本。
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
-    /// 本次入库使用的入库模板 ID。
-    #[garde(skip)]
-    pub inbound_template_id: Option<i64>,
-    /// 本次入库属性；创建明细后在同一事务中逐行保存。
-    #[garde(dive)]
-    pub attributes: Vec<InboundAttributeInput>,
-}
-
-/// 创建入库明细属性的仓储输入。
-#[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
-pub(crate) struct InboundAttributeInput {
-    /// 可选入库模板字段来源。
-    #[garde(skip)]
-    pub template_field_id: Option<i64>,
-    /// 属性名称，同一明细内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
-    pub field_name: String,
-    /// 稳定属性类型代码。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
-    pub field_type: String,
-    /// JSON 编码后的属性值。
-    #[garde(
-        length(min = 1, max = 8192),
-        custom(validate_not_blank),
-        custom(validate_json_text)
-    )]
-    pub value_json: String,
-    /// 可选计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
-    pub unit: Option<String>,
-    /// 属性展示顺序。
-    #[garde(range(min = 0))]
-    pub sort_order: i32,
-    /// file 属性引用的临时上传文件 ID。
-    #[garde(skip)]
-    pub file_object_id: Option<i64>,
-    /// 上传文件所有者 ID；绑定 file 属性时必须存在。
-    #[garde(skip)]
-    pub file_owner_user_id: Option<i64>,
 }
 
 /// 创建入库单的仓储输入。
@@ -162,10 +123,6 @@ pub(crate) struct InboundOrderItemRecord {
     pub batch_no: Option<String>,
     /// 有效期。
     pub expires_at: Option<String>,
-    /// 本明细使用的入库模板 ID。
-    pub inbound_template_id: Option<i64>,
-    /// 从属性行重建的本次入库属性 JSON 对象。
-    pub attributes_json: Option<String>,
     /// 创建时间。
     pub created_at: String,
 }

@@ -183,7 +183,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 接收单张物品或入库属性图片并返回稳定文件引用。 */
+        /** 接收单张物品图片并返回稳定文件引用。 */
         post: operations["upload_image"];
         delete?: never;
         options?: never;
@@ -202,7 +202,7 @@ export interface paths {
         get: operations["read_file"];
         put?: never;
         post?: never;
-        /** 删除当前用户拥有且尚未绑定物品或入库属性的临时图片。 */
+        /** 删除当前用户拥有且尚未绑定物品的临时图片。 */
         delete: operations["delete_file"];
         options?: never;
         head?: never;
@@ -238,66 +238,6 @@ export interface paths {
         put?: never;
         /** 按请求模式创建待审批单据或在同一事务内直接完成入库。 */
         post: operations["create_inbound"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/inbound-templates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查询入库模板列表。
-         * @description 允许 stock.inbound.create 或 stock.template.read 任一权限；仅用于入库任务读取活动模板，写接口仍要求 stock.template.manage。
-         */
-        get: operations["list_inbound_templates"];
-        put?: never;
-        /** 创建入库模板。 */
-        post: operations["create_inbound_template"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/inbound-templates/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 查询入库模板详情。
-         * @description 允许 stock.inbound.create 或 stock.template.read 任一权限；仅用于入库任务读取活动模板，写接口仍要求 stock.template.manage。
-         */
-        get: operations["get_inbound_template"];
-        /** 更新入库模板。 */
-        put: operations["update_inbound_template"];
-        post?: never;
-        /** 软删除入库模板。 */
-        delete: operations["delete_inbound_template"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/inbound-templates/{id}/copy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 复制入库模板。 */
-        post: operations["copy_inbound_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1205,15 +1145,6 @@ export interface components {
             batch_no?: string | null;
             /** @description 有效期文本，首版按调用方输入保存。 */
             expires_at?: string | null;
-            /** @description 模板扩展属性；创建和审批阶段都按物品当前模板校验，file 值使用 `{ "file_id": id }`。 */
-            ext_attributes?: {
-                [key: string]: components["schemas"]["ItemAttributeValue"];
-            } | null;
-            /**
-             * Format: int64
-             * @description 可选入库模板 ID；为空时可由物品属性模板推荐值推导。
-             */
-            inbound_template_id?: number | null;
             /**
              * Format: int64
              * @description 入库物品 ID，必须指向未软删除物品。
@@ -1243,20 +1174,11 @@ export interface components {
             created_at: string;
             /** @description 有效期文本。 */
             expires_at?: string | null;
-            /** @description 模板扩展属性。 */
-            ext_attributes?: {
-                [key: string]: components["schemas"]["ItemAttributeValue"];
-            } | null;
             /**
              * Format: int64
              * @description 明细 ID。
              */
             id: number;
-            /**
-             * Format: int64
-             * @description 本明细使用的入库模板 ID。
-             */
-            inbound_template_id?: number | null;
             /**
              * Format: int64
              * @description 物品 ID。
@@ -1341,42 +1263,6 @@ export interface components {
          * @enum {string}
          */
         InboundSubmissionMode: "pending_approval" | "direct";
-        /** @description 创建入库模板请求。 */
-        InboundTemplateCreateRequest: {
-            /** @description 模板说明。 */
-            description?: string | null;
-            /** @description 本次收货属性字段。 */
-            fields: components["schemas"]["TemplateFieldDef"][];
-            /** @description 模板名称。 */
-            name: string;
-        };
-        /** @description 入库模板响应。 */
-        InboundTemplateResponse: {
-            /** @description 创建时间。 */
-            created_at: string;
-            /** @description 模板说明。 */
-            description?: string | null;
-            /** @description 本次收货属性字段。 */
-            fields: components["schemas"]["TemplateFieldResponse"][];
-            /**
-             * Format: int64
-             * @description 模板 ID。
-             */
-            id: number;
-            /** @description 模板名称。 */
-            name: string;
-            /** @description 更新时间。 */
-            updated_at: string;
-        };
-        /** @description 更新入库模板请求。 */
-        InboundTemplateUpdateRequest: {
-            /** @description 模板说明。 */
-            description?: string | null;
-            /** @description 字段存在时整体替换。 */
-            fields?: components["schemas"]["TemplateFieldDef"][] | null;
-            /** @description 模板名称。 */
-            name?: string | null;
-        };
         /** @description 创建或整体替换物品属性时的字段值。 */
         ItemAttributeRequest: {
             /**
@@ -1438,11 +1324,6 @@ export interface components {
         };
         /** @description 创建物品属性模板请求。 */
         ItemAttributeTemplateCreateRequest: {
-            /**
-             * Format: int64
-             * @description 推荐的默认入库模板 ID。
-             */
-            default_inbound_template_id?: number | null;
             /** @description 模板说明。 */
             description?: string | null;
             /** @description 物品属性预设字段。 */
@@ -1492,11 +1373,6 @@ export interface components {
         ItemAttributeTemplateResponse: {
             /** @description 创建时间。 */
             created_at: string;
-            /**
-             * Format: int64
-             * @description 推荐的默认入库模板 ID。
-             */
-            default_inbound_template_id?: number | null;
             /** @description 模板说明。 */
             description?: string | null;
             /** @description 物品属性预设字段。 */
@@ -1518,11 +1394,6 @@ export interface components {
         };
         /** @description 更新物品属性模板请求。 */
         ItemAttributeTemplateUpdateRequest: {
-            /**
-             * Format: int64
-             * @description 推荐的默认入库模板 ID。
-             */
-            default_inbound_template_id?: number | null;
             /** @description 模板说明。 */
             description?: string | null;
             /** @description 字段存在时整体替换。 */
@@ -2022,13 +1893,6 @@ export interface components {
             image_url: string;
             /** @description 物品名称。 */
             name: string;
-            /** @description 推荐入库模板当前是否可供入库使用。 */
-            recommended_inbound_template_available: boolean;
-            /**
-             * Format: int64
-             * @description 物品属性模板推荐的入库模板 ID；模板失效时仍返回原始 ID。
-             */
-            recommended_inbound_template_id?: number | null;
             /** @description 物品 SKU。 */
             sku: string;
             /** @description 计量单位。 */
@@ -3566,7 +3430,7 @@ export interface operations {
                 date_from: string | null;
                 /** @description 创建时间终点，使用 SQLite UTC 字符串格式。 */
                 date_to: string | null;
-                /** @description 按入库单、明细、关联物品和模板值模糊搜索。 */
+                /** @description 按入库单、明细和关联物品模糊搜索。 */
                 search: string | null;
             };
             cookie?: never;
@@ -3671,183 +3535,6 @@ export interface operations {
             };
             /** @description Image reference unavailable */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    list_inbound_templates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundTemplateResponse"][];
-                };
-            };
-        };
-    };
-    create_inbound_template: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InboundTemplateCreateRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundTemplateResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    get_inbound_template: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundTemplateResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    update_inbound_template: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InboundTemplateUpdateRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundTemplateResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    delete_inbound_template: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    copy_inbound_template: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TemplateCopyRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InboundTemplateResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
                 headers: {
                     [name: string]: unknown;
                 };

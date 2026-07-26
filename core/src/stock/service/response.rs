@@ -137,8 +137,6 @@ pub(super) fn item_option_response(record: ItemOptionRecord) -> controller::Item
         category_id: record.category_id,
         category_name: record.category_name,
         attribute_template_id: record.attribute_template_id,
-        recommended_inbound_template_id: record.recommended_inbound_template_id,
-        recommended_inbound_template_available: record.recommended_inbound_template_available,
         image_file_id: record.image_file_id,
         image_url: format!("/api/files/{}", record.image_file_id),
         unit: record.unit,
@@ -217,7 +215,7 @@ pub(super) fn location_transfer_response(
     }
 }
 
-/// 把入库单详情转换为 HTTP 响应；扩展属性 JSON 解析失败时返回 `InvalidRequest`。
+/// 把入库单详情转换为 HTTP 响应。
 pub(super) fn inbound_response(
     detail: InboundOrderDetail,
 ) -> Result<controller::InboundResponse, StockApiError> {
@@ -252,12 +250,6 @@ pub(super) fn inbound_response(
                     location_name: item.location_name,
                     batch_no: item.batch_no,
                     expires_at: item.expires_at,
-                    inbound_template_id: item.inbound_template_id,
-                    ext_attributes: item
-                        .attributes_json
-                        .map(|json| serde_json::from_str(&json))
-                        .transpose()
-                        .map_err(|_| StockApiError::InvalidRequest)?,
                     created_at: item.created_at,
                 })
             })

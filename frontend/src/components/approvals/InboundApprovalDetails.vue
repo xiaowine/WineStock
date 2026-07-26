@@ -1,4 +1,4 @@
-<!-- 本组件只读呈现入库审批明细、模板属性和增加库存后果；它不修改单据或执行审批。 -->
+<!-- 本组件只读呈现入库审批明细和增加库存后果；它不修改单据或执行审批。 -->
 <template>
   <section class="approval-detail-lines">
     <h3>
@@ -39,26 +39,6 @@
           <dt>有效期</dt>
           <dd>{{ item.expires_at || "未设置" }}</dd>
         </div>
-        <div>
-          <dt>入库模板</dt>
-          <dd>
-            {{ item.inbound_template_id ? `#${item.inbound_template_id}` : "未使用" }}
-          </dd>
-        </div>
-      </dl>
-      <dl v-if="item.ext_attributes" class="approval-detail-attributes">
-        <div v-for="(value, key) in item.ext_attributes" :key="key">
-          <dt>{{ key }}</dt>
-          <dd>
-            <AuthenticatedImage
-              v-if="fileId(value)"
-              :file-id="fileId(value)!"
-              :alt="`${key} 附件`"
-              :size="48"
-              previewable
-            /><span v-else>{{ displayValue(value) }}</span>
-          </dd>
-        </div>
       </dl>
     </article>
   </section>
@@ -72,16 +52,5 @@ function money(value: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-}
-function fileId(value: unknown): number | null {
-  return typeof value === "object" &&
-    value !== null &&
-    "file_id" in value &&
-    typeof value.file_id === "number"
-    ? value.file_id
-    : null;
-}
-function displayValue(value: unknown): string {
-  return typeof value === "string" ? value : JSON.stringify(value);
 }
 </script>

@@ -21,3 +21,4 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `self-hosted-auto-port.md`：本机模式隐藏端口、由 Shell 自动分配并持久化实际端口的跨 shared/core/android/frontend 实施方案。
 - `openapi-frontend-typegen.md`：core Debug OpenAPI 离线导出、前端 openapi-typescript 类型生成、别名桥接与漂移防线的跨 core/frontend 实施方案。
 - `code-map-granularity-reduction.md`：代码地图从逐文件镜像收敛为模块/职责粒度的约定、逐地图整改与流程规则同步方案。
+- `inbound-template-removal.md`：删除入库模板概念的跨 core/frontend 影响评估、收货属性去留的方案取舍与实施决策记录（已按方案 B 实施）。

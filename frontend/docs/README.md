@@ -22,9 +22,9 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `page-inbound-orders.md`：入库单列表、服务端筛选、按需详情、审批路由边界、响应式和实施验收设计。
 - `page-outbound-orders.md`：出库单列表、服务端筛选、触底追加、批次/FIFO 语义、按需详情和审批边界实施设计。
 - `page-stock-approvals.md`：入库审批与出库审批共用工作台、审核详情、库存影响、权限组合、并发错误和响应式实施设计。
-- `page-inbound.md`：新建入库单物品选择、单条明细编辑、模板/图片、草稿和响应式验收。
+- `page-inbound.md`：新建入库单物品选择、单条明细编辑、草稿和响应式验收。
 - `page-outbound.md`：新建出库单物品选择、数量/FIFO/批次分配、草稿、提交审核、响应式和验收设计。
-- `page-templates.md`：分类、物品属性模板与入库模板页面的信息架构、字段编辑、危险操作、响应式和实施验收设计。
+- `page-templates.md`：分类与物品属性模板页面的信息架构、字段编辑、危险操作、响应式和实施验收设计。
 - `page-substitutes.md`：替代关系全局治理页面的关系分组、物品 Dialog 复用、整体保存、权限、响应式和实施验收设计。
 - `page-items.md`：物品目录、新建/详情 Dialog，以及新建会话中的立创商品资料查询和覆盖回填规则。
 - `page-runtime-settings.md`：无 API 依赖的本机运行设置、默认端口 `17890`、模式切换、Shell Bridge 边界和恢复入口。
@@ -39,7 +39,6 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `mobile-interactions.md`：浏览器/Android WebView 安全区变量、full-bleed 背景、固定操作区和移动端验收规则。
 - [`../../docs/in-app-image-viewer.md`](../../docs/in-app-image-viewer.md)：应用内图片查看（不管理系统栏）。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。
-- `implementation-notes/inbound-template-usability-remediation.md`：入库模板可发现性、权限耦合、主列表状态、模板切换保护和分阶段整改方案。
 - `implementation-notes/outbound-estimated-cost.md`：新建出库提交前的批次成本预估、FIFO 分摊、界面呈现、错误边界与验收方案。
 - `implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切的原因、单列条目重构、Dialog 适配与验收方案。
 - `implementation-notes/substitute-network-visualization.md`：替代关系星链网络的入口、力导向布局、交互、响应式、性能和分阶段实施方案。

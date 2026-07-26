@@ -53,7 +53,7 @@
 - `stock.item.read`：查看库存物品列表、详情和物品筛选值。
 - `stock.location.manage`：管理库位分组、库位和整批次移库。
 - `stock.location.read`：查看库位分组树和库位列表。
-- `stock.template.manage`：管理物品分类、物品属性模板和入库模板。
+- `stock.template.manage`：管理物品分类和物品属性模板。
 - `stock.template.read`：查看分类和两类模板。
 - `stock.inbound.create`：创建入库单。
 - `stock.inbound.read`：查看入库单列表、详情和入库历史筛选值。
@@ -130,16 +130,6 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 图片内容使用 SHA-256 派生的 `images/<前两位>/<次两位>/<sha256>.<类型>` 相对路径保存。多个元数据记录可以复用同一内容文件；删除元数据时只有在没有其它记录引用该路径后才删除磁盘内容。
 
-### `storage_inbound_file_bindings`
-
-入库图片引用表。声明文件对象已经归属到具体入库明细属性。
-
-重要字段和约束：
-
-- `file_object_id`：关联 `storage_file_objects`，全表唯一，保证同一临时上传不能绑定多个明细。
-- `inbound_order_item_attribute_id`：关联 `stock_inbound_order_item_attributes`，全表唯一。
-- 创建入库单时，本表与单据、明细和属性在同一事务中写入。
-
 ### `storage_item_file_bindings`
 
 物品扩展图片属性引用表。`file_object_id` 与 `item_attribute_id` 均唯一，保证单张图片只绑定一个物品 file 属性；物品必选主图不使用本表，直接由 `stock_items.image_file_id` 引用。
@@ -150,7 +140,7 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_item_attribute_templates`
 
-可选物品属性预设。`default_inbound_template_id` 可推荐一套入库模板，但物品可以不使用模板，也可以增加自定义属性。
+可选物品属性预设。物品可以不使用模板，也可以增加自定义属性。
 
 ### `stock_item_attribute_definitions`
 
@@ -162,14 +152,6 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 - `catalog_visible`：仅模板定义允许启用的目录展示标记，默认 `0`；服务层限制每个模板最多三项。
 
 字段组合由服务层校验：`none` 不携带额外单位配置，`fixed` 只携带 `fixed_unit`，`select` 只携带非空且去重的 `unit_options_json`。私有定义固定不可用于结构化筛选或目录展示。
-
-### `stock_inbound_templates`
-
-入库属性模板，只描述单次收货或当前批次状态。
-
-### `stock_inbound_template_fields`
-
-入库模板字段，保存必填性、可搜索性、候选值、默认值和稳定排序。
 
 ### `stock_items`
 
@@ -227,18 +209,13 @@ JWT access token 签名密钥表。保存系统生成的签名密钥材料和生
 
 ### `stock_inbound_order_items`
 
-入库单明细表。记录入库物品、数量、单价、库位、外部批次号、有效期和可选入库模板 ID。
+入库单明细表。记录入库物品、数量、单价、库位、外部批次号和有效期。
 
 重要字段：
 
 - `quantity`：入库数量，必须大于 0。
 - `unit_price`：入库单价，不允许为负。
 - `location_id`：入库库位，必须指向有效库位。
-- `inbound_template_id`：本明细使用的入库模板；模板软删除后允许置空，实际属性仍保留。
-
-### `stock_inbound_order_item_attributes`
-
-单次入库实际属性表。每条记录保存属性名称、类型、JSON 值、可选单位、排序和可选模板字段来源。同一入库明细字段名唯一；file 值使用 `{ "file_id": id }`，真实文件归属由 `storage_inbound_file_bindings` 约束。
 
 ### `stock_batches`
 

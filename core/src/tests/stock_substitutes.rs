@@ -301,8 +301,6 @@ async fn seed_approved_inbound(
                 location_id,
                 batch_no: Some(batch_no.to_owned()),
                 expires_at: Some("2027-01-01".to_owned()),
-                inbound_template_id: None,
-                ext_attributes: None,
             }],
         },
     )

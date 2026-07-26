@@ -113,9 +113,8 @@ pub(super) async fn normalize_item_attributes(
                 .find_access_record(id)
                 .await?
                 .ok_or(StockApiError::InvalidRequest)?;
-            let already_bound_to_current_item = current_item_id.is_some_and(|item_id| {
-                record.item_id == Some(item_id) && record.inbound_order_item_id.is_none()
-            });
+            let already_bound_to_current_item =
+                current_item_id.is_some_and(|item_id| record.item_id == Some(item_id));
             let owned_unbound =
                 record.file.owner_user_id == Some(user.user_id) && !record.is_bound();
             if !already_bound_to_current_item && !owned_unbound {

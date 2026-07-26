@@ -1,4 +1,4 @@
-//! 分类、物品属性模板和入库模板独立接口测试。
+//! 分类与物品属性模板独立接口测试。
 
 use axum::{
     body::Body,
@@ -8,18 +8,17 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundTemplateCreateRequest, InboundTemplateResponse, ItemAttributeTemplateCreateRequest,
-        ItemAttributeTemplateDeleteResponse, ItemAttributeTemplateFieldDef,
-        ItemAttributeTemplateResponse, ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode,
-        ItemAttributeUnitRule, ItemCategoryCreateRequest, ItemCategoryDeleteResponse,
-        ItemCategoryResponse, ItemCreateRequest, ItemMutationResponse, TemplateCopyRequest,
-        TemplateFieldDef, TemplateFieldType,
+        ItemAttributeTemplateCreateRequest, ItemAttributeTemplateDeleteResponse,
+        ItemAttributeTemplateFieldDef, ItemAttributeTemplateResponse,
+        ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode, ItemAttributeUnitRule,
+        ItemCategoryCreateRequest, ItemCategoryDeleteResponse, ItemCategoryResponse,
+        ItemCreateRequest, ItemMutationResponse, TemplateCopyRequest, TemplateFieldType,
     },
     test_support::{error_code, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
-async fn category_and_two_template_kinds_are_independent() {
+async fn category_and_item_template_are_independent() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let token = &login.body.access_token;
@@ -39,21 +38,6 @@ async fn category_and_two_template_kinds_are_independent() {
     assert_eq!(category.status(), StatusCode::CREATED);
     let category: ItemCategoryResponse = json_body(category).await;
 
-    let inbound = authorized_json(
-        &app,
-        "POST",
-        "/api/inbound-templates",
-        token,
-        &InboundTemplateCreateRequest {
-            name: "测试收货".to_owned(),
-            description: None,
-            fields: vec![field("收货照片", TemplateFieldType::File, false)],
-        },
-    )
-    .await;
-    assert_eq!(inbound.status(), StatusCode::CREATED);
-    let inbound: InboundTemplateResponse = json_body(inbound).await;
-
     let item = authorized_json(
         &app,
         "POST",
@@ -62,22 +46,17 @@ async fn category_and_two_template_kinds_are_independent() {
         &ItemAttributeTemplateCreateRequest {
             name: "测试物品属性".to_owned(),
             description: None,
-            default_inbound_template_id: Some(inbound.id),
             fields: vec![item_field("型号", TemplateFieldType::Text, true)],
         },
     )
     .await;
     assert_eq!(item.status(), StatusCode::CREATED);
     let item: ItemAttributeTemplateResponse = json_body(item).await;
-    assert_eq!(item.default_inbound_template_id, Some(inbound.id));
     assert_eq!(item.fields[0].field.field_name, "型号");
 
     let categories = authorized_empty(&app, "GET", "/api/item-categories", token).await;
     let categories: Vec<ItemCategoryResponse> = json_body(categories).await;
     assert!(categories.iter().any(|entry| entry.id == category.id));
-    let inbound_templates: Vec<InboundTemplateResponse> =
-        json_body(authorized_empty(&app, "GET", "/api/inbound-templates", token).await).await;
-    assert!(inbound_templates.iter().any(|entry| entry.id == inbound.id));
     let item_templates: Vec<ItemAttributeTemplateResponse> =
         json_body(authorized_empty(&app, "GET", "/api/item-attribute-templates", token).await)
             .await;
@@ -115,7 +94,6 @@ async fn categories_and_item_templates_report_active_item_usage_and_delete_impac
             &ItemAttributeTemplateCreateRequest {
                 name: "使用数量模板".to_owned(),
                 description: None,
-                default_inbound_template_id: None,
                 fields: vec![item_field("规格", TemplateFieldType::Text, false)],
             },
         )
@@ -234,25 +212,28 @@ async fn categories_and_item_templates_report_active_item_usage_and_delete_impac
 }
 
 #[tokio::test]
-async fn template_validation_copy_and_permissions_are_enforced() {
+async fn item_template_field_validation_and_name_conflicts_are_enforced() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let token = &login.body.access_token;
     let invalid = authorized_json(
         &app,
         "POST",
-        "/api/inbound-templates",
+        "/api/item-attribute-templates",
         token,
-        &InboundTemplateCreateRequest {
+        &ItemAttributeTemplateCreateRequest {
             name: "坏模板".to_owned(),
             description: None,
-            fields: vec![TemplateFieldDef {
+            fields: vec![ItemAttributeTemplateFieldDef {
+                definition_id: None,
                 field_name: "状态".to_owned(),
                 field_type: TemplateFieldType::Select,
                 required: None,
                 searchable: None,
+                catalog_visible: None,
                 options: None,
                 default_value: None,
+                unit: None,
             }],
         },
     )
@@ -266,18 +247,21 @@ async fn template_validation_copy_and_permissions_are_enforced() {
         let invalid_default = authorized_json(
             &app,
             "POST",
-            "/api/inbound-templates",
+            "/api/item-attribute-templates",
             token,
-            &InboundTemplateCreateRequest {
+            &ItemAttributeTemplateCreateRequest {
                 name: name.to_owned(),
                 description: None,
-                fields: vec![TemplateFieldDef {
+                fields: vec![ItemAttributeTemplateFieldDef {
+                    definition_id: None,
                     field_name: "字段".to_owned(),
                     field_type,
                     required: Some(false),
                     searchable: Some(false),
+                    catalog_visible: None,
                     options: None,
                     default_value: Some(default_value.to_owned()),
+                    unit: None,
                 }],
             },
         )
@@ -286,16 +270,16 @@ async fn template_validation_copy_and_permissions_are_enforced() {
         assert_eq!(error_code(invalid_default).await, "invalid_request");
     }
 
-    let created: InboundTemplateResponse = json_body(
+    let created: ItemAttributeTemplateResponse = json_body(
         authorized_json(
             &app,
             "POST",
-            "/api/inbound-templates",
+            "/api/item-attribute-templates",
             token,
-            &InboundTemplateCreateRequest {
-                name: "可复制收货".to_owned(),
+            &ItemAttributeTemplateCreateRequest {
+                name: "可复制属性".to_owned(),
                 description: None,
-                fields: vec![field("备注", TemplateFieldType::Text, false)],
+                fields: vec![item_field("备注", TemplateFieldType::Text, false)],
             },
         )
         .await,
@@ -304,26 +288,26 @@ async fn template_validation_copy_and_permissions_are_enforced() {
     let copied = authorized_json(
         &app,
         "POST",
-        &format!("/api/inbound-templates/{}/copy", created.id),
+        &format!("/api/item-attribute-templates/{}/copy", created.id),
         token,
         &TemplateCopyRequest {
-            name: "复制收货".to_owned(),
+            name: "复制属性".to_owned(),
         },
     )
     .await;
     assert_eq!(copied.status(), StatusCode::CREATED);
-    let copied: InboundTemplateResponse = json_body(copied).await;
+    let copied: ItemAttributeTemplateResponse = json_body(copied).await;
     assert_eq!(copied.fields.len(), 1);
 
     let duplicate = authorized_json(
         &app,
         "POST",
-        "/api/inbound-templates",
+        "/api/item-attribute-templates",
         token,
-        &InboundTemplateCreateRequest {
-            name: "复制收货".to_owned(),
+        &ItemAttributeTemplateCreateRequest {
+            name: "复制属性".to_owned(),
             description: None,
-            fields: vec![field("备注", TemplateFieldType::Text, false)],
+            fields: vec![item_field("备注", TemplateFieldType::Text, false)],
         },
     )
     .await;
@@ -346,7 +330,6 @@ async fn item_template_unit_rules_are_validated_and_copied() {
         &ItemAttributeTemplateCreateRequest {
             name: "单位规则模板".to_owned(),
             description: None,
-            default_inbound_template_id: None,
             fields: vec![ItemAttributeTemplateFieldDef {
                 definition_id: None,
                 field_name: "长度".to_owned(),
@@ -382,7 +365,6 @@ async fn item_template_unit_rules_are_validated_and_copied() {
         &ItemAttributeTemplateUpdateRequest {
             name: None,
             description: None,
-            default_inbound_template_id: None,
             fields: Some(vec![ItemAttributeTemplateFieldDef {
                 definition_id: Some(original_definition_id),
                 field_name: "长度规格".to_owned(),
@@ -446,7 +428,6 @@ async fn item_template_unit_rules_are_validated_and_copied() {
             &ItemAttributeTemplateCreateRequest {
                 name: format!("无效单位规则-{:?}", unit.mode),
                 description: None,
-                default_inbound_template_id: None,
                 fields: vec![ItemAttributeTemplateFieldDef {
                     definition_id: None,
                     field_name: "字段".to_owned(),
@@ -463,17 +444,6 @@ async fn item_template_unit_rules_are_validated_and_copied() {
         .await;
         assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
         assert_eq!(error_code(invalid).await, "invalid_request");
-    }
-}
-
-fn field(name: &str, field_type: TemplateFieldType, required: bool) -> TemplateFieldDef {
-    TemplateFieldDef {
-        field_name: name.to_owned(),
-        field_type,
-        required: Some(required),
-        searchable: Some(false),
-        options: None,
-        default_value: None,
     }
 }
 
@@ -505,7 +475,6 @@ async fn item_attribute_template_limits_catalog_visible_fields_to_three() {
         &ItemAttributeTemplateCreateRequest {
             name: "目录字段上限".to_owned(),
             description: None,
-            default_inbound_template_id: None,
             fields,
         },
     )

@@ -29,10 +29,6 @@ pub(crate) use permissions::{
 };
 
 const STOCK_BASE_PATH: &str = "/api";
-const INBOUND_TEMPLATE_READ_PERMISSIONS: &[&str] = &[
-    STOCK_INBOUND_CREATE_PERMISSION,
-    STOCK_TEMPLATE_READ_PERMISSION,
-];
 // 新建出库会话只能读取轻量物品与批次候选，不能借此访问物品详情或库存总览。
 const OUTBOUND_DRAFT_ITEM_READ_PERMISSIONS: &[&str] =
     &[STOCK_ITEM_READ_PERMISSION, STOCK_OUTBOUND_CREATE_PERMISSION];
@@ -72,21 +68,6 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             .route(
                 "/item-attribute-templates/{id}/copy",
                 auth.template_manage(post(controller::copy_item_attribute_template)),
-            )
-            .route(
-                "/inbound-templates",
-                auth.template_manage(post(controller::create_inbound_template))
-                    .merge(auth.inbound_template_read(get(controller::list_inbound_templates))),
-            )
-            .route(
-                "/inbound-templates/{id}",
-                auth.inbound_template_read(get(controller::get_inbound_template))
-                    .merge(auth.template_manage(put(controller::update_inbound_template)))
-                    .merge(auth.template_manage(delete(controller::delete_inbound_template))),
-            )
-            .route(
-                "/inbound-templates/{id}/copy",
-                auth.template_manage(post(controller::copy_inbound_template)),
             )
             .route(
                 "/items",
@@ -239,10 +220,6 @@ impl StockRouteAuth {
 
     fn template_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
         self.allow(route, STOCK_TEMPLATE_READ_PERMISSION)
-    }
-
-    fn inbound_template_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {
-        route.require_any_permission(self.state.clone(), INBOUND_TEMPLATE_READ_PERMISSIONS)
     }
 
     fn inbound_read(&self, route: MethodRouter<CoreState>) -> MethodRouter<CoreState> {

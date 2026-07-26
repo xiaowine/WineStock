@@ -9,9 +9,8 @@ use tower::ServiceExt;
 
 use crate::{
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
-        InboundTemplateResponse, ItemCreateRequest, ItemMutationResponse, TemplateFieldDef,
-        TemplateFieldType,
+        InboundCreateRequest, InboundItemRequest, InboundResponse, ItemCreateRequest,
+        ItemMutationResponse,
     },
     test_support::{error_code, json_body, login_request, seed_stock_location, seeded_app},
 };
@@ -20,7 +19,7 @@ use crate::{
 async fn inbound_create_stays_pending_until_approval_writes_inventory() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let (item_id, template_id) = seed_template_bound_item(&app, &login.body.access_token).await;
+    let item_id = seed_inbound_item(&app, &login.body.access_token).await;
     let location_id = seed_stock_location(&app, "A-01").await;
 
     let created = authorized_json_request(
@@ -28,16 +27,7 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
         "POST",
         "/api/inbound",
         &login.body.access_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({
-                "brand": "Acme",
-                "abv": 13.5,
-                "datasheet": "https://example.com/spec"
-            })),
-        ),
+        &inbound_request(item_id, location_id),
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
@@ -107,14 +97,9 @@ async fn inbound_create_stays_pending_until_approval_writes_inventory() {
 async fn inbound_direct_submission_approves_atomically_and_reports_mode() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let (item_id, template_id) = seed_template_bound_item(&app, &login.body.access_token).await;
+    let item_id = seed_inbound_item(&app, &login.body.access_token).await;
     let location_id = seed_stock_location(&app, "DIRECT-01").await;
-    let mut request = inbound_request(
-        item_id,
-        location_id,
-        template_id,
-        Some(serde_json::json!({"brand": "Direct", "abv": 12.5})),
-    );
+    let mut request = inbound_request(item_id, location_id);
     request.submission_mode = crate::stock::controller::InboundSubmissionMode::Direct;
 
     let response = authorized_json_request(
@@ -147,7 +132,7 @@ async fn inbound_direct_submission_approves_atomically_and_reports_mode() {
 async fn inbound_reject_prevents_later_approval() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let (item_id, template_id) = seed_template_bound_item(&app, &login.body.access_token).await;
+    let item_id = seed_inbound_item(&app, &login.body.access_token).await;
     let location_id = seed_stock_location(&app, "A-01").await;
 
     let created = authorized_json_request(
@@ -155,12 +140,7 @@ async fn inbound_reject_prevents_later_approval() {
         "POST",
         "/api/inbound",
         &login.body.access_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
-        ),
+        &inbound_request(item_id, location_id),
     )
     .await;
     let order: InboundResponse = json_body(created).await;
@@ -194,7 +174,7 @@ async fn inbound_reject_prevents_later_approval() {
 async fn inbound_approval_rejects_location_removed_after_order_creation() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let (item_id, template_id) = seed_template_bound_item(&app, &login.body.access_token).await;
+    let item_id = seed_inbound_item(&app, &login.body.access_token).await;
     let location_id = seed_stock_location(&app, "REMOVED-LOC").await;
 
     let created = authorized_json_request(
@@ -202,12 +182,7 @@ async fn inbound_approval_rejects_location_removed_after_order_creation() {
         "POST",
         "/api/inbound",
         &login.body.access_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
-        ),
+        &inbound_request(item_id, location_id),
     )
     .await;
     assert_eq!(created.status(), StatusCode::CREATED);
@@ -235,44 +210,11 @@ async fn inbound_approval_rejects_location_removed_after_order_creation() {
 }
 
 #[tokio::test]
-async fn inbound_validates_template_attributes_and_permissions() {
+async fn inbound_permissions_are_enforced() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let (item_id, template_id) = seed_template_bound_item(&app, &login.body.access_token).await;
+    let item_id = seed_inbound_item(&app, &login.body.access_token).await;
     let location_id = seed_stock_location(&app, "A-01").await;
-
-    let missing_required = authorized_json_request(
-        &app,
-        "POST",
-        "/api/inbound",
-        &login.body.access_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({"abv": 13.5})),
-        ),
-    )
-    .await;
-    assert_eq!(missing_required.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(error_code(missing_required).await, "invalid_inbound_field");
-    assert_eq!(table_count(&app, "stock_batches").await, 0);
-
-    let invalid_url = authorized_json_request(
-        &app,
-        "POST",
-        "/api/inbound",
-        &login.body.access_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({"brand": "Acme", "datasheet": "example.com/spec"})),
-        ),
-    )
-    .await;
-    assert_eq!(invalid_url.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(error_code(invalid_url).await, "invalid_inbound_field");
 
     let viewer_token =
         seed_user_with_permissions_and_login(&app, "inbound-viewer", &["stock.inbound.read"]).await;
@@ -281,12 +223,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
         "POST",
         "/api/inbound",
         &viewer_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
-        ),
+        &inbound_request(item_id, location_id),
     )
     .await;
     assert_eq!(forbidden_create.status(), StatusCode::FORBIDDEN);
@@ -294,17 +231,6 @@ async fn inbound_validates_template_attributes_and_permissions() {
     let staff_token =
         seed_user_with_permissions_and_login(&app, "inbound-staff", &["stock.inbound.create"])
             .await;
-    let readable_templates =
-        authorized_empty_request(&app, "GET", "/api/inbound-templates", &staff_token).await;
-    assert_eq!(readable_templates.status(), StatusCode::OK);
-    let readable_template = authorized_empty_request(
-        &app,
-        "GET",
-        &format!("/api/inbound-templates/{template_id}"),
-        &staff_token,
-    )
-    .await;
-    assert_eq!(readable_template.status(), StatusCode::OK);
     let forbidden_item_templates =
         authorized_empty_request(&app, "GET", "/api/item-attribute-templates", &staff_token).await;
     assert_eq!(forbidden_item_templates.status(), StatusCode::FORBIDDEN);
@@ -313,12 +239,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
         "POST",
         "/api/inbound",
         &staff_token,
-        &inbound_request(
-            item_id,
-            location_id,
-            template_id,
-            Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
-        ),
+        &inbound_request(item_id, location_id),
     )
     .await;
     assert_eq!(created_by_staff.status(), StatusCode::CREATED);
@@ -332,12 +253,7 @@ async fn inbound_validates_template_attributes_and_permissions() {
     .await;
     assert_eq!(forbidden_approve.status(), StatusCode::FORBIDDEN);
 
-    let mut direct_request = inbound_request(
-        item_id,
-        location_id,
-        template_id,
-        Some(serde_json::json!({"brand": "Acme", "abv": 13.5})),
-    );
+    let mut direct_request = inbound_request(item_id, location_id);
     direct_request.submission_mode = crate::stock::controller::InboundSubmissionMode::Direct;
     let forbidden_direct =
         authorized_json_request(&app, "POST", "/api/inbound", &staff_token, &direct_request).await;
@@ -355,8 +271,20 @@ async fn inbound_validates_template_attributes_and_permissions() {
 async fn inbound_search_and_filter_values_use_history_scope() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
-    let (primary_item_id, secondary_item_id, inbound_template_id) =
-        seed_inbound_search_items(&app, &login.body.access_token).await;
+    let primary_item_id = seed_named_item(
+        &app,
+        &login.body.access_token,
+        "InboundSearchBottle",
+        "INB-SEARCH-001",
+    )
+    .await;
+    let secondary_item_id = seed_named_item(
+        &app,
+        &login.body.access_token,
+        "InboundSearchCap",
+        "INB-SEARCH-002",
+    )
+    .await;
     let location_l01 = seed_stock_location(&app, "L-01").await;
     let location_l02 = seed_stock_location(&app, "L-02").await;
 
@@ -377,11 +305,6 @@ async fn inbound_search_and_filter_values_use_history_scope() {
                     location_id: location_l01,
                     batch_no: Some("HIST-001".to_owned()),
                     expires_at: Some("2029-01-01".to_owned()),
-                    inbound_template_id: Some(inbound_template_id),
-                    ext_attributes: Some(serde_json::json!({
-                        "brand": "HistoryNeedle",
-                        "hidden_note": "HiddenHistoryNeedle"
-                    })),
                 },
                 InboundItemRequest {
                     item_id: secondary_item_id,
@@ -390,11 +313,6 @@ async fn inbound_search_and_filter_values_use_history_scope() {
                     location_id: location_l02,
                     batch_no: Some("HIST-002".to_owned()),
                     expires_at: Some("2029-02-01".to_owned()),
-                    inbound_template_id: Some(inbound_template_id),
-                    ext_attributes: Some(serde_json::json!({
-                        "brand": "HistoryNeedle",
-                        "hidden_note": "HiddenHistoryNeedle"
-                    })),
                 },
             ],
         },
@@ -419,8 +337,6 @@ async fn inbound_search_and_filter_values_use_history_scope() {
     assert_inbound_search_total(&app, &login.body.access_token, "InboundSearchBottle", 1).await;
     assert_inbound_search_total(&app, &login.body.access_token, "HIST-001", 1).await;
     assert_inbound_search_total(&app, &login.body.access_token, "L-01", 1).await;
-    assert_inbound_search_total(&app, &login.body.access_token, "HistoryNeedle", 1).await;
-    assert_inbound_search_total(&app, &login.body.access_token, "HiddenHistoryNeedle", 1).await;
 
     let empty_search = authorized_empty_request(
         &app,
@@ -456,10 +372,6 @@ async fn inbound_search_and_filter_values_use_history_scope() {
     assert_eq!(filter_values.status(), StatusCode::OK);
     let filter_values: serde_json::Value = json_body(filter_values).await;
     assert_eq!(
-        filter_value_count(&filter_values, "template:brand", "HistoryNeedle"),
-        Some(1)
-    );
-    assert_eq!(
         filter_value_count(&filter_values, "base:source", "SpecialSupplier"),
         Some(1)
     );
@@ -479,49 +391,6 @@ async fn inbound_search_and_filter_values_use_history_scope() {
         filter_value_count(&filter_values, "base:batch_no", "HIST-001"),
         Some(1)
     );
-    assert!(!has_filter_field(&filter_values, "template:hidden_note"));
-}
-
-async fn seed_inbound_search_items(
-    app: &crate::test_support::TestApp,
-    access_token: &str,
-) -> (i64, i64, i64) {
-    let template = authorized_json_request(
-        app,
-        "POST",
-        "/api/inbound-templates",
-        access_token,
-        &InboundTemplateCreateRequest {
-            name: "InboundSearchTemplate".to_owned(),
-            description: None,
-            fields: vec![
-                TemplateFieldDef {
-                    field_name: "brand".to_owned(),
-                    field_type: TemplateFieldType::Text,
-                    required: Some(false),
-                    searchable: Some(true),
-                    options: None,
-                    default_value: None,
-                },
-                TemplateFieldDef {
-                    field_name: "hidden_note".to_owned(),
-                    field_type: TemplateFieldType::Text,
-                    required: Some(false),
-                    searchable: Some(false),
-                    options: None,
-                    default_value: None,
-                },
-            ],
-        },
-    )
-    .await;
-    assert_eq!(template.status(), StatusCode::CREATED);
-    let template: InboundTemplateResponse = json_body(template).await;
-
-    let primary = seed_named_item(app, access_token, "InboundSearchBottle", "INB-SEARCH-001").await;
-    let secondary = seed_named_item(app, access_token, "InboundSearchCap", "INB-SEARCH-002").await;
-
-    (primary, secondary, template.id)
 }
 
 async fn seed_named_item(
@@ -604,89 +473,11 @@ fn filter_value_count(payload: &serde_json::Value, key: &str, value: &str) -> Op
         .as_u64()
 }
 
-fn has_filter_field(payload: &serde_json::Value, key: &str) -> bool {
-    payload["fields"].as_array().is_some_and(|fields| {
-        fields
-            .iter()
-            .any(|field| field.get("key").and_then(serde_json::Value::as_str) == Some(key))
-    })
+async fn seed_inbound_item(app: &crate::test_support::TestApp, access_token: &str) -> i64 {
+    seed_named_item(app, access_token, "Inbound Bottle", "INB-FLOW-001").await
 }
 
-async fn seed_template_bound_item(
-    app: &crate::test_support::TestApp,
-    access_token: &str,
-) -> (i64, i64) {
-    let template = authorized_json_request(
-        app,
-        "POST",
-        "/api/inbound-templates",
-        access_token,
-        &InboundTemplateCreateRequest {
-            name: "Inbound Material".to_owned(),
-            description: None,
-            fields: vec![
-                TemplateFieldDef {
-                    field_name: "brand".to_owned(),
-                    field_type: TemplateFieldType::Text,
-                    required: Some(true),
-                    searchable: Some(true),
-                    options: None,
-                    default_value: None,
-                },
-                TemplateFieldDef {
-                    field_name: "abv".to_owned(),
-                    field_type: TemplateFieldType::Number,
-                    required: Some(false),
-                    searchable: Some(false),
-                    options: None,
-                    default_value: None,
-                },
-                TemplateFieldDef {
-                    field_name: "datasheet".to_owned(),
-                    field_type: TemplateFieldType::Url,
-                    required: Some(false),
-                    searchable: Some(false),
-                    options: None,
-                    default_value: None,
-                },
-            ],
-        },
-    )
-    .await;
-    let template: InboundTemplateResponse = json_body(template).await;
-    let item = authorized_json_request(
-        app,
-        "POST",
-        "/api/items",
-        access_token,
-        &ItemCreateRequest {
-            name: "Inbound Bottle".to_owned(),
-            sku: format!("INB-{}", template.id),
-            category_id: None,
-            attribute_template_id: None,
-            image_file_id: crate::test_support::upload_test_image(app, access_token).await,
-            unit: "pcs".to_owned(),
-            description: None,
-            default_price: None,
-            reorder_point: None,
-            attributes: Vec::new(),
-        },
-    )
-    .await;
-    let item: serde_json::Value = json_body(item).await;
-
-    (
-        item["id"].as_i64().expect("item id should exist"),
-        template.id,
-    )
-}
-
-fn inbound_request(
-    item_id: i64,
-    location_id: i64,
-    template_id: i64,
-    ext_attributes: Option<serde_json::Value>,
-) -> InboundCreateRequest {
+fn inbound_request(item_id: i64, location_id: i64) -> InboundCreateRequest {
     InboundCreateRequest {
         submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
         source: "Supplier A".to_owned(),
@@ -698,8 +489,6 @@ fn inbound_request(
             location_id,
             batch_no: Some("BATCH-001".to_owned()),
             expires_at: Some("2027-01-01".to_owned()),
-            inbound_template_id: Some(template_id),
-            ext_attributes,
         }],
     }
 }

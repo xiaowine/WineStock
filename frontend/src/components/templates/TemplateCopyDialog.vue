@@ -41,7 +41,6 @@ import FormInput from "../forms/FormInput.vue";
 export interface TemplateCopyTarget {
   id: number;
   name: string;
-  kind: "item" | "inbound";
 }
 
 const props = defineProps<{

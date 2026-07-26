@@ -118,5 +118,5 @@ frontend/src/components/outbound/OutboundOrderFiltersDialog.vue/.scss
 
 - 不在列表页审批、拒绝、扣库存、编辑、删除或复制出库单。
 - 不以前端已加载结果或 `filter-values` 进行伪筛选。
-- 不把入库的来源、批次生成、入库模板或“已入库”文案复制到出库语义。
+- 不把入库的来源、批次生成或“已入库”文案复制到出库语义。
 - 不在前端直接调用 core Rust 函数、读取数据库或访问未受控文件 URL。

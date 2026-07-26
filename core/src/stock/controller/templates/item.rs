@@ -160,9 +160,6 @@ pub(crate) struct ItemAttributeTemplateCreateRequest {
     /// 模板说明。
     #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
     pub description: Option<String>,
-    /// 推荐的默认入库模板 ID。
-    #[garde(skip)]
-    pub default_inbound_template_id: Option<i64>,
     /// 物品属性预设字段。
     #[garde(dive)]
     pub fields: Vec<ItemAttributeTemplateFieldDef>,
@@ -180,9 +177,6 @@ pub(crate) struct ItemAttributeTemplateUpdateRequest {
     /// 模板说明。
     #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
     pub description: Option<String>,
-    /// 推荐的默认入库模板 ID。
-    #[garde(skip)]
-    pub default_inbound_template_id: Option<i64>,
     /// 字段存在时整体替换。
     #[garde(skip)]
     pub fields: Option<Vec<ItemAttributeTemplateFieldDef>>,
@@ -202,9 +196,6 @@ pub(crate) struct ItemAttributeTemplateResponse {
     /// 模板说明。
     #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
     pub description: Option<String>,
-    /// 推荐的默认入库模板 ID。
-    #[garde(skip)]
-    pub default_inbound_template_id: Option<i64>,
     /// 当前有效物品直接使用该模板的数量。
     #[garde(skip)]
     pub item_usage_count: u64,

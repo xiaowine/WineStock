@@ -10,7 +10,6 @@
 - number、boolean、URL 和 select 默认值必须能被对应类型解释。
 - 物品属性定义显式使用 `none`、`fixed` 或 `select` 单位规则；省略时按 `none` 处理。
 - `fixed` 必须且只能提供指定单位；`select` 必须且只能提供 1 至 32 个不区分大小写去重的单位候选项；`none` 不能携带固定值或候选项。
-- 入库模板不接受物品模板专属单位规则。
 
 ## 物品
 
@@ -23,9 +22,7 @@
 ## 入库
 
 - `submission_mode` 只允许 `pending_approval` 或 `direct`；`direct` 由服务层额外校验 `stock.inbound.approve`。
-- 每条明细独立携带 `inbound_template_id` 和 `ext_attributes`。
-- 未显式提供模板时，服务层可以使用物品属性模板的 `default_inbound_template_id`。
-- 实际属性按入库模板必填、类型和候选项校验；未知字段被拒绝。
+- 每条明细独立携带数量、单价、库位、批次号和有效期。
 - 数量必须大于 0，单价不能为负，物品和库位必须有效。
 
 ## 出库、库位和替代料

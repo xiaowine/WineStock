@@ -1,17 +1,12 @@
-// 本文件拥有入库编辑所需的模板 DTO 和创建请求，并复用统一库位 API；它不维护页面草稿或审批状态。
+// 本文件拥有入库创建请求 DTO，并复用统一库位 API；它不维护页面草稿或审批状态。
 // DTO 通过 contract.ts 别名映射到生成 schema，导出名保持稳定。
 import { apiClient } from "./client";
 import type { ApiResponse, ApiSchema } from "./contract";
 export { listLocations } from "./locations";
 export type { LocationResponse } from "./locations";
-export type { InboundTemplateResponse } from "./inboundTemplates";
-export type { TemplateFieldResponse, TemplateFieldType } from "./templateFields";
 
 /** 创建入库单的单条物品明细。 */
 export type InboundItemRequest = ApiSchema<"InboundItemRequest">;
-
-/** 模板 file 字段保存的稳定服务端引用。 */
-export type FileAttributeReference = ApiSchema<"FileAttributeReference">;
 
 /** 创建入库单时采用的服务端处理方式。 */
 export type InboundSubmissionMode = ApiSchema<"InboundSubmissionMode">;

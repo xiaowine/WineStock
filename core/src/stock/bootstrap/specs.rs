@@ -4,7 +4,7 @@
 
 use crate::{
     persistence::repository::{
-        CreateInboundTemplate, CreateItemAttributeTemplate, CreateItemCategory, TemplateFieldInput,
+        CreateItemAttributeTemplate, CreateItemCategory, TemplateFieldInput,
     },
     stock::controller::TemplateFieldType,
 };
@@ -14,15 +14,9 @@ pub(super) struct CategorySpec {
     pub description: &'static str,
     pub sort_order: i32,
 }
-pub(super) struct TemplateSpec {
-    pub name: &'static str,
-    pub description: &'static str,
-    pub fields: &'static [FieldSpec],
-}
 pub(super) struct ItemTemplateSpec {
     pub name: &'static str,
     pub description: &'static str,
-    pub default_inbound_template_name: Option<&'static str>,
     pub fields: &'static [FieldSpec],
 }
 pub(super) struct FieldSpec {
@@ -40,21 +34,10 @@ pub(super) fn category_input(spec: &CategorySpec) -> CreateItemCategory {
         sort_order: spec.sort_order,
     }
 }
-pub(super) fn inbound_template_input(spec: &TemplateSpec) -> CreateInboundTemplate {
-    CreateInboundTemplate {
-        name: spec.name.to_owned(),
-        description: Some(spec.description.to_owned()),
-        fields: fields(spec.fields),
-    }
-}
-pub(super) fn item_template_input(
-    spec: &ItemTemplateSpec,
-    default_inbound_template_id: Option<i64>,
-) -> CreateItemAttributeTemplate {
+pub(super) fn item_template_input(spec: &ItemTemplateSpec) -> CreateItemAttributeTemplate {
     CreateItemAttributeTemplate {
         name: spec.name.to_owned(),
         description: Some(spec.description.to_owned()),
-        default_inbound_template_id,
         fields: fields(spec.fields),
     }
 }
@@ -97,116 +80,10 @@ pub(super) const DEFAULT_CATEGORIES: &[CategorySpec] = &[
     },
 ];
 
-pub(super) const DEFAULT_INBOUND_TEMPLATES: &[TemplateSpec] = &[
-    TemplateSpec {
-        name: "元器件收货",
-        description: "记录元器件本次收货的包装、质检与凭证",
-        fields: &[
-            FieldSpec {
-                name: "包装状态",
-                field_type: TemplateFieldType::Select,
-                required: false,
-                searchable: true,
-                options_json: Some(r#"["完好","轻微破损","严重破损"]"#),
-            },
-            FieldSpec {
-                name: "质检结果",
-                field_type: TemplateFieldType::Select,
-                required: false,
-                searchable: true,
-                options_json: Some(r#"["合格","待复检","不合格"]"#),
-            },
-            FieldSpec {
-                name: "收货照片",
-                field_type: TemplateFieldType::File,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-            FieldSpec {
-                name: "合格证",
-                field_type: TemplateFieldType::File,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-            FieldSpec {
-                name: "批次备注",
-                field_type: TemplateFieldType::Text,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-        ],
-    },
-    TemplateSpec {
-        name: "耗材收货",
-        description: "记录耗材本次重量、开封与包装状态",
-        fields: &[
-            FieldSpec {
-                name: "实收重量",
-                field_type: TemplateFieldType::Number,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-            FieldSpec {
-                name: "是否已开封",
-                field_type: TemplateFieldType::Boolean,
-                required: false,
-                searchable: true,
-                options_json: None,
-            },
-            FieldSpec {
-                name: "包装状态",
-                field_type: TemplateFieldType::Select,
-                required: false,
-                searchable: true,
-                options_json: Some(r#"["完好","轻微破损","严重破损"]"#),
-            },
-            FieldSpec {
-                name: "收货照片",
-                field_type: TemplateFieldType::File,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-        ],
-    },
-    TemplateSpec {
-        name: "通用收货",
-        description: "普通物品的可选收货信息",
-        fields: &[
-            FieldSpec {
-                name: "质检结果",
-                field_type: TemplateFieldType::Select,
-                required: false,
-                searchable: true,
-                options_json: Some(r#"["合格","待复检","不合格"]"#),
-            },
-            FieldSpec {
-                name: "收货照片",
-                field_type: TemplateFieldType::File,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-            FieldSpec {
-                name: "批次备注",
-                field_type: TemplateFieldType::Text,
-                required: false,
-                searchable: false,
-                options_json: None,
-            },
-        ],
-    },
-];
-
 pub(super) const DEFAULT_ITEM_TEMPLATES: &[ItemTemplateSpec] = &[
     ItemTemplateSpec {
         name: "元器件属性",
         description: "常见元器件固有参数预设，可继续添加任意自定义参数",
-        default_inbound_template_name: Some("元器件收货"),
         fields: &[
             FieldSpec {
                 name: "型号",
@@ -255,7 +132,6 @@ pub(super) const DEFAULT_ITEM_TEMPLATES: &[ItemTemplateSpec] = &[
     ItemTemplateSpec {
         name: "3D打印耗材属性",
         description: "常见打印耗材固有参数预设",
-        default_inbound_template_name: Some("耗材收货"),
         fields: &[
             FieldSpec {
                 name: "材质",
@@ -297,7 +173,6 @@ pub(super) const DEFAULT_ITEM_TEMPLATES: &[ItemTemplateSpec] = &[
     ItemTemplateSpec {
         name: "通用物品属性",
         description: "少量常用字段预设，不适用时可以完全不选择模板",
-        default_inbound_template_name: Some("通用收货"),
         fields: &[
             FieldSpec {
                 name: "品牌",

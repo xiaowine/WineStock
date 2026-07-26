@@ -78,8 +78,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
             .is_object()
     );
     assert!(value["paths"]["/api/item-attribute-templates/{id}/copy"].is_object());
-    assert!(value["paths"]["/api/inbound-templates"].is_object());
-    assert!(value["paths"]["/api/inbound-templates/{id}/copy"].is_object());
+    assert!(value["paths"]["/api/inbound-templates"].is_null());
     assert!(value["paths"]["/api/items"].is_object());
     assert!(value["paths"]["/api/items/options"].is_object());
     assert!(value["paths"]["/api/items/filter-values"].is_object());
@@ -203,7 +202,6 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         "files",
         "item-categories",
         "item-attribute-templates",
-        "inbound-templates",
         "items",
         "locations",
         "inbound",
@@ -229,12 +227,6 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
         "/api/item-attribute-templates",
         "post",
         "item-attribute-templates",
-    );
-    assert_operation_tag(
-        &value,
-        "/api/inbound-templates",
-        "post",
-        "inbound-templates",
     );
     assert_operation_tag(&value, "/api/files/images", "post", "files");
     assert_operation_tag(&value, "/api/items", "post", "items");

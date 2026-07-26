@@ -72,13 +72,10 @@ pub(crate) use substitutes::{
     SubstituteReplaceRequest,
 };
 pub(crate) use templates::{
-    copy_inbound_template, copy_item_attribute_template, create_inbound_template,
-    create_item_attribute_template, create_item_category, delete_inbound_template,
-    delete_item_attribute_template, delete_item_category, get_inbound_template,
-    get_item_attribute_template, get_item_category, list_inbound_templates,
-    list_item_attribute_templates, list_item_categories, update_inbound_template,
-    update_item_attribute_template, update_item_category, InboundTemplateCreateRequest,
-    InboundTemplateResponse, InboundTemplateUpdateRequest, ItemAttributeTemplateCreateRequest,
+    copy_item_attribute_template, create_item_attribute_template, create_item_category,
+    delete_item_attribute_template, delete_item_category, get_item_attribute_template,
+    get_item_category, list_item_attribute_templates, list_item_categories,
+    update_item_attribute_template, update_item_category, ItemAttributeTemplateCreateRequest,
     ItemAttributeTemplateDeleteResponse, ItemAttributeTemplateFieldDef,
     ItemAttributeTemplateFieldResponse, ItemAttributeTemplateResponse,
     ItemAttributeTemplateUpdateRequest, ItemAttributeUnitMode, ItemAttributeUnitRule,

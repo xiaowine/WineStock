@@ -1,4 +1,4 @@
-//! 物品与入库属性共用图片接口和事务绑定测试。
+//! 物品图片接口和事务绑定测试。
 //!
 //! 本文件属于 core 集成测试层，覆盖真实 multipart、授权、删除、绑定回滚和孤儿清理。
 //! 它不测试浏览器文件选择器或缩略图渲染。
@@ -14,11 +14,10 @@ use tower::ServiceExt;
 use crate::{
     persistence::repository::{RbacRepository, UserRepository},
     stock::controller::{
-        InboundCreateRequest, InboundItemRequest, InboundResponse, InboundTemplateCreateRequest,
-        InboundTemplateResponse, ItemAttributeRequest, ItemCreateRequest, ItemEditorResponse,
-        ItemMutationResponse, ItemUpdateRequest, TemplateFieldDef, TemplateFieldType,
+        ItemAttributeRequest, ItemCreateRequest, ItemEditorResponse, ItemMutationResponse,
+        ItemUpdateRequest, TemplateFieldType,
     },
-    test_support::{bootstrap_location_id, error_code, json_body, login_request, seeded_app},
+    test_support::{error_code, json_body, login_request, seeded_app},
 };
 
 const PNG_BYTES: &[u8] = b"\x89PNG\r\n\x1a\nwinestock";
@@ -26,7 +25,7 @@ const JPEG_BYTES: &[u8] = b"\xff\xd8\xffwinestock";
 const WEBP_BYTES: &[u8] = b"RIFF\x04\x00\x00\x00WEBPwinestock";
 
 #[tokio::test]
-async fn image_upload_accepts_either_item_manage_or_inbound_create_permission() {
+async fn image_upload_requires_item_manage_permission() {
     let app = seeded_app().await;
     let item_manager =
         seed_user_with_permission(&app, "item-image-user", "stock.item.manage").await;
@@ -44,12 +43,8 @@ async fn image_upload_accepts_either_item_manage_or_inbound_create_permission() 
             .status(),
         StatusCode::CREATED
     );
-    assert_eq!(
-        upload(&app, &inbound_creator, "image/png", PNG_BYTES)
-            .await
-            .status(),
-        StatusCode::CREATED
-    );
+    let inbound_forbidden = upload(&app, &inbound_creator, "image/png", PNG_BYTES).await;
+    assert_eq!(inbound_forbidden.status(), StatusCode::FORBIDDEN);
     let forbidden = upload(&app, &no_write, "image/png", PNG_BYTES).await;
     assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
     assert_eq!(error_code(forbidden).await, "permission_denied");
@@ -344,91 +339,6 @@ async fn image_upload_read_delete_and_validation_are_controlled() {
 }
 
 #[tokio::test]
-async fn inbound_file_binding_rolls_back_with_failed_order_and_blocks_temporary_delete() {
-    let app = seeded_app().await;
-    let admin_token = login_request(&app, "admin", "password")
-        .await
-        .body
-        .access_token;
-    let creator_token = seed_creator(&app, "creator").await;
-    let (item_id, location_id, template_id) = seed_file_item(&app, &admin_token).await;
-    let uploaded = upload(&app, &creator_token, "image/png", PNG_BYTES).await;
-    let file_id = json_body::<serde_json::Value>(uploaded).await["id"]
-        .as_i64()
-        .unwrap();
-
-    let duplicate_file_request = InboundCreateRequest {
-        submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
-        source: "Supplier".to_owned(),
-        notes: None,
-        items: vec![
-            inbound_line(item_id, location_id, template_id, file_id),
-            inbound_line(item_id, location_id, template_id, file_id),
-        ],
-    };
-    let failed = authorized_json(
-        &app,
-        "/api/inbound",
-        &creator_token,
-        &duplicate_file_request,
-    )
-    .await;
-    assert_eq!(failed.status(), StatusCode::CONFLICT);
-    assert_eq!(error_code(failed).await, "inbound_file_unavailable");
-    assert_eq!(table_count(&app, "stock_inbound_orders").await, 0);
-    assert_eq!(table_count(&app, "storage_inbound_file_bindings").await, 0);
-
-    let created = authorized_json(
-        &app,
-        "/api/inbound",
-        &creator_token,
-        &InboundCreateRequest {
-            submission_mode: crate::stock::controller::InboundSubmissionMode::PendingApproval,
-            source: "Supplier".to_owned(),
-            notes: None,
-            items: vec![inbound_line(item_id, location_id, template_id, file_id)],
-        },
-    )
-    .await;
-    assert_eq!(created.status(), StatusCode::CREATED);
-    let created: InboundResponse = json_body(created).await;
-    assert_eq!(table_count(&app, "storage_inbound_file_bindings").await, 1);
-
-    let owner_read = authorized_empty(
-        &app,
-        "GET",
-        &format!("/api/files/{file_id}"),
-        &creator_token,
-    )
-    .await;
-    assert_eq!(owner_read.status(), StatusCode::FORBIDDEN);
-    let admin_read =
-        authorized_empty(&app, "GET", &format!("/api/files/{file_id}"), &admin_token).await;
-    assert_eq!(admin_read.status(), StatusCode::OK);
-    let delete = authorized_empty(
-        &app,
-        "DELETE",
-        &format!("/api/files/{file_id}"),
-        &creator_token,
-    )
-    .await;
-    assert_eq!(delete.status(), StatusCode::CONFLICT);
-    assert_eq!(error_code(delete).await, "file_already_bound");
-
-    let storage_path = file_storage_path(&app, file_id).await;
-    std::fs::remove_file(app.state.storage().files_dir.join(storage_path)).unwrap();
-    let approve = authorized_empty(
-        &app,
-        "POST",
-        &format!("/api/stock-approvals/inbound/{}/approve", created.id),
-        &admin_token,
-    )
-    .await;
-    assert_eq!(approve.status(), StatusCode::CONFLICT);
-    assert_eq!(error_code(approve).await, "inbound_file_unavailable");
-}
-
-#[tokio::test]
 async fn stale_unbound_image_metadata_and_content_are_cleaned() {
     let app = seeded_app().await;
     let token = login_request(&app, "admin", "password")
@@ -493,66 +403,6 @@ async fn stale_unbound_image_metadata_and_content_are_cleaned() {
     assert!(!interrupted_path.exists());
 }
 
-fn inbound_line(
-    item_id: i64,
-    location_id: i64,
-    template_id: i64,
-    file_id: i64,
-) -> InboundItemRequest {
-    InboundItemRequest {
-        item_id,
-        quantity: 1.0,
-        unit_price: 2.0,
-        location_id,
-        batch_no: None,
-        expires_at: None,
-        inbound_template_id: Some(template_id),
-        ext_attributes: Some(json!({ "photo": { "file_id": file_id } })),
-    }
-}
-
-async fn seed_file_item(app: &crate::test_support::TestApp, token: &str) -> (i64, i64, i64) {
-    let template = authorized_json(
-        app,
-        "/api/inbound-templates",
-        token,
-        &InboundTemplateCreateRequest {
-            name: "File Template".to_owned(),
-            description: None,
-            fields: vec![TemplateFieldDef {
-                field_name: "photo".to_owned(),
-                field_type: TemplateFieldType::File,
-                required: Some(true),
-                searchable: Some(false),
-                options: None,
-                default_value: None,
-            }],
-        },
-    )
-    .await;
-    let template: InboundTemplateResponse = json_body(template).await;
-    let item = authorized_json(
-        app,
-        "/api/items",
-        token,
-        &ItemCreateRequest {
-            name: "File Item".to_owned(),
-            sku: "FILE-ITEM".to_owned(),
-            category_id: None,
-            attribute_template_id: None,
-            image_file_id: crate::test_support::upload_test_image(app, token).await,
-            unit: "pcs".to_owned(),
-            description: None,
-            default_price: None,
-            reorder_point: None,
-            attributes: Vec::new(),
-        },
-    )
-    .await;
-    let item: ItemMutationResponse = json_body(item).await;
-    (item.id, bootstrap_location_id(app).await, template.id)
-}
-
 async fn get_item_editor(
     app: &crate::test_support::TestApp,
     token: &str,
@@ -561,10 +411,6 @@ async fn get_item_editor(
     let response = authorized_empty(app, "GET", &format!("/api/items/{item_id}"), token).await;
     assert_eq!(response.status(), StatusCode::OK);
     json_body(response).await
-}
-
-async fn seed_creator(app: &crate::test_support::TestApp, username: &str) -> String {
-    seed_user_with_permission(app, username, "stock.inbound.create").await
 }
 
 async fn seed_user_with_permission(
@@ -690,19 +536,4 @@ async fn table_count(app: &crate::test_support::TestApp, table: &str) -> i64 {
         .unwrap()
         .unwrap();
     row.try_get("", "count").unwrap()
-}
-
-async fn file_storage_path(app: &crate::test_support::TestApp, file_id: i64) -> String {
-    let row = app
-        .state
-        .database()
-        .query_one(Statement::from_sql_and_values(
-            DatabaseBackend::Sqlite,
-            "SELECT storage_path FROM storage_file_objects WHERE id = ?",
-            [file_id.into()],
-        ))
-        .await
-        .unwrap()
-        .unwrap();
-    row.try_get("", "storage_path").unwrap()
 }

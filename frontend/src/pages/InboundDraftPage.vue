@@ -1,6 +1,6 @@
 <!--
   本文件拥有可跨桌面与移动端使用的多明细入库工作台，属于 frontend 页面层。
-  它管理本地草稿、动态模板、临时图片和入库单创建，不拥有后续审批或单据详情展示。
+  它管理本地草稿和入库单创建，不拥有后续审批或单据详情展示。
 -->
 <template>
   <section class="route-page inbound-draft-page">
@@ -56,8 +56,6 @@
         :lines="draftItems"
         :locations="locations"
         :location-error="locationError"
-        :template-options-loading="templateOptionsLoading"
-        :template-options-error="templateOptionsError"
         :source="source"
         :notes="notes"
         :notes-open="notesOpen"
@@ -68,7 +66,6 @@
         @update:notes="notes = $event"
         @update:notes-open="notesOpen = $event"
         @retry-locations="loadLocationOptions"
-        @retry-templates="loadInboundTemplateOptions"
         @select-line="selectLine"
         @remove-line="removeLine"
         @add-item="openItemPicker"
@@ -78,7 +75,7 @@
     <ModalDialog
       :open="selectedLine !== null"
       title="入库物品明细"
-      description="数量、收货信息和模板属性属于同一条明细；完成后才能继续添加下一项。"
+      description="数量、单价和收货信息属于同一条明细；完成后才能继续添加下一项。"
       workspace
       @close="closeLineEditor"
       @after-close="handleLineEditorAfterClose"
@@ -102,13 +99,7 @@
         :line="selectedLine"
         :locations="locations"
         :location-error="locationError"
-        :templates="inboundTemplates"
-        :templates-loading="templateOptionsLoading"
-        :templates-error="templateOptionsError"
         :validation-attempted="validationAttempted"
-        @select-template="selectInboundTemplate"
-        @retry-template="retryLineTemplate"
-        @retry-templates="loadInboundTemplateOptions"
         @retry-locations="loadLocationOptions"
       />
       <template #actions>
@@ -153,36 +144,6 @@
       @create-item="openCreateItemFromPicker"
     />
 
-    <ModalDialog
-      :open="pendingTemplateChange !== null"
-      title="更换入库模板？"
-      description="当前已填写的模板属性和已选择图片会被清除。"
-      :busy="templateChangeSubmitting"
-      compact
-      nested
-      @close="cancelTemplateChange"
-    >
-      <p>确认后将清空当前明细的模板属性，再应用新的入库模板。</p>
-      <template #actions>
-        <button
-          class="secondary-button"
-          type="button"
-          :disabled="templateChangeSubmitting"
-          @click="cancelTemplateChange"
-        >
-          继续编辑
-        </button>
-        <button
-          class="danger-button"
-          type="button"
-          :disabled="templateChangeSubmitting"
-          @click="confirmTemplateChange"
-        >
-          {{ templateChangeSubmitting ? "正在更换…" : "清空并更换" }}
-        </button>
-      </template>
-    </ModalDialog>
-
     <ItemCreateDialog
       :open="itemCreateOpen"
       @close="itemCreateOpen = false"
@@ -194,29 +155,16 @@
       :title="confirmationMode === 'clear' ? '清空入库草稿？' : '离开当前页面？'"
       :description="
         confirmationMode === 'clear'
-          ? '所有未提交明细和未绑定图片都会被删除。'
+          ? '所有未提交明细都会被删除。'
           : '当前草稿已自动保存在本机，离开后仍可恢复。'
       "
-      :busy="clearingDraft"
       @close="cancelConfirmation"
     >
       <p>{{ confirmationMode === "clear" ? "此操作无法撤销。" : "确认离开当前入库流程吗？" }}</p>
       <template #actions>
-        <button
-          class="secondary-button"
-          type="button"
-          :disabled="clearingDraft"
-          @click="cancelConfirmation"
-        >
-          取消
-        </button>
-        <button
-          class="primary-button"
-          type="button"
-          :disabled="clearingDraft"
-          @click="confirmCurrentAction"
-        >
-          {{ clearingDraft ? "处理中…" : confirmationMode === "clear" ? "确认清空" : "确认离开" }}
+        <button class="secondary-button" type="button" @click="cancelConfirmation">取消</button>
+        <button class="primary-button" type="button" @click="confirmCurrentAction">
+          {{ confirmationMode === "clear" ? "确认清空" : "确认离开" }}
         </button>
       </template>
     </ModalDialog>
@@ -296,32 +244,21 @@ import {
   type InboundSubmissionMode,
   type LocationResponse,
 } from "../api/inbound";
-import {
-  getInboundTemplate,
-  listInboundTemplates,
-  type InboundTemplateResponse,
-} from "../api/inboundTemplates";
 import type { ItemOptionResponse } from "../api/items";
-import { deleteImage } from "../api/files";
 import { ApiError } from "../api/errors";
 import { useInboundDraftPersistence } from "../composables/useInboundDraftPersistence";
 import { useInboundItemCatalog } from "../composables/useInboundItemCatalog";
 import { notice } from "../notices/notice";
 import { authSession } from "../auth/session";
 import { hasPermission, stockPermissions } from "../auth/permissions";
-import { isImageDraftValue, uploadImageDrafts } from "../components/attributes/imageDraft";
 import {
   buildInboundRequest,
   createDraftLine,
-  hasTemplateDraftValues,
   lineReady,
   lineSubtotal,
   positiveNumber,
-  revokeLinePreviews,
-  templateFieldError,
   validQuantity,
   validUnitPrice,
-  type FileDraftValue,
   type InboundDraftLine,
 } from "./inbound-draft/model";
 import {
@@ -336,10 +273,7 @@ type ConfirmationMode = "clear" | "leave" | null;
 const restoredNoticeSessionKey = "winestock.inbound.restored-notice";
 const draftItems = ref<InboundDraftLine[]>([]);
 const locations = ref<LocationResponse[]>([]);
-const inboundTemplates = ref<InboundTemplateResponse[]>([]);
 const locationError = ref("");
-const templateOptionsLoading = ref(false);
-const templateOptionsError = ref("");
 const source = ref("");
 const notes = ref("");
 const notesOpen = ref(false);
@@ -348,20 +282,13 @@ const itemPickerOpen = ref(false);
 const submitting = ref(false);
 const validationAttempted = ref(false);
 const confirmationMode = ref<ConfirmationMode>(null);
-const clearingDraft = ref(false);
 const submissionConfirmationMode = ref<InboundSubmissionMode | null>(null);
 const itemCreateOpen = ref(false);
-const pendingTemplateChange = ref<{ lineId: string; templateId: number | null } | null>(null);
-const templateChangeSubmitting = ref(false);
 let locationAbortController: AbortController | null = null;
-let templateOptionsAbortController: AbortController | null = null;
 let pendingLeaveResolution: ((allowed: boolean) => void) | null = null;
 let pendingPickerItem: ItemOptionResponse | null = null;
 let openCreateItemAfterPicker = false;
 let openPickerAfterLineEditor = false;
-const templateAbortControllers = new Map<string, AbortController>();
-const templateRequestVersions = new Map<string, number>();
-const templateCache = new Map<number, InboundTemplateResponse>();
 
 const {
   items,
@@ -428,15 +355,11 @@ const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useInboundDraf
   hasDraft,
 );
 
-onMounted(async () => {
-  const restored = await restoreDraft();
+onMounted(() => {
+  const restored = restoreDraft();
   const removedDuplicates = removeRestoredDuplicateItems();
   // 恢复历史草稿只恢复数据，不主动进入任一明细的详情编辑模式。
   selectedLineId.value = null;
-  draftItems.value.forEach((line) => {
-    if (line.templateId)
-      void loadLineTemplate(line, line.templateId, nextTemplateRequestVersion(line));
-  });
   if (restored && sessionStorage.getItem(restoredNoticeSessionKey) !== "shown") {
     sessionStorage.setItem(restoredNoticeSessionKey, "shown");
     notice.info("已恢复上次未提交的入库草稿");
@@ -445,36 +368,28 @@ onMounted(async () => {
   resumeDraftSaving();
   void resetItems();
   void loadLocationOptions();
-  void loadInboundTemplateOptions();
   window.addEventListener("keydown", handlePageKeydown);
 });
 
-/** 兼容旧版草稿数据，恢复时按物品 ID 保留第一条明细并清理重复项资源。 */
+/** 兼容旧版草稿数据，恢复时按物品 ID 保留第一条明细。 */
 function removeRestoredDuplicateItems(): number {
   const seen = new Set<number>();
   const unique: InboundDraftLine[] = [];
-  const duplicates: InboundDraftLine[] = [];
+  let duplicates = 0;
   for (const line of draftItems.value) {
-    if (seen.has(line.item.id)) duplicates.push(line);
+    if (seen.has(line.item.id)) duplicates += 1;
     else {
       seen.add(line.item.id);
       unique.push(line);
     }
   }
-  if (!duplicates.length) return 0;
-  duplicates.forEach((line) => {
-    void deleteLineUploads(line);
-    revokeLinePreviews(line);
-  });
+  if (!duplicates) return 0;
   draftItems.value = unique;
-  return duplicates.length;
+  return duplicates;
 }
 
 onBeforeUnmount(() => {
   locationAbortController?.abort();
-  templateOptionsAbortController?.abort();
-  templateAbortControllers.forEach((controller) => controller.abort());
-  draftItems.value.forEach(revokeLinePreviews);
   window.removeEventListener("keydown", handlePageKeydown);
 });
 
@@ -512,7 +427,6 @@ function addItem(item: ItemOptionResponse, showNotice = true): InboundDraftLine 
   draftItems.value.push(line);
   // 物品加入草稿后立即打开该明细，避免先批量选品再重复配置。
   selectedLineId.value = line.lineId;
-  void loadDefaultInboundTemplate(line);
   if (showNotice) notice.info(`已加入 ${item.name}`);
   return line;
 }
@@ -563,187 +477,9 @@ async function handleItemCreated(item: ItemOptionResponse): Promise<void> {
   notice.success("物品已创建并加入入库单", { detail: item.name });
 }
 
-async function loadInboundTemplateOptions(): Promise<void> {
-  templateOptionsAbortController?.abort();
-  const controller = new AbortController();
-  templateOptionsAbortController = controller;
-  templateOptionsLoading.value = true;
-  templateOptionsError.value = "";
-  try {
-    inboundTemplates.value = await listInboundTemplates(controller.signal);
-    markRemovedSelectedTemplates();
-  } catch (error) {
-    if (isAbortError(error)) return;
-    templateOptionsError.value =
-      error instanceof ApiError && error.status === 403
-        ? "当前账号没有读取入库模板的权限"
-        : itemErrorMessage(error, "入库模板加载失败");
-    notice.error("加载入库模板失败", { detail: templateOptionsError.value });
-  } finally {
-    if (templateOptionsAbortController === controller) {
-      templateOptionsAbortController = null;
-      templateOptionsLoading.value = false;
-    }
-  }
-}
-
-/** 活动候选刷新后，已选但不再返回的模板视为失效，保留 ID 供用户处理。 */
-function markRemovedSelectedTemplates(): void {
-  const activeTemplateIds = new Set(inboundTemplates.value.map((template) => template.id));
-  for (const line of draftItems.value) {
-    if (line.templateId === null || activeTemplateIds.has(line.templateId)) continue;
-    nextTemplateRequestVersion(line);
-    templateAbortControllers.get(line.lineId)?.abort();
-    templateCache.delete(line.templateId);
-    line.template = null;
-    line.templateState = "unresolved";
-    line.templateError =
-      line.templateSource === "recommended"
-        ? "推荐入库模板已删除，请重新选择"
-        : "所选入库模板已删除，请重新选择";
-  }
-}
-
-async function loadDefaultInboundTemplate(line: InboundDraftLine): Promise<void> {
-  const templateId = line.recommendedTemplateId;
-  if (templateId === null || line.templateState === "unresolved") return;
-  line.templateSource = "recommended";
-  line.templateState = "resolving";
-  await loadLineTemplate(line, templateId, nextTemplateRequestVersion(line));
-}
-
-async function loadLineTemplate(
-  line: InboundDraftLine,
-  templateId: number,
-  requestVersion: number,
-): Promise<void> {
-  const cached = templateCache.get(templateId);
-  if (cached) {
-    if (
-      templateRequestVersions.get(line.lineId) === requestVersion &&
-      line.templateId === templateId
-    )
-      applyTemplate(line, cached);
-    return;
-  }
-  templateAbortControllers.get(line.lineId)?.abort();
-  const controller = new AbortController();
-  templateAbortControllers.set(line.lineId, controller);
-  line.templateState = "resolving";
-  line.templateError = "";
-  try {
-    const template = await getInboundTemplate(templateId, controller.signal);
-    if (
-      templateRequestVersions.get(line.lineId) !== requestVersion ||
-      line.templateId !== templateId
-    )
-      return;
-    templateCache.set(templateId, template);
-    applyTemplate(line, template);
-  } catch (error) {
-    if (!isAbortError(error) && templateRequestVersions.get(line.lineId) === requestVersion) {
-      line.templateState =
-        error instanceof ApiError && error.status === 404 ? "unresolved" : "error";
-      line.templateError =
-        error instanceof ApiError && error.status === 404
-          ? "所选入库模板已删除，请重新选择"
-          : itemErrorMessage(error, `无法加载 ${line.item.name} 的模板`);
-    }
-  } finally {
-    if (templateAbortControllers.get(line.lineId) === controller) {
-      templateAbortControllers.delete(line.lineId);
-    }
-  }
-}
-
-function retryLineTemplate(line: InboundDraftLine): void {
-  if (line.templateId !== null)
-    void loadLineTemplate(line, line.templateId, nextTemplateRequestVersion(line));
-}
-
-function applyTemplate(line: InboundDraftLine, template: InboundTemplateResponse): void {
-  line.template = template;
-  line.templateState = "ready";
-  line.templateError = "";
-  for (const field of template.fields) {
-    if (
-      field.default_value !== null &&
-      line.extAttributes[field.field_name] === undefined &&
-      field.field_type !== "file"
-    ) {
-      line.extAttributes[field.field_name] =
-        field.field_type === "number"
-          ? Number(field.default_value)
-          : field.field_type === "boolean"
-            ? field.default_value === "true"
-            : field.default_value;
-    }
-  }
-}
-
-async function selectInboundTemplate(templateId: number | null): Promise<void> {
-  const line = selectedLine.value;
-  if (!line) return;
-  if (line.templateId === templateId) return;
-  if (hasTemplateDraftValues(line)) {
-    pendingTemplateChange.value = { lineId: line.lineId, templateId };
-    return;
-  }
-  await applyTemplateSelection(line, templateId);
-}
-
-async function applyTemplateSelection(
-  line: InboundDraftLine,
-  templateId: number | null,
-): Promise<void> {
-  nextTemplateRequestVersion(line);
-  templateAbortControllers.get(line.lineId)?.abort();
-  await deleteLineUploads(line);
-  line.templateId = templateId;
-  line.templateSource = templateId === null ? "none" : "manual";
-  line.template = null;
-  line.templateError = "";
-  line.extAttributes = {};
-  line.templateState = templateId === null ? "idle" : "resolving";
-  if (templateId)
-    void loadLineTemplate(line, templateId, templateRequestVersions.get(line.lineId) ?? 0);
-}
-
-async function confirmTemplateChange(): Promise<void> {
-  const pending = pendingTemplateChange.value;
-  if (!pending || templateChangeSubmitting.value) return;
-  const line = draftItems.value.find((candidate) => candidate.lineId === pending.lineId);
-  if (!line) {
-    pendingTemplateChange.value = null;
-    return;
-  }
-  templateChangeSubmitting.value = true;
-  try {
-    await applyTemplateSelection(line, pending.templateId);
-    pendingTemplateChange.value = null;
-  } finally {
-    templateChangeSubmitting.value = false;
-  }
-}
-
-function cancelTemplateChange(): void {
-  if (!templateChangeSubmitting.value) pendingTemplateChange.value = null;
-}
-
-function nextTemplateRequestVersion(line: InboundDraftLine): number {
-  const version = (templateRequestVersions.get(line.lineId) ?? 0) + 1;
-  templateRequestVersions.set(line.lineId, version);
-  return version;
-}
-
 function removeLine(lineId: string): void {
   const line = draftItems.value.find((candidate) => candidate.lineId === lineId);
   if (!line) return;
-  templateAbortControllers.get(lineId)?.abort();
-  templateAbortControllers.delete(lineId);
-  templateRequestVersions.delete(lineId);
-  void deleteLineUploads(line);
-  revokeLinePreviews(line);
   draftItems.value = draftItems.value.filter((candidate) => candidate.lineId !== lineId);
   if (selectedLineId.value === lineId) selectedLineId.value = null;
   notice.info(`已移除 ${line.item.name}`);
@@ -793,7 +529,6 @@ async function submitConfirmedDraft(): Promise<void> {
   if (!submissionMode || submitting.value) return;
   submitting.value = true;
   try {
-    await uploadImageDrafts(inboundDraftImages());
     const created = await createInbound(
       buildInboundRequest(source.value, notes.value, draftItems.value, submissionMode),
     );
@@ -805,12 +540,6 @@ async function submitConfirmedDraft(): Promise<void> {
     submissionConfirmationMode.value = null;
     clearLocalDraftState();
   } catch (error) {
-    const failedImage = firstFailedImage();
-    if (failedImage) {
-      notice.error("入库图片上传失败", { detail: failedImage.value.error });
-      await focusLineTemplate(failedImage.line, failedImage.fieldName);
-      return;
-    }
     const message = inboundSubmitErrorMessage(error);
     const errorLine = backendErrorLine(error);
     if (error instanceof ApiError && error.code === "item_not_found" && errorLine) {
@@ -839,25 +568,6 @@ function handlePageKeydown(event: KeyboardEvent): void {
   if (selectedLineId.value) closeLineEditor();
 }
 
-function inboundDraftImages(): FileDraftValue[] {
-  return draftItems.value.flatMap((line) =>
-    Object.values(line.extAttributes).filter(isImageDraftValue),
-  );
-}
-
-function firstFailedImage(): {
-  line: InboundDraftLine;
-  fieldName: string;
-  value: FileDraftValue;
-} | null {
-  for (const line of draftItems.value) {
-    for (const [fieldName, value] of Object.entries(line.extAttributes)) {
-      if (isImageDraftValue(value) && value.status === "failed") return { line, fieldName, value };
-    }
-  }
-  return null;
-}
-
 function openClearConfirmation(): void {
   if (hasDraft.value) confirmationMode.value = "clear";
 }
@@ -868,7 +578,7 @@ function cancelConfirmation(): void {
   confirmationMode.value = null;
 }
 
-async function confirmCurrentAction(): Promise<void> {
+function confirmCurrentAction(): void {
   if (confirmationMode.value === "leave") {
     const resolve = pendingLeaveResolution;
     pendingLeaveResolution = null;
@@ -877,21 +587,11 @@ async function confirmCurrentAction(): Promise<void> {
     return;
   }
   if (confirmationMode.value !== "clear") return;
-  clearingDraft.value = true;
-  const lines = [...draftItems.value];
-  await Promise.allSettled(lines.map(deleteLineUploads));
-  lines.forEach(revokeLinePreviews);
   clearLocalDraftState();
-  clearingDraft.value = false;
   confirmationMode.value = null;
 }
 
 function clearLocalDraftState(): void {
-  templateAbortControllers.forEach((controller) => controller.abort());
-  templateAbortControllers.clear();
-  templateRequestVersions.clear();
-  pendingTemplateChange.value = null;
-  draftItems.value.forEach(revokeLinePreviews);
   source.value = "";
   notes.value = "";
   notesOpen.value = false;
@@ -899,16 +599,6 @@ function clearLocalDraftState(): void {
   selectedLineId.value = null;
   validationAttempted.value = false;
   removePersistedDraft();
-}
-
-async function deleteLineUploads(line: InboundDraftLine): Promise<void> {
-  const deletions = Object.values(line.extAttributes)
-    .filter((value): value is FileDraftValue => typeof value === "object" && value?.kind === "file")
-    .map((value) => {
-      value.abortController?.abort();
-      return value.fileId ? deleteImage(value.fileId) : Promise.resolve();
-    });
-  await Promise.allSettled(deletions);
 }
 
 async function focusFirstError(): Promise<void> {
@@ -933,11 +623,6 @@ async function focusLineError(line: InboundDraftLine): Promise<void> {
   if (!validQuantity(line.quantity)) return focusLineControl(line, "quantity");
   if (!validUnitPrice(line.unitPrice)) return focusLineControl(line, "unitPrice");
   if (line.locationId === null) return focusLineControl(line, "locationId");
-  if (line.templateState === "resolving" || line.templateError) return focusLineTemplate(line);
-  const field = line.template?.fields.find(
-    (candidate) => templateFieldError(line, candidate) !== null,
-  );
-  if (field) return focusLineTemplate(line, field.field_name);
 }
 
 async function focusLineControl(line: InboundDraftLine, field: string): Promise<void> {
@@ -948,20 +633,6 @@ async function focusLineControl(line: InboundDraftLine, field: string): Promise<
     ?.focus();
 }
 
-async function focusLineTemplate(line: InboundDraftLine, fieldName?: string): Promise<void> {
-  selectedLineId.value = line.lineId;
-  await nextTick();
-  if (fieldName)
-    document
-      .querySelector<HTMLElement>(`[data-template-field="${CSS.escape(fieldName)}"]`)
-      ?.focus();
-  else
-    (
-      document.querySelector<HTMLElement>("[data-template-retry]") ??
-      document.querySelector<HTMLElement>("[data-template-picker]")
-    )?.focus();
-}
-
 async function focusBackendError(error: unknown): Promise<void> {
   if (!(error instanceof ApiError) || !isRecord(error.details)) return;
   const line = backendErrorLine(error);
@@ -969,12 +640,7 @@ async function focusBackendError(error: unknown): Promise<void> {
   validationAttempted.value = true;
   if (error.code === "item_not_found") await focusLineControl(line, "remove");
   else if (error.code === "location_not_found") await focusLineControl(line, "locationId");
-  else if (error.code === "template_not_found") await focusLineTemplate(line);
-  else if (error.code === "invalid_inbound_field" || error.code === "inbound_file_unavailable") {
-    const fieldName =
-      typeof error.details.field_name === "string" ? error.details.field_name : undefined;
-    await focusLineTemplate(line, fieldName);
-  } else {
+  else {
     selectedLineId.value = line.lineId;
     await nextTick();
   }
@@ -990,9 +656,7 @@ function draftBlockingReason(): string {
   if (!source.value.trim()) return "请填写入库来源。";
   if (!draftItems.value.length) return "请至少添加一条入库明细。";
   const invalid = draftItems.value.find((line) => !lineReady(line));
-  return invalid
-    ? `请检查“${invalid.item.name}”的数量、单价、库位和模板属性。`
-    : "请检查入库单信息。";
+  return invalid ? `请检查“${invalid.item.name}”的数量、单价和库位。` : "请检查入库单信息。";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

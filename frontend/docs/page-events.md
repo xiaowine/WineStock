@@ -66,7 +66,6 @@ GET /api/events
 | `item`                    | 物品         |
 | `item_category`           | 物品分类     |
 | `item_attribute_template` | 物品属性模板 |
-| `inbound_template`        | 入库模板     |
 | `user`                    | 用户         |
 | `inbound`                 | 入库单       |
 | `outbound`                | 出库单       |

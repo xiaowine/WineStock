@@ -1,5 +1,5 @@
 // 本文件拥有可跨页面复用的物品编辑草稿、请求转换与变更快照；它不发起 API 请求。
-import type { FileAttributeReference } from "../../api/inbound";
+
 import type { ApiError } from "../../api/errors";
 import type {
   ItemAttributeRequest,
@@ -7,13 +7,14 @@ import type {
   ItemEditorResponse,
   ItemUpdateRequest,
   LcscItemLookupResponse,
+  FileAttributeReference,
 } from "../../api/items";
 import type {
   ItemAttributeTemplateFieldResponse,
   ItemAttributeTemplateResponse,
 } from "../../api/itemAttributeTemplates";
 import type { TemplateFieldResponse, TemplateFieldType } from "../../api/templateFields";
-import type { FileDraftValue } from "../inbound-draft/model";
+import type { ImageDraftValue } from "../../components/attributes/imageDraft";
 
 export interface ItemAttributeDraft {
   key: string;
@@ -25,7 +26,7 @@ export interface ItemAttributeDraft {
   unitMode: "none" | "fixed" | "select";
   fixedUnit: string;
   unitOptions: string[];
-  value: string | number | boolean | FileDraftValue | undefined;
+  value: string | number | boolean | ImageDraftValue | undefined;
   unit: string;
   fileTemporary: boolean;
 }
@@ -37,7 +38,7 @@ export interface ItemDraft {
   categoryId: number | null;
   attributeTemplateId: number | null;
   /** 当前物品必选主图草稿。 */
-  image: FileDraftValue | null;
+  image: ImageDraftValue | null;
   /** 当前主图是否为尚未绑定的临时图片。 */
   imageTemporary: boolean;
   /** 更新成功后需要删除的旧主图文件 ID。 */
@@ -300,7 +301,7 @@ export function itemAttributeRequests(draft: ItemDraft): ItemAttributeRequest[] 
           : undefined,
       value:
         attribute.fieldType === "file"
-          ? { file_id: (attribute.value as FileDraftValue).fileId as number }
+          ? { file_id: (attribute.value as ImageDraftValue).fileId as number }
           : attribute.fieldType === "number"
             ? Number(attribute.value)
             : (attribute.value as string | boolean),

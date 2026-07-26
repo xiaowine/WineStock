@@ -12,9 +12,6 @@ export function inboundSubmitErrorMessage(error: unknown): { title: string; deta
       permission_denied: "当前账号没有创建入库单的权限",
       item_not_found: "某条明细的物品已失效，请移除后重新选择",
       location_not_found: "某条明细的库位已失效，请重新选择",
-      template_not_found: "某条明细的模板已失效，请刷新后重试",
-      invalid_inbound_field: "模板字段不符合当前规则，请按标记修正",
-      inbound_file_unavailable: "某张图片已失效或被其它明细占用，请重新上传",
       invalid_request: "入库单字段不符合服务端校验规则",
     };
     return {

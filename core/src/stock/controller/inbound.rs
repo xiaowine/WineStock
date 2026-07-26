@@ -10,7 +10,6 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::{
     http::{ValidatedJson, ValidatedPath, ValidatedQuery},
@@ -20,7 +19,7 @@ use crate::{
 
 use crate::stock::service::{self, PaginatedResponse, StockApiError};
 
-use super::common::{validate_positive_number, ItemAttributeValue, OrderStatus};
+use super::common::{validate_positive_number, OrderStatus};
 
 /// 创建入库单时采用的处理方式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
@@ -60,15 +59,6 @@ pub(crate) struct InboundItemRequest {
     /// 有效期文本，首版按调用方输入保存。
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
-
-    /// 可选入库模板 ID；为空时可由物品属性模板推荐值推导。
-    #[garde(skip)]
-    pub inbound_template_id: Option<i64>,
-
-    /// 模板扩展属性；创建和审批阶段都按物品当前模板校验，file 值使用 `{ "file_id": id }`。
-    #[garde(skip)]
-    #[schema(value_type = Option<std::collections::HashMap<String, ItemAttributeValue>>)]
-    pub ext_attributes: Option<Value>,
 }
 
 /// 创建入库单请求。
@@ -113,7 +103,7 @@ pub(crate) struct InboundListQuery {
     /// 创建时间终点，使用 SQLite UTC 字符串格式。
     pub date_to: Option<String>,
 
-    /// 按入库单、明细、关联物品和模板值模糊搜索。
+    /// 按入库单、明细和关联物品模糊搜索。
     pub search: Option<String>,
 }
 
@@ -171,15 +161,6 @@ pub(crate) struct InboundItemResponse {
     /// 有效期文本。
     #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
-
-    /// 本明细使用的入库模板 ID。
-    #[garde(skip)]
-    pub inbound_template_id: Option<i64>,
-
-    /// 模板扩展属性。
-    #[garde(skip)]
-    #[schema(value_type = Option<std::collections::HashMap<String, ItemAttributeValue>>)]
-    pub ext_attributes: Option<Value>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。
     #[garde(skip)]

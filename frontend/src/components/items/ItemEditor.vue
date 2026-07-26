@@ -221,7 +221,7 @@ import {
 import { discardTemporaryAttributeFile } from "../../pages/items/fileCleanup";
 import ItemAttributeEditor from "./ItemAttributeEditor.vue";
 import AttributeImageField from "../attributes/AttributeImageField.vue";
-import type { FileDraftValue } from "../../pages/inbound-draft/model";
+import type { ImageDraftValue } from "../attributes/imageDraft";
 import { notice } from "../../notices/notice";
 import FormField from "../forms/FormField.vue";
 import FormInput from "../forms/FormInput.vue";
@@ -288,7 +288,7 @@ function removeAttribute(key: string): void {
   if (index >= 0) props.draft.attributes.splice(index, 1);
 }
 
-function updateMainImage(value: FileDraftValue | undefined): void {
+function updateMainImage(value: ImageDraftValue | undefined): void {
   if (!props.draft.imageTemporary && props.draft.image?.fileId) {
     props.draft.obsoleteImageFileId = props.draft.image.fileId;
   }

@@ -4,7 +4,6 @@
 //! 它不访问数据库，也不直接构造 HTTP 响应。
 
 use crate::validation::validate_not_blank;
-use serde_json::Value;
 
 use super::StockApiError;
 
@@ -112,18 +111,4 @@ pub(super) fn positive_i32(value: i32) -> Result<i32, StockApiError> {
     } else {
         Err(StockApiError::InvalidRequest)
     }
-}
-
-/// 解析入库明细扩展属性；未传值等价于空对象，非对象 JSON 会被拒绝。
-pub(super) fn parse_attribute_object(
-    json: Option<&str>,
-) -> Result<serde_json::Map<String, Value>, StockApiError> {
-    let Some(json) = json else {
-        return Ok(serde_json::Map::new());
-    };
-    let value: Value = serde_json::from_str(json).map_err(|_| StockApiError::InvalidRequest)?;
-    value
-        .as_object()
-        .cloned()
-        .ok_or(StockApiError::InvalidRequest)
 }

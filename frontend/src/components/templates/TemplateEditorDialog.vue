@@ -1,6 +1,6 @@
 <!--
-  本组件拥有两类属性模板的查看与编辑工作区、字段草稿和本地校验。
-  它不调用模板 API，也不把物品属性模板与入库模板合并为同一业务模型。
+  本组件拥有物品属性模板的查看与编辑工作区、字段草稿和本地校验。
+  它不调用模板 API，也不决定模板的删除或复制流程。
 -->
 <template>
   <ModalDialog
@@ -33,26 +33,6 @@
           :rows="3"
           :disabled="submitting"
         />
-        <div v-if="kind === 'item'" class="template-editor__default-template">
-          <p v-if="unresolvedDefaultInbound" class="template-editor__warning" role="status">
-            当前默认项已删除：入库模板 #{{ draft.defaultInboundTemplateId }}。请保留、清除或改选。
-          </p>
-          <FormSelect
-            v-model="draft.defaultInboundTemplateId"
-            label="默认入库模板"
-            validation-key="default_inbound_template_id"
-            :error="errors.default_inbound_template_id"
-            :disabled="submitting"
-          >
-            <option :value="null">不设置默认模板</option>
-            <option v-if="unresolvedDefaultInbound" :value="draft.defaultInboundTemplateId">
-              已删除入库模板 #{{ draft.defaultInboundTemplateId }}
-            </option>
-            <option v-for="option in inboundTemplates" :key="option.id" :value="option.id">
-              {{ option.name }}
-            </option>
-          </FormSelect>
-        </div>
       </section>
 
       <section class="template-editor__fields" aria-labelledby="template-fields-heading">
@@ -60,7 +40,7 @@
           <div>
             <h3 id="template-fields-heading">字段结构</h3>
             <span>{{ draft.fields.length }} / 64</span>
-            <span v-if="kind === 'item'">目录字段：已选择 {{ catalogVisibleCount }} / 3</span>
+            <span>目录字段：已选择 {{ catalogVisibleCount }} / 3</span>
           </div>
           <button
             class="secondary-button"
@@ -173,7 +153,7 @@
                 ><input v-model="field.searchable" type="checkbox" :disabled="submitting" />
                 <span>允许参与筛选</span></label
               >
-              <label v-if="kind === 'item'">
+              <label>
                 <input
                   v-model="field.catalogVisible"
                   type="checkbox"
@@ -245,7 +225,7 @@
               :disabled="submitting"
             />
 
-            <section v-if="kind === 'item'" class="template-field-card__unit" aria-label="单位规则">
+            <section class="template-field-card__unit" aria-label="单位规则">
               <FormSelect
                 :model-value="field.unitMode"
                 label="单位规则"
@@ -297,10 +277,6 @@
           <dt>模板说明</dt>
           <dd>{{ template?.description || "暂无说明" }}</dd>
         </div>
-        <div v-if="kind === 'item'">
-          <dt>默认入库模板</dt>
-          <dd>{{ readonlyDefaultInboundLabel }}</dd>
-        </div>
         <div v-if="template && 'item_usage_count' in template">
           <dt>当前有效物品使用</dt>
           <dd>{{ template.item_usage_count }} 个</dd>
@@ -332,11 +308,11 @@
               <dt>候选项</dt>
               <dd>{{ field.options.join("、") }}</dd>
             </div>
-            <div v-if="kind === 'item'">
+            <div>
               <dt>单位</dt>
               <dd>{{ unitLabel(field) }}</dd>
             </div>
-            <div v-if="kind === 'item'">
+            <div>
               <dt>目录展示</dt>
               <dd>{{ field.catalogVisible ? "是" : "否" }}</dd>
             </div>
@@ -391,7 +367,6 @@ import type {
   ItemAttributeTemplateResponse,
   ItemAttributeUnitMode,
 } from "../../api/itemAttributeTemplates";
-import type { InboundTemplateResponse } from "../../api/inboundTemplates";
 import type { TemplateFieldType } from "../../api/templateFields";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
@@ -402,7 +377,6 @@ import {
   fieldTypeLabel,
   serializeTemplateDraft,
   validateTemplateDraft,
-  type AttributeTemplateKind,
   type TemplateDraft,
   type TemplateFieldDraft,
 } from "../../pages/templates/model";
@@ -422,9 +396,7 @@ interface ConfirmState {
 
 const props = defineProps<{
   open: boolean;
-  kind: AttributeTemplateKind;
-  template: ItemAttributeTemplateResponse | InboundTemplateResponse | null;
-  inboundTemplates: InboundTemplateResponse[];
+  template: ItemAttributeTemplateResponse | null;
   readOnly: boolean;
   canEdit: boolean;
   submitting: boolean;
@@ -439,7 +411,7 @@ const emit = defineEmits<{
 }>();
 
 const formId = `template-editor-form-${useId()}`;
-const draft = reactive<TemplateDraft>(createTemplateDraft(null, "item"));
+const draft = reactive<TemplateDraft>(createTemplateDraft(null));
 const errors = ref<Record<string, string>>({});
 const initialSnapshot = ref("");
 const confirmState = ref<ConfirmState | null>(null);
@@ -456,33 +428,12 @@ const fieldTypeOptions: { value: TemplateFieldType; label: string }[] = [
 ];
 
 const dialogTitle = computed(() =>
-  props.readOnly
-    ? `${props.kind === "item" ? "物品属性" : "入库"}模板详情`
-    : props.template
-      ? `编辑${props.kind === "item" ? "物品属性" : "入库"}模板`
-      : `新建${props.kind === "item" ? "物品属性" : "入库"}模板`,
+  props.readOnly ? "物品属性模板详情" : props.template ? "编辑物品属性模板" : "新建物品属性模板",
 );
-const dialogDescription = computed(() =>
-  props.kind === "item"
-    ? "定义物品长期属性、单位和最多三个目录展示字段。"
-    : "定义单次收货时记录的动态属性字段。",
-);
+const dialogDescription = "定义物品长期属性、单位和最多三个目录展示字段。";
 const catalogVisibleCount = computed(
   () => draft.fields.filter((field) => field.catalogVisible).length,
 );
-const unresolvedDefaultInbound = computed(
-  () =>
-    props.kind === "item" &&
-    draft.defaultInboundTemplateId !== null &&
-    !props.inboundTemplates.some((template) => template.id === draft.defaultInboundTemplateId),
-);
-const readonlyDefaultInboundLabel = computed(() => {
-  if (draft.defaultInboundTemplateId === null) return "未设置";
-  return (
-    props.inboundTemplates.find((item) => item.id === draft.defaultInboundTemplateId)?.name ??
-    `已删除入库模板 #${draft.defaultInboundTemplateId}`
-  );
-});
 
 watch(
   () => props.open,
@@ -508,14 +459,14 @@ watch(
 );
 
 function resetDraft(): void {
-  Object.assign(draft, createTemplateDraft(props.template, props.kind));
+  Object.assign(draft, createTemplateDraft(props.template));
   errors.value = { ...props.fieldErrors };
   confirmState.value = null;
   initialSnapshot.value = serializeTemplateDraft(draft);
 }
 
 function submit(): void {
-  const result = validateTemplateDraft(draft, props.kind);
+  const result = validateTemplateDraft(draft);
   errors.value = result.errors;
   if (result.firstFieldIndex !== null) draft.fields[result.firstFieldIndex].expanded = true;
   if (Object.keys(result.errors).length) {

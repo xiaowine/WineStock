@@ -199,16 +199,6 @@
                 <dt>有效期</dt>
                 <dd>{{ item.expires_at || "未设置" }}</dd>
               </div>
-              <div>
-                <dt>模板</dt>
-                <dd>{{ item.inbound_template_id ? `#${item.inbound_template_id}` : "未使用" }}</dd>
-              </div>
-            </dl>
-            <dl v-if="item.ext_attributes" class="inbound-detail-attributes">
-              <div v-for="(value, key) in item.ext_attributes" :key="key">
-                <dt>{{ key }}</dt>
-                <dd>{{ jsonValue(value) }}</dd>
-              </div>
             </dl>
           </article>
         </section></template
@@ -536,8 +526,5 @@ function statusTime(order: InboundOrderResponse): string | null {
 function approvalLabel(order: InboundOrderResponse): string {
   const time = statusTime(order);
   return time ? `${statusLabel(order.status)}于 ${formatDate(time)}` : "等待审批，库存尚未增加";
-}
-function jsonValue(value: unknown): string {
-  return typeof value === "string" ? value : JSON.stringify(value);
 }
 </script>

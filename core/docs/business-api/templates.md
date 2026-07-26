@@ -1,6 +1,6 @@
 # 分类与属性模板 API
 
-分类、物品属性模板和入库模板是三个独立概念：分类只负责归类；物品属性模板是可选录入预设；入库模板只描述本次收货状态。系统不提供旧的统一模板接口。
+分类与物品属性模板是两个独立概念：分类只负责归类；物品属性模板是可选录入预设。系统不提供旧的统一模板接口。
 
 共同权限：读取使用 `stock.template.read`，创建、修改、复制和删除使用 `stock.template.manage`。
 
@@ -23,28 +23,13 @@
 - `DELETE /api/item-attribute-templates/{id}`
 - `POST /api/item-attribute-templates/{id}/copy`
 
-请求包含名称、说明、可选 `default_inbound_template_id` 和字段数组。模板字段只用于快速生成物品属性；物品可以不选择模板，也可以在模板字段之外增加任意自定义属性。
+请求包含名称、说明和字段数组。模板字段只用于快速生成物品属性；物品可以不选择模板，也可以在模板字段之外增加任意自定义属性。
 
 物品模板字段额外包含 `catalog_visible`。每个模板最多三个字段可以设为 `true`，目录按字段现有 `sort_order` 返回对应物品值；物品私有自定义属性固定不可作为目录字段。
 
 物品属性模板响应还包含 `item_usage_count`：当前未软删除且直接关联该模板的物品数量。删除物品属性模板会删除模板字段定义及其对应的物品属性值，并把现有物品的 `attribute_template_id` 置空；不会因仍有物品引用而返回 `409 template_in_use`。删除成功返回 `200` 与 `{ "affected_active_item_count": n }`，该数量在删除事务内计算。调用方必须把该操作作为会造成业务数据丢失的高风险删除明确提示。
 
-## 入库模板
-
-- `POST /api/inbound-templates`
-- `GET /api/inbound-templates`
-- `GET /api/inbound-templates/{id}`
-- `PUT /api/inbound-templates/{id}`
-- `DELETE /api/inbound-templates/{id}`
-- `POST /api/inbound-templates/{id}/copy`
-
-入库模板只定义包装状态、实收重量、质检结果、收货照片、合格证和批次备注等本次收货字段。历史入库属性按实际属性行保留，不依赖模板继续有效。
-
-入库模板两个读取接口是权限例外：`GET /api/inbound-templates` 与 `GET /api/inbound-templates/{id}` 允许 `stock.inbound.create` 或 `stock.template.read` 中任一权限，让只拥有入库创建权限的用户也能在入库任务中读取并填写模板字段。写接口（创建、更新、删除、复制）仍要求 `stock.template.manage`。详见 [inbound.md](inbound.md)。
-
-## 共享模板字段
-
-两类属性模板复用以下基础字段：
+## 模板字段
 
 | 字段 | 说明 |
 |---|---|
@@ -59,7 +44,7 @@
 
 ## 物品模板单位规则
 
-物品属性模板字段额外且必须返回 `unit` 对象；创建和更新请求省略 `unit` 时按 `none` 处理。入库模板不包含该对象。
+物品属性模板字段额外且必须返回 `unit` 对象；创建和更新请求省略 `unit` 时按 `none` 处理。
 
 | `unit.mode` | 模板定义 | 物品录入规则 |
 |---|---|---|
@@ -69,4 +54,4 @@
 
 固定单位和单位候选项裁剪首尾空白后长度为 1 至 32；候选项数量为 1 至 32。规则组合不合法时返回 `400 invalid_request`。复制物品属性模板时必须完整复制单位规则。
 
-本地服务首次启动会分别补齐三个分类、三套物品属性预设和三套入库模板。同名记录已经存在时跳过，不覆盖用户修改，也不恢复软删除记录。
+本地服务首次启动会分别补齐三个分类和三套物品属性预设。同名记录已经存在时跳过，不覆盖用户修改，也不恢复软删除记录。
