@@ -265,16 +265,16 @@
     <template #actions>
       <button
         v-if="allowLcscLookup && mode === 'create' && !readOnly"
-        class="secondary-button item-editor-dialog__lcsc-lookup"
+        class="secondary-button"
         type="button"
         :disabled="saving"
         @click="openManualLookup"
       >
-        查询立创资料
+        编号填写
       </button>
       <button
         v-if="allowLcscLookup && mode === 'create' && !readOnly"
-        class="secondary-button item-editor-dialog__lcsc-lookup"
+        class="secondary-button item-editor-dialog__lcsc-scan"
         type="button"
         :disabled="saving"
         @click="openScanDialog"
@@ -304,10 +304,9 @@
 
   <LcscItemLookupDialog
     :open="open && lcscLookupOpen"
-    :initial-code="scannedProductCode || draft.sku"
-    :auto-query="Boolean(scannedProductCode)"
+    :initial-code="draft.sku"
     :templates="templates"
-    @close="closeLcscLookup"
+    @close="lcscLookupOpen = false"
     @apply="forwardLcscCandidate"
   />
 
@@ -319,6 +318,15 @@
     :status-text="scanStatusText"
     @close="scanDialogOpen = false"
     @detect="handleScanDetect"
+  />
+
+  <LcscLookupFlowDialog
+    :open="open && lcscFlowOpen"
+    :product-code="lcscFlowCode"
+    :templates="templates"
+    :dismiss-label="lcscFlowFromScan ? '返回扫码' : '取消'"
+    @apply="applyFlowCandidate"
+    @dismiss="dismissFlow"
   />
 </template>
 
@@ -341,6 +349,7 @@ import BarcodeScanDialog from "../barcode/BarcodeScanDialog.vue";
 import ModalDialog from "../ModalDialog.vue";
 import ItemEditor from "./ItemEditor.vue";
 import LcscItemLookupDialog from "./LcscItemLookupDialog.vue";
+import LcscLookupFlowDialog from "./LcscLookupFlowDialog.vue";
 import ItemSubstitutesPanel from "./ItemSubstitutesPanel.vue";
 
 type ItemDialogPage = "data" | "inventory" | "substitutes";
@@ -409,8 +418,10 @@ const substitutesDirty = ref(false);
 const substitutesSaving = ref(false);
 const lcscLookupOpen = ref(false);
 const scanDialogOpen = ref(false);
-const scannedProductCode = ref("");
 const scanStatusText = ref("");
+const lcscFlowOpen = ref(false);
+const lcscFlowCode = ref("");
+const lcscFlowFromScan = ref(false);
 const batchPage = ref(0);
 const batchTotalPages = ref(0);
 const itemPageCount = computed(() => 2 + (props.canViewSubstitutes ? 1 : 0));
@@ -426,7 +437,8 @@ watch(
       abortRequests();
       lcscLookupOpen.value = false;
       scanDialogOpen.value = false;
-      scannedProductCode.value = "";
+      lcscFlowOpen.value = false;
+      lcscFlowFromScan.value = false;
       substitutesDirty.value = false;
       substitutesSaving.value = false;
       emit("substitutes-dirty", false);
@@ -434,8 +446,9 @@ watch(
     }
     activePage.value = props.mode === "existing" ? props.initialPage : "data";
     if (props.mode === "create" && props.autoLcscCode) {
-      scannedProductCode.value = props.autoLcscCode;
-      lcscLookupOpen.value = true;
+      lcscFlowCode.value = props.autoLcscCode;
+      lcscFlowFromScan.value = false;
+      lcscFlowOpen.value = true;
     }
     inventory.value = null;
     batches.value = [];
@@ -480,7 +493,6 @@ function forwardLcscCandidate(candidate: LcscItemLookupResponse, templateId: num
 }
 
 function openManualLookup(): void {
-  scannedProductCode.value = "";
   lcscLookupOpen.value = true;
 }
 
@@ -489,12 +501,7 @@ function openScanDialog(): void {
   scanDialogOpen.value = true;
 }
 
-function closeLcscLookup(): void {
-  lcscLookupOpen.value = false;
-  scannedProductCode.value = "";
-}
-
-/** 扫码结果只接受立创料袋码：取 C 号转入立创查询并自动执行，其余内容静默忽略。 */
+/** 扫码结果只接受立创料袋码：取 C 号进入无表单的查询流，其余内容静默忽略。 */
 function handleScanDetect(text: string): void {
   const bagCode = parseLcscBagCode(text);
   if (!bagCode) {
@@ -502,9 +509,26 @@ function handleScanDetect(text: string): void {
     return;
   }
   scanStatusText.value = "";
-  scannedProductCode.value = bagCode.productCode;
+  lcscFlowCode.value = bagCode.productCode;
+  lcscFlowFromScan.value = true;
   scanDialogOpen.value = false;
-  lcscLookupOpen.value = true;
+  lcscFlowOpen.value = true;
+}
+
+function applyFlowCandidate(candidate: LcscItemLookupResponse, templateId: number | null): void {
+  lcscFlowOpen.value = false;
+  lcscFlowFromScan.value = false;
+  forwardLcscCandidate(candidate, templateId);
+}
+
+/** 查询流取消或失败放弃：扫码来源回到扫码继续，自动填写来源留在编辑器手动填写。 */
+function dismissFlow(): void {
+  lcscFlowOpen.value = false;
+  if (lcscFlowFromScan.value) {
+    lcscFlowFromScan.value = false;
+    scanStatusText.value = "未填写该结果，可继续扫码。";
+    scanDialogOpen.value = true;
+  }
 }
 
 async function loadInventory(force = false): Promise<void> {

@@ -1,4 +1,4 @@
-<!-- 本组件拥有单个立创商品编号查询、错误恢复和应用确认；它不直接修改物品草稿。 -->
+<!-- 本组件拥有手动输入立创商品编号的查询 Dialog；查询执行与候选确认内容复用共享模块，它不直接修改物品草稿。 -->
 <template>
   <ModalDialog
     :open="open"
@@ -9,7 +9,7 @@
     @close="requestClose"
   >
     <form
-      v-if="!candidate"
+      v-if="!request.candidate.value"
       :id="formId"
       class="lcsc-lookup"
       novalidate
@@ -24,52 +24,49 @@
         autocomplete="off"
         autofocus
         placeholder="例如 C2983288"
-        :disabled="pending"
+        :disabled="request.pending.value"
         :error="inputError"
         :title="inputError || undefined"
         @update:model-value="inputError = ''"
       />
 
-      <div v-if="pending" class="lcsc-lookup__status" role="status">正在查询立创资料…</div>
-      <div v-else-if="lookupError" class="lcsc-lookup__error" role="alert">
+      <div v-if="request.pending.value" class="lcsc-lookup__status" role="status">
+        正在查询立创资料…
+      </div>
+      <div v-else-if="request.error.value" class="lcsc-lookup__error" role="alert">
         <strong>查询失败</strong>
-        <span>{{ lookupError }}</span>
+        <span>{{ request.error.value }}</span>
       </div>
     </form>
 
-    <section v-else class="lcsc-lookup-result" aria-live="polite">
-      <strong>{{ candidate.name }}</strong>
-      <span>
-        立创商品编号 {{ candidate.product_code
-        }}<template v-if="candidate.manufacturer"> · {{ candidate.manufacturer }}</template>
-      </span>
-      <p>是否使用查询结果填写当前表单？查询结果中的有效字段将覆盖当前内容。</p>
-      <FormSelect
-        :id="`${formId}-template`"
-        v-model="selectedTemplateId"
-        class="lcsc-lookup-result__template"
-        label="属性模板"
-        match-trigger-width
-        name="lcsc_template_id"
-      >
-        <option :value="null">不使用模板</option>
-        <option v-for="template in templates" :key="template.id" :value="template.id">
-          {{ template.name }}
-        </option>
-      </FormSelect>
-    </section>
+    <LcscCandidateConfirmPanel
+      v-else
+      v-model:template-id="selectedTemplateId"
+      :candidate="request.candidate.value"
+      :templates="templates"
+    />
 
     <template #actions>
-      <template v-if="candidate">
+      <template v-if="request.candidate.value">
         <button class="secondary-button" type="button" @click="requestClose">不填写</button>
         <button class="primary-button" type="button" @click="applyCandidate">覆盖填写</button>
       </template>
       <template v-else>
-        <button class="secondary-button" type="button" :disabled="pending" @click="requestClose">
+        <button
+          class="secondary-button"
+          type="button"
+          :disabled="request.pending.value"
+          @click="requestClose"
+        >
           取消
         </button>
-        <button class="primary-button" type="submit" :form="formId" :disabled="pending">
-          {{ pending ? "正在查询…" : lookupError ? "重新查询" : "查询" }}
+        <button
+          class="primary-button"
+          type="submit"
+          :form="formId"
+          :disabled="request.pending.value"
+        >
+          {{ request.pending.value ? "正在查询…" : request.error.value ? "重新查询" : "查询" }}
         </button>
       </template>
     </template>
@@ -77,23 +74,21 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
-import { ApiError, ApiNetworkError } from "../../api/errors";
+import { nextTick, ref, useId, watch } from "vue";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
-import { lookupLcscItem, type LcscItemLookupResponse } from "../../api/items";
+import type { LcscItemLookupResponse } from "../../api/items";
 import FormInput from "../forms/FormInput.vue";
-import FormSelect from "../forms/FormSelect.vue";
 import ModalDialog from "../ModalDialog.vue";
+import LcscCandidateConfirmPanel from "./LcscCandidateConfirmPanel.vue";
+import { useLcscLookupRequest } from "./useLcscLookupRequest";
 
 const props = withDefaults(
   defineProps<{
     open: boolean;
     initialCode?: string;
-    /** 打开时若 initialCode 是合法 C 号则立即查询；用于扫码入口跳过手动提交。 */
-    autoQuery?: boolean;
     templates: ItemAttributeTemplateResponse[];
   }>(),
-  { initialCode: "", autoQuery: false },
+  { initialCode: "" },
 );
 
 const emit = defineEmits<{
@@ -104,33 +99,25 @@ const emit = defineEmits<{
 const formId = `lcsc-lookup-${useId()}`;
 const productCode = ref("");
 const inputError = ref("");
-const lookupError = ref("");
-const pending = ref(false);
-const candidate = ref<LcscItemLookupResponse | null>(null);
 const selectedTemplateId = ref<number | null>(null);
-let requestController: AbortController | null = null;
-let requestGeneration = 0;
+const request = useLcscLookupRequest();
 
 watch(
   () => props.open,
   async (open) => {
-    abortRequest();
+    request.reset();
     if (!open) return;
     productCode.value = normalizeCode(props.initialCode);
     inputError.value = "";
-    lookupError.value = "";
-    candidate.value = null;
     selectedTemplateId.value = props.templates[0]?.id ?? null;
-    if (props.autoQuery && /^C[0-9]+$/.test(productCode.value)) {
-      void submitLookup();
-      return;
-    }
     await nextTick();
     focusCodeInput();
   },
 );
 
-onBeforeUnmount(abortRequest);
+watch(request.candidate, (candidate) => {
+  if (candidate) selectedTemplateId.value = props.templates[0]?.id ?? null;
+});
 
 async function submitLookup(): Promise<void> {
   const normalized = normalizeCode(productCode.value);
@@ -140,45 +127,19 @@ async function submitLookup(): Promise<void> {
     focusCodeInput();
     return;
   }
-
-  abortRequest();
-  const controller = new AbortController();
-  const generation = ++requestGeneration;
-  requestController = controller;
-  pending.value = true;
-  lookupError.value = "";
-  try {
-    const result = await lookupLcscItem(normalized, controller.signal);
-    if (generation !== requestGeneration) return;
-    candidate.value = result;
-    selectedTemplateId.value = props.templates[0]?.id ?? null;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return;
-    if (generation === requestGeneration) lookupError.value = lookupErrorMessage(error);
-  } finally {
-    if (requestController === controller) {
-      requestController = null;
-      pending.value = false;
-    }
-  }
+  await request.lookup(normalized);
 }
 
 function requestClose(): void {
-  abortRequest();
+  request.abort();
   emit("close");
 }
 
 function applyCandidate(): void {
-  if (!candidate.value) return;
-  emit("apply", candidate.value, selectedTemplateId.value);
+  const candidate = request.candidate.value;
+  if (!candidate) return;
+  emit("apply", candidate, selectedTemplateId.value);
   emit("close");
-}
-
-function abortRequest(): void {
-  requestGeneration += 1;
-  requestController?.abort();
-  requestController = null;
-  pending.value = false;
 }
 
 function normalizeCode(value: string): string {
@@ -187,22 +148,6 @@ function normalizeCode(value: string): string {
 
 function focusCodeInput(): void {
   document.getElementById(`${formId}-product-code`)?.focus();
-}
-
-function lookupErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    const messages: Record<string, string> = {
-      invalid_lcsc_product_code: "商品编号格式无效，请输入 C 开头、后续为数字的编号。",
-      lcsc_product_not_found: "没有查询到该立创商品，请检查编号。",
-      lcsc_lookup_busy: "查询服务繁忙，请稍后重试。",
-      lcsc_lookup_timeout: "立创服务响应超时，请稍后重试。",
-      lcsc_lookup_failed: "暂时无法连接立创资料服务。",
-      lcsc_invalid_response: "立创返回了无法识别的数据。",
-    };
-    return messages[error.code] ?? error.message;
-  }
-  if (error instanceof ApiNetworkError) return "无法连接 WineStock 服务。";
-  return "查询过程中发生未知错误，请稍后重试。";
 }
 </script>
 

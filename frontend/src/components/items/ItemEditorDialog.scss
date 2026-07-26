@@ -1,9 +1,11 @@
 /* 本文件拥有物品工作区 Dialog 的多页导航、库存摘要和批次布局，不改变共享编辑器字段规则。 */
 @use "../../styles/foundation/mixins" as mixins;
 
-.item-editor-dialog__lcsc-lookup {
+/* 编号填写与扫码填写在 actions 左侧紧贴成组；只有组尾吃掉剩余空间，取消与保存保持右侧。 */
+.item-editor-dialog__lcsc-scan {
   margin-right: auto;
 }
+
 .item-workspace__context {
   display: flex;
   min-width: 0;

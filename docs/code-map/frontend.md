@@ -37,7 +37,7 @@
 
 - `frontend/src/barcode/decoder.ts`：zxing-wasm reader 懒加载、wasm 自托管定位与 QRCode 解码入口；相机帧走速度优先、静态图片走精度优先，模块与 wasm 均不进主包。
 - `frontend/src/lcsc/bagCode.ts`：立创料袋二维码文本的解析纯逻辑（node 单测覆盖）；非料袋格式一律返回 null 由调用方静默忽略。
-- `frontend/src/components/barcode/BarcodeScanDialog.vue`：业务无关扫码 Dialog——摄像头流（可切换设备并记住选择、torch）、拍照/选图/拖放/粘贴降级、识别去重、震动反馈；只回传原文。业务语义（入库/出库/新建物品）由各调用方决定，方案见 `docs/implementation-notes/lcsc-bag-scanning.md`。
+- `frontend/src/components/barcode/`：业务无关扫码层，只回传原文，业务语义由调用方决定（方案见 `docs/implementation-notes/lcsc-bag-scanning.md`）。`BarcodeCameraView.vue` 拥有取景区——摄像头会话、逐帧解码、检测框、设备循环切换（记住选择）、torch、点击触发单次对焦（全局 single-shot 后回连续；Chromium 未实现区域对焦 pointsOfInterest）；`BarcodeScanDialog.vue` 拥有 Dialog 编排——画面上方稳定状态行、图标工具栏、拍照/选图/拖放/粘贴降级。
 
 ## 全局反馈
 
