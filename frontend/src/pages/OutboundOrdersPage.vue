@@ -170,8 +170,15 @@
                 previewable
               />
               <div>
-                <strong>{{ i.item_name }}</strong
-                ><small>{{ i.item_sku }} · {{ i.item_unit }} · 物品 #{{ i.item_id }}</small>
+                <strong v-copyable="{ text: i.item_name, label: '物品名称' }">{{
+                  i.item_name
+                }}</strong
+                ><small
+                  ><span v-copyable="{ text: i.item_sku, label: '物品编号' }">{{
+                    i.item_sku
+                  }}</span>
+                  · {{ i.item_unit }} · 物品 #{{ i.item_id }}</small
+                >
               </div>
               <span>{{ i.quantity }} {{ i.item_unit }}</span>
             </header>

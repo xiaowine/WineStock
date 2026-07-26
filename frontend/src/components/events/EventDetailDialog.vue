@@ -118,7 +118,13 @@
         <summary>原始详情</summary>
         <header>
           <span>完整服务端 JSON</span>
-          <button class="secondary-button" type="button" @click="copyRawJson">复制 JSON</button>
+          <button
+            v-copyable="{ text: rawJson, label: '审计详情 JSON' }"
+            class="secondary-button"
+            type="button"
+          >
+            复制 JSON
+          </button>
         </header>
         <pre tabindex="0">{{ rawJson }}</pre>
       </details>
@@ -141,7 +147,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { EventLogResponse } from "../../api/events";
-import { notice } from "../../notices/notice";
 import {
   eventDetailEntries,
   eventDiffRows,
@@ -195,15 +200,6 @@ function actorLabel(event: EventLogResponse): string {
 function entityTargetLabel(event: EventLogResponse): string {
   const id = event.entity_id === null ? "无实体编号" : `#${event.entity_id}`;
   return `${eventEntityLabel(event.entity_type)} · ${id}`;
-}
-
-async function copyRawJson(): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(rawJson.value);
-    notice.success("审计详情 JSON 已复制");
-  } catch {
-    notice.error("无法复制审计详情 JSON");
-  }
 }
 
 function emitRelated(): void {

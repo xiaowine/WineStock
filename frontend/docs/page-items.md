@@ -3,6 +3,13 @@
 物品管理页拥有库存目录、新建与详情 Dialog。目录继续通过 WineStock HTTP API 查询；新建物品仍由现有
 `ItemEditorDialog`、图片上传和 `POST /api/items` 完成。
 
+## 可复制字段
+
+目录行的物品名称与编号、编辑 Dialog 头部的名称与编号经 `v-copyable` 提供点击复制
+（无常驻图标，copy 光标与键盘触发；产品决定保持字段视觉干净）；目录行上点击复制
+阻断冒泡，不触发行级打开编辑。规范见
+[`ui-consistency-checklist.md`](ui-consistency-checklist.md) 的「复制到剪贴板」。
+
 ## 新建草稿的默认模板
 
 设置了全站默认物品属性模板时，新建物品草稿（物品管理与入库快速新建共用会话）在创建时自动

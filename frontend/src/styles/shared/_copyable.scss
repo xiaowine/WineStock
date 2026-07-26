@@ -1,0 +1,15 @@
+/* 本文件拥有 v-copyable 文本宿主的外观（copy 光标 + 恢复选择 + 键盘焦点环），
+   由指令自动挂 .copyable 类；按产品决定不加常驻图标/按钮，保持字段视觉干净。
+   规范见 frontend/docs/ui-consistency-checklist.md。 */
+
+.copyable {
+  border-radius: var(--radius-sm);
+  cursor: copy;
+  -webkit-user-select: text;
+  user-select: text;
+
+  &:focus-visible {
+    outline: 3px solid rgb(111 42 54 / 24%);
+    outline-offset: 2px;
+  }
+}

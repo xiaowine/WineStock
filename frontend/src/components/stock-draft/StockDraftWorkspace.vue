@@ -224,8 +224,17 @@
             previewable
           />
           <div>
-            <strong :title="selectedLine.item.name">{{ selectedLine.item.name }}</strong>
-            <span>{{ selectedLine.item.sku }} · {{ selectedLine.item.unit }}</span>
+            <strong
+              v-copyable="{ text: selectedLine.item.name, label: '物品名称' }"
+              :title="selectedLine.item.name"
+              >{{ selectedLine.item.name }}</strong
+            >
+            <span>
+              <span v-copyable="{ text: selectedLine.item.sku, label: '物品编号' }">{{
+                selectedLine.item.sku
+              }}</span>
+              · {{ selectedLine.item.unit }}
+            </span>
           </div>
         </div>
       </template>

@@ -170,13 +170,26 @@
                     @click.stop
                   />
                   <div class="items-catalog__identity-content">
-                    <strong class="items-catalog__identity-name" :title="item.name">{{
-                      item.name
-                    }}</strong>
+                    <strong
+                      v-copyable="{ text: item.name, label: '物品名称' }"
+                      class="items-catalog__identity-name"
+                      :title="item.name"
+                      @click.stop
+                      @keydown.stop
+                      >{{ item.name }}</strong
+                    >
                     <dl class="items-catalog__identity-meta">
                       <div class="items-catalog__identity-sku">
                         <dt>编号</dt>
-                        <dd :title="item.sku">{{ item.sku }}</dd>
+                        <!-- 点击复制不得触发行级打开编辑，必须阻断冒泡。 -->
+                        <dd
+                          v-copyable="{ text: item.sku, label: '物品编号' }"
+                          :title="item.sku"
+                          @click.stop
+                          @keydown.stop
+                        >
+                          {{ item.sku }}
+                        </dd>
                       </div>
                       <div class="items-catalog__identity-category">
                         <dt>分类</dt>

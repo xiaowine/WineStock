@@ -386,6 +386,20 @@ activeSearch / activeFilters / activeSort
 - 字段校验统一使用不改变布局的红框、自动聚焦和提交 Notice；具体错误说明保留在无障碍树中，不在字段下方插入可见错误行或重复增加常驻状态标签。
 - 业务表单统一使用 `novalidate` 禁用浏览器原生约束气泡；`required`、`min` 和 `pattern` 只保留字段语义，提交边界必须使用项目自己的字段错误或 Notice，不依赖不同浏览器的原生提示文案与外观。
 
+### 复制到剪贴板
+
+- 一切"复制"交互必须经 `v-copyable` 指令（`directives/copyable.ts`）或
+  `clipboard/copyText.ts` 的 `copyWithFeedback`；**禁止在组件内手写
+  `navigator.clipboard`/`execCommand` 及自配 Notice 文案**。
+- 指令绑定 `{ text, label }` 时反馈为"{label}已复制/无法复制{label}"；短内容进
+  Notice detail，超长内容（如整段 JSON）自动省略，失败统一给"长按或选择内容后
+  手动复制"指引——这些规则由共享层拥有，调用方不得另写。
+- 全局 `user-select: none` 策略不变：复制入口只出现在明确的短字段（名称/编号/单号/
+  地址类）或既有按钮上，新增可复制点位需页面文档说明，不做整页放开。
+- 文本宿主外观由共享 `.copyable` 拥有（copy 光标、恢复选择、键盘焦点环）；
+  产品决定**不加常驻复制图标/按钮**，保持字段视觉干净——不得在点位旁自行补图标。
+- 列表行内的可复制字段必须 `@click.stop`（及必要的 `@keydown.stop`）阻断行级激活。
+
 ### 加载和分页
 
 - 初始加载、空状态、分页加载、分页错误和到底状态应有稳定位置。

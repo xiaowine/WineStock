@@ -161,6 +161,11 @@ GET /api/inbound?...&status=pending|approved|rejected
 - 网络失败：保留 Dialog、显示重试入口和原行摘要；不清空列表或改变 URL。
 - 重复打开不同单据时取消前一个 `AbortController`；只允许最新响应写入当前 Dialog。
 
+## 可复制字段
+
+详情 Dialog 头部的整单来源、物品行的名称与编号经 `v-copyable` 提供点击复制
+（无常驻图标）；规范见 [`ui-consistency-checklist.md`](ui-consistency-checklist.md)。
+
 ## 建议前端模块划分
 
 ```text

@@ -18,13 +18,25 @@
       <div class="item-workspace__context">
         <div>
           <span>当前物品</span>
-          <strong :title="draft.name || itemName">{{
-            draft.name || itemName || "未命名物品"
-          }}</strong>
+          <strong
+            v-if="draft.name || itemName"
+            v-copyable="{ text: draft.name || itemName, label: '物品名称' }"
+            :title="draft.name || itemName"
+          >
+            {{ draft.name || itemName }}
+          </strong>
+          <strong v-else>未命名物品</strong>
         </div>
         <div class="item-workspace__identity">
           <span>编号</span>
-          <strong :title="draft.sku || itemSku">{{ draft.sku || itemSku || "未设置" }}</strong>
+          <strong
+            v-if="draft.sku || itemSku"
+            v-copyable="{ text: draft.sku || itemSku, label: '物品编号' }"
+            :title="draft.sku || itemSku"
+          >
+            {{ draft.sku || itemSku }}
+          </strong>
+          <strong v-else>未设置</strong>
         </div>
       </div>
     </template>

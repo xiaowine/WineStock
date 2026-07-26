@@ -129,7 +129,9 @@
       <template #context
         ><div v-if="selected" class="dialog-account-context">
           <span>{{ statusLabel(selected.status) }}</span
-          ><strong>{{ selected.source }}</strong>
+          ><strong v-copyable="{ text: selected.source, label: '入库来源' }">{{
+            selected.source
+          }}</strong>
         </div></template
       >
       <section v-if="detailError" class="inbound-detail-error">
@@ -171,9 +173,14 @@
                 previewable
               />
               <div>
-                <strong>{{ item.item_name }}</strong
+                <strong v-copyable="{ text: item.item_name, label: '物品名称' }">{{
+                  item.item_name
+                }}</strong
                 ><small
-                  >{{ item.item_sku }} · {{ item.item_unit }} · 物品 #{{ item.item_id }}</small
+                  ><span v-copyable="{ text: item.item_sku, label: '物品编号' }">{{
+                    item.item_sku
+                  }}</span>
+                  · {{ item.item_unit }} · 物品 #{{ item.item_id }}</small
                 >
               </div>
               <span>¥{{ money(item.quantity * item.unit_price) }}</span>

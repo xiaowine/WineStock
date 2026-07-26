@@ -86,6 +86,12 @@ SKU 和库位名均省略显示，不能撑开页面。
 `ui-design-guidelines.md`、`ui-consistency-checklist.md`、`async-state-transitions.md` 和
 `mobile-interactions.md` 为准。
 
+## 可复制字段
+
+工作台明细编辑区选中物品的名称与编号经 `v-copyable` 提供点击复制（无常驻图标）；
+入库单详情弹窗的可复制字段见 [`page-inbound-orders.md`](page-inbound-orders.md)。
+规范见 [`ui-consistency-checklist.md`](ui-consistency-checklist.md)。
+
 ## 草稿、校验和权限
 
 - 草稿键为 `winestock.inbound-draft.v6`，旧版本草稿恢复时直接清除；不持久化活动选择层、Dialog 或焦点。

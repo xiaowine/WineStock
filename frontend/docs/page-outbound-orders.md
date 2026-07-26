@@ -95,6 +95,11 @@
 - 批次不存在或 `batch_id` 为空时显示“按 FIFO 分配（审批时确认）”，不能伪造具体批次；pending 不能声称已扣某批库存。
 - `403` 关闭详情并保留列表上下文；`404` 提示不可读取并刷新第 1 页；网络错误保留 Dialog 与重试。
 
+## 可复制字段
+
+详情 Dialog 物品行的名称与编号经 `v-copyable` 提供点击复制（无常驻图标，
+与入库单详情一致）；规范见 [`ui-consistency-checklist.md`](ui-consistency-checklist.md)。
+
 ## 建议模块
 
 ```text

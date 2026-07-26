@@ -15,11 +15,11 @@
         <li v-for="url in urls" :key="url" class="lan-access-dialog__item">
           <code class="lan-access-dialog__address">{{ url }}</code>
           <button
+            v-copyable="{ text: url, label: '连接地址' }"
             class="icon-button lan-access-dialog__copy"
             type="button"
             title="复制地址"
             :aria-label="`复制连接地址 ${url}`"
-            @click="copyUrl(url)"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M8 8h11v11H8z" />
@@ -46,7 +46,6 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { notice } from "../../notices/notice";
 import ModalDialog from "../ModalDialog.vue";
 
 const props = defineProps<{
@@ -59,16 +58,6 @@ const emit = defineEmits<{
 }>();
 
 const hasInsecureUrl = computed(() => props.urls.some((url) => url.startsWith("http://")));
-
-async function copyUrl(url: string): Promise<void> {
-  try {
-    if (!navigator.clipboard?.writeText) throw new Error("当前环境不支持剪贴板写入");
-    await navigator.clipboard.writeText(url);
-    notice.success("连接地址已复制", { detail: url });
-  } catch {
-    notice.error("无法复制连接地址", { detail: "请长按或选择地址后手动复制。" });
-  }
-}
 </script>
 
 <style lang="scss" src="./LanAccessDialog.scss"></style>

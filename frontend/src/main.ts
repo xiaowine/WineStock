@@ -11,6 +11,7 @@ import {
   startAuthSessionSynchronization,
 } from "./auth/session";
 import { installOverlayScrollbars } from "./bootstrap/overlayScrollbars";
+import { copyableDirective } from "./directives/copyable";
 import { installNativeBackNavigation } from "./navigation/nativeBack";
 import { router } from "./router";
 import { installAuthGuards } from "./router/guards";
@@ -73,7 +74,7 @@ async function bootstrapFrontend(): Promise<void> {
     { flush: "sync" },
   );
 
-  createApp(App).use(router).mount("#app");
+  createApp(App).use(router).directive("copyable", copyableDirective).mount("#app");
   installOverlayScrollbars();
   // 按已持久化的同意偏好补启动匿名采集；未同意时该调用不发起任何请求。
   startTelemetryIfConsented();

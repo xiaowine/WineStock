@@ -58,6 +58,7 @@
 - `frontend/src/components/forms/`：FormField 族、Teleport listbox 的 `SelectControl` 和不依赖浏览器原生弹层的日期时间字段；不包含业务校验规则。
 - `frontend/src/components/attributes/`：物品侧的单张图片属性控件、无依赖 HSV 颜色选择器、鉴权图片加载和图片草稿/纯色生成/提交阶段批量上传模型。
 - `frontend/src/composables/`：表单校验定位、原生返回注册、稳定 pending 指示、目录搜索分页、草稿持久化等页面无关组合逻辑。
+- `frontend/src/clipboard/` 与 `directives/copyable.ts`：复制到剪贴板的唯一实现（Clipboard API + execCommand 降级、统一 Notice 反馈规则）与 `v-copyable` 指令（main.ts 全局注册）；组件内禁止手写剪贴板代码，规范见 `frontend/docs/ui-consistency-checklist.md`。
 
 ## 业务页面域
 
