@@ -67,12 +67,13 @@
 - 认证：`AuthEntryPage`/`LoginPage`/`RegisterPage`/`ChangePasswordPage`；首用户 bootstrap 状态按 API 根地址缓存，强制改密与安全回跳由守卫协同。
 - 看板：`DashboardPage` 与原生 SVG 出入库趋势图组件。
 - 物品：`ItemsPage` 服务端筛选目录与多页详情 Dialog、立创查询 Dialog（确认后覆盖回填草稿）、目录筛选与列表展示字段维护；读写入口按 `stock.item.read`/`stock.item.manage` 区分。
-- 出入库草稿：`/inbound` 与 `/outbound` 共用 `StockDraftPage`，按路由 kind 装配 `components/stock-draft/` 泛型工作台壳与出库分配编辑器；`pages/stock-draft/` 拥有壳契约、两域装配与域样式，行模型/持久化沿用 `pages/inbound-draft/`、`pages/outbound-draft/` 与对应 composable，入库行编辑复用 `components/inbound/InboundLineEditor`；入库域另有 `components/stock-draft/LcscOrderImportDialog` 订单导入预览（匹配/新建/来源勾选，写入草稿由入库装配完成）。
+- 出入库草稿：`/inbound` 与 `/outbound` 共用 `StockDraftPage`，按路由 kind 装配 `components/stock-draft/` 泛型工作台壳与出库分配编辑器；`pages/stock-draft/` 拥有壳契约、两域装配与域样式，行模型/持久化沿用 `pages/inbound-draft/`、`pages/outbound-draft/` 与对应 composable，入库行编辑复用 `components/inbound/InboundLineEditor`；入库域另有 `components/stock-draft/LcscOrderImportDialog` 订单导入预览（匹配/新建/来源勾选与未命中行一键批量创建，写入草稿由入库装配完成）；入库行库位按"同编号唯一库存库位 → 全局默认库位 → 待选择"分层预填，`components/inbound/InboundBatchLocationDialog` 批量补齐剩余未选库位的明细（见 `docs/implementation-notes/inbound-location-prefill.md`）。
+- 立创批量创建：`components/items/useBatchLcscItemCreation.ts` 串行批量创建会话（查资料→拉图→套批次模板→创建，单项失败不阻塞、`sku_taken` 自动匹配、中止安全）与 `BatchLcscCreateOptionsDialog.vue` 批次选项 Dialog（整批一个模板/分类/单位，预选全站默认模板）；供订单导入与后续备份导入共用，方案见 `docs/implementation-notes/lcsc-batch-item-creation-and-erp-backup-import.md`。
 - 入库单据：`InboundOrdersPage` 单据列表，`components/inbound/` 行编辑器、筛选与列表件。
 - 出库单据：`OutboundOrdersPage` 单据列表与 `components/outbound/` 筛选件。
 - 审批：两个薄审批路由页与 `pages/approvals/catalog.ts` 领域目录，共同挂载 `components/approvals/StockApprovalWorkspace`（请求与队列协调集中于此）。
 - 模板：`TemplatesPage` 分类/物品属性模板双资源工作区，`components/templates/` 字段编辑、复制与两类差异化删除确认。
-- 库位：`LocationsPage` 与 `components/locations/` 最多十层分组树、库位 CRUD 与删除确认。
+- 库位：`LocationsPage` 与 `components/locations/` 最多十层分组树、库位 CRUD、删除确认与全局默认库位星标（`is_default`，仅用于入库明细预填）。
 - 替代料：`SubstitutesPage` 全局分组治理与确定性星链网络视图（力导向布局 composable），`components/substitutes/` 关系组、共享编辑 Dialog 与 SVG 画布。
 - 用户：`UsersPage` 与 `components/users/` 管理表单族；编辑当前账号时锁定权限管理关键权限。
 - 审计：`EventsPage` 与 `components/events/` 高级筛选、只读详情和历史 JSON 差异兼容。
