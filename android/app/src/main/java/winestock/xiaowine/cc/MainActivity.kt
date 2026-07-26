@@ -3,9 +3,9 @@ package winestock.xiaowine.cc
 import android.Manifest
 import android.content.Intent
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import winestock.xiaowine.cc.shell.MainShellCoordinator
 
@@ -15,7 +15,7 @@ import winestock.xiaowine.cc.shell.MainShellCoordinator
  * 只负责系统生命周期回调与 [registerForActivityResult] 注册；
  * WebView / Bridge / 安全区 / 文件选择等组装见 [MainShellCoordinator] 与 web、shell 包。
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
 
     private lateinit var shell: MainShellCoordinator
 

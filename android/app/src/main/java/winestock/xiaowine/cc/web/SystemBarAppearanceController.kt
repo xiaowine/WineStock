@@ -4,7 +4,7 @@ import android.os.Build
 import android.os.Handler
 import android.view.View
 import android.webkit.WebView
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
 import androidx.core.view.WindowInsetsControllerCompat
 
 /**
@@ -14,7 +14,7 @@ import androidx.core.view.WindowInsetsControllerCompat
  * 切到浅色图标并关闭导航栏 contrast 强制。不经 Shell Bridge 业务契约。
  */
 internal class SystemBarAppearanceController(
-    private val activity: AppCompatActivity,
+    private val activity: ComponentActivity,
     private val contentView: () -> View,
     private val mainHandler: Handler,
 ) {

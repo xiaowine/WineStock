@@ -30,8 +30,6 @@ android {
             // 当前发布面只支持真实 ARM64 设备；不生成 32 位或模拟器 ABI。
             abiFilters += "arm64-v8a"
         }
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -296,14 +294,9 @@ androidComponents {
 
 dependencies {
     implementation(libs.androidx.activity.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.core.splashscreen)
-    implementation(libs.material)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
 }

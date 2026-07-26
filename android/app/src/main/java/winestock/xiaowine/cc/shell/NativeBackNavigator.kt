@@ -1,15 +1,15 @@
 package winestock.xiaowine.cc.shell
 
 import android.webkit.WebView
+import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.OnBackPressedDispatcher
-import androidx.appcompat.app.AppCompatActivity
 
 /**
  * 系统返回键：优先经 Shell Bridge 与前端协商，未处理时 WebView history / Activity finish。
  */
 internal class NativeBackNavigator(
-    private val activity: AppCompatActivity,
+    private val activity: ComponentActivity,
     private val webView: () -> WebView,
     private val shellBridge: () -> ShellBridgeHost?,
 ) {

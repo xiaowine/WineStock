@@ -1,9 +1,0 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 系统夜间模式不改变当前浅色前端的 WebView 背景。 -->
-    <style name="Base.Theme.WineStock" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:windowBackground">@color/web_background</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
-    </style>
-</resources>

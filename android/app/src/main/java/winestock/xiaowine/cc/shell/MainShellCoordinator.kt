@@ -3,9 +3,9 @@ package winestock.xiaowine.cc.shell
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen
 import androidx.webkit.WebViewAssetLoader
 import winestock.xiaowine.cc.AppConfig
@@ -26,7 +26,7 @@ import winestock.xiaowine.cc.web.WebViewportInsetsPublisher
  * Activity 只保留系统回调入口与 [registerForActivityResult] 注册。
  */
 internal class MainShellCoordinator(
-    private val activity: AppCompatActivity,
+    private val activity: ComponentActivity,
     launchFileChooser: (Intent) -> Unit,
     requestCameraPermission: () -> Unit,
 ) {

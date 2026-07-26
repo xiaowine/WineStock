@@ -1,6 +1,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 应用主题：承载 WebView 内容区域的常规外观。 -->
-    <style name="Base.Theme.WineStock" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- 应用主题：承载 WebView 内容区域的常规外观。
+         UI 全部在 WebView 内，使用平台浅色主题即可；前端当前固定浅色，
+         刻意不用 DayNight，系统夜间模式下窗口背景保持与前端一致。 -->
+    <style name="Base.Theme.WineStock" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/web_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
