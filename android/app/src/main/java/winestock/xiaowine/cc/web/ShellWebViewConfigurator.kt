@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.view.View
+import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -25,6 +26,7 @@ internal class ShellWebViewConfigurator(
     private val assetLoader: WebViewAssetLoader,
     private val systemBarAppearance: SystemBarAppearanceController,
     private val fileChooserHost: WebViewFileChooserHost,
+    private val cameraPermissionHost: WebViewCameraPermissionHost,
     private val onPageStarted: (url: String?) -> Unit,
     private val onPageVisible: (url: String?) -> Unit,
     private val onFrontendReady: () -> Unit,
@@ -62,6 +64,7 @@ internal class ShellWebViewConfigurator(
                     }
                 }
             // HTML <input type="file">：系统选择器返回 content URI，无存储权限。
+            // getUserMedia 摄像头：仅受信任 origin 且原生 CAMERA 已获准时放行，见 cameraPermissionHost。
             webChromeClient =
                 object : WebChromeClient() {
                     override fun onShowFileChooser(
@@ -71,6 +74,15 @@ internal class ShellWebViewConfigurator(
                     ): Boolean {
                         if (filePathCallback == null) return false
                         return fileChooserHost.onShowFileChooser(filePathCallback, fileChooserParams)
+                    }
+
+                    override fun onPermissionRequest(request: PermissionRequest?) {
+                        if (request == null) return
+                        cameraPermissionHost.onPermissionRequest(request)
+                    }
+
+                    override fun onPermissionRequestCanceled(request: PermissionRequest?) {
+                        cameraPermissionHost.onPermissionRequestCanceled(request)
                     }
                 }
             settings.apply {

@@ -1,5 +1,6 @@
 package winestock.xiaowine.cc
 
+import android.Manifest
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.result.ActivityResultLauncher
@@ -26,14 +27,24 @@ class MainActivity : AppCompatActivity() {
             shell.onFileChooserResult(result)
         }
 
+    /** WebView getUserMedia 摄像头的运行时权限请求；结果交给摄像头授权宿主结算。 */
+    private val cameraPermissionLauncher: ActivityResultLauncher<String> =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            shell.onCameraPermissionResult(granted)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // 必须在 super.onCreate 前接管系统启动窗口。
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         shell =
-            MainShellCoordinator(this) { intent ->
-                fileChooserLauncher.launch(intent)
-            }
+            MainShellCoordinator(
+                activity = this,
+                launchFileChooser = { intent -> fileChooserLauncher.launch(intent) },
+                requestCameraPermission = {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                },
+            )
         shell.start(splashScreen)
     }
 

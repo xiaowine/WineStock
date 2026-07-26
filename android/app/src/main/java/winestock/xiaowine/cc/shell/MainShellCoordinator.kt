@@ -15,6 +15,7 @@ import winestock.xiaowine.cc.web.FrontendPathHandler
 import winestock.xiaowine.cc.web.ShellWebViewConfigurator
 import winestock.xiaowine.cc.web.SplashFrontendGate
 import winestock.xiaowine.cc.web.SystemBarAppearanceController
+import winestock.xiaowine.cc.web.WebViewCameraPermissionHost
 import winestock.xiaowine.cc.web.WebViewFileChooserHost
 import winestock.xiaowine.cc.web.WebViewportInsetsPublisher
 
@@ -27,6 +28,7 @@ import winestock.xiaowine.cc.web.WebViewportInsetsPublisher
 internal class MainShellCoordinator(
     private val activity: AppCompatActivity,
     launchFileChooser: (Intent) -> Unit,
+    requestCameraPermission: () -> Unit,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val splashGate =
@@ -35,6 +37,12 @@ internal class MainShellCoordinator(
             timeoutMs = AppConfig.SPLASH_TIMEOUT_MS,
         )
     private val fileChooserHost = WebViewFileChooserHost(launchIntent = launchFileChooser)
+    private val cameraPermissionHost =
+        WebViewCameraPermissionHost(
+            context = activity,
+            trustedOrigin = AppConfig.TRUSTED_ORIGIN,
+            requestCameraPermission = requestCameraPermission,
+        )
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var systemBarAppearance: SystemBarAppearanceController
@@ -77,6 +85,7 @@ internal class MainShellCoordinator(
             assetLoader = assetLoader,
             systemBarAppearance = systemBarAppearance,
             fileChooserHost = fileChooserHost,
+            cameraPermissionHost = cameraPermissionHost,
             onPageStarted = { url -> shellBridge?.onPageStarted(url) },
             onPageVisible = { url -> viewportInsetsPublisher?.onPageVisible(url) },
             onFrontendReady = { splashGate.markReady() },
@@ -94,6 +103,10 @@ internal class MainShellCoordinator(
 
     fun onFileChooserResult(result: ActivityResult) {
         fileChooserHost.onActivityResult(result)
+    }
+
+    fun onCameraPermissionResult(granted: Boolean) {
+        cameraPermissionHost.onNativePermissionResult(granted)
     }
 
     fun onResume() {
@@ -114,6 +127,7 @@ internal class MainShellCoordinator(
     fun onDestroy() {
         splashGate.cancelTimeout()
         fileChooserHost.destroy()
+        cameraPermissionHost.destroy()
         shellBridge?.destroy()
         shellBridge = null
         viewportInsetsPublisher?.dispose()
