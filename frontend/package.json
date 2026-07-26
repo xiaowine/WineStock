@@ -13,6 +13,7 @@
     "test:runtime-funnel": "node --test tests/runtimeFunnel.test.mjs",
     "test:item-lcsc": "node --test tests/itemLcscMapping.test.mjs",
     "test:lcsc-bag": "node --test tests/lcscBagCode.test.mjs",
+    "test:availability-policy": "node --test tests/serviceAvailabilityPolicy.test.mjs",
     "gen:api-types": "openapi-typescript ../target/openapi/openapi.json -o src/api/generated/schema.d.ts",
     "gen:api": "cargo run -p winestock-core --example dump_openapi && pnpm gen:api-types",
     "format": "prettier --write .",

@@ -4,7 +4,10 @@ import { apiClient } from "../api/client";
 import { resetAuthBootstrapStatus } from "../api/auth";
 import { configureRuntimeApiBaseUrl } from "../api/runtime-config";
 import { resetAuthSessionForRuntimeChange } from "../auth/session";
-import { resetServiceAvailabilityForRuntimeChange } from "../service/availability";
+import {
+  applyShellServiceStateSignal,
+  resetServiceAvailabilityForRuntimeChange,
+} from "../service/availability";
 import { createShellBridge } from "./bridge";
 import {
   assertCompleteShellBridge,
@@ -141,6 +144,30 @@ export async function resolveNativeBack(
   return result;
 }
 
+/** 请求 Shell 启动本地服务；仅在 capability 允许时调用，端口可能随之变化。 */
+export async function startLocalService(): Promise<RuntimeSnapshot> {
+  const snapshot = await initializeShellRuntime();
+  if (!snapshot.capabilities.startLocalService) {
+    throw new Error("当前平台不支持启动本地服务");
+  }
+  const previousApiBaseUrl = activeApiBaseUrl.value;
+  const result = await requireBridge().startLocalService();
+  applySnapshot(result, previousApiBaseUrl);
+  return result;
+}
+
+/** 请求 Shell 重启本地服务；本地服务异常且自动恢复失败后的手动兜底入口。 */
+export async function restartLocalService(): Promise<RuntimeSnapshot> {
+  const snapshot = await initializeShellRuntime();
+  if (!snapshot.capabilities.restartLocalService) {
+    throw new Error("当前平台不支持重启本地服务");
+  }
+  const previousApiBaseUrl = activeApiBaseUrl.value;
+  const result = await requireBridge().restartLocalService();
+  applySnapshot(result, previousApiBaseUrl);
+  return result;
+}
+
 /** 通过当前平台的受控能力打开外部 HTTP/HTTPS 地址。 */
 export async function openExternal(url: string): Promise<void> {
   const snapshot = await initializeShellRuntime();
@@ -206,6 +233,11 @@ function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): 
     resetServiceAvailabilityForRuntimeChange();
   }
   mutableRuntimeSnapshot.value = nextSnapshot;
+  applyShellServiceStateSignal(
+    nextSnapshot.service.ownership === "local"
+      ? { ownership: "local", phase: nextSnapshot.service.phase }
+      : { ownership: "remote" },
+  );
 }
 
 function requireBridge(): ShellBridge {

@@ -28,7 +28,8 @@
 - `frontend/src/router/navigationPending.ts`：路由切换（含懒加载 chunk 下载和守卫等待）复用 `200ms` 延迟与 `350ms` 最短展示，驱动全局顶部进度条（`frontend/src/components/RouteProgressBar.vue`）和侧栏导航目标的乐观等待反馈；等待可见期间目标高亮不因导航完成瞬间闪断。chunk 加载失败属于明确错误，立即通过全局 Notice 呈现并提供整页刷新重试。
 - `frontend/src/router/appPageLoaders.ts`：应用壳页面 chunk 的统一懒加载入口；进入应用壳后在浏览器空闲时按当前权限顺序预取，让弱网下的路由切换尽量不经过网络；预取失败静默，由上述路由错误处理兜底。
 - `frontend/src/components/barcode/BarcodeScanDialog.vue`：扫码引擎加载与摄像头启动合并为一个 pending，复用 `200ms` 延迟与 `350ms` 最短展示显示“正在启动摄像头与识别引擎”遮罩；摄像头明确失败立即呈现错误与降级入口，不等待计时。
-- `frontend/src/service/availability.ts`：拥有真实健康检查状态和重试调度，不为视觉稳定性人为延迟请求。
+- `frontend/src/service/availability.ts`：拥有真实健康检查状态和重试调度，不为视觉稳定性人为延迟请求；ownership=local 时 Shell phase 推送为权威信号、HTTP 降为 60s 看门狗，业务请求失败先经健康检查确认再翻转断连状态（去抖只推迟呈现，不推迟探测），规则见 `availabilityPolicy.ts` 与 `docs/implementation-notes/shell-aware-service-availability.md`。
+- `frontend/src/App.vue` 本地服务恢复提示：Shell 报告 failed 后的自动恢复期间显示顶部胶囊"本地服务恢复中"，复用 `200ms` 延迟与 `350ms` 最短展示；恢复窗口（20s）耗尽才升级为阻断错误屏，期间路由树与未保存上下文保持挂载。
 - `frontend/src/pages/ItemsPage.vue`：物品目录的初始加载和分页提示复用 `200ms` 延迟与 `350ms` 最短展示；搜索、刷新和 Dialog 保存后的重新加载保留现有列表与全宽目录骨架，只在稳定等待状态出现后显示局部弱化反馈，不能因打开或关闭编辑 Dialog 清空目录。
 - `frontend/src/pages/UsersPage.vue`：用户搜索、状态筛选和手动刷新保留现有列表；超过 `200ms` 后才弱化列表并驱动刷新图标，反馈出现后至少保持 `350ms`，刷新失败继续保留旧结果；数量变化只切换数字提示，零条结果隐藏空表格并由底部提示显示已加载 `0` 个用户。
 

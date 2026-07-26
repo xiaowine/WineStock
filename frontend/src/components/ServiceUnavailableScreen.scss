@@ -42,6 +42,17 @@
       background: var(--color-danger);
       box-shadow: 0 0 0 7px var(--color-danger-soft);
     }
+
+    /* 首次连接与用户主动停止属于中性状态，不使用告警配色。 */
+    &--calm span {
+      background: var(--color-accent);
+      box-shadow: 0 0 0 7px var(--color-accent-soft);
+    }
+  }
+
+  &__error {
+    color: var(--color-danger);
+    font-size: 13px;
   }
 
   &__content {
