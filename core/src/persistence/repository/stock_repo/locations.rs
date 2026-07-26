@@ -26,7 +26,8 @@ impl<'db, C> StockRepository<'db, C>
 where
     C: ConnectionTrait,
 {
-    /// 启动时补齐默认库区和默认库位；事务内二次确认，避免并发或旧数据导致重复根分组。
+    /// 启动时补齐示例库区和示例库位；事务内二次确认，避免并发或旧数据导致重复根分组。
+    /// 名称用"示例"而非"默认"，避免与入库预填用的全局默认库位（is_default）混淆。
     pub(crate) async fn ensure_default_location(&self) -> Result<(), DbErr>
     where
         C: TransactionTrait,
@@ -39,7 +40,7 @@ where
 
         let now = sqlite_now(&transaction).await?;
         let group_id = if let Some(group_id) =
-            find_active_root_location_group_id_by_name_on_connection(&transaction, "默认库区")
+            find_active_root_location_group_id_by_name_on_connection(&transaction, "示例库区")
                 .await?
         {
             group_id
@@ -50,7 +51,7 @@ where
                     r#"
                         INSERT INTO stock_location_groups
                             (parent_id, name, sort_order, created_at, updated_at)
-                        VALUES (NULL, '默认库区', 0, ?, ?)
+                        VALUES (NULL, '示例库区', 0, ?, ?)
                         "#,
                     [now.clone().into(), now.clone().into()],
                 ))
@@ -64,7 +65,7 @@ where
                 r#"
                 INSERT INTO stock_locations
                     (group_id, name, notes, sort_order, created_at, updated_at)
-                VALUES (?, '默认库位', NULL, 0, ?, ?)
+                VALUES (?, '示例库位', NULL, 0, ?, ?)
                 "#,
                 vec![group_id.into(), now.clone().into(), now.into()],
             ))
@@ -364,7 +365,7 @@ where
         let mut sql = r#"
             SELECT locations.id, locations.group_id, groups.name AS group_name,
                    locations.name, locations.notes, locations.sort_order,
-                   locations.created_at, locations.updated_at
+                   locations.is_default, locations.created_at, locations.updated_at
             FROM stock_locations locations
             JOIN stock_location_groups groups
               ON groups.id = locations.group_id
@@ -502,12 +503,23 @@ where
             return Ok(None);
         };
         let now = sqlite_now(&transaction).await?;
+        // “至多一个默认”由服务层事务保证：设为默认前先清除其它默认库位。
+        if input.is_default == Some(true) && !previous.is_default {
+            transaction
+                .execute(Statement::from_sql_and_values(
+                    DatabaseBackend::Sqlite,
+                    "UPDATE stock_locations SET is_default = 0, updated_at = ? WHERE is_default = 1",
+                    vec![now.clone().into()],
+                ))
+                .await?;
+        }
+        let next_is_default = input.is_default.unwrap_or(previous.is_default);
         transaction
             .execute(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_locations
-                SET group_id = ?, name = ?, notes = ?, sort_order = ?, updated_at = ?
+                SET group_id = ?, name = ?, notes = ?, sort_order = ?, is_default = ?, updated_at = ?
                 WHERE id = ? AND deleted_at IS NULL
                 "#,
                 vec![
@@ -515,6 +527,7 @@ where
                     input.name.into(),
                     input.notes.into(),
                     input.sort_order.into(),
+                    i64::from(next_is_default).into(),
                     now.into(),
                     id.into(),
                 ],
@@ -803,7 +816,7 @@ where
             r#"
             SELECT locations.id, locations.group_id, groups.name AS group_name,
                    locations.name, locations.notes, locations.sort_order,
-                   locations.created_at, locations.updated_at
+                   locations.is_default, locations.created_at, locations.updated_at
             FROM stock_locations locations
             JOIN stock_location_groups groups
               ON groups.id = locations.group_id
@@ -887,6 +900,7 @@ fn location_from_row(row: sea_orm::QueryResult) -> Result<StockLocationRecord, D
         name: row.try_get("", "name")?,
         notes: row.try_get("", "notes")?,
         sort_order: row.try_get("", "sort_order")?,
+        is_default: row.try_get::<i64>("", "is_default")? != 0,
         created_at: row.try_get("", "created_at")?,
         updated_at: row.try_get("", "updated_at")?,
     })
@@ -921,7 +935,8 @@ fn location_audit_snapshot(location: &StockLocationRecord) -> serde_json::Value 
         "group_id": location.group_id,
         "name": location.name,
         "notes": location.notes,
-        "sort_order": location.sort_order
+        "sort_order": location.sort_order,
+        "is_default": location.is_default
     })
 }
 
@@ -980,6 +995,9 @@ fn location_changed_fields(
     }
     if previous.notes != updated.notes {
         fields.push("notes");
+    }
+    if previous.is_default != updated.is_default {
+        fields.push("is_default");
     }
     if previous.sort_order != updated.sort_order {
         fields.push("sort_order");

@@ -193,6 +193,7 @@ pub(super) fn location_response(record: StockLocationRecord) -> controller::Loca
         name: record.name,
         notes: record.notes,
         sort_order: record.sort_order,
+        is_default: record.is_default,
         created_at: record.created_at,
         updated_at: record.updated_at,
     }

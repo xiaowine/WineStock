@@ -180,6 +180,10 @@ pub(crate) struct LocationUpdateRequest {
     /// 排序值；为空时按 0 保存。
     #[garde(skip)]
     pub sort_order: Option<i32>,
+
+    /// 是否设为全局默认库位；置真时服务端清除其它默认，为空表示不修改。
+    #[garde(skip)]
+    pub is_default: Option<bool>,
 }
 
 /// 库位响应。
@@ -210,6 +214,10 @@ pub(crate) struct LocationResponse {
     /// 排序值。
     #[garde(skip)]
     pub sort_order: i32,
+
+    /// 是否为全局默认库位；有效库位中至多一个为真，仅用于入库明细预填。
+    #[garde(skip)]
+    pub is_default: bool,
 
     /// 创建时间。
     #[garde(skip)]

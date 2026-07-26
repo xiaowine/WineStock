@@ -2188,6 +2188,8 @@ export interface components {
              * @description 库位 ID。
              */
             id: number;
+            /** @description 是否为全局默认库位；有效库位中至多一个为真，仅用于入库明细预填。 */
+            is_default: boolean;
             /** @description 库位名称。 */
             name: string;
             /** @description 可选库位备注。 */
@@ -2269,6 +2271,8 @@ export interface components {
              * @description 所属分组 ID。
              */
             group_id: number;
+            /** @description 是否设为全局默认库位；置真时服务端清除其它默认，为空表示不修改。 */
+            is_default?: boolean | null;
             /** @description 库位名称，未删除库位内全局唯一。 */
             name: string;
             /** @description 可选库位备注。 */

@@ -326,6 +326,7 @@ const INITIAL_SCHEMA: &[&str] = &[
         name TEXT NOT NULL,
         notes TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        is_default INTEGER NOT NULL DEFAULT 0 CHECK (is_default IN (0, 1)),
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         deleted_at TEXT,

@@ -249,6 +249,7 @@ pub(crate) async fn update_location(
                 name,
                 notes: normalize_optional_text(request.notes)?,
                 sort_order: normalize_sort_order(request.sort_order)?,
+                is_default: request.is_default,
             },
             Some(current_user.user_id),
         )

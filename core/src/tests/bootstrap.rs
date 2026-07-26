@@ -388,7 +388,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
         .expect("local service should be initialized");
     let default_group_id = query_i64(
         &first.storage.database,
-        "SELECT id FROM stock_location_groups WHERE parent_id IS NULL AND name = '默认库区' AND deleted_at IS NULL",
+        "SELECT id FROM stock_location_groups WHERE parent_id IS NULL AND name = '示例库区' AND deleted_at IS NULL",
         "id",
     )
     .await;
@@ -397,7 +397,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
         .database
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "UPDATE stock_locations SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE name = '默认库位'"
+            "UPDATE stock_locations SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE name = '示例库位'"
                 .to_owned(),
         ))
         .await
@@ -412,7 +412,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
     assert_eq!(
         query_i64(
             &second.storage.database,
-            "SELECT COUNT(*) AS count FROM stock_location_groups WHERE parent_id IS NULL AND name = '默认库区' AND deleted_at IS NULL",
+            "SELECT COUNT(*) AS count FROM stock_location_groups WHERE parent_id IS NULL AND name = '示例库区' AND deleted_at IS NULL",
             "count",
         )
         .await,
@@ -421,7 +421,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
     assert_eq!(
         query_i64(
             &second.storage.database,
-            "SELECT group_id FROM stock_locations WHERE name = '默认库位' AND deleted_at IS NULL",
+            "SELECT group_id FROM stock_locations WHERE name = '示例库位' AND deleted_at IS NULL",
             "group_id",
         )
         .await,

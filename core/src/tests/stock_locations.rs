@@ -14,6 +14,7 @@ use crate::{
             ItemInventoryResponse, LocationCreateRequest, LocationGroupCreateRequest,
             LocationGroupResponse, LocationGroupTreeNode, LocationGroupUpdateRequest,
             LocationResponse, LocationTransferCreateRequest, LocationTransferResponse,
+            LocationUpdateRequest,
         },
         service::PaginatedResponse,
     },
@@ -36,13 +37,13 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
     let tree: Vec<LocationGroupTreeNode> = json_body(tree).await;
     let default_group = tree
         .iter()
-        .find(|group| group.name == "默认库区")
+        .find(|group| group.name == "示例库区")
         .expect("default group should exist");
     assert!(default_group.parent_id.is_none());
     assert!(default_group
         .locations
         .iter()
-        .any(|location| location.name == "默认库位" && location.notes.is_none()));
+        .any(|location| location.name == "示例库位" && location.notes.is_none()));
 
     let root = create_group(&app, &login.body.access_token, None, "主仓").await;
     let child = create_group(&app, &login.body.access_token, Some(root.id), "A区").await;
@@ -242,6 +243,93 @@ async fn locations_can_be_created_moved_and_protected_by_current_stock() {
     assert_eq!(events.items[0].details["to_location_id"], to_location.id);
 }
 
+#[tokio::test]
+async fn location_global_default_is_unique_and_cleared_on_delete() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let group_id = default_group_id(&app).await;
+    let first = create_location(&app, &login.body.access_token, group_id, "默认候选一").await;
+    let second = create_location(&app, &login.body.access_token, group_id, "默认候选二").await;
+    assert!(!first.is_default);
+    assert!(!second.is_default);
+
+    // 设为默认：响应携带 is_default。
+    let set_first =
+        set_location_default(&app, &login.body.access_token, &first, Some(true)).await;
+    assert!(set_first.is_default);
+
+    // 换默认：服务层事务自动清除旧默认，全表至多一个。
+    let set_second =
+        set_location_default(&app, &login.body.access_token, &second, Some(true)).await;
+    assert!(set_second.is_default);
+    let defaults = list_default_location_ids(&app, &login.body.access_token).await;
+    assert_eq!(defaults, vec![second.id]);
+
+    // 请求不带 is_default 时保持现状。
+    let keep = set_location_default(&app, &login.body.access_token, &second, None).await;
+    assert!(keep.is_default);
+
+    // 取消默认后全表无默认。
+    let unset =
+        set_location_default(&app, &login.body.access_token, &second, Some(false)).await;
+    assert!(!unset.is_default);
+    assert!(list_default_location_ids(&app, &login.body.access_token)
+        .await
+        .is_empty());
+
+    // 删除默认库位随删清空，不迁移默认。
+    set_location_default(&app, &login.body.access_token, &first, Some(true)).await;
+    let delete = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/locations/{}", first.id),
+        &login.body.access_token,
+    )
+    .await;
+    assert_eq!(delete.status(), StatusCode::NO_CONTENT);
+    assert!(list_default_location_ids(&app, &login.body.access_token)
+        .await
+        .is_empty());
+}
+
+async fn set_location_default(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+    location: &LocationResponse,
+    is_default: Option<bool>,
+) -> LocationResponse {
+    let response = authorized_json_request(
+        app,
+        "PUT",
+        &format!("/api/locations/{}", location.id),
+        access_token,
+        &LocationUpdateRequest {
+            group_id: location.group_id,
+            name: location.name.clone(),
+            notes: location.notes.clone(),
+            sort_order: Some(location.sort_order),
+            is_default,
+        },
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    json_body(response).await
+}
+
+async fn list_default_location_ids(
+    app: &crate::test_support::TestApp,
+    access_token: &str,
+) -> Vec<i64> {
+    let response = authorized_empty_request(app, "GET", "/api/locations", access_token).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let locations: Vec<LocationResponse> = json_body(response).await;
+    locations
+        .into_iter()
+        .filter(|location| location.is_default)
+        .map(|location| location.id)
+        .collect()
+}
+
 async fn create_group(
     app: &crate::test_support::TestApp,
     access_token: &str,
@@ -358,7 +446,7 @@ async fn default_group_id(app: &crate::test_support::TestApp) -> i64 {
         .database()
         .query_one(Statement::from_string(
             DatabaseBackend::Sqlite,
-            "SELECT id FROM stock_location_groups WHERE name = '默认库区'".to_owned(),
+            "SELECT id FROM stock_location_groups WHERE name = '示例库区'".to_owned(),
         ))
         .await
         .expect("default group query should succeed")

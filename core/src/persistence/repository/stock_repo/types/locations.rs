@@ -64,6 +64,9 @@ pub(crate) struct UpdateLocation {
     /// 库位排序值，从 0 开始。
     #[garde(range(min = 0))]
     pub sort_order: i32,
+    /// 是否设为全局默认库位；置真时事务内清除其它默认，为空表示不修改。
+    #[garde(skip)]
+    pub is_default: Option<bool>,
 }
 
 /// 整批次移库的仓储输入。
@@ -118,6 +121,8 @@ pub(crate) struct StockLocationRecord {
     pub notes: Option<String>,
     /// 排序值。
     pub sort_order: i32,
+    /// 是否为全局默认库位；有效库位中至多一个为真。
+    pub is_default: bool,
     /// 创建时间。
     pub created_at: String,
     /// 更新时间。

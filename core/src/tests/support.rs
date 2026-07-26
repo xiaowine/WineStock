@@ -132,7 +132,7 @@ pub(crate) async fn seed_plain_user(database: &DatabaseConnection, username: &st
 }
 
 pub(crate) async fn bootstrap_location_id(app: &TestApp) -> i64 {
-    query_location_id_by_name(app, "默认库位").await
+    query_location_id_by_name(app, "示例库位").await
 }
 
 pub(crate) async fn seed_stock_location(app: &TestApp, name: &str) -> i64 {
@@ -159,7 +159,7 @@ async fn query_default_location_group_id(app: &TestApp) -> i64 {
         .database()
         .query_one(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
-            "SELECT id FROM stock_location_groups WHERE name = '默认库区' AND deleted_at IS NULL",
+            "SELECT id FROM stock_location_groups WHERE name = '示例库区' AND deleted_at IS NULL",
             [],
         ))
         .await
