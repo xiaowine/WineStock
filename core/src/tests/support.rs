@@ -66,16 +66,28 @@ pub(crate) async fn empty_app() -> TestApp {
     empty_app_with_lcsc_endpoint(None).await
 }
 
+/// server-mode 下的空库应用；本机会话换取凭据不生成，`local-session` 端点应不可用。
+pub(crate) async fn server_mode_app() -> TestApp {
+    app_with_mode_and_lcsc(RuntimeMode::ServerMode, None).await
+}
+
 pub(crate) async fn empty_app_with_mock_lcsc(endpoint: String) -> TestApp {
     let price_endpoint = endpoint.replace("/api/devices/search", "/api/components/getSmtPartInfo");
     empty_app_with_lcsc_endpoint(Some((endpoint, price_endpoint))).await
 }
 
 async fn empty_app_with_lcsc_endpoint(lcsc_endpoints: Option<(String, String)>) -> TestApp {
+    app_with_mode_and_lcsc(RuntimeMode::SelfHosted, lcsc_endpoints).await
+}
+
+async fn app_with_mode_and_lcsc(
+    mode: RuntimeMode,
+    lcsc_endpoints: Option<(String, String)>,
+) -> TestApp {
     let temp = tempdir().expect("temp dir should exist");
     let config = AppConfig {
         server: ServerConfig {
-            mode: RuntimeMode::SelfHosted,
+            mode,
             ..ServerConfig::default()
         },
         storage: StorageConfig {

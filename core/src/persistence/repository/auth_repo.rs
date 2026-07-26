@@ -59,6 +59,28 @@ where
         Ok(())
     }
 
+    /// 写入或覆盖单个鉴权设置的字符串值。
+    pub(crate) async fn set_setting_value(&self, key: &str, value: &str) -> Result<(), DbErr> {
+        let setting = auth_setting::ActiveModel {
+            key: Set(key.to_owned()),
+            value: Set(value.to_owned()),
+            ..Default::default()
+        };
+
+        match auth_setting::Entity::insert(setting)
+            .on_conflict(
+                OnConflict::column(auth_setting::Column::Key)
+                    .update_column(auth_setting::Column::Value)
+                    .to_owned(),
+            )
+            .exec(self.database)
+            .await
+        {
+            Ok(_) | Err(DbErr::RecordNotInserted) => Ok(()),
+            Err(source) => Err(source),
+        }
+    }
+
     /// 读取单个鉴权设置的字符串值。
     pub(crate) async fn get_setting_value(&self, key: &str) -> Result<Option<String>, DbErr> {
         Ok(auth_setting::Entity::find_by_id(key.to_owned())

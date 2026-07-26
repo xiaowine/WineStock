@@ -81,6 +81,36 @@ pub struct AuthRegisterRequest {
     pub password: String,
 }
 
+/// self-hosted 本机静默会话换取请求；换取凭据由壳内可信通道下发，不来自用户输入。
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
+)]
+#[serde(deny_unknown_fields)]
+pub struct AuthLocalSessionRequest {
+    /// 每次本地服务启动生成的一次性换取凭据明文。
+    #[garde(length(min = 1, max = 512), custom(validate_not_blank))]
+    pub exchange_token: String,
+
+    /// 设备名称，用于标识 refresh token 来源。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub device_name: String,
+
+    /// 客户端类型，仅允许桌面端、Android 端或 Web 前端。
+    #[garde(skip)]
+    pub client_kind: AuthClientKind,
+
+    /// 客户端版本号，用于记录 refresh token 来源版本。
+    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    pub version: String,
+}
+
+/// 本机静默会话状态；前端在切换 server-mode 前用它判断是否需要先设置真实密码。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct AuthLocalSessionStatus {
+    /// 标记用户的密码是否仍为自动开通时的随机占位值。
+    pub password_placeholder: bool,
+}
+
 /// 刷新访问令牌请求。
 #[derive(
     Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,

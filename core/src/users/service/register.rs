@@ -111,7 +111,10 @@ async fn register_user_transactionally(
 }
 
 /// SeaORM 的 SQLite 事务默认延迟拿写锁；这里先执行无害写入，让首个用户判断串行化。
-async fn acquire_registration_write_lock(transaction: &impl ConnectionTrait) -> Result<(), DbErr> {
+/// 本机免登录的首次换取开通与注册共用同一把锁，避免并发产生两个初始全权限用户。
+pub(super) async fn acquire_registration_write_lock(
+    transaction: &impl ConnectionTrait,
+) -> Result<(), DbErr> {
     transaction
         .execute(Statement::from_string(
             DatabaseBackend::Sqlite,

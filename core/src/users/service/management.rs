@@ -261,6 +261,7 @@ pub(crate) async fn reset_user_password(
     let updated = users
         .update_password_hash(user, password_hash, true)
         .await?;
+    super::local_admin::clear_password_placeholder_if_marked(&transaction, updated.id).await?;
     refresh_tokens.revoke_active_for_user(updated.id).await?;
     audit
         .record(RecordAuditEvent {

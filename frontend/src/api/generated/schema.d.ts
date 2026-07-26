@@ -21,6 +21,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/local-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** self-hosted 本机静默会话换取；凭据来自壳内可信通道，成功后返回与登录相同的 token 包。 */
+        post: operations["local_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/local-session/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 返回本机静默会话状态；前端切换 server-mode 前用它判断是否需要先设置真实密码。 */
+        get: operations["local_session_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -916,6 +950,22 @@ export interface components {
          * @enum {string}
          */
         AuthClientKind: "desktop" | "android" | "web";
+        /** @description self-hosted 本机静默会话换取请求；换取凭据由壳内可信通道下发，不来自用户输入。 */
+        AuthLocalSessionRequest: {
+            /** @description 客户端类型，仅允许桌面端、Android 端或 Web 前端。 */
+            client_kind: components["schemas"]["AuthClientKind"];
+            /** @description 设备名称，用于标识 refresh token 来源。 */
+            device_name: string;
+            /** @description 每次本地服务启动生成的一次性换取凭据明文。 */
+            exchange_token: string;
+            /** @description 客户端版本号，用于记录 refresh token 来源版本。 */
+            version: string;
+        };
+        /** @description 本机静默会话状态；前端在切换 server-mode 前用它判断是否需要先设置真实密码。 */
+        AuthLocalSessionStatus: {
+            /** @description 标记用户的密码是否仍为自动开通时的随机占位值。 */
+            password_placeholder: boolean;
+        };
         /** @description 用户名密码登录请求。 */
         AuthLoginRequest: {
             /** @description 客户端类型，仅允许桌面端、Android 端或 Web 前端。 */
@@ -2735,7 +2785,10 @@ export interface components {
         };
         /** @description 当前用户修改自己密码的请求。 */
         UserPasswordChangeRequest: {
-            /** @description 当前明文密码，用于确认操作者仍掌握原凭据。 */
+            /**
+             * @description 当前明文密码，用于确认操作者仍掌握原凭据；
+             *     仅本机免登录标记用户处于占位密码状态时允许留空。
+             */
             current_password: string;
             /** @description 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。 */
             new_password: string;
@@ -2789,6 +2842,86 @@ export interface operations {
             };
             /** @description Authentication service error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    local_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthLocalSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Local session established */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokenResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Invalid exchange token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Local session unavailable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    local_session_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Local session status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthLocalSessionStatus"];
+                };
+            };
+            /** @description Invalid access token */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

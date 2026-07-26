@@ -8,7 +8,7 @@ use axum::{
     Router,
 };
 
-use crate::state::CoreState;
+use crate::{security::AuthorizeRouteExt, state::CoreState};
 
 mod bootstrap;
 mod contract;
@@ -19,8 +19,9 @@ pub use bootstrap::{
     AuthBootstrap, AuthBootstrapError, AuthSettings, AuthSigningKey, SigningKeyStatus,
 };
 pub use contract::{
-    AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest,
-    AuthRegisterRequest, AuthTokenResponse, AuthUserResponse,
+    AuthBootstrapStatus, AuthClientKind, AuthLocalSessionRequest, AuthLocalSessionStatus,
+    AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthTokenResponse, AuthUserResponse,
 };
 
 pub(crate) use bootstrap::bootstrap_auth;
@@ -28,13 +29,19 @@ pub(crate) use bootstrap::bootstrap_auth;
 const AUTH_BASE_PATH: &str = "/api/auth";
 
 /// 注册会话认证业务自己的 HTTP 路由集合。
-pub(crate) fn router() -> Router<CoreState> {
+pub(crate) fn router(state: CoreState) -> Router<CoreState> {
     // 会话认证接口统一挂载在固定 base path，子路由只声明领域内相对路径。
+    // local-session 换取本身匿名（凭据校验在 handler 内），状态查询要求已登录。
     Router::new().nest(
         AUTH_BASE_PATH,
         Router::new()
             .route("/bootstrap-status", get(controller::bootstrap_status))
             .route("/login", post(controller::login))
+            .route("/local-session", post(controller::local_session))
+            .route(
+                "/local-session/status",
+                get(controller::local_session_status).require_authenticated(state),
+            )
             .route("/refresh", post(controller::refresh))
             .route("/logout", post(controller::logout)),
     )
@@ -51,3 +58,7 @@ mod auth_refresh_tests;
 #[cfg(test)]
 #[path = "../tests/auth_logout.rs"]
 mod auth_logout_tests;
+
+#[cfg(test)]
+#[path = "../tests/auth_local_session.rs"]
+mod auth_local_session_tests;

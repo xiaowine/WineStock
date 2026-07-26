@@ -132,8 +132,9 @@ pub(crate) struct UserPasswordResetRequest {
 )]
 #[serde(deny_unknown_fields)]
 pub(crate) struct UserPasswordChangeRequest {
-    /// 当前明文密码，用于确认操作者仍掌握原凭据。
-    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    /// 当前明文密码，用于确认操作者仍掌握原凭据；
+    /// 仅本机免登录标记用户处于占位密码状态时允许留空。
+    #[garde(length(max = 256))]
     pub current_password: String,
 
     /// 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。

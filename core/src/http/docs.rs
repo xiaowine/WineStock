@@ -10,8 +10,9 @@ use super::{
 };
 #[cfg(debug_assertions)]
 use crate::auth::{
-    AuthBootstrapStatus, AuthClientKind, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest,
-    AuthRegisterRequest, AuthTokenResponse, AuthUserResponse,
+    AuthBootstrapStatus, AuthClientKind, AuthLocalSessionRequest, AuthLocalSessionStatus,
+    AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest, AuthRegisterRequest,
+    AuthTokenResponse, AuthUserResponse,
 };
 use axum::Router;
 #[cfg(debug_assertions)]
@@ -47,6 +48,8 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::http::health::health,
         crate::users::controller::register,
         crate::auth::controller::login,
+        crate::auth::controller::local_session,
+        crate::auth::controller::local_session_status,
         crate::auth::controller::bootstrap_status,
         crate::auth::controller::refresh,
         crate::auth::controller::logout,
@@ -117,6 +120,8 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         AuthRegisterRequest,
         AuthBootstrapStatus,
         AuthClientKind,
+        AuthLocalSessionRequest,
+        AuthLocalSessionStatus,
         AuthLoginRequest,
         AuthRefreshRequest,
         AuthLogoutRequest,

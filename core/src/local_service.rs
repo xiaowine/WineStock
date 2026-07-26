@@ -8,7 +8,10 @@ use std::{error::Error, fmt, net::SocketAddr, path::PathBuf};
 use tokio::{sync::oneshot, task::JoinHandle};
 use winestock_shared::AppConfig;
 
-use crate::{bind_server, bootstrap_from_config, CoreBootstrapError, ServerStartError};
+use crate::{
+    bind_server, bootstrap_from_config, bootstrap::LocalSessionSecret, CoreBootstrapError,
+    ServerStartError,
+};
 
 /// 本地服务成功启动后可供平台展示或诊断的只读信息。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,6 +27,9 @@ pub struct LocalServiceInfo {
 
     /// 当前数据库是否仍需要创建首个管理员。
     pub admin_setup_required: bool,
+
+    /// self-hosted 模式的本机会话换取凭据；只经壳内可信通道传递，不得写入日志。
+    pub local_session_token: Option<LocalSessionSecret>,
 }
 
 /// 本地服务启动、运行或等待结束时的统一错误。
@@ -131,6 +137,7 @@ pub async fn start_local_service(
         database_path: local.storage.database_path.clone(),
         files_dir: local.storage.files_dir.clone(),
         admin_setup_required: local.auth.admin_setup_required,
+        local_session_token: local.local_session.clone(),
     };
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
     let task = tokio::spawn(async move {

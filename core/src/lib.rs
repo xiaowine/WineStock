@@ -28,6 +28,7 @@ pub use auth::{
 };
 pub use bootstrap::{
     bootstrap_from_config, CoreBootstrap, CoreBootstrapError, LocalServiceBootstrap,
+    LocalSessionSecret,
 };
 pub use external::ExternalCatalogBootstrapError;
 pub use files::FileCleanupError;

@@ -3,16 +3,20 @@
 //! 本模块属于 `auth` 业务层，负责把会话认证相关 HTTP 请求转发到服务实现。
 //! 它不直接拼接数据库查询，也不自行维护令牌状态。
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::{Extension, State},
+    http::StatusCode,
+    Json,
+};
 
 use crate::{
     auth::{
-        AuthBootstrapStatus, AuthLoginRequest, AuthLogoutRequest, AuthRefreshRequest,
-        AuthTokenResponse,
+        AuthBootstrapStatus, AuthLocalSessionRequest, AuthLocalSessionStatus, AuthLoginRequest,
+        AuthLogoutRequest, AuthRefreshRequest, AuthTokenResponse,
     },
     http::ValidatedJson,
     persistence::repository::AuthRepository,
-    security::AuthApiError,
+    security::{AuthApiError, CurrentUser},
     state::CoreState,
 };
 
@@ -53,6 +57,45 @@ pub(crate) async fn login(
     ValidatedJson(request): ValidatedJson<AuthLoginRequest>,
 ) -> Result<Json<AuthTokenResponse>, AuthApiError> {
     Ok(Json(service::login(&state, request).await?))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/auth/local-session",
+    tag = "auth",
+    request_body = AuthLocalSessionRequest,
+    responses(
+        (status = 200, description = "Local session established", body = AuthTokenResponse),
+        (status = 401, description = "Invalid exchange token", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "Local session unavailable", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// self-hosted 本机静默会话换取；凭据来自壳内可信通道，成功后返回与登录相同的 token 包。
+pub(crate) async fn local_session(
+    State(state): State<CoreState>,
+    ValidatedJson(request): ValidatedJson<AuthLocalSessionRequest>,
+) -> Result<Json<AuthTokenResponse>, AuthApiError> {
+    Ok(Json(service::local_session(&state, request).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/auth/local-session/status",
+    tag = "auth",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Local session status", body = AuthLocalSessionStatus),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 返回本机静默会话状态；前端切换 server-mode 前用它判断是否需要先设置真实密码。
+pub(crate) async fn local_session_status(
+    State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
+) -> Result<Json<AuthLocalSessionStatus>, AuthApiError> {
+    Ok(Json(
+        service::local_session_status(&state, &current_user).await?,
+    ))
 }
 
 #[utoipa::path(

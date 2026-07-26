@@ -20,7 +20,7 @@ pub fn build_router_with_local_service(local_service: &LocalServiceBootstrap) ->
 
     // 业务路由始终挂在统一 `CoreState` 之下，避免某个局部运行时充当全局根状态。
     let router = base_router::<CoreState>()
-        .merge(auth::router())
+        .merge(auth::router(state.clone()))
         .merge(files::router(state.clone()))
         .merge(stock::router(state.clone()))
         .merge(users::router(state.clone()))

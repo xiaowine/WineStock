@@ -99,6 +99,21 @@ where
             .await
     }
 
+    /// 按数据库主键查询用户，包含已软删除记录；本机免登录自愈需要感知被删标记用户。
+    pub(crate) async fn find_by_id_any(&self, id: i64) -> Result<Option<user::Model>, DbErr> {
+        user::Entity::find_by_id(id).one(self.database).await
+    }
+
+    /// 恢复被停用或软删除的用户为 active；本机免登录自愈专用，调用方负责写审计。
+    pub(crate) async fn restore(&self, user: user::Model) -> Result<user::Model, DbErr> {
+        let now = sqlite_now(self.database).await?;
+        let mut active: user::ActiveModel = user.into();
+        active.status = Set("active".to_owned());
+        active.deleted_at = Set(None);
+        active.updated_at = Set(now);
+        active.update(self.database).await
+    }
+
     /// 按唯一用户名查询用户。
     pub(crate) async fn find_by_username(
         &self,

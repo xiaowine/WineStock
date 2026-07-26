@@ -14,7 +14,10 @@ use crate::{
     users::controller,
 };
 
-use super::response::load_user_response;
+use super::{
+    local_admin::{clear_password_placeholder_if_marked, password_placeholder_active},
+    response::load_user_response,
+};
 
 /// 根据当前认证上下文读取数据库中的最新用户和权限快照。
 pub(crate) async fn current_user(
@@ -34,12 +37,15 @@ pub(crate) async fn current_user(
 }
 
 /// 当前用户修改自己的密码；必须先校验当前密码，审计详情不得包含明文密码或哈希。
+///
+/// 唯一例外：本机免登录标记用户的密码仍为随机占位值时（占位密码无人知晓），
+/// 允许不提供当前密码直接设置新密码，成功后清除占位标记。
 pub(crate) async fn change_own_password(
     state: &CoreState,
     current_user: &CurrentUser,
     request: controller::UserPasswordChangeRequest,
 ) -> Result<(), AuthApiError> {
-    if request.current_password.is_empty() || request.new_password.is_empty() {
+    if request.new_password.is_empty() {
         return Err(AuthApiError::InvalidRequest);
     }
     let transaction = state.database().begin().await?;
@@ -52,14 +58,21 @@ pub(crate) async fn change_own_password(
     if user.status != "active" {
         return Err(AuthApiError::InvalidAccessToken);
     }
-    if !verify_password(&request.current_password, &user.password_hash) {
-        return Err(AuthApiError::InvalidCredentials);
+    let placeholder_active = password_placeholder_active(&transaction, user.id).await?;
+    if !placeholder_active {
+        if request.current_password.is_empty() {
+            return Err(AuthApiError::InvalidRequest);
+        }
+        if !verify_password(&request.current_password, &user.password_hash) {
+            return Err(AuthApiError::InvalidCredentials);
+        }
     }
 
     let password_hash = create_password_hash(&request.new_password)?;
     let updated = users
         .update_password_hash(user, password_hash, false)
         .await?;
+    clear_password_placeholder_if_marked(&transaction, updated.id).await?;
     audit
         .record(RecordAuditEvent {
             user_id: Some(current_user.user_id),
@@ -68,7 +81,11 @@ pub(crate) async fn change_own_password(
             action: "updated".to_owned(),
             details: Some(json!({
                 "field": "password",
-                "mode": "self_change"
+                "mode": if placeholder_active {
+                    "local_placeholder_initial_set"
+                } else {
+                    "self_change"
+                }
             })),
         })
         .await?;

@@ -5,7 +5,7 @@
 
 use std::{error::Error, fmt};
 
-use winestock_shared::AppConfig;
+use winestock_shared::{AppConfig, RuntimeMode};
 
 use crate::{
     auth::{bootstrap_auth, AuthBootstrap, AuthBootstrapError},
@@ -15,9 +15,37 @@ use crate::{
         migrate_storage_schema, open_sqlite_storage, StorageBootstrapError, StorageRuntime,
     },
     rbac::{bootstrap_builtin_rbac, RbacBootstrapError},
+    security::random_urlsafe,
     stock::{bootstrap_default_templates, StockBootstrapError},
     FileCleanupError,
 };
+
+/// self-hosted 模式下每次启动生成的本机会话换取凭据。
+///
+/// 凭据只存进程内存，经 `LocalServiceInfo` 交给平台壳，再由壳内可信桥交给前端；
+/// 它不落盘、不进入日志，比较时使用哈希摘要避免时序泄露。
+#[derive(Clone, PartialEq, Eq)]
+pub struct LocalSessionSecret(String);
+
+impl LocalSessionSecret {
+    /// 生成一次性的高熵换取凭据。
+    pub(crate) fn generate() -> Result<Self, getrandom::Error> {
+        Ok(Self(random_urlsafe(32)?))
+    }
+
+    /// 返回凭据明文；仅平台壳桥接和换取比较使用，不得写入日志。
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for LocalSessionSecret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("LocalSessionSecret")
+            .field(&"[redacted]")
+            .finish()
+    }
+}
 
 /// core 根据启动配置完成的初始化结果。
 #[derive(Debug, Clone)]
@@ -44,6 +72,9 @@ pub struct LocalServiceBootstrap {
 
     /// 外部商品资料查询 client，不包含第三方 Cookie 或会话。
     pub(crate) external_catalog: ExternalCatalogRuntime,
+
+    /// self-hosted 模式的本机会话换取凭据；其它模式为空，端点随之不可用。
+    pub(crate) local_session: Option<LocalSessionSecret>,
 }
 
 /// core 启动配置初始化错误。
@@ -134,11 +165,22 @@ pub async fn bootstrap_from_config(
     let external_catalog =
         ExternalCatalogRuntime::build().map_err(CoreBootstrapError::ExternalCatalog)?;
 
+    // 换取凭据仅面向"本机 UI + 可信壳"的 self-hosted 模式；server-mode 面向多客户端，保持登录。
+    let local_session = if config.server.mode == RuntimeMode::SelfHosted {
+        Some(
+            LocalSessionSecret::generate()
+                .map_err(|source| CoreBootstrapError::Auth(AuthBootstrapError::Random(source)))?,
+        )
+    } else {
+        None
+    };
+
     Ok(CoreBootstrap {
         local_service: Some(LocalServiceBootstrap {
             storage,
             auth,
             external_catalog,
+            local_session,
         }),
     })
 }

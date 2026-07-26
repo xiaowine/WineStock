@@ -62,6 +62,9 @@ pub enum AuthApiError {
     /// 当前用户必须先修改临时密码。
     PasswordChangeRequired,
 
+    /// 本机免登录会话不可用：非 self-hosted 模式，或存量库存在用户但未标记换取目标。
+    LocalSessionUnavailable,
+
     /// 数据库读写失败。
     Database(DbErr),
 
@@ -140,6 +143,11 @@ impl IntoResponse for AuthApiError {
                 StatusCode::FORBIDDEN,
                 "password_change_required",
                 "需要先修改临时密码",
+            ),
+            Self::LocalSessionUnavailable => (
+                StatusCode::NOT_FOUND,
+                "local_session_unavailable",
+                "本机免登录会话不可用",
             ),
             Self::Database(_) | Self::Jwt(_) | Self::Random(_) | Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,

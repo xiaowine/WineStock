@@ -12,36 +12,36 @@
 
 ## 用户域权限
 
-| 权限代码 | 含义 |
-| --- | --- |
-| `user.register` | 注册新用户 |
-| `user.read` | 查看用户列表和用户详情 |
-| `user.status.update` | 启用或停用用户账号 |
-| `user.delete` | 软删除其他用户账号 |
-| `user.permissions.update` | 整体替换用户权限 |
-| `user.permission.read` | 查看权限定义 |
-| `user.password.reset` | 设置其他用户临时密码 |
+| 权限代码                  | 含义                   |
+| ------------------------- | ---------------------- |
+| `user.register`           | 注册新用户             |
+| `user.read`               | 查看用户列表和用户详情 |
+| `user.status.update`      | 启用或停用用户账号     |
+| `user.delete`             | 软删除其他用户账号     |
+| `user.permissions.update` | 整体替换用户权限       |
+| `user.permission.read`    | 查看权限定义           |
+| `user.password.reset`     | 设置其他用户临时密码   |
 
 ## DTO
 
 ### `UserAdminResponse`
 
-| 字段 | 类型 | 含义 |
-| --- | --- | --- |
-| `id` | integer | 用户 ID |
-| `username` | string | 登录用户名 |
-| `status` | `active`/`disabled` | 用户状态 |
-| `permissions` | string[] | 用户直接拥有的权限代码 |
-| `password_change_required` | boolean | 是否必须先修改临时密码 |
-| `created_at` | string | 创建时间 |
-| `updated_at` | string | 更新时间 |
+| 字段                       | 类型                | 含义                   |
+| -------------------------- | ------------------- | ---------------------- |
+| `id`                       | integer             | 用户 ID                |
+| `username`                 | string              | 登录用户名             |
+| `status`                   | `active`/`disabled` | 用户状态               |
+| `permissions`              | string[]            | 用户直接拥有的权限代码 |
+| `password_change_required` | boolean             | 是否必须先修改临时密码 |
+| `created_at`               | string              | 创建时间               |
+| `updated_at`               | string              | 更新时间               |
 
 ### `PermissionResponse`
 
-| 字段 | 类型 | 含义 |
-| --- | --- | --- |
-| `code` | string | 稳定权限代码 |
-| `description` | string/null | 权限说明 |
+| 字段          | 类型        | 含义         |
+| ------------- | ----------- | ------------ |
+| `code`        | string      | 稳定权限代码 |
+| `description` | string/null | 权限说明     |
 
 ## 接口
 
@@ -175,9 +175,27 @@
 ```
 
 - 响应：`204`
+- 行为：
+  - 唯一例外：本机免登录标记用户的密码仍为自动开通的随机占位值时（`local_auto_login_password_placeholder = true`），
+    允许 `current_password` 留空直接设置新密码；成功后清除占位标记。
+  - 针对标记用户的任何改密（本人改密或管理员重置临时密码）都会清除占位标记。
+  - 见 `docs/implementation-notes/self-hosted-silent-auth.md`。
 - 失败：
   - `400 invalid_request`
   - `401 invalid_access_token` 或 `invalid_credentials`
+
+### `POST /api/auth/local-session`（匿名）与 `GET /api/auth/local-session/status`（已登录）
+
+self-hosted 本机静默会话换取与占位密码状态查询。
+
+- `local-session`：请求携带壳内可信通道下发的 per-boot 换取凭据（`exchange_token` + 设备元数据），
+  成功返回与登录相同的 token 包。空库首次换取会自动开通 `admin`（随机占位密码 + 全部内置权限，
+  与首用户注册共用写锁）；标记用户被停用/软删除/收权时自愈并写审计。
+- 失败：`401 invalid_credentials`（凭据不匹配）；`404 local_session_unavailable`（非 self-hosted 模式，
+  或已有用户但鉴权设置未标记换取目标——存量库需手工插入
+  `local_auto_login_user_id` 设置行转换）。
+- `local-session/status`：返回 `{ "password_placeholder": bool }`，仅当前用户就是标记用户且
+  密码仍为占位时为 true；前端切 `server-mode` 前据此强制设密。
 
 ### `GET /api/permissions`
 

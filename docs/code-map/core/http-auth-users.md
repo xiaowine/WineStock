@@ -18,12 +18,14 @@
 
 ## Auth 会话模块（`core/src/auth/`）
 
-- bootstrap status、login、refresh、logout 路由、DTO 与 OpenAPI 标注；service 负责登录、refresh token 轮换、复用检测和登出吊销。
+- bootstrap status、login、local-session、refresh、logout 路由、DTO 与 OpenAPI 标注；service 负责登录、refresh token 轮换、复用检测和登出吊销。
 - `bootstrap.rs`：数据库托管的鉴权设置、active signing key 和启动结果。
+- 本机静默会话（`/api/auth/local-session`）：仅 `self-hosted` 模式生成 per-boot 换取凭据（`bootstrap.rs` 的 `LocalSessionSecret`，经 `LocalServiceInfo` 进程内交给壳），端点匿名但凭据比较采用 SHA-256 摘要；成功后与登录共用 token 签发路径。`/local-session/status` 已鉴权，返回标记用户的占位密码状态，供前端切 `server-mode` 前的设密门使用。设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
 
 ## Users 用户模块（`core/src/users/`）
 
 - 注册、当前用户、改密、用户管理和权限定义的路由、DTO 与服务；`service/` 按注册、当前用户、管理、投影、分页和归一化拆分。
+- `service/local_admin.rs`：本机免登录标记用户的惰性开通（空库首次换取时创建 `admin`，随机占位密码 + 全部内置权限，与首用户注册共用写锁）、自愈（停用/软删除/收权恢复并写审计）与占位密码标记（鉴权设置行 `local_auto_login_user_id` / `local_auto_login_password_placeholder`）；占位态允许免旧密码改密，任何针对标记用户的改密/重置都会清除占位标记。
 - 关键规则：首用户注册在事务内完成全部权限分配，并发初始化失败返回稳定 `initial_user_already_exists`；当前操作者不能停用或软删除自己、不能为自己设置临时密码、可调整自己其他权限但不能增减自己的 `user.permissions.update` 与 `user.permission.read`。
 - `auth_users.deleted_at` 由初始 schema 直接创建；用户仓储默认排除软删除记录，删除事务同时停用账号、吊销 refresh token 并写审计。
 - `permissions.rs`：用户域稳定权限代码。

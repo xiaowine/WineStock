@@ -6,8 +6,10 @@
 use sea_orm::DatabaseConnection;
 
 use crate::{
-    bootstrap::LocalServiceBootstrap, external::ExternalCatalogRuntime,
-    persistence::StorageRuntime, security::SecurityRuntime,
+    bootstrap::{LocalServiceBootstrap, LocalSessionSecret},
+    external::ExternalCatalogRuntime,
+    persistence::StorageRuntime,
+    security::SecurityRuntime,
 };
 
 /// Axum 路由共享的全局状态根对象。
@@ -16,6 +18,7 @@ pub(crate) struct CoreState {
     storage: StorageRuntime,
     security: SecurityRuntime,
     external_catalog: ExternalCatalogRuntime,
+    local_session: Option<LocalSessionSecret>,
 }
 
 impl CoreState {
@@ -25,7 +28,13 @@ impl CoreState {
             storage: local_service.storage.clone(),
             security: SecurityRuntime::from_auth_bootstrap(&local_service.auth),
             external_catalog: local_service.external_catalog.clone(),
+            local_session: local_service.local_session.clone(),
         }
+    }
+
+    /// 返回 self-hosted 模式的本机会话换取凭据；其它模式为 None。
+    pub(crate) fn local_session_secret(&self) -> Option<&LocalSessionSecret> {
+        self.local_session.as_ref()
     }
 
     /// 返回全局共享的 SQLite 连接，供各领域 repository 复用。
