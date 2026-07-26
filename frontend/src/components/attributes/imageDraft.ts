@@ -59,6 +59,13 @@ export function createPendingImageDraft(file: File): ImageDraftValue {
   };
 }
 
+/** 从粘贴事件提取首个图片文件；剪贴板没有图片时返回 null，不判断粘贴目标。 */
+export function extractClipboardImageFile(event: ClipboardEvent): File | null {
+  const files = event.clipboardData?.files;
+  if (!files?.length) return null;
+  return [...files].find((file) => file.type.startsWith("image/")) ?? null;
+}
+
 /** 在浏览器内生成纯色 PNG；结果与用户选择的图片走相同上传流程。 */
 export async function createSolidColorImage(color: string, size = 512): Promise<File> {
   const canvas = document.createElement("canvas");

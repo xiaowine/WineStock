@@ -1,7 +1,8 @@
-<!-- 本组件拥有物品基础资料、主图和任意属性的表单布局；它不发起 HTTP 请求。 -->
+<!-- 本组件拥有物品基础资料、主图（含 Dialog 级快捷粘贴）和任意属性的表单布局；除临时图片清理外不发起 HTTP 请求。 -->
 <template>
   <form
     :id="formId"
+    ref="formRoot"
     class="item-editor"
     :class="{ 'item-editor--embedded': embedded, 'item-editor--readonly': readOnly }"
     novalidate
@@ -58,6 +59,7 @@
               label="物品主图"
               @update:model-value="updateMainImage"
             />
+            <p v-if="!readOnly" class="item-editor__paste-hint">可直接 Ctrl+V 粘贴截图作为主图</p>
           </FormField>
 
           <div class="item-editor__fields">
@@ -210,9 +212,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { ItemCategoryResponse } from "../../api/itemCategories";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
+import { deleteImage, validateImageFile } from "../../api/files";
 import {
   applyAttributeTemplate,
   newCustomAttribute,
@@ -221,7 +224,11 @@ import {
 import { discardTemporaryAttributeFile } from "../../pages/items/fileCleanup";
 import ItemAttributeEditor from "./ItemAttributeEditor.vue";
 import AttributeImageField from "../attributes/AttributeImageField.vue";
-import type { ImageDraftValue } from "../attributes/imageDraft";
+import {
+  createPendingImageDraft,
+  extractClipboardImageFile,
+  type ImageDraftValue,
+} from "../attributes/imageDraft";
 import { notice } from "../../notices/notice";
 import FormField from "../forms/FormField.vue";
 import FormInput from "../forms/FormInput.vue";
@@ -251,6 +258,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ save: []; close: [] }>();
+const formRoot = ref<HTMLFormElement | null>(null);
 const templateFieldsById = computed(
   () =>
     new Map(
@@ -294,6 +302,52 @@ function updateMainImage(value: ImageDraftValue | undefined): void {
   }
   props.draft.image = value ?? null;
   props.draft.imageTemporary = true;
+}
+
+onMounted(() => window.addEventListener("paste", handleGlobalPaste));
+onBeforeUnmount(() => window.removeEventListener("paste", handleGlobalPaste));
+
+/** Dialog 级快捷粘贴：把剪贴板中的图片直接设为物品主图。 */
+function handleGlobalPaste(event: ClipboardEvent): void {
+  if (props.readOnly || props.saving) return;
+  if (!isTopmostPasteContext()) return;
+  const file = extractClipboardImageFile(event);
+  if (!file) return;
+  // 焦点在文本控件且剪贴板同时携带文本时（如复制网页图文），保持默认文本粘贴。
+  if (isTextEntryTarget(event.target) && event.clipboardData?.types.includes("text/plain")) return;
+  event.preventDefault();
+  void applyPastedImage(file);
+}
+
+/** 编辑器所在浮层必须是最上层，避免立创查询等嵌套 Dialog 中的粘贴误改主图。 */
+function isTopmostPasteContext(): boolean {
+  const layers = document.querySelectorAll(".modal-layer");
+  const ownLayer = formRoot.value?.closest(".modal-layer") ?? null;
+  if (!ownLayer) return layers.length === 0;
+  return ownLayer === layers.item(layers.length - 1);
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
+async function applyPastedImage(file: File): Promise<void> {
+  const error = await validateImageFile(file);
+  if (error) {
+    notice.warning("无法粘贴该图片", { detail: error });
+    return;
+  }
+  // 与 AttributeImageField 的更换行为一致：临时上传文件立即删除，旧预览由字段监听释放。
+  const current = props.draft.image;
+  if (current?.fileId && props.draft.imageTemporary) {
+    void deleteImage(current.fileId).catch(() => undefined);
+  }
+  updateMainImage(createPendingImageDraft(file));
+  notice.success("已粘贴图片作为物品主图");
 }
 
 async function selectTemplate(value: string | number | boolean | null | undefined): Promise<void> {

@@ -162,6 +162,18 @@
   align-content: start;
 }
 
+/* 键盘粘贴提示只面向桌面；移动端无快捷键场景不占空间。 */
+.item-editor__paste-hint {
+  display: none;
+  margin: 5px 2px 0;
+  color: var(--color-muted);
+  font-size: 11px;
+
+  @include mixins.desktop {
+    display: block;
+  }
+}
+
 .item-editor__fields {
   display: grid;
   min-width: 0;
