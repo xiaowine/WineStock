@@ -24,3 +24,4 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `inbound-template-removal.md`：删除入库模板概念的跨 core/frontend 影响评估、收货属性去留的方案取舍与实施决策记录（已按方案 B 实施）。
 - `shell-aware-service-availability.md`：前端服务可用性按 ownership 分层、Shell phase 权威信号 + HTTP 看门狗、本地故障自动恢复与去抖的跨 frontend/各 Shell 实施方案（已实施，真机验收待做）。
 - `first-run-setup-wizard.md`：首次启动漏斗从运行设置页迁移到初始化向导的页面结构、文案定稿、守卫分流、数据收集偏好与 UI 实现约束（已实施；含纯网页端单能力跳页/运行设置页 web 限制）。
+- `self-hosted-silent-auth.md`：self-hosted 本机模式免登录的自动默认管理员（惰性开通）、壳内换取凭据与静默会话方案，含 server-mode 切换设密门、模式切换语义与安全边界（已实施，实机验证待做）。

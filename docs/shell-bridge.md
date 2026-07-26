@@ -131,6 +131,7 @@ interface RuntimeSnapshot {
     phase: "stopped" | "starting" | "running" | "stopping" | "failed";
     apiBaseUrl?: string;
     boundAddress?: string;
+    localAuthExchangeToken?: string;
     lanAccessUrls?: string[];
     error?: ShellRuntimeError;
   };
@@ -160,6 +161,11 @@ interface RuntimeSnapshot {
 该字段不得包含 `0.0.0.0`、`::`、loopback、用户名密码、业务路径或占位字符串；没有真实地址时应省略
 或返回空数组，不能返回 `http://<局域网地址>:port` 一类伪值。前端可以做防御性过滤和去重，但不得
 自行枚举网卡、根据 `bindHost` 拼接地址或改变 Shell 给出的接口优先顺序。
+
+`localAuthExchangeToken` 是 `self-hosted` 本地服务每次启动生成的本机会话换取凭据（见
+`docs/implementation-notes/self-hosted-silent-auth.md`）：仅 `ownership=local` 的快照允许携带，
+由 core 经进程内接口交给 Shell、再经受信任通道交给前端，用于换取正常登录 token 实现本机免登录。
+Shell 不得把它写入日志或持久化存储；Web 桥永远不提供该字段。
 
 `capabilities` 是前端判断平台能力的唯一依据。
 前端不得根据 `window.AndroidBridge`、`window.__TAURI__`、User-Agent 或目录结构猜测功能。
