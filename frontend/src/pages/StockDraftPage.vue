@@ -35,6 +35,15 @@
       >
         导入订单
       </button>
+      <button
+        v-if="inbound.pendingLocationCount.value > 0"
+        class="secondary-button inbound-add-item-button"
+        type="button"
+        title="为所有尚未选择库位的明细一次指定库位"
+        @click="inbound.batchLocationOpen.value = true"
+      >
+        批量设置库位
+      </button>
     </template>
 
     <template #line-cells="{ line }">
@@ -135,6 +144,13 @@
         :source-filled="inbound.flow.source.value.trim().length > 0"
         @close="inbound.orderImportOpen.value = false"
         @import="inbound.importOrderLines"
+      />
+      <InboundBatchLocationDialog
+        :open="inbound.batchLocationOpen.value"
+        :count="inbound.pendingLocationCount.value"
+        :locations="inbound.locations.value"
+        @close="inbound.batchLocationOpen.value = false"
+        @confirm="inbound.applyBatchLocation"
       />
     </template>
   </StockDraftWorkspace>
@@ -281,6 +297,7 @@ import { useRouter } from "vue-router";
 import StockDraftWorkspace from "../components/stock-draft/StockDraftWorkspace.vue";
 import LcscOrderImportDialog from "../components/stock-draft/LcscOrderImportDialog.vue";
 import OutboundAllocationEditor from "../components/stock-draft/OutboundAllocationEditor.vue";
+import InboundBatchLocationDialog from "../components/inbound/InboundBatchLocationDialog.vue";
 import InboundLineEditor from "../components/inbound/InboundLineEditor.vue";
 import ItemCreateDialog from "../components/items/ItemCreateDialog.vue";
 import {

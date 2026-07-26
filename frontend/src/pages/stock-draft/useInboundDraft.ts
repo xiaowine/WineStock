@@ -2,7 +2,7 @@
 // 它复用旧入库页的 model 与持久化（含同一 localStorage 键），不修改旧页面任何文件。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { createInbound, listLocations, type LocationResponse } from "../../api/inbound";
-import type { ItemOptionResponse } from "../../api/items";
+import { getItemInventory, type ItemOptionResponse } from "../../api/items";
 import { ApiError } from "../../api/errors";
 import { useInboundDraftPersistence } from "../../composables/useInboundDraftPersistence";
 import type { LcscBagCode } from "../../lcsc/bagCode";
@@ -172,9 +172,57 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     const existing = lines.value.find((line) => line.item.id === item.id);
     if (existing) return existing;
     const line = createDraftLine(item);
+    prefillLineLocation(line);
     lines.value.push(line);
     if (!options?.silent) notice.info(`已加入 ${item.name}`);
     return line;
+  }
+
+  /**
+   * 入库库位分层预填：同编号唯一库存库位 → 全局默认库位 → 待选择；
+   * 预填等同手选可随时改，查询失败静默回落，不阻塞行创建。
+   * 见 docs/implementation-notes/inbound-location-prefill.md。
+   */
+  function prefillLineLocation(line: InboundDraftLine): void {
+    const fallback = locations.value.find((location) => location.is_default)?.id ?? null;
+    line.locationId = fallback;
+    void applyItemHistoryLocation(line, fallback);
+  }
+
+  /** 第一层：仅严格同一物品自己的库存分布，唯一有库存库位时覆盖预填；不做相似推断。 */
+  async function applyItemHistoryLocation(
+    line: InboundDraftLine,
+    prefilled: number | null,
+  ): Promise<void> {
+    try {
+      const inventory = await getItemInventory(line.item.id);
+      const stocked = inventory.locations.filter((location) => location.quantity > 0);
+      if (stocked.length !== 1) return;
+      // 行已被移除或用户已手选其它库位时不再覆盖。
+      if (!lines.value.includes(line)) return;
+      if (line.locationId !== prefilled && line.locationId !== null) return;
+      line.locationId = stocked[0].location_id;
+    } catch {
+      // 静默回落到已有预填。
+    }
+  }
+
+  /** 批量设置库位：只填仍为"待选择"的明细，已设库位的行不覆盖。 */
+  const batchLocationOpen = ref(false);
+  const pendingLocationCount = computed(
+    () => lines.value.filter((line) => line.locationId === null).length,
+  );
+  function applyBatchLocation(locationId: number): void {
+    let applied = 0;
+    for (const line of lines.value) {
+      if (line.locationId === null) {
+        line.locationId = locationId;
+        applied += 1;
+      }
+    }
+    batchLocationOpen.value = false;
+    const name = locations.value.find((location) => location.id === locationId)?.name ?? "";
+    if (applied > 0) notice.success(`已为 ${applied} 条明细设置库位`, { detail: name });
   }
 
   function removeLine(lineId: string): void {
@@ -433,6 +481,9 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     handleItemCreateClosed,
     orderImportOpen,
     importOrderLines,
+    batchLocationOpen,
+    pendingLocationCount,
+    applyBatchLocation,
     scanOrderPrompt,
     applyScanOrderNo,
     ignoreScanOrderNo,

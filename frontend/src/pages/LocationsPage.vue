@@ -235,7 +235,12 @@
                 role="row"
               >
                 <div class="locations-table__identity" role="cell">
-                  <strong :title="location.name">{{ location.name }}</strong>
+                  <strong :title="location.name"
+                    >{{ location.name
+                    }}<em v-if="location.is_default" class="locations-table__default-badge"
+                      >默认</em
+                    ></strong
+                  >
                   <span :title="location.group_name">{{ location.group_name }}</span>
                 </div>
                 <div
@@ -259,6 +264,26 @@
                     </span>
                   </div>
                   <span v-if="canManage" class="locations-table__actions">
+                    <button
+                      class="icon-button"
+                      :class="{ 'locations-table__default-active': location.is_default }"
+                      type="button"
+                      :title="location.is_default ? '取消默认库位' : '设为默认库位'"
+                      :aria-label="
+                        location.is_default
+                          ? `取消默认库位 ${location.name}`
+                          : `设为默认库位 ${location.name}`
+                      "
+                      :aria-pressed="location.is_default"
+                      :disabled="defaultUpdatingId !== null"
+                      @click="toggleDefaultLocation(location)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="m12 3.5 2.5 5.4 5.9.6-4.4 4 1.3 5.8-5.3-3.1-5.3 3.1 1.3-5.8-4.4-4 5.9-.6z"
+                        />
+                      </svg>
+                    </button>
                     <button
                       class="icon-button"
                       type="button"
@@ -295,9 +320,34 @@
               >
                 <header>
                   <div>
-                    <strong :title="location.name">{{ location.name }}</strong>
+                    <strong :title="location.name"
+                      >{{ location.name
+                      }}<em v-if="location.is_default" class="locations-table__default-badge"
+                        >默认</em
+                      ></strong
+                    >
                   </div>
                   <span v-if="canManage" class="locations-mobile-list__actions">
+                    <button
+                      class="icon-button"
+                      :class="{ 'locations-table__default-active': location.is_default }"
+                      type="button"
+                      :title="location.is_default ? '取消默认库位' : '设为默认库位'"
+                      :aria-label="
+                        location.is_default
+                          ? `取消默认库位 ${location.name}`
+                          : `设为默认库位 ${location.name}`
+                      "
+                      :aria-pressed="location.is_default"
+                      :disabled="defaultUpdatingId !== null"
+                      @click="toggleDefaultLocation(location)"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="m12 3.5 2.5 5.4 5.9.6-4.4 4 1.3 5.8-5.3-3.1-5.3 3.1 1.3-5.8-4.4-4 5.9-.6z"
+                        />
+                      </svg>
+                    </button>
                     <button
                       class="icon-button"
                       type="button"
@@ -635,6 +685,36 @@ function openCreateLocation(): void {
   closeDialogs();
   editingLocation.value = null;
   locationDialogOpen.value = true;
+}
+
+const defaultUpdatingId = ref<number | null>(null);
+
+/** 切换全局默认库位；服务端事务保证唯一，本地据结果同步清掉其它默认标记。 */
+async function toggleDefaultLocation(location: LocationResponse): Promise<void> {
+  if (defaultUpdatingId.value !== null) return;
+  defaultUpdatingId.value = location.id;
+  try {
+    const updated = await updateLocation(location.id, {
+      group_id: location.group_id,
+      name: location.name,
+      notes: location.notes ?? undefined,
+      sort_order: location.sort_order,
+      is_default: !location.is_default,
+    });
+    locations.value = locations.value.map((entry) => {
+      if (entry.id === updated.id) return updated;
+      return updated.is_default && entry.is_default ? { ...entry, is_default: false } : entry;
+    });
+    notice.success(updated.is_default ? `已将「${updated.name}」设为默认库位` : "已取消默认库位", {
+      detail: updated.is_default ? "入库明细无历史库位时将预填该库位。" : undefined,
+    });
+  } catch (error) {
+    notice.error("默认库位设置失败", {
+      detail: locationManagementErrorMessage(error, "请稍后重试。"),
+    });
+  } finally {
+    defaultUpdatingId.value = null;
+  }
 }
 
 function openEditLocation(location: LocationResponse): void {
