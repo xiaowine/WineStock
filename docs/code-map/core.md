@@ -26,10 +26,13 @@
   - 复用 shared 基础文本规则，不访问数据库或平台 shell。
 
 - `core/src/files/`
-  - `controller.rs`：图片 multipart 上传、受控读取/删除 DTO 和 handler。
-  - `service.rs`：签名/MIME/大小校验、SHA-256 内容寻址、动态授权和 24 小时孤儿清理。
-  - `error.rs`：文件 API 稳定错误码和启动清理错误。
-  - 文件模块处理物品属性和入库属性共用的受控图片，不拥有前端文件选择器或客户端路径。
+  - 图片 multipart 上传、受控读取/删除的 DTO/handler、签名/MIME/大小校验、SHA-256 内容寻址、动态授权、稳定错误码和 24 小时孤儿清理。
+  - 处理物品属性和入库属性共用的受控图片，不拥有前端文件选择器或客户端路径。
+
+- `core/src/external/`
+  - core 共享的外部资料查询运行时，不向业务请求开放第三方 endpoint。
+  - 立创适配固定调用 EDA `/api/devices/search` 单客编搜索接口，限制并发、超时、重定向和响应大小；请求固定 path/uid、分页、空 tag/attributes，只有 wd 使用规范化客编，禁止改用 `searchByCodes`。
+  - 客编格式校验、唯一结果选择和 WineStock DTO 投影仍由库存 service 拥有；外部适配层不写数据库。
 
 ## 启动与服务生命周期
 
@@ -51,10 +54,4 @@
 
 ## 测试
 
-- `core/src/tests/support.rs`：共享测试搭建。
-- `core/src/tests/bootstrap.rs`、`server.rs`、`http_openapi.rs`：启动、服务和 HTTP 外壳。
-- `core/src/tests/local_service.rs`：统一运行句柄的远端模式拒绝、端口冲突、实际地址和关闭后端口释放。
-- `core/src/tests/security_authorization.rs`：授权中间件。
-- `core/src/tests/auth_*.rs`、`users_*.rs`：鉴权和用户域。
-- `core/src/tests/stock_*.rs`：库存业务。
-- `core/src/tests/persistence_*.rs`：连接和 repository。
+- `core/src/tests/`：按域命名的单元测试文件（启动/服务/HTTP 外壳、授权、鉴权与用户、库存各子域、persistence），经 `#[path]` 挂载为被测模块的 `#[cfg(test)]` 子模块；`support.rs` 是共享测试搭建。测试布局机制见 `docs/code-map/workspace.md`。
