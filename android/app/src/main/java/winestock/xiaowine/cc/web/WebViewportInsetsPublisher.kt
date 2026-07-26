@@ -15,11 +15,13 @@ import kotlin.math.round
 import kotlin.math.roundToInt
 
 /**
- * Android WebView 安全区发布器。
+ * Android WebView 视口 inset 发布与输入法避让。
  *
  * 职责：采集 WindowInsets 的系统栏与挖孔区域，把物理像素转换为 CSS 像素，
- * 并只向受信任的前端文档发布 --shell-safe-area-inset-* 变量；不消费 inset，
- * 也不拥有页面布局或业务协议。
+ * 并只向受信任的前端文档发布 --shell-safe-area-inset-* 变量；同时消费 IME
+ * inset——edge-to-edge 下 `adjustResize` 失效，由本类给内容根布局加底部
+ * padding 压缩 WebView 视口，让 Chromium 自行把聚焦输入框滚入可见区。
+ * 键盘弹出期间安全区底边发布为 0（导航栏在输入法后面）。不拥有业务协议。
  */
 internal class WebViewportInsetsPublisher(
     private val insetTarget: View,
@@ -30,6 +32,7 @@ internal class WebViewportInsetsPublisher(
     private var hasReceivedInsets = false
     private var latestPhysicalInsets = Insets.of(0, 0, 0, 0)
     private var lastPublished: CssInsets? = null
+    private var imeBottomPhysicalPx = 0
 
     /** 安装监听并请求首轮 WindowInsets 分发。 */
     fun install() {

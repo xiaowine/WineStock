@@ -7,6 +7,8 @@ data class RuntimeServiceSnapshot(
     val phase: String,
     val apiBaseUrl: String? = null,
     val boundAddress: String? = null,
+    /** self-hosted 本机静默会话换取凭据；仅 local+running 快照携带，不得写入日志。 */
+    val localAuthExchangeToken: String? = null,
     val error: ShellRuntimeError? = null,
 )
 
@@ -36,6 +38,7 @@ object RuntimeSnapshotFactory {
                 .put("phase", snapshot.service.phase)
         snapshot.service.apiBaseUrl?.let { service.put("apiBaseUrl", it) }
         snapshot.service.boundAddress?.let { service.put("boundAddress", it) }
+        snapshot.service.localAuthExchangeToken?.let { service.put("localAuthExchangeToken", it) }
         snapshot.service.error?.let { service.put("error", errorJson(it)) }
 
         return JSONObject()

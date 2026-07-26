@@ -679,6 +679,7 @@ class LocalCoreRuntimeManager(
                     phase = phase,
                     apiBaseUrl = state?.apiBaseUrl,
                     boundAddress = state?.boundAddress,
+                    localAuthExchangeToken = state?.localAuthExchangeToken,
                     error = error,
                 ),
             nativeAvailable = localAvailable(),

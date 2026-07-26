@@ -87,6 +87,10 @@ pub struct NativeServiceState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub admin_setup_required: Option<bool>,
 
+    /// self-hosted 本机静默会话换取凭据；只经壳内可信桥传递，不得写入日志。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_auth_exchange_token: Option<String>,
+
     /// 最近一次意外退出错误。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<NativeError>,
@@ -100,6 +104,7 @@ impl NativeServiceState {
             bound_address: None,
             api_base_url: None,
             admin_setup_required: None,
+            local_auth_exchange_token: None,
             error: None,
         }
     }
@@ -111,6 +116,7 @@ impl NativeServiceState {
             bound_address: None,
             api_base_url: None,
             admin_setup_required: None,
+            local_auth_exchange_token: None,
             error: Some(error),
         }
     }

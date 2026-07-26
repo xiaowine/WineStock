@@ -54,9 +54,15 @@ class LocalCoreRuntimeManagerTest {
         assertEquals(applied.snapshot.config, store.current)
         assertEquals(1, native.startCalls)
         assertEquals(listOf(0), native.startConfigs.map(EditableRuntimeConfig::port))
+        // 本机静默会话换取凭据必须随 local running 快照透传给前端。
+        assertEquals("test-exchange-token", applied.snapshot.service.localAuthExchangeToken)
         val appliedJson = RuntimeSnapshotFactory.toJson(applied.snapshot, nativeBackSupported = false)
         assertTrue(appliedJson.getBoolean("initialized"))
         assertTrue(appliedJson.getJSONObject("capabilities").getBoolean("startLocalService"))
+        assertEquals(
+            "test-exchange-token",
+            appliedJson.getJSONObject("service").getString("localAuthExchangeToken"),
+        )
     }
 
     @Test
@@ -457,7 +463,7 @@ class LocalCoreRuntimeManagerTest {
                     "failed",
                     null,
                     null,
-                    ShellRuntimeError(ShellErrorCodes.SERVICE_CRASHED, "本地服务意外退出"),
+                    error = ShellRuntimeError(ShellErrorCodes.SERVICE_CRASHED, "本地服务意外退出"),
                 ),
             )
         assertEquals("failed", manager.getRuntimeSnapshot().await().service.phase)
@@ -596,6 +602,7 @@ class LocalCoreRuntimeManagerTest {
                     phase = "running",
                     boundAddress = "127.0.0.1:${actualPort(config)}",
                     apiBaseUrl = "http://127.0.0.1:${actualPort(config)}",
+                    localAuthExchangeToken = "test-exchange-token",
                     error = null,
                 ),
             )

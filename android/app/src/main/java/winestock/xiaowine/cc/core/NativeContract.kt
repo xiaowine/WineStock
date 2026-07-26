@@ -28,7 +28,9 @@ data class NativeServiceState(
     val phase: String,
     val boundAddress: String?,
     val apiBaseUrl: String?,
-    val error: ShellRuntimeError?,
+    /** self-hosted 本机静默会话换取凭据；只经壳内可信桥传递，不得写入日志。 */
+    val localAuthExchangeToken: String? = null,
+    val error: ShellRuntimeError? = null,
 )
 
 sealed interface NativeCallResult<out T> {
@@ -83,6 +85,7 @@ object NativeContract {
                 phase = result.getString("phase"),
                 boundAddress = result.optionalString("boundAddress"),
                 apiBaseUrl = result.optionalString("apiBaseUrl"),
+                localAuthExchangeToken = result.optionalString("localAuthExchangeToken"),
                 error = result.optJSONObject("error")?.let(::parseError),
             )
             if (state.phase == "running") {

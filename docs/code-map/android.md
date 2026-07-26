@@ -30,7 +30,7 @@
 ## Shell Bridge 传输（`app/src/main/assets/shell/bridge.js`、`app/.../shell/`）
 
 - `bridge.js` 是注入 WebView 的传输 shim（平台传输层，不是前端源码）：构造 `window.__WINESTOCK_SHELL_BRIDGE__`，以 call/reply/event 信封把 `frontend/src/shell/contract.ts` 的 v1 逻辑接口映射到原生消息通道，同时注入 `window.__WINESTOCK_RUNTIME_CONFIG__`；消息通道缺失时暴露降级桥。
-- `ShellBridgeHost.kt`：在受信任 origin 注册 `WebMessageListener` 与文档起始脚本（带能力检测），把配置与本地服务生命周期异步路由到 Application manager 并经主线程回复；管理页面代次与迟到结果丢弃（`AsyncBridgeReplyGate.kt`）；`openExternal` 只放行不含凭据的 http/https。只处理具名平台能力，不代理业务 HTTP、不传递 token。
+- `ShellBridgeHost.kt`：在受信任 origin 注册 `WebMessageListener` 与文档起始脚本（带能力检测），把配置与本地服务生命周期异步路由到 Application manager 并经主线程回复；管理页面代次与迟到结果丢弃（`AsyncBridgeReplyGate.kt`）；`openExternal` 只放行不含凭据的 http/https。只处理具名平台能力，不代理业务 HTTP、不传递业务 access/refresh token；`self-hosted` 快照会携带 core per-boot 的本机会话换取凭据（`localAuthExchangeToken`，仅经受信任 origin 通道下发，不落日志），由前端换取正常 token 实现本机免登录。
 - 原生返回：`NativeBackNavigator.kt` 先经 Bridge 协商，未处理时走 WebView history 或 finish；`NativeBackRequestBroker.kt` 是纯状态机（单 pending、400ms 超时、重复/迟到应答拒绝），由 JVM 单元测试覆盖竞态。
 - 运行配置：四字段 `EditableRuntimeConfig` 模型与版本化 SharedPreferences 持久化（三态读取，与前端 `web.ts` 一致，只保存运行配置不保存 token）；`RuntimeSnapshotFactory.kt` 构造 v1 快照并发布 Shell 权威 `initialized`，`serverMode` 固定 false；native 不可用时仅校验远端地址降级路径。
 - `AppConfig.kt`：受信任 host `winestock.internal`（ICANN 保留、永不进入公网 DNS）、允许 origin、Splash 超时和原生返回应答超时等 shell 常量。
