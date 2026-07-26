@@ -1,5 +1,5 @@
 <!--
-  本文件拥有前端根路由出口、服务断连覆盖层和全局 Notice 挂载点，属于 frontend。
+  本文件拥有前端根路由出口、服务断连覆盖层、路由切换进度条和全局 Notice 挂载点，属于 frontend。
   它不拥有具体页面布局、服务探测调度、平台 WebView 生命周期或 Axum 资源服务。
 -->
 <template>
@@ -14,6 +14,7 @@
       @settings="openRuntimeSettings"
     />
   </template>
+  <RouteProgressBar />
   <NoticeViewport />
 </template>
 
@@ -23,6 +24,7 @@ import { useRoute, useRouter } from "vue-router";
 import { authStatus } from "./auth/session";
 import { waitForStableViewport } from "./bootstrap/viewport";
 import NoticeViewport from "./components/NoticeViewport.vue";
+import RouteProgressBar from "./components/RouteProgressBar.vue";
 import ServiceUnavailableScreen from "./components/ServiceUnavailableScreen.vue";
 import { useStablePendingIndicator } from "./composables/useStablePendingIndicator";
 import {

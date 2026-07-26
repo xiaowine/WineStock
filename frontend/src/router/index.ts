@@ -1,6 +1,7 @@
 // 本文件拥有 frontend 路由表和 history 策略；它不实现鉴权状态或平台 WebView 生命周期。
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from "vue-router";
 import AppShell from "../layouts/AppShell.vue";
+import { appPageLoaders } from "./appPageLoaders";
 import { getAppRouteMeta } from "./appRouteCatalog";
 
 const routes: RouteRecordRaw[] = [
@@ -19,81 +20,81 @@ const routes: RouteRecordRaw[] = [
       {
         path: "dashboard",
         name: "dashboard",
-        component: () => import("../pages/DashboardPage.vue"),
+        component: appPageLoaders.dashboard,
         meta: getAppRouteMeta("dashboard"),
       },
       {
         path: "items",
         name: "items",
-        component: () => import("../pages/ItemsPage.vue"),
+        component: appPageLoaders.items,
         meta: getAppRouteMeta("items"),
       },
       {
         path: "inbound",
         name: "inbound",
-        component: () => import("../pages/StockDraftPage.vue"),
+        component: appPageLoaders.inbound,
         props: { kind: "inbound" },
         meta: getAppRouteMeta("inbound"),
       },
       {
         path: "inbound/orders",
         name: "inbound-orders",
-        component: () => import("../pages/InboundOrdersPage.vue"),
+        component: appPageLoaders["inbound-orders"],
         meta: getAppRouteMeta("inbound-orders"),
       },
       {
         path: "outbound",
         name: "outbound",
-        component: () => import("../pages/StockDraftPage.vue"),
+        component: appPageLoaders.outbound,
         props: { kind: "outbound" },
         meta: getAppRouteMeta("outbound"),
       },
       {
         path: "outbound/orders",
         name: "outbound-orders",
-        component: () => import("../pages/OutboundOrdersPage.vue"),
+        component: appPageLoaders["outbound-orders"],
         meta: getAppRouteMeta("outbound-orders"),
       },
       {
         path: "approvals/inbound",
         name: "inbound-approvals",
-        component: () => import("../pages/InboundApprovalsPage.vue"),
+        component: appPageLoaders["inbound-approvals"],
         meta: getAppRouteMeta("inbound-approvals"),
       },
       {
         path: "approvals/outbound",
         name: "outbound-approvals",
-        component: () => import("../pages/OutboundApprovalsPage.vue"),
+        component: appPageLoaders["outbound-approvals"],
         meta: getAppRouteMeta("outbound-approvals"),
       },
       {
         path: "locations",
         name: "locations",
-        component: () => import("../pages/LocationsPage.vue"),
+        component: appPageLoaders.locations,
         meta: getAppRouteMeta("locations"),
       },
       {
         path: "templates",
         name: "templates",
-        component: () => import("../pages/TemplatesPage.vue"),
+        component: appPageLoaders.templates,
         meta: getAppRouteMeta("templates"),
       },
       {
         path: "substitutes",
         name: "substitutes",
-        component: () => import("../pages/SubstitutesPage.vue"),
+        component: appPageLoaders.substitutes,
         meta: getAppRouteMeta("substitutes"),
       },
       {
         path: "events",
         name: "events",
-        component: () => import("../pages/EventsPage.vue"),
+        component: appPageLoaders.events,
         meta: getAppRouteMeta("events"),
       },
       {
         path: "users",
         name: "users",
-        component: () => import("../pages/UsersPage.vue"),
+        component: appPageLoaders.users,
         meta: getAppRouteMeta("users"),
       },
     ],

@@ -9,12 +9,12 @@
 
 - `frontend/package.json`、`vite.config.ts`：pnpm 脚本、Web/Android 双构建模式和 Node test runner 纯逻辑测试入口；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest，不固定 Node/pnpm 版本。
 - `frontend/src/main.ts` 与 `src/bootstrap/`：先初始化 Shell 运行快照和动态 API 地址，再按需启动健康检查、会话恢复、跨标签页同步、浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
-- `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
+- `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
 - `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。
 
 ## 路由与导航
 
-- `frontend/src/router/`：hash history 路由、鉴权/权限/强制改密守卫和页面元数据；`appRouteCatalog.ts` 是应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源，导航入口按会话权限快照和平台可见性过滤。
+- `frontend/src/router/`：hash history 路由、鉴权/权限/强制改密守卫和页面元数据；`appRouteCatalog.ts` 是应用壳一级页面名称、权限、导航分组、顺序和平台可见性的唯一声明来源，导航入口按会话权限快照和平台可见性过滤。页面组件懒加载入口集中在 `appPageLoaders.ts` 并在进入应用壳后按权限空闲预取；`navigationPending.ts` 拥有路由切换的稳定等待状态（驱动全局进度条与侧栏乐观高亮）和懒加载 chunk 失败的 Notice 重试。
 - `frontend/src/navigation/`：平台无关的原生返回 registry 与请求调度纯逻辑（priority 降序、同级 LIFO、异常安全、requestId 去重），以及接到 Shell Bridge 与 Vue Router 的装配层。
 
 ## Shell 运行时与服务可用性
@@ -41,7 +41,7 @@
 ## 布局与通用组件
 
 - `frontend/src/layouts/AppShell.*`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
-- `frontend/src/components/` 顶层：账户弹层与用户摘要、分组导航列表、路由出口切换动画、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件。
+- `frontend/src/components/` 顶层：账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件。
 - `frontend/src/components/forms/`：FormField 族、Teleport listbox 的 `SelectControl` 和不依赖浏览器原生弹层的日期时间字段；不包含业务校验规则。
 - `frontend/src/components/attributes/`：物品侧的单张图片属性控件、无依赖 HSV 颜色选择器、鉴权图片加载和图片草稿/纯色生成/提交阶段批量上传模型。
 - `frontend/src/composables/`：表单校验定位、原生返回注册、稳定 pending 指示、目录搜索分页、草稿持久化等页面无关组合逻辑。

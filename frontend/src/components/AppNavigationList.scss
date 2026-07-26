@@ -45,6 +45,15 @@
     color: var(--color-accent-strong);
   }
 
+  /* 稳定等待状态可见期间对导航目标做乐观反馈；不替代路由确认后的激活态。 */
+  &--pending {
+    background: rgb(23 32 42 / 5%);
+  }
+
+  &--pending &__icon {
+    animation: menu-item-icon-pending 0.9s ease-in-out infinite;
+  }
+
   &__icon {
     width: 18px;
     height: 18px;
@@ -103,5 +112,24 @@
     .menu-item--desktop-only {
       display: none;
     }
+  }
+}
+
+@keyframes menu-item-icon-pending {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* 减少动态效果时只去掉闪动动画，等待反馈仍按稳定计时呈现。 */
+@media (prefers-reduced-motion: reduce) {
+  .menu-item--pending .menu-item__icon {
+    animation: none;
+    opacity: 0.6;
   }
 }

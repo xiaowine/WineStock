@@ -14,6 +14,7 @@ import { installOverlayScrollbars } from "./bootstrap/overlayScrollbars";
 import { installNativeBackNavigation } from "./navigation/nativeBack";
 import { router } from "./router";
 import { installAuthGuards } from "./router/guards";
+import { installNavigationPendingTracking } from "./router/navigationPending";
 import {
   checkServiceAvailability,
   reportServiceUnavailable,
@@ -35,6 +36,8 @@ async function bootstrapFrontend(): Promise<void> {
   apiClient.setNetworkErrorHandler(reportServiceUnavailable);
   startAuthSessionSynchronization();
   startAuthSessionAutoRefresh();
+  // 等待追踪先于鉴权守卫注册，守卫内的会话初始化等待也计入切换反馈。
+  installNavigationPendingTracking(router);
   installAuthGuards(router);
 
   if (activeApiBaseUrl.value) {

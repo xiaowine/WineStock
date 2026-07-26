@@ -93,7 +93,11 @@
           </button>
         </div>
 
-        <AppNavigationList :items="visibleNavigation" @navigate="closeNavigation" />
+        <AppNavigationList
+          :items="visibleNavigation"
+          :pending-route-name="pendingNavigationRouteName"
+          @navigate="closeNavigation"
+        />
       </aside>
 
       <main class="app-content-pane" aria-label="主内容">
@@ -134,7 +138,9 @@ import { useAccountPopover } from "../composables/useAccountPopover";
 import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useShellLogout } from "../composables/useShellLogout";
 import { NativeBackPriority } from "../navigation/nativeBack";
+import { schedulePrefetchAppPages } from "../router/appPageLoaders";
 import { getVisibleAppNavigation } from "../router/navigation";
+import { pendingNavigationRouteName } from "../router/navigationPending";
 import { getUsableLanAccessUrls } from "../shell/lanAccess";
 import { runtimeSnapshot } from "../shell/runtime";
 
@@ -235,6 +241,8 @@ onMounted(() => {
   document.addEventListener("keydown", handleEscape);
   desktopMediaQuery = window.matchMedia(DESKTOP_QUERY);
   desktopMediaQuery.addEventListener("change", handleDesktopQueryChange);
+  // 空闲预取当前权限可见的页面 chunk，弱网下点击导航直接命中模块缓存。
+  schedulePrefetchAppPages(visibleNavigation.value.map((item) => item.routeName));
 });
 
 onBeforeUnmount(() => {

@@ -76,7 +76,8 @@ Drawer、Popover 和活动明细编辑层都未处理时，registry 的最后一
 
 ## 布局和页面边界
 
-- `App.vue` 提供根 `RouterView`、全局 Notice 和服务不可用覆盖层；运行设置路由明确绕过服务覆盖层。
+- `App.vue` 提供根 `RouterView`、全局 Notice、路由切换顶部进度条和服务不可用覆盖层；运行设置路由明确绕过服务覆盖层。
+- 应用壳一级页面组件的懒加载入口集中在 `router/appPageLoaders.ts`，进入应用壳后按当前权限空闲预取；路由切换等待反馈（进度条与侧栏乐观高亮）和 chunk 加载失败重试由 `router/navigationPending.ts` 拥有，计时规则见 [`async-state-transitions.md`](async-state-transitions.md)。
 - `AppShell.vue` 始终保持同一棵应用框架 DOM，通过 CSS 在桌面和移动端重排，并只提供一个嵌套 `RouterView`。
 - 移动导航 Drawer 只覆盖导航节点，不包含也不销毁当前路由页面；页面组件和业务状态在断点变化时保持不变。
 - 一级导航配置集中在 `router/navigation.ts`；OpenAPI 业务域路由已补充对应侧栏入口，并继续复用现有业务/管理分组和图标样式。

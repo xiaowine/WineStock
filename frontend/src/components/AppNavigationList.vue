@@ -16,7 +16,10 @@
         :key="item.routeName"
         :to="{ name: item.routeName }"
         class="menu-item"
-        :class="{ 'menu-item--desktop-only': item.desktopOnly }"
+        :class="{
+          'menu-item--desktop-only': item.desktopOnly,
+          'menu-item--pending': item.routeName === pendingRouteName,
+        }"
         active-class="menu-item--active"
         @click="emit('navigate')"
       >
@@ -36,6 +39,8 @@ import type { AppNavigationIcon, AppNavigationItem } from "../router/navigation"
 const props = defineProps<{
   /** 已按当前会话权限过滤的应用导航入口。 */
   items: readonly AppNavigationItem[];
+  /** 稳定等待状态可见期间的导航目标路由名称；导航完成前对目标入口做乐观反馈。 */
+  pendingRouteName?: string | null;
 }>();
 
 const emit = defineEmits<{
