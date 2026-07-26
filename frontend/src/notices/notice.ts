@@ -61,7 +61,10 @@ let ticker: ReturnType<typeof setInterval> | null = null;
 /** 当前全局 Notice 列表。 */
 export const notices = readonly(mutableNotices);
 
-/** 创建一条自动消失的 Notice，并返回实例 ID。 */
+/**
+ * 创建一条自动消失的 Notice，并返回实例 ID。
+ * 相同标题、说明和类型的 Notice 仍在展示时视为重复，直接返回已有实例而不再新增。
+ */
 export function showNotice(request: NoticeRequest): string {
   const title = request.title.trim();
   if (!title) {
@@ -69,6 +72,12 @@ export function showNotice(request: NoticeRequest): string {
   }
   const detail = request.detail?.trim() || undefined;
   const tone = request.tone ?? "info";
+  const duplicate = mutableNotices.value.find(
+    (notice) => notice.title === title && notice.detail === detail && notice.tone === tone,
+  );
+  if (duplicate) {
+    return duplicate.id;
+  }
   const durationMs = Math.max(
     MIN_DURATION_MS,
     request.durationMs ?? (tone === "error" ? ERROR_DURATION_MS : DEFAULT_DURATION_MS),

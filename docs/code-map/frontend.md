@@ -43,7 +43,7 @@
 
 ## 全局反馈
 
-- `frontend/src/notices/` 与 `components/NoticeViewport.vue`：全局 Notice 状态、四种类型、限量、倒计时与暂停交互；表单提交校验由 Notice 显示首个错误原因，字段附近保留红框且不插入可见错误行改变表单尺寸。
+- `frontend/src/notices/` 与 `components/NoticeViewport.vue`：全局 Notice 状态、四种类型、限量、倒计时与暂停交互，展示中的同内容重复请求复用首条不再新增；表单提交校验由 Notice 显示首个错误原因，字段附近保留红框且不插入可见错误行改变表单尺寸。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，不执行 HTTP 探测。
 
 ## 遥测
