@@ -60,6 +60,18 @@ async fn category_and_item_template_are_independent() {
     let item_templates: Vec<ItemAttributeTemplateResponse> =
         json_body(authorized_empty(&app, "GET", "/api/item-attribute-templates", token).await)
             .await;
+    assert_eq!(
+        item_templates
+            .iter()
+            .find(|entry| entry.name == "元器件属性")
+            .expect("seeded item template")
+            .fields
+            .iter()
+            .filter(|field| field.catalog_visible)
+            .map(|field| field.field.field_name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["型号", "品牌", "封装"]
+    );
     assert!(item_templates.iter().any(|entry| entry.id == item.id));
 }
 
@@ -446,6 +458,42 @@ async fn item_template_unit_rules_are_validated_and_copied() {
         assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
         assert_eq!(error_code(invalid).await, "invalid_request");
     }
+}
+
+#[tokio::test]
+async fn item_attribute_template_defaults_first_three_catalog_fields() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let fields = (0..4)
+        .map(|index| item_field(&format!("属性{index}"), TemplateFieldType::Text, false))
+        .collect();
+    let created: ItemAttributeTemplateResponse = json_body(
+        authorized_json(
+            &app,
+            "POST",
+            "/api/item-attribute-templates",
+            &token,
+            &ItemAttributeTemplateCreateRequest {
+                name: "默认目录字段".to_owned(),
+                description: None,
+                fields,
+            },
+        )
+        .await,
+    )
+    .await;
+
+    assert_eq!(
+        created
+            .fields
+            .iter()
+            .map(|field| field.catalog_visible)
+            .collect::<Vec<_>>(),
+        vec![true, true, true, false]
+    );
 }
 
 #[tokio::test]

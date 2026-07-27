@@ -69,7 +69,11 @@ pub(super) fn normalize_item_template_fields(
     let definition_ids = parts.iter().map(|part| part.0).collect::<Vec<_>>();
     let common_fields = parts.iter().map(|part| part.1.clone()).collect::<Vec<_>>();
     let unit_rules = parts.iter().map(|part| part.2.clone()).collect::<Vec<_>>();
-    let catalog_visibility = parts.iter().map(|part| part.3).collect::<Vec<_>>();
+    let catalog_visibility = parts
+        .iter()
+        .enumerate()
+        .map(|(index, part)| part.3.unwrap_or(index < 3))
+        .collect::<Vec<_>>();
     if catalog_visibility
         .iter()
         .filter(|visible| **visible)

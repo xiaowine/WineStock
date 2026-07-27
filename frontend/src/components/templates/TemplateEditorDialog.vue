@@ -478,7 +478,7 @@ function submit(): void {
 
 function addField(): void {
   if (draft.fields.length >= 64) return;
-  draft.fields.push(createEmptyField());
+  draft.fields.push(createEmptyField(draft.fields.length < 3));
   void nextTick(() =>
     document.querySelector<HTMLElement>(`#${draft.fields.at(-1)?.key}-body input`)?.focus(),
   );

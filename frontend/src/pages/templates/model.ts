@@ -42,7 +42,7 @@ export interface TemplateDraftValidation {
 
 let fieldKeySequence = 0;
 
-export function createEmptyField(): TemplateFieldDraft {
+export function createEmptyField(catalogVisible = false): TemplateFieldDraft {
   fieldKeySequence += 1;
   return {
     key: `template-field-${fieldKeySequence}`,
@@ -53,7 +53,7 @@ export function createEmptyField(): TemplateFieldDraft {
     options: [],
     required: false,
     searchable: false,
-    catalogVisible: false,
+    catalogVisible,
     unitMode: "none",
     unitValue: "",
     unitOptions: [],
@@ -66,7 +66,7 @@ export function createTemplateDraft(template: ItemAttributeTemplateResponse | nu
     return {
       name: "",
       description: "",
-      fields: [createEmptyField()],
+      fields: [createEmptyField(true)],
     };
   }
 

@@ -74,7 +74,7 @@
                 }}</span>
               </button>
               <button
-                class="icon-button"
+                class="icon-button items-catalog__refresh"
                 :class="{ 'is-pending': showStableCatalogLoading }"
                 type="button"
                 title="刷新物品目录"
@@ -89,7 +89,7 @@
               </button>
               <button
                 v-if="canManageTemplates"
-                class="icon-button"
+                class="icon-button items-catalog__display-settings"
                 type="button"
                 title="设置列表展示"
                 aria-label="设置列表展示"
@@ -105,7 +105,7 @@
               </button>
               <button
                 v-if="canManageItems"
-                class="icon-button icon-button--primary"
+                class="icon-button icon-button--primary items-catalog__create"
                 type="button"
                 title="新建物品"
                 aria-label="新建物品"

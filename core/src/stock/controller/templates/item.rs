@@ -113,7 +113,7 @@ impl ItemAttributeTemplateFieldDef {
         Option<i64>,
         TemplateFieldDef,
         Option<ItemAttributeUnitRule>,
-        bool,
+        Option<bool>,
     ) {
         (
             self.definition_id,
@@ -126,7 +126,7 @@ impl ItemAttributeTemplateFieldDef {
                 default_value: self.default_value,
             },
             self.unit,
-            self.catalog_visible.unwrap_or(false),
+            self.catalog_visible,
         )
     }
 }
