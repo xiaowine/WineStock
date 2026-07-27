@@ -16,7 +16,7 @@
       :class="{ 'barcode-camera__video--live': cameraLive }"
       playsinline
       muted
-      @playing="cameraLive = true"
+      @playing="handleCameraPlaying"
     ></video>
     <canvas ref="overlay" aria-hidden="true"></canvas>
     <span
@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { decodeQrCameraFrame, loadBarcodeReader, type DecodedQrCode } from "../../barcode/decoder";
 import { useStablePendingIndicator } from "../../composables/useStablePendingIndicator";
 
@@ -157,13 +157,35 @@ function stopCamera(): void {
   sessionToken += 1;
   setupPending.value = false;
   cameraLive.value = false;
+  const videoElement = video.value;
+  // WebView 的视频合成层可能早于 Vue class 更新绘制空 srcObject；先同步隐藏，避免闪出原生占位。
+  if (videoElement) videoElement.style.visibility = "hidden";
   stream?.getTracks().forEach((track) => track.stop());
   stream = null;
   torchSupported.value = false;
   torchOn.value = false;
   focusCapable.value = false;
   focusRing.value = null;
-  if (video.value) video.value.srcObject = null;
+  if (videoElement) videoElement.srcObject = null;
+}
+
+/** 新流真正产出画面且 live class 已落到 DOM 后，再显示视频合成表面。 */
+async function handleCameraPlaying(): Promise<void> {
+  const videoElement = video.value;
+  const playingStream = stream;
+  if (
+    !videoElement ||
+    !playingStream ||
+    !props.active ||
+    videoElement.srcObject !== playingStream
+  ) {
+    return;
+  }
+  cameraLive.value = true;
+  await nextTick();
+  if (props.active && stream === playingStream && videoElement.srcObject === playingStream) {
+    videoElement.style.removeProperty("visibility");
+  }
 }
 
 /** 记住的设备失效（拔出/权限变化）时自动回退默认摄像头，不让扫码卡死在错误态。 */
