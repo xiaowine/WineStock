@@ -73,7 +73,7 @@
   }
 
   &:has(input:focus-visible) {
-    @include mixins.focus-ring(rgb(111 42 54 / 24%), 2px);
+    @include mixins.focus-ring(var(--color-focus-ring), 2px);
   }
 }
 

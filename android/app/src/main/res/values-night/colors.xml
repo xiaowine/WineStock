@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 前端当前固定为浅色主题，夜间系统资源也保持启动/WebView 背景一致。 -->
-    <color name="web_background">#FFFFFFFF</color>
+    <!-- 原生启动表面只能读取系统 day/night；前端就绪后再由三态本机偏好接管。 -->
+    <color name="web_background">#FF111316</color>
 </resources>

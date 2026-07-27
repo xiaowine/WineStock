@@ -165,7 +165,7 @@ function openRuntimeSettings(): void {
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+  box-shadow: var(--shadow-service-status);
   color: var(--color-text);
   font-size: 13px;
   transform: translateX(-50%);

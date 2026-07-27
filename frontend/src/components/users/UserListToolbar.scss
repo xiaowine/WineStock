@@ -74,7 +74,7 @@
   &__refresh {
     &--pending,
     &--pending:hover {
-      border-color: rgb(111 42 54 / 24%);
+      border-color: var(--color-focus-ring);
       background: var(--color-accent-soft);
       color: var(--color-accent);
     }

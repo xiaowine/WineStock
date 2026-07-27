@@ -8,7 +8,7 @@
 ## 工程入口与启动
 
 - `frontend/package.json`、`vite.config.ts`：pnpm 脚本、Web/Android 双构建模式和 Node test runner 纯逻辑测试入口；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest，不固定 Node/pnpm 版本；package.json `appStage` 字段经 define 注入为品牌阶段徽标常量（Web/Android 双模式一致，空串时应用壳徽标隐藏）。
-- `frontend/src/main.ts` 与 `src/bootstrap/`：先初始化 Shell 运行快照和动态 API 地址，再按需启动健康检查、会话恢复、跨标签页同步、浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
+- `frontend/src/main.ts` 与 `src/bootstrap/`：在任何异步启动工作前初始化主题，再初始化 Shell 运行快照和动态 API 地址；随后按需启动健康检查、会话恢复、跨标签页同步、浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
 - `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
 - `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。
 
@@ -19,7 +19,7 @@
 
 ## Shell 运行时与服务可用性
 
-- `frontend/src/shell/`：Shell Bridge v1 契约与运行时结构校验（不能只信任 TypeScript 静态类型）、平台桥/Web fallback 选择（不判断 User-Agent）、版本化 localStorage Web 配置、响应式运行快照编排和局域网地址派生；收到不兼容快照时保留设置页并进入可修复失败态。
+- `frontend/src/shell/`：Shell Bridge v1 契约与运行时结构校验（不能只信任 TypeScript 静态类型）、平台桥/Web fallback 选择（不判断 User-Agent）、版本化 localStorage Web 配置、响应式运行快照编排和局域网地址派生；`systemChrome.ts` 独立协调主题系统栏基线与图片查看临时覆盖，不进入 Shell Bridge 业务契约。收到不兼容快照时保留设置页并进入可修复失败态。
 - `frontend/src/service/availability.ts`：独立于登录状态的服务健康探测、断连/恢复节奏和窗口焦点补检；API 地址变化时取消旧探测。
 - `frontend/src/api/runtime-config.ts`：动态 API 根地址与登录客户端元数据；禁止把全接口监听地址作为访问地址。
 
@@ -53,7 +53,7 @@
 ## 布局与通用组件
 
 - `frontend/src/layouts/AppShell.*`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
-- `frontend/src/components/` 顶层：账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件。
+- `frontend/src/components/` 顶层：账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件；`components/preferences/` 的主题三态控件由初始化向导和偏好 Dialog 共用。
 - `frontend/src/components/forms/`：FormField 族、Teleport listbox 的 `SelectControl` 和不依赖浏览器原生弹层的日期时间字段；不包含业务校验规则。
 - `frontend/src/components/attributes/`：物品侧的单张图片属性控件、无依赖 HSV 颜色选择器、鉴权图片加载和图片草稿/纯色生成/提交阶段批量上传模型。
 - `frontend/src/composables/`：表单校验定位、原生返回注册、稳定 pending 指示、目录搜索分页、草稿持久化等页面无关组合逻辑。
@@ -81,7 +81,8 @@
 
 ## 样式与存储
 
-- `frontend/src/styles/`：foundation 层 token、断点/输入方式/焦点 mixin 和统一安全区变量（业务样式不得绕过 `_safe-area.scss` 直接读原始 env），以及 shared 层视觉原语；组件与页面外观归属各自 `.scss`。
+- `frontend/src/theme/`：三态本机主题偏好、系统媒体查询解析、版本化持久化、跨标签同步，以及根 `data-theme`、浏览器 `theme-color` 和平台系统栏副作用；组件只消费只读状态并通过 setter 修改偏好。
+- `frontend/src/styles/`：foundation 层以 Sass map 输出浅色/深色语义 token，并拥有断点/输入方式/焦点 mixin 和统一安全区变量（业务样式不得绕过 `_safe-area.scss` 直接读原始 env）；shared 层提供视觉原语，组件与页面外观归属各自 `.scss`。
 - `frontend/src/storage/`：清理旧版入库草稿遗留 IndexedDB 图片的逻辑；入库草稿不再保存图片。
 
 ## 测试

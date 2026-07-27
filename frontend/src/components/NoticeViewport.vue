@@ -189,7 +189,7 @@ function handleFocusOut(id: string, event: FocusEvent): void {
 }
 
 .notice-toast__action:focus-visible {
-  outline: 3px solid rgb(111 42 54 / 18%);
+  outline: 3px solid var(--color-accent-border-soft);
   outline-offset: 1px;
 }
 

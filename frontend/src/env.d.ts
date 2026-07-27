@@ -26,6 +26,10 @@ declare global {
     __WINESTOCK_RUNTIME_CONFIG__?: FrontendRuntimeConfig;
     /** Desktop、Android 在页面脚本执行前注入的版本化 Shell Bridge。 */
     __WINESTOCK_SHELL_BRIDGE__?: ShellBridge;
+    /** Android 注入的系统栏图标外观薄接口；Web/桌面不存在。 */
+    WineStockSystemChrome?: {
+      setDarkContent(enabled: boolean): void;
+    };
   }
 }
 

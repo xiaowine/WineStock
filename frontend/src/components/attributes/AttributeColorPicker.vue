@@ -1,4 +1,7 @@
-<!-- 本组件拥有无依赖的 HSV、HEX 和快捷色板选择交互；它不生成图片或保存业务字段。 -->
+<!--
+  本组件拥有无依赖的 HSV、HEX 和快捷色板选择交互；它不生成图片或保存业务字段。
+  光谱、预设色与拾色游标表达真实颜色，刻意不随应用浅色/深色主题变化。
+-->
 <template>
   <div class="attribute-color-picker">
     <div
@@ -410,7 +413,7 @@ function hsvToHex(nextHue: number, nextSaturation: number, nextValue: number): s
   aspect-ratio: 1;
   min-width: 0;
   padding: 0;
-  border: 1px solid rgb(23 32 42 / 18%);
+  border: 1px solid var(--color-border-strong);
   border-radius: 3px;
 }
 

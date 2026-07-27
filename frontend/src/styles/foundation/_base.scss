@@ -7,36 +7,36 @@
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-gutter: auto;
   scrollbar-width: thin;
-}
 
-/* 所有滚动宿主共用同一套轻量滚动条，避免响应式切换滚动容器后露出系统默认样式。 */
-*::-webkit-scrollbar {
-  width: var(--scrollbar-size);
-  height: var(--scrollbar-size);
-}
+  /* 所有滚动宿主共用同一套轻量滚动条，避免响应式切换滚动容器后露出系统默认样式。 */
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
 
-*::-webkit-scrollbar-track,
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
+  &::-webkit-scrollbar-track,
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 
-*::-webkit-scrollbar-thumb {
-  min-width: 40px;
-  min-height: 40px;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
-  background-clip: padding-box;
-}
+  &::-webkit-scrollbar-thumb {
+    min-width: 40px;
+    min-height: 40px;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
 
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-  background-clip: padding-box;
-}
+    &:hover {
+      background: var(--scrollbar-thumb-hover);
+      background-clip: padding-box;
+    }
 
-*::-webkit-scrollbar-thumb:active {
-  background: var(--scrollbar-thumb-active);
-  background-clip: padding-box;
+    &:active {
+      background: var(--scrollbar-thumb-active);
+      background-clip: padding-box;
+    }
+  }
 }
 
 html {
@@ -85,12 +85,12 @@ textarea,
 input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
-}
 
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  margin: 0;
-  -webkit-appearance: none;
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
 }
 
 a {
@@ -111,7 +111,7 @@ button {
 
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgb(111 42 54 / 24%);
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
@@ -124,22 +124,28 @@ p {
 
 h1 {
   color: var(--color-text);
-  font-size: 26px;
-  font-weight: 680;
+  font: {
+    size: 26px;
+    weight: 680;
+  }
   line-height: 1.18;
 }
 
 h2 {
   color: var(--color-text);
-  font-size: 17px;
-  font-weight: 650;
+  font: {
+    size: 17px;
+    weight: 650;
+  }
   line-height: 1.25;
 }
 
 h3 {
   color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 650;
+  font: {
+    size: 12px;
+    weight: 650;
+  }
 }
 
 #app {
@@ -190,48 +196,48 @@ h3 {
   pointer-events: auto;
   touch-action: none;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
-}
 
-.app-overlay-scrollbar-thumb::before {
-  position: absolute;
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
-  content: "";
-  transition: background var(--motion-duration-fast) var(--motion-ease-standard);
-}
+  &::before {
+    position: absolute;
+    border-radius: 999px;
+    background: var(--scrollbar-thumb);
+    content: "";
+    transition: background var(--motion-duration-fast) var(--motion-ease-standard);
+  }
 
-.app-overlay-scrollbar-thumb--vertical::before {
-  inset: 0 2px 0 auto;
-  width: 4px;
-}
+  &--vertical::before {
+    inset: 0 2px 0 auto;
+    width: 4px;
+  }
 
-/* 侧栏使用浅色背景，沿用通用 4px 低对比滑块会难以辨认，单独提高可见性。 */
-.app-overlay-scrollbar-thumb--navigation {
-  opacity: 0.9;
-}
+  /* 侧栏沿用主题对应的高对比滑块，避免在独立导航表面上失去可见性。 */
+  &--navigation {
+    opacity: 0.9;
 
-.app-overlay-scrollbar-thumb--navigation::before {
-  inset: 0 2px 0 auto;
-  width: 5px;
-  background: rgb(89 99 111 / 72%);
-}
+    &::before {
+      inset: 0 2px 0 auto;
+      width: 5px;
+      background: var(--scrollbar-thumb-navigation);
+    }
+  }
 
-.app-overlay-scrollbar-thumb--horizontal::before {
-  inset: auto 0 2px;
-  height: 4px;
-}
+  &--horizontal::before {
+    inset: auto 0 2px;
+    height: 4px;
+  }
 
-.app-overlay-scrollbar-thumb:hover,
-.app-overlay-scrollbar-thumb--active {
-  opacity: 1;
-}
+  &:hover,
+  &--active {
+    opacity: 1;
+  }
 
-.app-overlay-scrollbar-thumb:hover::before {
-  background: var(--scrollbar-thumb-hover);
-}
+  &:hover::before {
+    background: var(--scrollbar-thumb-hover);
+  }
 
-.app-overlay-scrollbar-thumb--active::before {
-  background: var(--scrollbar-thumb-active);
+  &--active::before {
+    background: var(--scrollbar-thumb-active);
+  }
 }
 
 @include mixins.reduced-motion {

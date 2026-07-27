@@ -246,7 +246,7 @@ function save(): void {
 .item-unit-settings__segments button.is-active {
   background: var(--color-accent-soft);
   color: var(--color-accent);
-  box-shadow: inset 0 0 0 1px rgb(111 42 54 / 16%);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring-soft);
 }
 
 .item-unit-settings__segments button:focus-visible {
@@ -313,12 +313,12 @@ function save(): void {
 
 .item-unit-settings__option input:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
+  box-shadow: 0 0 0 3px var(--color-focus-ring-soft);
 }
 
 .item-unit-settings__option input[aria-invalid="true"]:focus {
   border-color: var(--color-danger);
-  box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
+  box-shadow: 0 0 0 3px var(--color-danger-ring);
 }
 
 .item-unit-settings__option .icon-button {

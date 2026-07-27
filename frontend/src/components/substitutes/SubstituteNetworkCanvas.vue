@@ -516,17 +516,11 @@ function nodeHitRadius(node: SubstituteNetworkNode): number {
 }
 
 function nodeStyle(nodeId: number): Record<string, string> {
-  const palette = [
-    ["#f3e8ea", "#8b4753"],
-    ["#e8f0f5", "#4d7087"],
-    ["#e8f3ee", "#4f7663"],
-    ["#f4eee4", "#8a6a3f"],
-    ["#eeeaf5", "#6f5a8d"],
-    ["#f2e9e3", "#8a5d46"],
-    ["#e7f1f1", "#467777"],
-  ];
-  const [soft, strong] = palette[Math.abs(nodeId) % palette.length];
-  return { "--node-soft": soft, "--node-strong": strong };
+  const paletteIndex = (Math.abs(nodeId) % 7) + 1;
+  return {
+    "--node-soft": `var(--network-node-${paletteIndex}-soft)`,
+    "--node-strong": `var(--network-node-${paletteIndex}-strong)`,
+  };
 }
 
 function edgePath(edge: SubstituteNetworkEdge): string {

@@ -98,7 +98,7 @@
     border: 2px solid var(--color-surface-raised);
     border-radius: 9px;
     background: var(--color-accent);
-    color: #fff;
+    color: var(--color-on-accent);
     font-size: 9px;
     font-weight: 750;
   }
@@ -106,7 +106,7 @@
   &__refresh {
     &--pending,
     &--pending:hover {
-      border-color: rgb(111 42 54 / 24%);
+      border-color: var(--color-focus-ring);
       background: var(--color-accent-soft);
       color: var(--color-accent);
     }
@@ -141,7 +141,7 @@
     gap: 5px;
     min-height: 26px;
     padding: 0 5px 0 8px;
-    border: 1px solid rgb(111 42 54 / 18%);
+    border: 1px solid var(--color-accent-border-soft);
     border-radius: 14px;
     background: var(--color-accent-soft);
     color: var(--color-accent-strong);
@@ -203,7 +203,7 @@
 .events-inline-error {
   margin: 8px 12px 0;
   padding: 8px 10px;
-  border: 1px solid rgb(157 40 50 / 20%);
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-sm);
   background: var(--color-danger-soft);
   color: var(--color-danger);
@@ -355,25 +355,25 @@
   white-space: nowrap;
 
   &--positive {
-    border-color: rgb(29 98 91 / 16%);
+    border-color: var(--color-teal-border-soft);
     background: var(--color-teal-soft);
     color: var(--color-teal);
   }
 
   &--accent {
-    border-color: rgb(111 42 54 / 16%);
+    border-color: var(--color-accent-border-soft);
     background: var(--color-accent-soft);
     color: var(--color-accent);
   }
 
   &--warn {
-    border-color: rgb(138 90 18 / 18%);
+    border-color: var(--color-warn-border-soft);
     background: var(--color-warn-soft);
     color: var(--color-warn);
   }
 
   &--danger {
-    border-color: rgb(157 40 50 / 16%);
+    border-color: var(--color-danger-ring);
     background: var(--color-danger-soft);
     color: var(--color-danger);
   }
@@ -400,7 +400,7 @@ button.event-action-pill {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
+  box-shadow: var(--shadow-subtle);
   cursor: pointer;
 
   &:hover {

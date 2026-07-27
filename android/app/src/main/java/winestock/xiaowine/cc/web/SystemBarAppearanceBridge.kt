@@ -10,7 +10,7 @@ internal class SystemBarAppearanceBridge(
     private val onDarkContentChanged: (darkContent: Boolean) -> Unit,
 ) {
     /**
-     * @param enabled true：内容为深色遮罩，系统栏使用浅色图标；false：恢复浅色界面深色图标。
+     * @param enabled true：当前内容为深色，系统栏使用浅色图标；false：浅色内容使用深色图标。
      */
     @JavascriptInterface
     fun setDarkContent(enabled: Boolean) {

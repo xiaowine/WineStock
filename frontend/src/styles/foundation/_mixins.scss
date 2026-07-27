@@ -67,7 +67,7 @@ $breakpoint-desktop: 768px;
   stroke-linejoin: round;
 }
 
-@mixin focus-ring($color: rgb(111 42 54 / 14%), $offset: 0) {
+@mixin focus-ring($color: var(--color-focus-ring-soft), $offset: 0) {
   border-color: var(--color-accent);
   outline: 3px solid $color;
   outline-offset: $offset;

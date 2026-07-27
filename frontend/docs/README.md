@@ -33,6 +33,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。
 - `user-management.md`：用户列表、创建、启停、权限、临时密码和前后端授权边界。
 - `visual-style.md`：当前视觉风格方向、颜色/圆角/阴影/密度规则和避免事项。
+- `theme-dark-mode.md`：浅色/深色主题的三态偏好、SCSS token、首屏防闪、平台联动和验收设计。
 - `ui-design-guidelines.md`：后续业务页面必须遵守的页面骨架、三段式列表、工具栏、表单、浮层、响应式和例外规则。
 - `ui-consistency-checklist.md`：按业务状态、目标视口和真实尺寸验证 UI 规范是否落实的实施与量化验收清单。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。

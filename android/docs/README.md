@@ -112,10 +112,15 @@ Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView �
 触底时用真实节点 `.app-content-pane__end-inset`（含 `--safe-area-bottom`）撑开
 scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 padding 裁掉栏下沉浸区域。
 
-系统栏默认使用与浅色前端匹配的深色图标。图片全屏查看时前端经
+系统栏在前端接管前跟随系统 day/night mode，前端加载后按当前主题发布图标基线。图片全屏查看时前端经
 `WineStockSystemChrome`（`SystemBarAppearanceController` / `SystemBarAppearanceBridge`）
-临时改为浅色图标并关闭导航栏 contrast 强制，关闭后恢复；不经 Shell Bridge 业务契约。
-夜间系统资源仍使用浅色 `web_background`，避免 SplashScreen、Window 和 WebView 空白期出现深色断层。
+临时改为浅色图标，关闭后恢复当前主题基线；不经 Shell Bridge 业务契约。Activity 根布局使用 AndroidX
+`ProtectionLayout`，Android 10 以上在透明底部系统栏下绘制随前端主题切换的 `ColorProtection`；浅色和深色
+均使用与前端 `--color-surface` 相同的基色和 70% alpha，保留内容透出且不依赖系统或厂商自动 contrast scrim 的不稳定色差。
+夜间系统资源使用深色 `web_background` 和浅色系统栏图标，使 SplashScreen、Window 与 WebView 空白期先与系统主题一致；前端首帧再接管可能与系统相反的手动偏好。
+应用主题的 `android:isLightTheme` 同样按 day/night 资源切换，使 WebView 的 `prefers-color-scheme` 与系统一致；WebView 算法着色关闭，避免覆盖前端自有的双主题 CSS。
+`MainActivity` 在 Manifest 中只接管 `uiMode` 配置变化，并原地刷新 Window/WebView 背景、系统栏与安全区；随后向保留的页面发送 `winestock:system-theme-refresh`，覆盖部分 WebView 只更新 media query 结果却不派发 `change` 的行为。系统深浅色切换不会销毁 WebView、重载前端或丢失当前路由，手动主题也不会被系统配置覆盖。旋转等其它配置变化仍使用 Android 默认重建行为。
+主题联动已在 API 33 三键导航真机覆盖系统浅/深、手动浅/深、图片查看临时系统栏覆盖与关闭恢复，以及 Activity 后台恢复。系统 `uiMode` 双向切换期间 PID、ActivityRecord、WebView 调试 target、当前路由、Dialog 和未提交输入均保持，事件日志没有 Activity create/destroy；测试结束恢复设备原系统模式和应用“跟随系统”偏好。
 
 `MainActivity` 只做系统入口与 Activity Result 注册；组装与业务接线在
 `shell/MainShellCoordinator`。WebView 配置、文件选择、Splash、系统栏与返回分别在

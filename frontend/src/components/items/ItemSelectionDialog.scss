@@ -46,7 +46,7 @@
 }
 
 .item-selection-dialog__item:hover {
-  background: rgb(23 32 42 / 3%);
+  background: var(--color-row-hover-soft);
 }
 
 .item-selection-dialog__item--selected {

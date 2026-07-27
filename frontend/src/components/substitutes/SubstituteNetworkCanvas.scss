@@ -7,7 +7,7 @@
   min-height: 320px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 1px 1px, rgb(89 99 111 / 10%) 1px, transparent 0) 0 0 / 24px 24px,
+    radial-gradient(circle at 1px 1px, var(--color-network-grid) 1px, transparent 0) 0 0 / 24px 24px,
     var(--color-surface-raised);
   cursor: grab;
   touch-action: none;
@@ -43,7 +43,7 @@
     padding: 5px 9px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    background: rgb(255 255 255 / 90%);
+    background: var(--color-network-label-surface);
     color: var(--color-muted);
     font-size: 11px;
     transform: translateX(-50%);
@@ -116,7 +116,7 @@
     fill: var(--node-soft, var(--color-surface));
     stroke: var(--node-strong, var(--color-border-strong));
     stroke-width: 1.5;
-    filter: drop-shadow(0 2px 4px rgb(23 32 42 / 10%));
+    filter: var(--shadow-network-node);
     vector-effect: non-scaling-stroke;
     transition:
       fill var(--motion-duration-fast) var(--motion-ease-standard),
@@ -129,7 +129,7 @@
   }
 
   &__label {
-    fill: rgb(255 255 255 / 94%);
+    fill: var(--color-network-node-center);
     stroke: var(--node-strong, var(--color-border));
     stroke-opacity: 0.28;
     stroke-width: 1;
@@ -161,7 +161,7 @@
       fill: var(--node-soft, var(--color-accent-soft));
       stroke: var(--color-accent);
       stroke-width: 3;
-      filter: drop-shadow(0 0 7px rgb(111 42 54 / 25%));
+      filter: var(--shadow-network-node-selected);
     }
 
     .substitute-network-node__name {

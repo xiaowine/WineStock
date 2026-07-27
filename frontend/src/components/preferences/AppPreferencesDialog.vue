@@ -1,7 +1,6 @@
 <!--
-  本组件拥有账户弹层入口的「偏好设置」Dialog：目前承载匿名数据收集开关，
-  后续语言/主题等本机偏好也归于此处。改动即时生效并持久化；
-  它不拥有偏好的存储格式（见 telemetry/consent.ts）与采集 SDK 生命周期细节（见 telemetry/clarity.ts）。
+  本组件拥有账户弹层入口的「偏好设置」Dialog：承载主题和匿名数据收集等本机偏好。
+  改动即时生效并持久化；它不拥有偏好存储格式、主题运行时或采集 SDK 生命周期细节。
 -->
 <template>
   <ModalDialog
@@ -10,27 +9,34 @@
     description="只影响这台设备上的使用体验，更改立即保存。"
     @close="emit('close')"
   >
-    <section class="app-preferences__section" aria-label="数据收集">
-      <h3>数据收集</h3>
-      <label class="consent-toggle">
-        <input
-          v-model="telemetryEnabled"
-          type="checkbox"
-          name="preferences-telemetry"
-          @change="handleTelemetryChange"
-        />
-        <span class="consent-toggle__copy">
-          <strong>发送匿名使用数据</strong>
-          <small
-            >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
-            Microsoft Clarity 提供。</small
-          >
-        </span>
-      </label>
-      <p class="app-preferences__policy">
-        <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
-      </p>
-    </section>
+    <div class="app-preferences">
+      <section class="app-preferences__section" aria-labelledby="preferences-appearance-title">
+        <h3 id="preferences-appearance-title">外观</h3>
+        <ThemePreferenceSelector />
+      </section>
+
+      <section class="app-preferences__section" aria-label="数据收集">
+        <h3>数据收集</h3>
+        <label class="consent-toggle">
+          <input
+            v-model="telemetryEnabled"
+            type="checkbox"
+            name="preferences-telemetry"
+            @change="handleTelemetryChange"
+          />
+          <span class="consent-toggle__copy">
+            <strong>发送匿名使用数据</strong>
+            <small
+              >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
+              Microsoft Clarity 提供。</small
+            >
+          </span>
+        </label>
+        <p class="app-preferences__policy">
+          <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
+        </p>
+      </section>
+    </div>
 
     <template #actions>
       <button class="secondary-button" type="button" @click="emit('close')">关闭</button>
@@ -48,6 +54,7 @@ import {
   saveTelemetryConsent,
 } from "../../telemetry/consent";
 import { openExternal } from "../../shell/runtime";
+import ThemePreferenceSelector from "./ThemePreferenceSelector.vue";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -79,10 +86,20 @@ function openTelemetryPolicy(): void {
 </script>
 
 <style scoped lang="scss">
-/* 同意开关卡片复用 shared/_consent-toggle.scss；这里只保留分节标题与政策链接。 */
+/* 同意开关卡片复用 shared/_consent-toggle.scss；这里只保留偏好分节、主题分段控件与政策链接。 */
+.app-preferences {
+  display: grid;
+  gap: 18px;
+}
+
 .app-preferences__section {
   display: grid;
   gap: 10px;
+
+  & + & {
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+  }
 
   h3 {
     margin: 0;

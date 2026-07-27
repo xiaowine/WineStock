@@ -17,8 +17,10 @@
   h3 {
     margin: 0 10px 3px;
     color: var(--color-nav-muted);
-    font-size: 12px;
-    font-weight: 650;
+    font: {
+      size: 12px;
+      weight: 650;
+    }
   }
 }
 
@@ -34,8 +36,10 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
-  font-size: 14px;
-  font-weight: 600;
+  font: {
+    size: 14px;
+    weight: 600;
+  }
   transition:
     background-color var(--motion-duration-fast) var(--motion-ease-standard),
     color var(--motion-duration-fast) var(--motion-ease-standard);
@@ -47,7 +51,7 @@
 
   /* 稳定等待状态可见期间对导航目标做乐观反馈；不替代路由确认后的激活态。 */
   &--pending {
-    background: rgb(23 32 42 / 5%);
+    background: var(--color-row-hover);
   }
 
   &--pending &__icon {
@@ -60,9 +64,11 @@
     overflow: visible;
     fill: none;
     stroke: currentcolor;
-    stroke-width: 1.7;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke: {
+      width: 1.7;
+      linecap: round;
+      linejoin: round;
+    }
     color: var(--color-nav-muted);
     transition: color var(--motion-duration-fast) var(--motion-ease-standard);
   }
@@ -82,7 +88,7 @@
     color: var(--color-nav-text);
 
     &:hover {
-      background: rgb(23 32 42 / 5%);
+      background: var(--color-row-hover);
     }
 
     &--active {

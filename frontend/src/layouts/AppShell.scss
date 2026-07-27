@@ -23,7 +23,7 @@
   padding: var(--safe-area-top) calc(16px + var(--safe-area-right)) 0
     calc(16px + var(--safe-area-left));
   border-bottom: 1px solid var(--color-border);
-  background: #fbfbfc;
+  background: var(--color-topbar);
 
   &__brand {
     display: flex;
@@ -54,7 +54,7 @@
 
     &[aria-expanded="true"],
     &:hover {
-      background: rgb(23 32 42 / 5%);
+      background: var(--color-row-hover);
     }
   }
 }
@@ -92,11 +92,11 @@
   overscroll-behavior-y: contain;
   padding: 18px calc(22px + var(--safe-area-right)) calc(22px + var(--safe-area-bottom)) 22px;
   background: var(--color-surface);
-}
 
-/* 桌面端占位收进 padding；移动端用独立高度节点（见 mobile）。 */
-.app-content-pane__end-inset {
-  display: none;
+  /* 桌面端占位收进 padding；移动端用独立高度节点（见 mobile）。 */
+  &__end-inset {
+    display: none;
+  }
 }
 
 .app-mobile-nav-trigger,
@@ -127,8 +127,8 @@
     height: calc(var(--topbar-height-mobile) + var(--safe-area-top));
     padding: var(--safe-area-top) calc(12px + var(--safe-area-right)) 0
       calc(12px + var(--safe-area-left));
-    background: rgb(251 251 252 / 94%);
-    box-shadow: 0 1px 10px rgb(23 32 42 / 4%);
+    background: var(--color-topbar-translucent);
+    box-shadow: var(--shadow-topbar);
     backdrop-filter: blur(14px);
   }
 
@@ -169,7 +169,7 @@
     width: 30px;
     height: 30px;
     place-items: center;
-    border: 1px solid rgb(111 42 54 / 24%);
+    border: 1px solid var(--color-focus-ring);
     border-radius: var(--radius-sm);
     background: var(--color-surface);
     color: var(--color-accent);
@@ -224,8 +224,8 @@
 
   .app-account__trigger[aria-expanded="true"] .account-user-summary__avatar,
   .app-account__trigger:hover .account-user-summary__avatar {
-    border-color: rgb(111 42 54 / 38%);
-    background: #ecdadd;
+    border-color: var(--color-focus-ring-strong);
+    background: var(--color-avatar-active);
   }
 
   .app-workspace {
@@ -239,25 +239,25 @@
     flex-direction: column;
     padding: 10px max(12px, var(--safe-area-right)) 0 max(12px, var(--safe-area-left));
     scroll-padding-bottom: calc(16px + var(--safe-area-bottom));
-  }
 
-  /* 路由按内容增高，勿 flex:1 拉满含导航栏在内的整屏高度。 */
-  .app-content-pane .route-page {
-    flex: 0 0 auto;
-    min-height: 0;
-    padding: 0 12px;
-  }
+    /* 路由按内容增高，勿 flex:1 拉满含导航栏在内的整屏高度。 */
+    .route-page {
+      flex: 0 0 auto;
+      min-height: 0;
+      padding: 0 12px;
+    }
 
-  /*
-   * 真实尾部节点撑开 scrollHeight：触底时最后一项可完整高于系统导航栏；
-   * 未触底时该节点在视口外，列表中部仍可画进导航栏后方（沉浸）。
-   */
-  .app-content-pane__end-inset {
-    display: block;
-    flex: 0 0 auto;
-    width: 100%;
-    height: calc(16px + var(--safe-area-bottom));
-    pointer-events: none;
+    /*
+     * 真实尾部节点撑开 scrollHeight：触底时最后一项可完整高于系统导航栏；
+     * 未触底时该节点在视口外，列表中部仍可画进导航栏后方（沉浸）。
+     */
+    &__end-inset {
+      display: block;
+      flex: 0 0 auto;
+      width: 100%;
+      height: calc(16px + var(--safe-area-bottom));
+      pointer-events: none;
+    }
   }
 
   .app-navigation-pane {
@@ -333,7 +333,7 @@
     display: block;
     padding: 0;
     border: 0;
-    background: rgb(23 32 42 / 38%);
+    background: var(--color-backdrop);
   }
 
   .mobile-nav-backdrop-enter-active,

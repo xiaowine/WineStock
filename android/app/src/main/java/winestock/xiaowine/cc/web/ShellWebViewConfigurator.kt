@@ -15,6 +15,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebSettingsCompat
+import androidx.webkit.WebViewFeature
 import winestock.xiaowine.cc.R
 
 /**
@@ -88,6 +90,10 @@ internal class ShellWebViewConfigurator(
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
+                // 前端已有完整双主题；禁用 WebView 算法着色，避免在深色 CSS 上再次反色。
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
+                    WebSettingsCompat.setAlgorithmicDarkeningAllowed(this, false)
+                }
                 // 前端在 https://winestock.internal，远端模式常连局域网 HTTP；明文范围由 network_security_config 控制。
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }

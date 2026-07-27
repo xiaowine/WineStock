@@ -15,8 +15,10 @@
   min-height: 38px;
   padding: 0 13px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 650;
+  font: {
+    size: 14px;
+    weight: 650;
+  }
   white-space: nowrap;
 }
 
@@ -47,12 +49,12 @@
   &--primary {
     border-color: var(--color-accent);
     background: var(--color-accent);
-    color: #fff;
+    color: var(--color-on-accent);
 
     &:hover:not(:disabled) {
       border-color: var(--color-accent-strong);
       background: var(--color-accent-strong);
-      color: #fff;
+      color: var(--color-on-accent);
     }
 
     &:disabled {
@@ -68,7 +70,7 @@
 .app-navigation-pane .menu-item {
   @include mixins.hover-capable {
     &:hover {
-      background: rgb(23 32 42 / 4%);
+      background: var(--color-row-hover-soft);
     }
   }
 }
@@ -96,17 +98,19 @@ $filled-button-variants: (
   primary: (
     background: var(--color-accent),
     hover-background: var(--color-accent-strong),
+    foreground: var(--color-on-accent),
   ),
   danger: (
     background: var(--color-danger),
     hover-filter: brightness(0.92),
+    foreground: var(--color-on-danger),
   ),
 );
 
 @each $name, $styles in $filled-button-variants {
   .#{$name}-button {
     background: map.get($styles, background);
-    color: #fff;
+    color: map.get($styles, foreground);
 
     &:hover {
       @if map.has-key($styles, hover-background) {
@@ -153,8 +157,10 @@ $filled-button-variants: (
   min-height: 30px;
   padding: 0 5px;
   color: var(--color-accent);
-  font-size: 13px;
-  font-weight: 650;
+  font: {
+    size: 13px;
+    weight: 650;
+  }
   white-space: nowrap;
 
   &:hover {
@@ -166,6 +172,8 @@ $filled-button-variants: (
 .eyebrow {
   margin-bottom: 4px;
   color: var(--color-subtle);
-  font-size: 12px;
-  font-weight: 620;
+  font: {
+    size: 12px;
+    weight: 620;
+  }
 }

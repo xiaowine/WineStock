@@ -2,6 +2,7 @@ package winestock.xiaowine.cc
 
 import android.Manifest
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
@@ -51,6 +52,14 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         shell.onResume()
+    }
+
+    /** 系统 day/night 变化由当前 Activity 原地处理，避免销毁 WebView 和前端页面上下文。 */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::shell.isInitialized) {
+            shell.onConfigurationChanged(newConfig)
+        }
     }
 
     override fun onPause() {

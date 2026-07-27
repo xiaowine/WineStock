@@ -25,8 +25,8 @@
 }
 
 .inbound-draft-page input:focus {
-  border-color: rgb(111 42 54 / 52%);
-  outline: 3px solid rgb(111 42 54 / 12%);
+  border-color: var(--color-focus-ring-strong);
+  outline: 3px solid var(--color-focus-ring-soft);
   outline-offset: 0;
 }
 
@@ -341,7 +341,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 8px 16px;
-  border-bottom: 1px solid rgb(157 40 50 / 20%);
+  border-bottom: 1px solid var(--color-danger-border);
   background: var(--color-danger-soft);
   color: var(--color-danger);
   font-size: 12px;
@@ -367,7 +367,7 @@
 }
 
 .inbound-template-options-error {
-  border-bottom: 1px solid rgb(138 90 18 / 22%);
+  border-bottom: 1px solid var(--color-warn-border-soft);
   background: var(--color-warn-soft);
   color: var(--color-warn);
 }
@@ -708,7 +708,7 @@
 .inbound-template-config .inbound-template-options-error {
   margin-bottom: 10px;
   padding: 8px 10px;
-  border: 1px solid rgb(138 90 18 / 22%);
+  border: 1px solid var(--color-warn-border-soft);
   border-radius: var(--radius-sm);
 }
 
@@ -733,7 +733,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-color: rgb(157 40 50 / 28%);
+  border-color: var(--color-danger-border-strong);
   color: var(--color-danger);
 }
 
@@ -793,7 +793,7 @@
 .inbound-submit-warning {
   margin: 12px 0 0;
   padding: 10px;
-  border: 1px solid rgb(138 90 18 / 24%);
+  border: 1px solid var(--color-warn-border);
   border-radius: var(--radius-sm);
   background: var(--color-warn-soft);
   color: var(--color-warn);
@@ -975,8 +975,8 @@
     padding: 10px calc(12px + var(--safe-area-right)) calc(10px + var(--safe-area-bottom))
       calc(12px + var(--safe-area-left));
     border-top: 1px solid var(--color-border-strong);
-    background: rgb(255 255 255 / 96%);
-    box-shadow: 0 -8px 24px rgb(23 32 42 / 8%);
+    background: var(--color-surface-translucent);
+    box-shadow: var(--shadow-sticky);
     backdrop-filter: blur(10px);
   }
 
@@ -1110,12 +1110,12 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
-    box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
+    box-shadow: var(--shadow-subtle);
     cursor: pointer;
   }
 
   .inbound-lines tbody tr:focus-visible {
-    outline: 3px solid rgb(111 42 54 / 16%);
+    outline: 3px solid var(--color-focus-ring-soft);
     outline-offset: 1px;
   }
 

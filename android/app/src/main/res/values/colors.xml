@@ -3,4 +3,7 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="web_background">#FFFFFFFF</color>
+    <!-- 透明系统栏下的应用侧保护层；基色与前端主内容表面一致，70% alpha 保留内容透出。 -->
+    <color name="navigation_bar_protection_light">#B3FFFFFF</color>
+    <color name="navigation_bar_protection_dark">#B3191C20</color>
 </resources>

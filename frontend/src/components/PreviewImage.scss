@@ -31,7 +31,7 @@
 
   &:focus-visible {
     outline: 0;
-    box-shadow: inset 0 0 0 3px rgb(111 42 54 / 24%);
+    box-shadow: inset 0 0 0 3px var(--color-focus-ring);
   }
 
   &__fallback {
@@ -53,9 +53,11 @@
       margin: 0 auto;
       fill: none;
       stroke: currentcolor;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      stroke-width: 1.6;
+      stroke: {
+        linecap: round;
+        linejoin: round;
+        width: 1.6;
+      }
     }
 
     > span {

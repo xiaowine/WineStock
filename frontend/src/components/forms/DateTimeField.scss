@@ -38,7 +38,7 @@
 
       &:focus-visible,
       &[aria-expanded="true"] {
-        outline-color: rgb(157 40 50 / 16%);
+        outline-color: var(--color-danger-ring);
       }
     }
 
@@ -108,7 +108,7 @@
     }
 
     &--today {
-      border-color: rgb(111 42 54 / 28%) !important;
+      border-color: var(--color-accent-border) !important;
       color: var(--color-accent) !important;
       font-weight: 700;
     }
@@ -116,7 +116,7 @@
     &--selected {
       border-color: var(--color-accent) !important;
       background: var(--color-accent) !important;
-      color: #fff !important;
+      color: var(--color-on-accent) !important;
       font-weight: 750;
     }
   }

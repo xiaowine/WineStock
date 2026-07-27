@@ -1,4 +1,4 @@
-/* 应用内图片查看层：安全区避让，不隐藏系统栏、不使用 Fullscreen API。 */
+/* 应用内图片查看层：固定深色媒体环境，安全区避让，不隐藏系统栏、不使用 Fullscreen API。 */
 @use "../styles/foundation/mixins" as mixins;
 
 .in-app-image-viewer {
@@ -75,8 +75,10 @@
       height: 20px;
       fill: none;
       stroke: currentcolor;
-      stroke-width: 1.8;
-      stroke-linecap: round;
+      stroke: {
+        width: 1.8;
+        linecap: round;
+      }
     }
   }
 }

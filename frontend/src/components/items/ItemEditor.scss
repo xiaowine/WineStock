@@ -38,7 +38,7 @@
 .item-editor input:focus,
 .item-editor textarea:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
+  box-shadow: 0 0 0 3px var(--color-focus-ring-soft);
 }
 
 .item-editor input[aria-invalid="true"],
@@ -48,7 +48,7 @@
 
 .item-editor input[aria-invalid="true"]:focus,
 .item-attribute-editor__unit-settings.is-invalid:focus-visible {
-  box-shadow: 0 0 0 3px rgb(157 40 50 / 10%);
+  box-shadow: 0 0 0 3px var(--color-danger-ring-soft);
 }
 
 .item-editor input:read-only,
@@ -116,7 +116,7 @@
 .item-editor__metadata-error {
   margin-top: 14px;
   padding: 9px 11px;
-  border: 1px solid rgb(154 102 18 / 24%);
+  border: 1px solid var(--color-warn-border);
   border-radius: var(--radius-sm);
   background: var(--color-warn-soft);
   color: var(--color-warn);
@@ -357,7 +357,7 @@
 }
 
 .item-attribute-editor__remove:hover {
-  border-color: rgb(157 40 50 / 28%);
+  border-color: var(--color-danger-border-strong);
   background: var(--color-danger-soft);
 }
 
@@ -397,7 +397,7 @@
     grid-template-columns: 34px minmax(0, 1fr);
     gap: 10px;
     padding: 10px 12px;
-    background: rgb(255 255 255 / 96%);
+    background: var(--color-surface-translucent);
     backdrop-filter: blur(12px);
   }
 
@@ -492,8 +492,8 @@
     padding: 10px calc(12px + var(--safe-area-right)) calc(10px + var(--safe-area-bottom))
       calc(12px + var(--safe-area-left));
     border-top: 1px solid var(--color-border);
-    background: rgb(255 255 255 / 96%);
-    box-shadow: 0 -6px 18px rgb(23 32 42 / 6%);
+    background: var(--color-surface-translucent);
+    box-shadow: var(--shadow-sticky-soft);
     backdrop-filter: blur(12px);
   }
 }

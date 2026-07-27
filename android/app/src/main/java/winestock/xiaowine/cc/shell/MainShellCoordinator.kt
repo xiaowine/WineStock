@@ -1,14 +1,17 @@
 package winestock.xiaowine.cc.shell
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen
 import androidx.webkit.WebViewAssetLoader
 import winestock.xiaowine.cc.AppConfig
+import winestock.xiaowine.cc.R
 import winestock.xiaowine.cc.WineStockApplication
 import winestock.xiaowine.cc.databinding.ActivityMainBinding
 import winestock.xiaowine.cc.web.FrontendPathHandler
@@ -65,7 +68,7 @@ internal class MainShellCoordinator(
                 activity = activity,
                 contentView = { binding.root },
                 mainHandler = mainHandler,
-            ).also { it.applyDefaultLightBars() }
+            ).also { it.applyDefaultBars() }
 
         viewportInsetsPublisher =
             WebViewportInsetsPublisher(
@@ -116,6 +119,26 @@ internal class MainShellCoordinator(
         shellBridge?.notifyAppResumed()
     }
 
+    /**
+     * 原地应用系统 day/night 配置，不重新创建 WebView；前端通过 media query 自行切换主题。
+     * 原生层只刷新页面背后的系统主题表面、系统栏与配置相关的安全区计算。
+     */
+    fun onConfigurationChanged(newConfig: Configuration) {
+        val backgroundColor = ContextCompat.getColor(activity, R.color.web_background)
+        activity.window.setBackgroundDrawableResource(R.color.web_background)
+        binding.root.setBackgroundColor(backgroundColor)
+        binding.webView.setBackgroundColor(backgroundColor)
+        systemBarAppearance.onConfigurationChanged(newConfig)
+        viewportInsetsPublisher?.refresh()
+        // WebView 会更新 CSS media query，但部分版本不派发 MediaQueryList change；前端需主动重读。
+        binding.webView.post {
+            if (activity.isFinishing || activity.isDestroyed) return@post
+            runCatching {
+                binding.webView.evaluateJavascript(SYSTEM_THEME_REFRESH_SCRIPT, null)
+            }
+        }
+    }
+
     fun onPause() {
         shellBridge?.onActivityPaused()
     }
@@ -152,5 +175,10 @@ internal class MainShellCoordinator(
             bridge.destroy()
         }
         // 桥不可用时前端会通过降级桥进入可修复失败态，Activity 仍加载前端资源。
+    }
+
+    companion object {
+        private const val SYSTEM_THEME_REFRESH_SCRIPT =
+            "window.dispatchEvent(new Event(\"winestock:system-theme-refresh\"));"
     }
 }

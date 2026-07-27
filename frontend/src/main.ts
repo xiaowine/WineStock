@@ -24,8 +24,12 @@ import {
 } from "./service/availability";
 import { activeApiBaseUrl, initializeShellRuntime, reportFrontendReady } from "./shell/runtime";
 import { startTelemetryIfConsented } from "./telemetry/clarity";
+import { disposeThemeRuntime, initializeTheme } from "./theme/runtime";
 
 let stopNativeBackNavigation: (() => void) | null = null;
+
+// 主题必须先于 Shell 初始化和其它异步启动工作生效，避免首屏等待期间露出错误背景。
+initializeTheme();
 
 async function bootstrapFrontend(): Promise<void> {
   try {
@@ -99,5 +103,6 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     stopNativeBackNavigation?.();
     stopNativeBackNavigation = null;
+    disposeThemeRuntime();
   });
 }

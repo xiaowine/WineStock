@@ -107,7 +107,7 @@
   &__inline-error {
     margin: 0 4px 8px;
     padding: 8px 9px;
-    border: 1px solid rgb(157 40 50 / 20%);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-sm);
     background: var(--color-danger-soft);
     color: var(--color-danger);
@@ -246,7 +246,7 @@
 
     &--pending,
     &--pending:hover {
-      border-color: rgb(111 42 54 / 24%);
+      border-color: var(--color-focus-ring);
       background: var(--color-accent-soft);
       color: var(--color-accent);
     }
@@ -298,7 +298,7 @@
   &__inline-error {
     margin: 10px 12px 0;
     padding: 8px 10px;
-    border: 1px solid rgb(157 40 50 / 20%);
+    border: 1px solid var(--color-danger-border);
     border-radius: var(--radius-sm);
     background: var(--color-danger-soft);
     color: var(--color-danger);
@@ -380,7 +380,7 @@
     align-content: center;
     gap: 5px;
     background: var(--location-row-background);
-    box-shadow: 5px 0 8px -8px rgb(23 32 42 / 35%);
+    box-shadow: var(--shadow-fixed-left);
 
     strong,
     span {
@@ -440,7 +440,7 @@
     border-right: 0;
     border-left: 1px solid var(--color-border-strong);
     background: var(--location-row-background);
-    box-shadow: -5px 0 8px -8px rgb(23 32 42 / 35%);
+    box-shadow: var(--shadow-fixed-right);
 
     .locations-table__meta {
       display: grid;
@@ -545,7 +545,7 @@
     display: block;
     padding: 0;
     border: 0;
-    background: rgb(23 32 42 / 38%);
+    background: var(--color-backdrop);
   }
 
   .locations-catalog {
@@ -633,7 +633,7 @@
     display: block;
     padding: 0;
     border: 0;
-    background: rgb(23 32 42 / 38%);
+    background: var(--color-backdrop);
   }
 
   .locations-catalog {
@@ -734,7 +734,7 @@
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
       background: var(--color-surface);
-      box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
+      box-shadow: var(--shadow-subtle);
 
       header {
         display: flex;

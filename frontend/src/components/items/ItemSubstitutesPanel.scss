@@ -278,7 +278,7 @@
 .item-substitutes-panel__notes textarea:focus {
   border-color: var(--color-accent);
   outline: 0;
-  box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
+  box-shadow: 0 0 0 3px var(--color-focus-ring-soft);
 }
 .item-substitutes-panel__notes textarea:disabled {
   background: var(--color-surface-raised);

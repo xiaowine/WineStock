@@ -414,7 +414,7 @@ onBeforeUnmount(removeWindowListeners);
 .select-control__trigger:focus-visible,
 .select-control--open .select-control__trigger {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgb(111 42 54 / 14%);
+  box-shadow: 0 0 0 3px var(--color-focus-ring-soft);
 }
 
 .select-control__trigger[aria-invalid="true"] {
@@ -423,7 +423,7 @@ onBeforeUnmount(removeWindowListeners);
 
 .select-control__trigger[aria-invalid="true"]:focus-visible,
 .select-control--open .select-control__trigger[aria-invalid="true"] {
-  box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
+  box-shadow: 0 0 0 3px var(--color-danger-ring);
 }
 
 .select-control__trigger:disabled {

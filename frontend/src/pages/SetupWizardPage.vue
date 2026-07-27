@@ -87,27 +87,40 @@
             </form>
           </div>
 
-          <!-- 第 3 页：数据收集 -->
+          <!-- 第 3 页：本机偏好 -->
           <div v-else-if="step === 'consent'" key="consent" class="setup-wizard__step">
             <div class="setup-wizard__head">
-              <h1 id="setup-wizard-title">帮助改进 WineStock</h1>
-              <p>发送匿名使用数据，帮助开发者定位和排查问题。</p>
+              <h1 id="setup-wizard-title">偏好设置</h1>
+              <p>这些选项只影响当前设备，稍后可以随时更改。</p>
             </div>
-            <div>
-              <label class="consent-toggle">
-                <input v-model="telemetryConsent" type="checkbox" name="telemetry-consent" />
-                <span class="consent-toggle__copy">
-                  <strong>发送匿名使用数据</strong>
-                  <small
-                    >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
-                    Microsoft Clarity 提供。</small
-                  >
-                </span>
-              </label>
-              <p class="auth-runtime-note setup-wizard__consent-note">
-                默认关闭，可随时在「偏好设置」中更改。
-                <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
-              </p>
+            <div class="setup-wizard__preferences">
+              <section
+                class="setup-wizard__preference-section"
+                aria-labelledby="setup-appearance-title"
+              >
+                <h2 id="setup-appearance-title">外观</h2>
+                <ThemePreferenceSelector />
+              </section>
+              <section
+                class="setup-wizard__preference-section"
+                aria-labelledby="setup-telemetry-title"
+              >
+                <h2 id="setup-telemetry-title">数据收集</h2>
+                <label class="consent-toggle">
+                  <input v-model="telemetryConsent" type="checkbox" name="telemetry-consent" />
+                  <span class="consent-toggle__copy">
+                    <strong>发送匿名使用数据</strong>
+                    <small
+                      >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
+                      Microsoft Clarity 提供。</small
+                    >
+                  </span>
+                </label>
+                <p class="auth-runtime-note setup-wizard__consent-note">
+                  默认开启，可取消。
+                  <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
+                </p>
+              </section>
             </div>
           </div>
 
@@ -160,6 +173,7 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import FormInput from "../components/forms/FormInput.vue";
+import ThemePreferenceSelector from "../components/preferences/ThemePreferenceSelector.vue";
 import { startTelemetryIfConsented } from "../telemetry/clarity";
 import { TELEMETRY_POLICY_URL, saveTelemetryConsent } from "../telemetry/consent";
 import type { EditableRuntimeConfig } from "../shell/contract";
@@ -190,7 +204,7 @@ const serverUrl = ref("");
 const serverUrlError = ref("");
 const testingConnection = ref(false);
 const connectionTestResult = ref<"" | "ok" | "failed">("");
-const telemetryConsent = ref(false);
+const telemetryConsent = ref(true);
 const applying = ref(false);
 const applyError = ref("");
 

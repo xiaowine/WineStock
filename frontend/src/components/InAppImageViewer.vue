@@ -1,6 +1,6 @@
 <!--
   应用内图片查看层：固定遮罩 + 安全区避让，不隐藏系统栏、不调用 Fullscreen。
-  在 Android 上经 WineStockSystemChrome 切换系统栏为浅色图标，去掉浅色导航栏底。
+  在 Android 上经共享系统栏适配器临时切换为浅色图标，关闭后恢复当前主题基线。
 -->
 <template>
   <Teleport to="body">
@@ -36,17 +36,10 @@
 </template>
 
 <script setup lang="ts">
-import {
-  nextTick,
-  onBeforeUnmount,
-  ref,
-  toRef,
-  useId,
-  watch,
-  type CSSProperties,
-} from "vue";
+import { nextTick, onBeforeUnmount, ref, toRef, useId, watch, type CSSProperties } from "vue";
 import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { NativeBackPriority } from "../navigation/nativeBack";
+import { acquireSystemChromeDarkContent } from "../shell/systemChrome";
 
 /** 缩略图在视口中的矩形，用于打开/关闭时的共享元素动画。 */
 export interface ImageViewerOriginRect {
@@ -78,6 +71,7 @@ const imageStyle = ref<CSSProperties>({});
 let previousBodyOverflow = "";
 let animationFrame = 0;
 let closing = false;
+let releaseSystemChromeOverride: (() => void) | null = null;
 
 const openRef = toRef(props, "open");
 
@@ -110,8 +104,8 @@ async function present(): Promise<void> {
   imageStyle.value = origin ? rectStyle(origin) : {};
   previousBodyOverflow = document.body.style.overflow;
   document.body.style.overflow = "hidden";
-  // 深色遮罩期间改用浅色系统栏图标，避免 LIGHT_NAVIGATION_BARS 系统浅色底盖住遮罩。
-  notifySystemChromeDarkContent(true);
+  releaseSystemChromeOverride?.();
+  releaseSystemChromeOverride = acquireSystemChromeDarkContent();
   window.addEventListener("keydown", handleKeydown);
   window.addEventListener("resize", updateExpandedRect);
   await nextTick();
@@ -157,29 +151,14 @@ function teardownChrome(): void {
   window.removeEventListener("keydown", handleKeydown);
   window.removeEventListener("resize", updateExpandedRect);
   document.body.style.overflow = previousBodyOverflow;
-  notifySystemChromeDarkContent(false);
+  releaseSystemChromeOverride?.();
+  releaseSystemChromeOverride = null;
 }
 
 function onAfterLeave(): void {
   closing = false;
   imageStyle.value = {};
-  // 再次确保关闭后恢复浅色栏（防止 teardown 与动画交错）。
-  notifySystemChromeDarkContent(false);
   emit("afterLeave");
-}
-
-/** Android 宿主钩子；浏览器 / 无接口时静默跳过。 */
-function notifySystemChromeDarkContent(enabled: boolean): void {
-  try {
-    const bridge = (
-      window as unknown as {
-        WineStockSystemChrome?: { setDarkContent: (value: boolean) => void };
-      }
-    ).WineStockSystemChrome;
-    bridge?.setDarkContent(enabled);
-  } catch {
-    // 非 Android 或接口不可用
-  }
 }
 
 function rectStyle(rect: ImageViewerOriginRect): CSSProperties {

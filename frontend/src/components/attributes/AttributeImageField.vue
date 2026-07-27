@@ -441,7 +441,7 @@ function formatFileSize(bytes: number): string {
 }
 
 .inbound-file-field.inbound-control--error:focus-within .inbound-file-field__preview {
-  box-shadow: 0 0 0 3px rgb(157 40 50 / 16%);
+  box-shadow: 0 0 0 3px var(--color-danger-ring);
 }
 
 .inbound-file-field__preview {

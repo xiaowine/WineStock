@@ -14,7 +14,7 @@
 
 ## Activity 装配与 Application 级 core
 
-- `MainActivity.kt` 是唯一 Activity 入口，只保留系统生命周期与 ActivityResult；`shell/MainShellCoordinator.kt` 组装 edge-to-edge、Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host，`loadUrl` 前安装 Bridge。
+- `MainActivity.kt` 是唯一 Activity 入口，只保留系统生命周期与 ActivityResult；系统 day/night `uiMode` 由当前 Activity 原地处理，避免重建 WebView。`shell/MainShellCoordinator.kt` 组装 edge-to-edge、Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host，`loadUrl` 前安装 Bridge。
 - `WineStockApplication.kt` 在进程创建时初始化唯一 `LocalCoreRuntimeManager`；Activity 重建不替换 core runtime，Activity 生命周期不触发 shutdown。
 - `core/LocalCoreRuntimeManager.kt`：单线程后台 executor 串行执行 JNI、配置校验、启动/停止/重启和 SharedPreferences 提交。缺少持久配置时只发布 `initialized=false` 且不启动本地 HTTP 服务；首次确认 `self-hosted` 用端口 `0` 请求系统分配并把实际端口写回持久化，已保存端口冲突时仅 `self-hosted` 自动重试一次；候选配置先激活后提交，失败时恢复旧服务。
 - `core/` 其余模块：安全幂等加载 `.so` 并封装 native protocol v1 调用（load/JNI 失败映射 `native_library_unavailable`，不在类初始化时崩溃）；编解码请求/响应并拒绝协议版本不匹配，校验 `running` 状态发布的是同一非零实际端口；存储固定使用 `noBackupFilesDir/winestock/data`。
@@ -24,7 +24,7 @@
 
 - 资源加载：`WebViewAssetLoader` 把受信任 origin 根路径映射到 `assets/frontend`，根路径回退 `index.html`，不做 SPA 回退（前端使用 hash 路由）；`ShellWebViewConfigurator.kt` 集中 WebView 配置。
 - 摄像头授权：`WebViewCameraPermissionHost.kt` 处理 `onPermissionRequest`——仅受信任 origin 的 VIDEO_CAPTURE 且原生 CAMERA 运行时权限获准后才 grant，权限未授时经 Activity launcher 请求后结算，其余来源与资源一律 deny；manifest 声明 `CAMERA` 并以 `uses-feature required=false` 保持无摄像头设备可安装。
-- 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏浅色/深色外观经独立 JS 接口控制，resume 时重放。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时给内容根布局加底部 padding 压缩 WebView 视口（Chromium 自行滚动聚焦输入框），期间安全区底边发布为 0。
+- 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏在前端接管前跟随系统 day/night mode，之后由独立 JS 接口接收主题基线与临时覆盖并在 resume 时重放。Activity 根 `ProtectionLayout` 在透明底部系统栏下绘制主题相关 `ColorProtection`，不依赖系统自动 contrast scrim。应用主题的 `android:isLightTheme` 同样按 day/night 切换以驱动 WebView `prefers-color-scheme`，WebView 算法着色关闭，页面颜色只归前端双主题 CSS 所有。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时给内容根布局加底部 padding 压缩 WebView 视口（Chromium 自行滚动聚焦输入框），期间安全区底边发布为 0。
 - 文件选择：单 pending 回调的纯状态机 Session（supersede/cancel/destroy 一次结算，JVM 单元测试覆盖竞态）加启动系统选择器的 Host；不声明存储/媒体权限。
 - `SplashFrontendGate.kt`：SplashScreen keep-on-screen 与超时/前端 ready 门闩。
 
@@ -38,8 +38,8 @@
 
 ## 资源与配置
 
-- `res/`：全屏 WebView 布局、Window/SplashScreen 背景（系统 night mode 下仍保持浅色）、放行明文流量的 network security config。
-- `AndroidManifest.xml`：仅 `INTERNET` 权限；文件选择走系统选择器。
+- `res/`：全屏 WebView 布局、按系统 day/night mode 区分的 Window/SplashScreen 背景与系统栏图标布尔资源、放行明文流量的 network security config。
+- `AndroidManifest.xml`：声明 `INTERNET` 与扫码所需的可选 `CAMERA` 能力，唯一 Activity 原地处理 `uiMode`；文件选择走系统选择器。
 - `app/build/` 下的前端中间输出与 generated assets 由 Gradle 生成和清理。
 
 ## 启动流程

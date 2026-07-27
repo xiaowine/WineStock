@@ -25,11 +25,11 @@
   background: var(--color-surface-raised);
   color: var(--color-muted);
   font-size: 12px;
-}
 
-.content-summary strong {
-  color: var(--color-text);
-  font-weight: 700;
+  strong {
+    color: var(--color-text);
+    font-weight: 700;
+  }
 }
 
 .route-page {

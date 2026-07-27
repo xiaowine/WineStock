@@ -175,7 +175,7 @@
   z-index: 3;
   border-right: 1px solid var(--color-border-strong);
   background: var(--user-row-background, var(--color-surface-raised));
-  box-shadow: inset -7px 0 8px -8px rgb(23 32 42 / 35%);
+  box-shadow: var(--shadow-fixed-inset-right);
 }
 
 .users-table__fixed-end {
@@ -184,7 +184,7 @@
   z-index: 3;
   border-left: 1px solid var(--color-border-strong);
   background: var(--user-row-background, var(--color-surface-raised));
-  box-shadow: inset 7px 0 8px -8px rgb(23 32 42 / 35%);
+  box-shadow: var(--shadow-fixed-inset-left);
 }
 
 .users-table__header .users-table__fixed-start,
@@ -280,7 +280,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
-    box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
+    box-shadow: var(--shadow-subtle);
   }
 
   .user-mobile-item > header {

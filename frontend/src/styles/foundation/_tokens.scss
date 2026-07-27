@@ -1,31 +1,206 @@
-/* 本文件拥有 frontend 运行时视觉、尺寸和动效 token，属于基础样式层，不定义具体组件布局。 */
-:root {
+/* 本文件拥有 frontend 浅色/深色运行时视觉、尺寸和动效 token，属于基础样式层，不定义具体组件布局。 */
+@use "sass:map";
+
+$theme-light: (
+  "color-page": #f4f5f7,
+  "color-surface": #ffffff,
+  "color-surface-raised": #f7f8fa,
+  "color-surface-subtle": #f1f3f5,
+  "color-text": #17202a,
+  "color-muted": #59636f,
+  "color-subtle": #646e79,
+  "color-border": #dfe4e9,
+  "color-border-strong": #7f8993,
+  "color-accent": #6f2a36,
+  "color-accent-strong": #551f29,
+  "color-accent-soft": #f4e9eb,
+  "color-on-accent": #ffffff,
+  "color-nav": #f3f5f7,
+  "color-nav-raised": #ffffff,
+  "color-nav-text": #27313b,
+  "color-nav-muted": #717b86,
+  "color-nav-border": #d8dee5,
+  "color-nav-active": #ffffff,
+  "color-teal": #1d625b,
+  "color-teal-soft": #edf6f4,
+  "color-success": #2e6b47,
+  "color-success-soft": #eaf4ed,
+  "color-warn": #8a5a12,
+  "color-warn-soft": #fbf1df,
+  "color-danger": #9d2832,
+  "color-danger-soft": #f9e6e8,
+  "color-on-danger": #ffffff,
+  "color-row-hover": rgb(23 32 42 / 5%),
+  "color-row-hover-soft": rgb(23 32 42 / 4%),
+  "color-row-selected": #f4e9eb,
+  "color-focus-ring": rgb(111 42 54 / 24%),
+  "color-focus-ring-soft": rgb(111 42 54 / 14%),
+  "color-focus-ring-strong": rgb(111 42 54 / 38%),
+  "color-danger-ring": rgb(157 40 50 / 16%),
+  "color-danger-ring-soft": rgb(157 40 50 / 10%),
+  "color-accent-border": rgb(111 42 54 / 28%),
+  "color-accent-border-soft": rgb(111 42 54 / 18%),
+  "color-danger-border": rgb(157 40 50 / 20%),
+  "color-danger-border-strong": rgb(157 40 50 / 28%),
+  "color-warn-border": rgb(138 90 18 / 24%),
+  "color-warn-border-soft": rgb(138 90 18 / 22%),
+  "color-teal-border-soft": rgb(29 98 91 / 16%),
+  "color-overlay": rgb(23 32 42 / 42%),
+  "color-overlay-nested": rgb(23 32 42 / 20%),
+  "color-backdrop": rgb(23 32 42 / 38%),
+  "color-surface-translucent": rgb(255 255 255 / 96%),
+  "color-topbar": #fbfbfc,
+  "color-topbar-translucent": rgb(251 251 252 / 94%),
+  "color-avatar-active": #ecdadd,
+  "color-network-grid": rgb(89 99 111 / 10%),
+  "color-network-label-surface": rgb(255 255 255 / 90%),
+  "color-network-node-center": rgb(255 255 255 / 94%),
+  "shadow-menu": 0 16px 40px rgb(23 32 42 / 16%),
+  "shadow-service-status": 0 4px 16px rgb(0 0 0 / 12%),
+  "shadow-subtle": 0 1px 2px rgb(23 32 42 / 5%),
+  "shadow-subtle-strong": 0 1px 2px rgb(23 32 42 / 10%),
+  "shadow-topbar": 0 1px 10px rgb(23 32 42 / 4%),
+  "shadow-sticky": 0 -8px 24px rgb(23 32 42 / 8%),
+  "shadow-sticky-soft": 0 -6px 18px rgb(23 32 42 / 6%),
+  "shadow-fixed-left": 5px 0 8px -8px rgb(23 32 42 / 35%),
+  "shadow-fixed-right": -5px 0 8px -8px rgb(23 32 42 / 35%),
+  "shadow-fixed-inset-left": inset 7px 0 8px -8px rgb(23 32 42 / 35%),
+  "shadow-fixed-inset-right": inset -7px 0 8px -8px rgb(23 32 42 / 35%),
+  "shadow-network-node": drop-shadow(0 2px 4px rgb(23 32 42 / 10%)),
+  "shadow-network-node-selected": drop-shadow(0 0 7px rgb(111 42 54 / 25%)),
+  "scrollbar-thumb": rgb(89 99 111 / 42%),
+  "scrollbar-thumb-navigation": rgb(89 99 111 / 72%),
+  "scrollbar-thumb-hover": rgb(89 99 111 / 62%),
+  "scrollbar-thumb-active": rgb(111 42 54 / 68%),
+  "network-node-1-soft": #f3e8ea,
+  "network-node-1-strong": #8b4753,
+  "network-node-2-soft": #e8f0f5,
+  "network-node-2-strong": #4d7087,
+  "network-node-3-soft": #e8f3ee,
+  "network-node-3-strong": #4f7663,
+  "network-node-4-soft": #f4eee4,
+  "network-node-4-strong": #8a6a3f,
+  "network-node-5-soft": #eeeaf5,
+  "network-node-5-strong": #6f5a8d,
+  "network-node-6-soft": #f2e9e3,
+  "network-node-6-strong": #8a5d46,
+  "network-node-7-soft": #e7f1f1,
+  "network-node-7-strong": #467777,
+);
+
+$theme-dark: (
+  "color-page": #111316,
+  "color-surface": #191c20,
+  "color-surface-raised": #21252a,
+  "color-surface-subtle": #272c32,
+  "color-text": #edf0f2,
+  "color-muted": #b3bbc4,
+  "color-subtle": #8b95a1,
+  "color-border": #343a42,
+  "color-border-strong": #6e7984,
+  "color-accent": #d48b98,
+  "color-accent-strong": #e1a0ab,
+  "color-accent-soft": #352429,
+  "color-on-accent": #271116,
+  "color-nav": #15181c,
+  "color-nav-raised": #1d2126,
+  "color-nav-text": #dce1e5,
+  "color-nav-muted": #9aa3ad,
+  "color-nav-border": #2e343b,
+  "color-nav-active": #252a30,
+  "color-teal": #79c7bc,
+  "color-teal-soft": #19312e,
+  "color-success": #78c993,
+  "color-success-soft": #1b3124,
+  "color-warn": #e0b46c,
+  "color-warn-soft": #352c1e,
+  "color-danger": #ef8f96,
+  "color-danger-soft": #3a2225,
+  "color-on-danger": #2b1114,
+  "color-row-hover": rgb(237 240 242 / 7%),
+  "color-row-hover-soft": rgb(237 240 242 / 5%),
+  "color-row-selected": #352429,
+  "color-focus-ring": rgb(212 139 152 / 38%),
+  "color-focus-ring-soft": rgb(212 139 152 / 28%),
+  "color-focus-ring-strong": rgb(212 139 152 / 52%),
+  "color-danger-ring": rgb(239 143 150 / 32%),
+  "color-danger-ring-soft": rgb(239 143 150 / 22%),
+  "color-accent-border": rgb(212 139 152 / 42%),
+  "color-accent-border-soft": rgb(212 139 152 / 30%),
+  "color-danger-border": rgb(239 143 150 / 34%),
+  "color-danger-border-strong": rgb(239 143 150 / 48%),
+  "color-warn-border": rgb(224 180 108 / 40%),
+  "color-warn-border-soft": rgb(224 180 108 / 32%),
+  "color-teal-border-soft": rgb(121 199 188 / 30%),
+  "color-overlay": rgb(0 0 0 / 68%),
+  "color-overlay-nested": rgb(0 0 0 / 50%),
+  "color-backdrop": rgb(0 0 0 / 62%),
+  "color-surface-translucent": rgb(25 28 32 / 96%),
+  "color-topbar": #171a1e,
+  "color-topbar-translucent": rgb(23 26 30 / 94%),
+  "color-avatar-active": #4a2d34,
+  "color-network-grid": rgb(179 187 196 / 14%),
+  "color-network-label-surface": rgb(33 37 42 / 94%),
+  "color-network-node-center": rgb(25 28 32 / 96%),
+  "shadow-menu": 0 16px 40px rgb(0 0 0 / 52%),
+  "shadow-service-status": 0 4px 16px rgb(0 0 0 / 42%),
+  "shadow-subtle": 0 1px 2px rgb(0 0 0 / 32%),
+  "shadow-subtle-strong": 0 1px 2px rgb(0 0 0 / 46%),
+  "shadow-topbar": 0 1px 10px rgb(0 0 0 / 36%),
+  "shadow-sticky": 0 -8px 24px rgb(0 0 0 / 42%),
+  "shadow-sticky-soft": 0 -6px 18px rgb(0 0 0 / 36%),
+  "shadow-fixed-left": 5px 0 8px -8px rgb(0 0 0 / 78%),
+  "shadow-fixed-right": -5px 0 8px -8px rgb(0 0 0 / 78%),
+  "shadow-fixed-inset-left": inset 7px 0 8px -8px rgb(0 0 0 / 78%),
+  "shadow-fixed-inset-right": inset -7px 0 8px -8px rgb(0 0 0 / 78%),
+  "shadow-network-node": drop-shadow(0 2px 4px rgb(0 0 0 / 45%)),
+  "shadow-network-node-selected": drop-shadow(0 0 7px rgb(212 139 152 / 40%)),
+  "scrollbar-thumb": rgb(179 187 196 / 42%),
+  "scrollbar-thumb-navigation": rgb(179 187 196 / 64%),
+  "scrollbar-thumb-hover": rgb(179 187 196 / 62%),
+  "scrollbar-thumb-active": rgb(212 139 152 / 74%),
+  "network-node-1-soft": #3a252b,
+  "network-node-1-strong": #dfa0ab,
+  "network-node-2-soft": #20313b,
+  "network-node-2-strong": #91b9d0,
+  "network-node-3-soft": #20342b,
+  "network-node-3-strong": #92c4a8,
+  "network-node-4-soft": #392f22,
+  "network-node-4-strong": #d1ad75,
+  "network-node-5-soft": #30293c,
+  "network-node-5-strong": #b8a5dc,
+  "network-node-6-soft": #392a23,
+  "network-node-6-strong": #d1a185,
+  "network-node-7-soft": #203435,
+  "network-node-7-strong": #8fc5c5,
+);
+
+@mixin emit-theme($theme) {
+  @each $name in map.keys($theme) {
+    --#{$name}: #{map.get($theme, $name)};
+  }
+}
+
+:root,
+:root[data-theme="light"] {
+  @include emit-theme($theme-light);
   color-scheme: light;
+}
 
-  --color-page: #f4f5f7;
-  --color-surface: #ffffff;
-  --color-surface-raised: #f7f8fa;
-  --color-text: #17202a;
-  --color-muted: #59636f;
-  --color-subtle: #858e99;
-  --color-border: #dfe4e9;
-  --color-border-strong: #c8d0d8;
-  --color-accent: #6f2a36;
-  --color-accent-strong: #551f29;
-  --color-accent-soft: #f4e9eb;
-  --color-nav: #f3f5f7;
-  --color-nav-raised: #ffffff;
-  --color-nav-text: #27313b;
-  --color-nav-muted: #717b86;
-  --color-nav-border: #d8dee5;
-  --color-nav-active: #ffffff;
-  --color-teal: #1d625b;
-  --color-teal-soft: #edf6f4;
-  --color-warn: #8a5a12;
-  --color-warn-soft: #fbf1df;
-  --color-danger: #9d2832;
-  --color-danger-soft: #f9e6e8;
+:root[data-theme="dark"] {
+  @include emit-theme($theme-dark);
+  color-scheme: dark;
+}
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]),
+  :root[data-theme="system"] {
+    @include emit-theme($theme-dark);
+    color-scheme: dark;
+  }
+}
+
+:root {
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -33,12 +208,8 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-  --shadow-menu: 0 16px 40px rgb(23 32 42 / 16%);
 
   --scrollbar-size: 8px;
-  --scrollbar-thumb: rgb(89 99 111 / 42%);
-  --scrollbar-thumb-hover: rgb(89 99 111 / 62%);
-  --scrollbar-thumb-active: rgb(111 42 54 / 68%);
 
   --motion-duration-fast: 120ms;
   --motion-duration-standard: 160ms;

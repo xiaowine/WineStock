@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WebView 用该主题属性解析 prefers-color-scheme。 -->
+    <bool name="app_is_light_theme">true</bool>
+    <!-- 前端脚本接管前，浅色启动表面使用深色系统栏图标。 -->
+    <bool name="window_light_system_bars">true</bool>
+</resources>

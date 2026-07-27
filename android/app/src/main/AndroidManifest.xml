@@ -24,6 +24,7 @@
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
+            android:configChanges="uiMode"
             android:exported="true"
             android:theme="@style/Theme.WineStock.Splash"
             android:windowSoftInputMode="adjustResize">
