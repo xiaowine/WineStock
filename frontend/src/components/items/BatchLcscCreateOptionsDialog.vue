@@ -8,6 +8,7 @@
     title="批量创建选项"
     :description="`将为 ${count} 个未匹配编号自动查询立创资料并创建物品，全部使用以下设置。`"
     compact
+    nested
     @close="emit('close')"
   >
     <div class="batch-create-options">

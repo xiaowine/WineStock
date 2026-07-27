@@ -1,4 +1,5 @@
 // 本文件拥有移动与触控视口的全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
+// 滑块挂在 Dialog 之上的固定层以保证可见；嵌套 Dialog 打开时隐藏被遮挡宿主的滑块，避免下层滑块穿透。
 
 type ScrollAxis = "vertical" | "horizontal";
 
@@ -211,7 +212,16 @@ function updateEntryPositions(): void {
   refreshFrame = 0;
   if (!activeMediaQuery?.matches) return;
 
+  // modal-layer 为全屏遮罩；只保留最顶层 Dialog 内的滑块，避免下层列表滑块穿透。
+  const topModal = findTopmostModalLayer();
+
   for (const entry of entries.values()) {
+    if (isObscuredByModal(entry.element, topModal)) {
+      hideThumb(entry.verticalThumb);
+      hideThumb(entry.horizontalThumb);
+      continue;
+    }
+
     const rect = getVisibleRect(entry.element);
     if (!rect || rect.width < MIN_THUMB_LENGTH || rect.height < MIN_THUMB_LENGTH) {
       hideThumb(entry.verticalThumb);
@@ -351,13 +361,54 @@ function getVisibleRect(element: HTMLElement): VisibleRect | null {
   return { bottom, height: bottom - top, left, right, top, width: right - left };
 }
 
-function getOverlayZIndex(element: HTMLElement): number {
-  let highestZIndex = 18;
+/** 读取宿主及其定位祖先中的最高 z-index；无定位上下文时为 0。 */
+function getHostStackingZIndex(element: HTMLElement): number {
+  let highestZIndex = 0;
   for (let current: HTMLElement | null = element; current; current = current.parentElement) {
     const zIndex = Number.parseInt(window.getComputedStyle(current).zIndex, 10);
     if (Number.isFinite(zIndex)) highestZIndex = Math.max(highestZIndex, zIndex);
   }
-  return Math.min(99, highestZIndex + 1);
+  return highestZIndex;
+}
+
+/**
+ * 滑块根层已在 --z-dialog-popover；此处只在同层内区分宿主优先级
+ * （例如侧栏 / Dialog 内列表），默认略高于普通文档流。
+ */
+function getOverlayZIndex(element: HTMLElement): number {
+  return Math.min(99, Math.max(18, getHostStackingZIndex(element)) + 1);
+}
+
+/** 按 z-index 与 DOM 顺序取当前最顶层的全屏 Dialog 遮罩。 */
+function findTopmostModalLayer(): HTMLElement | null {
+  let top: HTMLElement | null = null;
+  let topZ = Number.NEGATIVE_INFINITY;
+  for (const modal of document.querySelectorAll<HTMLElement>(".modal-layer")) {
+    const zIndex = Number.parseInt(window.getComputedStyle(modal).zIndex, 10);
+    const resolved = Number.isFinite(zIndex) ? zIndex : 0;
+    // querySelectorAll 为树序；同等 z-index 时后挂载的 Dialog 胜出。
+    if (resolved >= topZ) {
+      top = modal;
+      topZ = resolved;
+    }
+  }
+  return top;
+}
+
+/**
+ * 判断滚动宿主是否被顶层 Dialog 遮挡。
+ *
+ * - 顶层 modal-layer 内部的列表：保留滑块
+ * - 页面或下层 Dialog 内容：隐藏滑块（根层 z-index 高于 Dialog，不隐藏会穿透）
+ * - Teleport 到 body 且 z-index 高于顶层 Dialog 的浮层（如下拉选项）：保留滑块
+ */
+function isObscuredByModal(element: HTMLElement, topModal: HTMLElement | null): boolean {
+  if (!topModal) return false;
+  if (topModal.contains(element)) return false;
+
+  const modalZ = Number.parseInt(window.getComputedStyle(topModal).zIndex, 10);
+  const resolvedModalZ = Number.isFinite(modalZ) ? modalZ : 0;
+  return getHostStackingZIndex(element) <= resolvedModalZ;
 }
 
 function hideThumb(thumb?: HTMLDivElement): void {

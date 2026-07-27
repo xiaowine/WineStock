@@ -170,7 +170,9 @@ h3 {
   }
 }
 
-/* 原生槽位隐藏后，由启动层把可见滑块覆盖在真实滚动宿主边缘。 */
+/* 原生槽位隐藏后，由启动层把可见滑块覆盖在真实滚动宿主边缘。
+ * 根节点保持在 Dialog 之上、Notice 之下，保证滑块始终可见可点；
+ * 嵌套 Dialog 穿透由 JS 隐藏被遮挡宿主的滑块处理，而不是再压低整层。 */
 .app-overlay-scrollbars {
   position: fixed;
   z-index: var(--z-dialog-popover);
