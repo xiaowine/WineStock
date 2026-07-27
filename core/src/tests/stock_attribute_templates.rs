@@ -56,10 +56,18 @@ async fn category_and_item_template_are_independent() {
 
     let categories = authorized_empty(&app, "GET", "/api/item-categories", token).await;
     let categories: Vec<ItemCategoryResponse> = json_body(categories).await;
+    assert_eq!(
+        categories.first().map(|entry| entry.name.as_str()),
+        Some("元器件")
+    );
     assert!(categories.iter().any(|entry| entry.id == category.id));
     let item_templates: Vec<ItemAttributeTemplateResponse> =
         json_body(authorized_empty(&app, "GET", "/api/item-attribute-templates", token).await)
             .await;
+    assert_eq!(
+        item_templates.first().map(|entry| entry.name.as_str()),
+        Some("元器件属性")
+    );
     assert_eq!(
         item_templates
             .iter()

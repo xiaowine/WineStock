@@ -124,7 +124,7 @@ export function getReachableDownstreamNodeIds(
   return visited;
 }
 
-/** 按名称、SKU 和连接度搜索网络节点。 */
+/** 按名称、编号和连接度搜索网络节点。 */
 export function searchSubstituteNetworkNodes(
   graph: SubstituteNetworkGraph,
   search: string,

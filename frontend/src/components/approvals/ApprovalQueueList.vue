@@ -27,6 +27,8 @@
             :alt="`${firstItem(record).item_name} 主图`"
             :size="38"
             previewable
+            @click.stop
+            @keydown.stop
           />
           <div>
             <strong>{{ firstItem(record).item_name }}</strong
@@ -63,6 +65,7 @@
       tabindex="0"
       @click="emit('open', record)"
       @keydown.enter="emit('open', record)"
+      @keydown.space.prevent="emit('open', record)"
     >
       <header>
         <strong>{{ orderLabel(record) }} #{{ record.order.id }}</strong
@@ -92,6 +95,8 @@
           :alt="`${firstItem(record).item_name} 主图`"
           :size="38"
           previewable
+          @click.stop
+          @keydown.stop
         />
         <div>
           <strong>{{ firstItem(record).item_name }}</strong

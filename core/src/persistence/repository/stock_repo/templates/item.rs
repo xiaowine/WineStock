@@ -123,13 +123,12 @@ where
             .is_some())
     }
 
-    /// 查询全部有效物品属性模板及预设字段。
+    /// 查询全部有效物品属性模板及预设字段，并保持创建顺序。
     pub(crate) async fn list_active_item_attribute_templates(
         &self,
     ) -> Result<Vec<ItemAttributeTemplateDetail>, DbErr> {
         let templates = item_attribute_template::Entity::find()
             .filter(item_attribute_template::Column::DeletedAt.is_null())
-            .order_by_asc(item_attribute_template::Column::Name)
             .order_by_asc(item_attribute_template::Column::Id)
             .all(self.database)
             .await?;

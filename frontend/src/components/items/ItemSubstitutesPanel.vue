@@ -124,7 +124,7 @@
                 >
                 <dl class="item-substitutes-panel__relation-identity-meta">
                   <div>
-                    <dt>SKU</dt>
+                    <dt>编号</dt>
                     <dd :title="draft.sku">{{ draft.sku }}</dd>
                   </div>
                   <div>

@@ -2,13 +2,21 @@
   本组件拥有全局替代关系组的三段式和移动呈现；它只展示服务端真实字段并发出查看事件。
 -->
 <template>
-  <article class="substitute-relation-group" role="row">
+  <article
+    class="substitute-relation-group"
+    role="row"
+    tabindex="0"
+    :aria-label="`查看 ${group.itemName} 的替代关系`"
+    @click="emit('open', group)"
+    @keydown.enter.self="emit('open', group)"
+    @keydown.space.self.prevent="emit('open', group)"
+  >
     <div class="substitute-relation-group__identity" role="cell">
       <span class="substitute-relation-group__direction">主物品 → 替代物品</span>
       <strong :title="group.itemName">{{ group.itemName }}</strong>
       <dl>
         <div>
-          <dt>SKU</dt>
+          <dt>编号</dt>
           <dd :title="group.itemSku">{{ group.itemSku }}</dd>
         </div>
         <div>
@@ -25,7 +33,7 @@
           group.firstSubstitute.substitute_item_name
         }}</strong>
         <small :title="group.firstSubstitute.substitute_item_sku">
-          优先级 {{ group.firstSubstitute.priority }} · SKU
+          优先级 {{ group.firstSubstitute.priority }} · 编号
           {{ group.firstSubstitute.substitute_item_sku }}
         </small>
       </div>
@@ -44,7 +52,7 @@
         type="button"
         title="查看替代关系"
         :aria-label="`查看 ${group.itemName} 的替代关系`"
-        @click="emit('open', group)"
+        @click.stop="emit('open', group)"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="8" />

@@ -48,6 +48,16 @@
                 <path d="M18.2 16a7 7 0 1 1 .8-7l1 3" />
               </svg>
             </button>
+            <button
+              v-if="canCreate"
+              class="icon-button icon-button--primary inbound-orders-toolbar__create"
+              type="button"
+              title="新建出库"
+              aria-label="新建出库"
+              @click="router.push({ name: 'outbound' })"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -86,6 +96,8 @@
                     :alt="`${o.items[0].item_name} 主图`"
                     :size="34"
                     previewable
+                    @click.stop
+                    @keydown.stop
                   />
                   <div>
                     <strong>{{ o.items[0].item_name }}</strong
@@ -114,6 +126,48 @@
                     <path d="M12 11v5M12 8h.01" />
                   </svg>
                 </button>
+              </div>
+            </article>
+          </div>
+          <div class="inbound-orders-mobile-list" role="list">
+            <article
+              v-for="o in orders"
+              :key="`mobile-${o.id}`"
+              class="inbound-orders-mobile-list__item"
+              role="listitem"
+              tabindex="0"
+              @click="open(o)"
+              @keydown.enter="open(o)"
+              @keydown.space.prevent="open(o)"
+            >
+              <header>
+                <strong>出库单 #{{ o.id }}</strong>
+                <span class="inbound-status" :class="`inbound-status--${o.status}`">{{
+                  label(o.status)
+                }}</span>
+              </header>
+              <p class="inbound-orders-mobile-list__source">{{ o.destination }}</p>
+              <time :datetime="o.created_at">{{ date(o.created_at) }}</time>
+              <div class="inbound-orders-mobile-list__item-summary">
+                <AuthenticatedImage
+                  :file-id="o.items[0].item_image_file_id"
+                  :alt="`${o.items[0].item_name} 主图`"
+                  :size="38"
+                  previewable
+                  @click.stop
+                  @keydown.stop
+                />
+                <div>
+                  <strong>{{ o.items[0].item_name }}</strong>
+                  <small
+                    >{{ o.items[0].item_sku }} · {{ o.items[0].quantity }} {{ o.items[0].item_unit
+                    }}{{ o.items.length > 1 ? ` · 等 ${o.items.length} 项` : "" }}</small
+                  >
+                </div>
+              </div>
+              <div class="inbound-orders-mobile-list__metrics">
+                <span>{{ o.items.length }} 条明细</span>
+                <strong>{{ statusTime(o) ? date(statusTime(o)!) : "库存未扣减" }}</strong>
               </div>
             </article>
           </div>
@@ -224,6 +278,7 @@ import OutboundOrderFiltersDialog, {
   type OutboundOrderFilterValue,
 } from "../components/outbound/OutboundOrderFiltersDialog.vue";
 import SearchField from "../components/SearchField.vue";
+import "../components/inbound/InboundOrderList.scss";
 import "./InboundOrdersPage.scss";
 const route = useRoute(),
   router = useRouter(),

@@ -278,20 +278,12 @@
     &__header {
       min-height: 40px;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 12px;
     }
 
     &__heading {
-      min-width: 0;
-
-      h1 {
-        display: none;
-      }
-
-      p {
-        margin-top: 0;
-      }
+      display: none;
     }
 
     &__refresh {

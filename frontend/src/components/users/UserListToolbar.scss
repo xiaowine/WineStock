@@ -151,40 +151,68 @@
 
 @include mixins.mobile {
   .user-list-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px 0;
-  }
-
-  .user-list-toolbar__filters {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+    grid-template-areas:
+      "search search refresh create"
+      "status status count count";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) repeat(2, 40px);
+    align-items: end;
+    gap: 6px;
+    padding: 8px 0 10px;
+
+    &--readonly {
+      grid-template-areas:
+        "search search search refresh"
+        "status status count count";
+    }
+  }
+
+  .user-list-toolbar__filters,
+  .user-list-toolbar__meta,
+  .user-list-toolbar__actions {
+    display: contents;
   }
 
   .user-list-toolbar__search {
-    grid-column: 1 / -1;
-  }
-
-  .user-list-toolbar__search {
+    grid-area: search;
     width: auto;
     min-width: 0;
-    flex: 1 1 auto;
   }
 
   .user-list-toolbar__status {
-    width: 150px;
+    grid-area: status;
+    width: auto;
     min-width: 0;
-    flex-basis: 150px;
   }
 
-  .user-list-toolbar__meta {
-    justify-content: space-between;
-    padding-top: 10px;
-    padding-left: 0;
-    border-top: 1px solid var(--color-border);
-    border-left: 0;
+  .user-list-toolbar__search > span:first-child,
+  .user-list-toolbar__status > span:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    margin: -1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .user-list-toolbar__count {
+    grid-area: count;
+    display: flex;
+    min-width: 0;
+    min-height: 40px;
+    align-items: center;
+    justify-self: end;
+  }
+
+  .user-list-toolbar__refresh {
+    grid-area: refresh;
+  }
+
+  .user-list-toolbar__create {
+    grid-area: create;
   }
 
   .user-list-toolbar__refresh-status {

@@ -105,9 +105,15 @@
 }
 
 .inbound-step__header > .inbound-step__actions {
-  display: flex;
+  display: grid;
+  width: min(100%, 356px);
+  grid-template-columns: 40px 40px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+}
+
+.stock-draft-page--outbound .inbound-step__actions {
+  grid-template-columns: 40px minmax(0, 1fr);
 }
 
 .inbound-step__header h2 {
@@ -127,6 +133,113 @@
 
 .inbound-add-item-button {
   flex: 0 0 auto;
+}
+
+.inbound-import-actions {
+  position: relative;
+  display: block;
+  width: 40px;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.inbound-import-action--desktop {
+  display: none;
+}
+
+.inbound-import-menu__trigger {
+  display: grid;
+  width: 40px;
+  height: 40px;
+
+  svg {
+    @include mixins.svg-icon;
+  }
+}
+
+.inbound-import-menu {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  width: 176px;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-menu);
+
+  button {
+    min-height: 40px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text);
+    font-size: 13px;
+    text-align: left;
+  }
+
+  button:hover {
+    background: var(--color-surface-raised);
+  }
+
+  button:focus-visible {
+    @include mixins.focus-ring;
+  }
+}
+
+.inbound-scan-button {
+  width: 40px !important;
+  height: 40px;
+  min-height: 40px;
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0;
+
+  span {
+    display: none;
+  }
+
+  svg {
+    @include mixins.svg-icon;
+    display: block;
+  }
+}
+
+.stock-draft-page--outbound .inbound-scan-button {
+  grid-column: 1;
+}
+
+.inbound-select-item-button {
+  min-height: 40px;
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.stock-draft-page--outbound .inbound-select-item-button {
+  grid-column: 2;
+}
+
+.inbound-batch-location-button {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
+
+.inbound-import-menu-enter-active,
+.inbound-import-menu-leave-active {
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+  transform-origin: top left;
+}
+
+.inbound-import-menu-enter-from,
+.inbound-import-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
 }
 
 /* 扫码来源提示条：出现在行编辑 Dialog 顶部，随入库域样式归本页所有。 */
@@ -794,6 +907,27 @@
   }
 }
 
+@include mixins.below(900px) {
+  .inbound-step__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .inbound-step__header > .inbound-step__actions {
+    display: grid;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+
+    .primary-button,
+    .secondary-button {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+}
+
 @include mixins.mobile {
   .inbound-draft-page {
     --inbound-mobile-actions-height: calc(65px + var(--safe-area-bottom));
@@ -801,7 +935,7 @@
     height: auto;
     min-height: 0;
     overflow: visible;
-    gap: 10px;
+    gap: 0;
     padding: 0 12px;
   }
 
@@ -869,7 +1003,12 @@
 
   .inbound-workspace {
     min-height: 0;
+    overflow: visible;
+    margin-right: -12px;
     margin-bottom: calc(var(--inbound-mobile-actions-height) + 6px);
+    margin-left: -12px;
+    border: 0;
+    border-radius: 0;
   }
 
   .inbound-step__header {
@@ -880,10 +1019,7 @@
   }
 
   .inbound-step__header p {
-    overflow: visible;
-    line-height: 1.45;
-    text-overflow: clip;
-    white-space: normal;
+    display: none;
   }
 
   .inbound-step__header .primary-button {
@@ -893,7 +1029,6 @@
 
   .inbound-step__header > .inbound-step__actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
 
     .primary-button,
@@ -902,6 +1037,13 @@
       min-width: 0;
       min-height: 42px;
     }
+  }
+
+  .inbound-step__header > .inbound-step__actions .inbound-import-menu__trigger,
+  .inbound-step__header > .inbound-step__actions .inbound-scan-button,
+  .inbound-step__header > .inbound-step__actions .inbound-select-item-button {
+    min-height: 40px;
+    height: 40px;
   }
 
   .inbound-order__body {
@@ -932,8 +1074,8 @@
     flex: 0 0 auto;
     max-height: none;
     overflow: visible;
-    padding: 10px 10px 0;
-    background: var(--color-surface);
+    padding: 8px 12px 12px;
+    background: var(--color-surface-subtle);
   }
 
   .inbound-lines table,
@@ -969,6 +1111,12 @@
     border-radius: var(--radius-md);
     background: var(--color-surface);
     box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
+    cursor: pointer;
+  }
+
+  .inbound-lines tbody tr:focus-visible {
+    outline: 3px solid rgb(111 42 54 / 16%);
+    outline-offset: 1px;
   }
 
   .inbound-lines tbody tr:hover,

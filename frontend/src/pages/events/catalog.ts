@@ -65,7 +65,7 @@ const fieldLabels: Readonly<Record<string, string>> = {
   reason: "原因",
   removed_substitute_item_ids: "移除替代物品",
   reorder_point: "补货点",
-  sku: "SKU",
+  sku: "编号",
   sort_order: "排序",
   source: "入库来源",
   source_template_id: "来源模板",

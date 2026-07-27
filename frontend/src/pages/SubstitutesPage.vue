@@ -6,20 +6,24 @@
   <section class="route-page substitutes-page">
     <header class="content-header substitutes-page__header">
       <div>
-        <h1>替代关系</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>从全局视角维护缺货时的替代顺序和兼容性说明。</p>
       </div>
     </header>
 
     <section class="substitutes-workspace" aria-label="替代关系列表">
-      <div class="substitutes-toolbar">
+      <div
+        class="substitutes-toolbar"
+        :class="{
+          'substitutes-toolbar--readonly': !(canManage && canReadItems),
+        }"
+      >
         <SearchField
           v-model="searchInput"
           class="substitutes-toolbar__search"
           label="搜索替代关系"
           name="substitute_relation_search"
-          placeholder="主物品、替代物品、SKU 或备注"
-          hide-label
+          placeholder="主物品、替代物品、编号或备注"
           :disabled="loading && !loaded"
           @search="applySearch"
         />
@@ -67,7 +71,7 @@
             </button>
             <button
               v-if="canManage && canReadItems"
-              class="icon-button icon-button--primary"
+              class="icon-button icon-button--primary substitutes-toolbar__create"
               type="button"
               title="新增替代关系"
               aria-label="新增替代关系"

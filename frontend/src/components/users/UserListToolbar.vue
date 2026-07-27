@@ -3,7 +3,11 @@
   它不请求用户 API，也不拥有分页、权限判断或创建用户流程。
 -->
 <template>
-  <section class="user-list-toolbar" aria-label="用户列表工具栏">
+  <section
+    class="user-list-toolbar"
+    :class="{ 'user-list-toolbar--readonly': !canRegister }"
+    aria-label="用户列表工具栏"
+  >
     <div class="user-list-toolbar__filters">
       <SearchField
         v-model="search"
@@ -12,7 +16,6 @@
         name="search"
         placeholder="搜索用户名"
         :maxlength="64"
-        hide-label
         @search="emit('search', $event)"
       />
 

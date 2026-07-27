@@ -3,7 +3,6 @@
 
 .templates-page {
   min-height: 0;
-  gap: 16px;
 
   &__header {
     flex: 0 0 auto;
@@ -20,11 +19,11 @@
 
 .templates-workspace {
   min-height: 0;
+  margin-top: 14px;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: var(--shadow-card);
 }
 
 .templates-tabs {
@@ -96,11 +95,21 @@
 
 .templates-toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 480px) 1fr;
-  gap: 18px;
-  align-items: center;
-  padding: 14px 16px;
+  grid-template-areas: "search commands";
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 12px;
   border-bottom: 1px solid var(--color-border);
+
+  &__search {
+    grid-area: search;
+    display: grid;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 650;
+  }
 
   &__commands,
   &__summary,
@@ -110,6 +119,7 @@
   }
 
   &__commands {
+    grid-area: commands;
     justify-content: flex-end;
     gap: 14px;
     min-width: 0;
@@ -132,6 +142,11 @@
 
     svg {
       @include mixins.svg-icon();
+    }
+
+    .icon-button {
+      width: 40px;
+      height: 40px;
     }
   }
 
@@ -726,6 +741,9 @@
 
 @include mixins.tablet(1100px) {
   .templates-toolbar {
+    grid-template-areas:
+      "search"
+      "commands";
     grid-template-columns: 1fr;
     gap: 10px;
 
@@ -816,30 +834,98 @@
   }
 
   .templates-workspace {
+    margin-top: 0;
     overflow: visible;
-    border-right: 0;
-    border-left: 0;
+    border: 0;
     border-radius: 0;
   }
 
   .templates-tabs {
+    gap: 0;
+    padding: 0;
+    overflow: visible;
+    background: var(--color-surface);
+
     button {
+      position: relative;
       flex: 1 0 auto;
       min-width: max-content;
-      padding: 0 12px;
+      min-height: 46px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+
+      &::after {
+        position: absolute;
+        right: 24px;
+        bottom: -1px;
+        left: 24px;
+        height: 2px;
+        border-radius: 2px 2px 0 0;
+        background: transparent;
+        content: "";
+      }
+
+      &[aria-selected="true"] {
+        border: 0;
+        background: transparent;
+
+        &::after {
+          background: var(--color-accent);
+        }
+      }
     }
   }
 
   .templates-toolbar {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 12px;
+    grid-template-areas:
+      "search search refresh create"
+      "summary summary summary summary";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) repeat(2, 40px);
+    gap: 6px;
+    padding: 8px 0 10px;
 
-    &__commands {
-      justify-content: flex-end;
+    &--readonly {
+      grid-template-areas:
+        "search search search refresh"
+        "summary summary summary summary";
     }
+
+    &__search {
+      grid-area: search;
+    }
+
+    &__search > span:first-child {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      border: 0;
+      margin: -1px;
+      clip-path: inset(50%);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    &__commands,
+    &__actions {
+      display: contents;
+    }
+
     &__summary {
-      margin-right: auto;
+      grid-area: summary;
+      min-height: 18px;
+      justify-self: start;
+      margin-right: 0;
+    }
+
+    &__refresh {
+      grid-area: refresh;
+    }
+
+    &__create {
+      grid-area: create;
     }
   }
 
@@ -852,9 +938,10 @@
 
   .templates-table {
     display: grid;
-    gap: 10px;
-    padding: 10px;
-    background: var(--color-surface-raised);
+    gap: 8px;
+    margin: 0 -12px;
+    padding: 8px 12px 12px;
+    background: var(--color-surface-subtle);
 
     &__head {
       display: none;

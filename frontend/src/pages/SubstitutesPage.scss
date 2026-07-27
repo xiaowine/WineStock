@@ -3,7 +3,6 @@
 
 .substitutes-page {
   min-height: 0;
-  gap: 14px;
 
   &__header {
     flex: 0 0 auto;
@@ -20,26 +19,32 @@
 .substitutes-workspace {
   display: flex;
   min-width: 0;
-  min-height: 0;
   flex: 1;
   flex-direction: column;
+  min-height: 560px;
+  margin-top: 14px;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
 .substitutes-toolbar {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  align-items: end;
+  gap: 14px;
+  padding: 12px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-raised);
+  background: var(--color-surface);
 
   &__search {
+    display: grid;
     width: min(100%, 560px);
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 650;
   }
 
   &__commands,
@@ -60,6 +65,11 @@
 
   &__actions {
     gap: 6px;
+
+    .icon-button {
+      width: 40px;
+      height: 40px;
+    }
   }
 
   &__count,
@@ -183,6 +193,24 @@
   }
 }
 
+@include mixins.tablet(980px) {
+  .substitutes-results {
+    overflow-x: hidden;
+  }
+
+  .substitutes-table {
+    display: grid;
+    min-width: 0;
+    padding: 12px;
+    gap: 10px;
+    background: var(--color-surface-raised);
+
+    &__head {
+      display: none;
+    }
+  }
+}
+
 @include mixins.mobile {
   .substitutes-page {
     gap: 0;
@@ -193,26 +221,72 @@
   }
 
   .substitutes-workspace {
+    min-height: 0;
+    margin-top: 0;
     border: 0;
     border-radius: 0;
   }
 
   .substitutes-toolbar {
-    gap: 9px;
-    padding: 10px 12px;
-    background: transparent;
+    grid-template-areas:
+      "search search refresh create"
+      "summary summary summary network";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) repeat(2, 40px);
+    gap: 6px;
+    padding: 8px 0 10px;
+    background: var(--color-surface);
 
-    &__commands {
-      justify-content: space-between;
+    &--readonly {
+      grid-template-areas:
+        "search search search refresh"
+        "summary summary summary network";
+    }
+
+    &__search {
+      grid-area: search;
+      width: 100%;
+    }
+
+    &__search > span:first-child {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      border: 0;
+      margin: -1px;
+      clip-path: inset(50%);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    &__commands,
+    &__actions {
+      display: contents;
     }
 
     &__summary {
+      grid-area: summary;
       min-width: 0;
+      min-height: 40px;
+      justify-self: start;
     }
 
     &__count {
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    &__refresh {
+      grid-area: refresh;
+    }
+
+    &__network {
+      grid-area: network;
+      justify-self: end;
+    }
+
+    &__create {
+      grid-area: create;
     }
   }
 
@@ -223,8 +297,10 @@
   .substitutes-table {
     display: grid;
     min-width: 0;
-    padding: 10px 12px;
+    margin: 0 -12px;
+    padding: 8px 12px 12px;
     gap: 8px;
+    background: var(--color-surface-subtle);
 
     &__head {
       display: none;

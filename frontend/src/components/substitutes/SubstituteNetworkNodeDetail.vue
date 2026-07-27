@@ -10,7 +10,7 @@
         <div class="substitute-network-detail__identity">
           <span>当前节点</span>
           <strong>{{ node.name }}</strong>
-          <small>SKU {{ node.sku }}</small>
+          <small>编号 {{ node.sku }}</small>
         </div>
         <div class="substitute-network-detail__metrics">
           <span

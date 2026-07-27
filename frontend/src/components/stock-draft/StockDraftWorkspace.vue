@@ -57,15 +57,20 @@
             <!-- 领域附加入口（如入库的订单导入）排在通用入口之前。 -->
             <slot name="actions" />
             <button
-              class="secondary-button inbound-add-item-button"
+              class="secondary-button inbound-add-item-button inbound-scan-button"
               type="button"
               title="扫描立创料袋二维码添加物品"
+              aria-label="扫码添加物品"
               @click="openScan"
             >
-              扫码添加
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M8 20H4v-4" />
+                <path d="M9 9h6v6H9z" />
+              </svg>
+              <span>扫码添加</span>
             </button>
             <button
-              class="primary-button inbound-add-item-button"
+              class="primary-button inbound-add-item-button inbound-select-item-button"
               type="button"
               title="选择物品并配置明细"
               @click="openPicker"
@@ -152,6 +157,10 @@
                   v-for="line in flow.lines.value"
                   :key="line.lineId"
                   :class="{ 'inbound-line--selected': selectedLineId === line.lineId }"
+                  tabindex="0"
+                  @click="selectLine(line.lineId)"
+                  @keydown.enter="selectLine(line.lineId)"
+                  @keydown.space.prevent="selectLine(line.lineId)"
                 >
                   <td data-label="物品">
                     <div class="inbound-line__identity">
@@ -160,6 +169,8 @@
                         :alt="line.item.name + ' 主图'"
                         :size="34"
                         previewable
+                        @click.stop
+                        @keydown.stop
                       />
                       <div>
                         <strong :title="line.item.name">{{ line.item.name }}</strong>
@@ -176,7 +187,7 @@
                         :data-line-action="line.lineId"
                         :aria-label="flow.lineEditLabel(line)"
                         :title="'编辑 ' + line.item.name"
-                        @click="selectLine(line.lineId)"
+                        @click.stop="selectLine(line.lineId)"
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                           <path d="m5 17-1 3 3-1L19 7l-2-2L5 17Z" />
@@ -190,7 +201,7 @@
                         data-field="remove"
                         :aria-label="'移除 ' + line.item.name"
                         :title="'移除 ' + line.item.name"
-                        @click="flow.removeLine(line.lineId)"
+                        @click.stop="flow.removeLine(line.lineId)"
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                           <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />

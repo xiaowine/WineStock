@@ -189,7 +189,16 @@
           </div>
 
           <div class="events-mobile-list">
-            <article v-for="event in events" :key="event.id" class="event-mobile-item">
+            <article
+              v-for="event in events"
+              :key="event.id"
+              class="event-mobile-item"
+              tabindex="0"
+              :aria-label="`查看事件 ${event.id} 详情`"
+              @click="selectedEvent = event"
+              @keydown.enter.self="selectedEvent = event"
+              @keydown.space.self.prevent="selectedEvent = event"
+            >
               <header>
                 <div>
                   <time :datetime="event.timestamp">{{
@@ -206,7 +215,7 @@
                   type="button"
                   title="查看操作详情"
                   :aria-label="`查看事件 ${event.id} 详情`"
-                  @click="selectedEvent = event"
+                  @click.stop="selectedEvent = event"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
@@ -218,7 +227,7 @@
                 class="event-mobile-item__target"
                 type="button"
                 :disabled="event.entity_id === null"
-                @click="filterByEntity(event)"
+                @click.stop="filterByEntity(event)"
               >
                 {{ entityTargetLabel(event) }}
               </button>
@@ -226,7 +235,7 @@
                 class="event-mobile-item__actor"
                 type="button"
                 :disabled="event.user_id === null"
-                @click="filterByActor(event)"
+                @click.stop="filterByActor(event)"
               >
                 {{ actorLabel(event) }}
               </button>

@@ -70,6 +70,9 @@
   text-align: right;
   white-space: nowrap;
 }
+.inbound-orders-toolbar__create {
+  display: none;
+}
 .inbound-orders-refresh--pending svg {
   animation: inbound-orders-spin 0.9s linear infinite;
 }
@@ -344,28 +347,21 @@
   }
 
   .inbound-orders-page__header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 10px;
-  }
-
-  .inbound-orders-page__header p {
     display: none;
   }
-  .inbound-orders-page__header .primary-button {
-    min-height: 38px;
-    padding: 0 10px;
-    white-space: nowrap;
-  }
   .inbound-orders-workspace {
-    border-radius: var(--radius-md);
+    overflow: visible;
+    margin: 0 -12px;
+    border: 0;
+    border-radius: 0;
   }
 
   .inbound-orders-toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    padding: 10px;
+    gap: 6px;
+    padding: 8px 12px 10px;
+    background: var(--color-surface);
   }
 
   .inbound-orders-toolbar__meta {
@@ -375,9 +371,20 @@
   .inbound-orders-count {
     min-width: 34px;
   }
+  .inbound-orders-toolbar__actions {
+    gap: 6px;
+  }
+  .inbound-orders-toolbar__actions .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .inbound-orders-toolbar__create {
+    display: inline-grid;
+  }
   .inbound-orders-results {
     min-height: 0;
     overflow-x: hidden;
+    background: var(--color-surface-subtle);
   }
   .inbound-orders-load-more {
     min-height: 48px;

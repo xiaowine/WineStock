@@ -18,7 +18,7 @@
           <strong :title="chosenTarget.name">{{ chosenTarget.name }}</strong>
         </div>
         <div>
-          <span>SKU</span>
+          <span>编号</span>
           <strong :title="chosenTarget.sku">{{ chosenTarget.sku }}</strong>
         </div>
       </div>
@@ -47,17 +47,17 @@
       </div>
       <div v-else-if="!activeSearch" class="substitute-target-picker__state">
         <strong>搜索主物品</strong>
-        <span>输入名称或 SKU 后选择需要维护的物品。</span>
+        <span>输入名称或编号后选择需要维护的物品。</span>
       </div>
       <div v-else-if="!targets.length" class="substitute-target-picker__state">
         <strong>没有找到匹配的物品</strong>
-        <span>请检查名称或 SKU 后重试。</span>
+        <span>请检查名称或编号后重试。</span>
       </div>
       <div v-else class="substitute-target-picker__results" aria-label="主物品候选">
         <button v-for="item in targets" :key="item.id" type="button" @click="selectTarget(item)">
           <span
             ><strong :title="item.name">{{ item.name }}</strong
-            ><small :title="item.sku">SKU {{ item.sku }}</small></span
+            ><small :title="item.sku">编号 {{ item.sku }}</small></span
           >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
         </button>

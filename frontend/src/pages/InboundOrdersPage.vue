@@ -53,6 +53,16 @@
                 <path d="M18.2 16a7 7 0 1 1 .8-7l1 3" />
               </svg>
             </button>
+            <button
+              v-if="canCreate"
+              class="icon-button icon-button--primary inbound-orders-toolbar__create"
+              type="button"
+              title="新建入库"
+              aria-label="新建入库"
+              @click="router.push({ name: 'inbound' })"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
           </div>
         </div>
       </div>

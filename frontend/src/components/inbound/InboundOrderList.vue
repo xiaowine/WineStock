@@ -26,6 +26,8 @@
             :alt="`${order.items[0].item_name} 主图`"
             :size="34"
             previewable
+            @click.stop
+            @keydown.stop
           />
           <div>
             <strong>{{ order.items[0].item_name }}</strong
@@ -95,6 +97,8 @@
           :alt="`${order.items[0].item_name} 主图`"
           :size="38"
           previewable
+          @click.stop
+          @keydown.stop
         />
         <div>
           <strong>{{ order.items[0].item_name }}</strong

@@ -3,7 +3,6 @@
 
 .locations-page {
   min-height: 0;
-  gap: 16px;
 
   &__header {
     flex: 0 0 auto;
@@ -20,12 +19,13 @@
   &__workspace {
     display: grid;
     min-width: 0;
-    min-height: 0;
     flex: 1;
+    min-height: 560px;
+    margin-top: 14px;
     grid-template-columns: 224px minmax(0, 1fr);
     overflow: hidden;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     background: var(--color-surface);
   }
 }
@@ -127,48 +127,59 @@
 
   &__toolbar {
     display: grid;
-    grid-template-columns: minmax(170px, 1fr) minmax(220px, 340px) auto;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
+    grid-template-areas: "search context commands";
+    grid-template-columns: minmax(260px, 1fr) minmax(170px, 240px) auto;
+    align-items: end;
+    gap: 14px;
+    padding: 12px;
     border-bottom: 1px solid var(--color-border);
-    background: var(--color-surface-raised);
+    background: var(--color-surface);
   }
 
   &__context {
+    grid-area: context;
     display: flex;
     min-width: 0;
+    min-height: 40px;
     align-items: center;
     gap: 10px;
+  }
 
-    > div {
-      display: grid;
-      min-width: 0;
-      gap: 1px;
+  &__context-copy {
+    display: grid;
+    min-width: 0;
+    gap: 1px;
 
-      span,
-      strong {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
+    span,
+    strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-      span {
-        color: var(--color-subtle);
-        font-size: 11px;
-      }
+    span {
+      color: var(--color-subtle);
+      font-size: 11px;
+    }
 
-      strong {
-        color: var(--color-text);
-        font-size: 14px;
-      }
+    strong {
+      color: var(--color-text);
+      font-size: 14px;
     }
   }
 
   &__group-trigger {
     display: none;
+    min-width: 0;
+    min-height: 40px;
     align-items: center;
     gap: 7px;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     svg {
       @include mixins.svg-icon;
@@ -176,14 +187,21 @@
   }
 
   &__search {
+    grid-area: search;
+    display: grid;
     width: 100%;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 650;
   }
 
   &__commands {
+    grid-area: commands;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
   }
 
   &__summary,
@@ -194,16 +212,24 @@
 
   &__summary {
     gap: 8px;
+    min-width: 76px;
+    justify-content: flex-end;
   }
 
   &__actions {
     gap: 6px;
+
+    .icon-button {
+      width: 40px;
+      height: 40px;
+    }
   }
 
   &__count,
   &__refresh-status {
     color: var(--color-muted);
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
@@ -505,6 +531,11 @@
     &__close {
       display: inline-grid;
     }
+
+    &__header-actions .icon-button {
+      width: 40px;
+      height: 40px;
+    }
   }
 
   .location-groups-backdrop {
@@ -520,6 +551,11 @@
   .locations-catalog {
     &__group-trigger {
       display: inline-flex;
+      width: 100%;
+    }
+
+    &__context-copy {
+      display: none;
     }
   }
 }
@@ -527,12 +563,11 @@
 @include mixins.below(1100px) {
   .locations-catalog {
     &__toolbar {
+      grid-template-areas:
+        "search search"
+        "context commands";
       grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    &__search {
-      grid-column: 1 / -1;
-      grid-row: 2;
+      gap: 10px;
     }
   }
 }
@@ -607,32 +642,67 @@
     );
 
     &__toolbar {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 9px;
-      padding: 8px 12px 10px;
+      grid-template-areas:
+        "search search refresh create"
+        "group group summary summary";
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) repeat(2, 40px);
+      gap: 6px;
+      padding: 8px 0 10px;
       background: var(--color-surface);
-    }
 
-    &__context {
-      justify-content: space-between;
-    }
-
-    &__group-trigger {
-      display: inline-flex;
-      min-height: 36px;
+      &--readonly {
+        grid-template-areas:
+          "search search search refresh"
+          "group group summary summary";
+      }
     }
 
     &__search {
-      grid-column: auto;
-      grid-row: auto;
+      grid-area: search;
     }
 
-    &__commands {
-      justify-content: space-between;
+    &__search > span:first-child {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      border: 0;
+      margin: -1px;
+      clip-path: inset(50%);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    &__context,
+    &__commands,
+    &__actions {
+      display: contents;
+    }
+
+    &__group-trigger {
+      grid-area: group;
+      display: inline-flex;
+      width: 100%;
+      justify-content: flex-start;
+    }
+
+    &__summary {
+      grid-area: summary;
+      min-width: 0;
+      min-height: 40px;
+      justify-self: end;
     }
 
     &__refresh-status {
       display: none;
+    }
+
+    &__refresh {
+      grid-area: refresh;
+    }
+
+    &__create {
+      grid-area: create;
     }
 
     &__body {
@@ -652,15 +722,19 @@
   .locations-mobile-list {
     display: grid;
     gap: 8px;
-    padding: 0 12px 12px;
+    margin: 0 -12px;
+    padding: 8px 12px 12px;
+    background: var(--color-surface-subtle);
 
     &__item {
       display: grid;
-      gap: 12px;
-      padding: 13px;
+      gap: 10px;
+      overflow: hidden;
+      padding: 12px;
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       background: var(--color-surface);
+      box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
 
       header {
         display: flex;
@@ -668,38 +742,20 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 10px;
-
-        > div {
-          display: grid;
-          min-width: 0;
-          gap: 3px;
-
-          strong,
-          span {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          strong {
-            font-size: 14px;
-          }
-
-          span {
-            color: var(--color-text);
-            font-size: 14px;
-          }
-        }
       }
 
       dl {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 9px 12px;
+        gap: 6px;
         margin: 0;
+        padding-top: 8px;
+        border-top: 1px solid var(--color-border);
 
-        > div:last-child {
-          grid-column: 1 / -1;
+        > div {
+          display: grid;
+          min-width: 0;
+          grid-template-columns: max-content minmax(0, 1fr);
+          gap: 8px;
         }
 
         dt {
@@ -708,16 +764,52 @@
         }
 
         dd {
-          margin: 2px 0 0;
+          overflow: hidden;
+          margin: 0;
           color: var(--color-text);
           font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
       }
     }
 
-    &__notes {
-      grid-column: 1 / -1;
+    &__identity {
+      display: grid;
+      min-width: 0;
+      align-self: center;
+      gap: 4px;
 
+      > span {
+        overflow: hidden;
+        color: var(--color-muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    &__title {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 7px;
+
+      strong {
+        overflow: hidden;
+        min-width: 0;
+        font-size: 15px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .locations-table__default-badge {
+        flex: 0 0 auto;
+        margin-left: 0;
+      }
+    }
+
+    &__notes {
       dd {
         white-space: pre-wrap;
         overflow-wrap: anywhere;
@@ -736,21 +828,6 @@
         svg {
           @include mixins.svg-icon;
         }
-      }
-    }
-  }
-}
-
-@include mixins.below(480px) {
-  .locations-catalog {
-    &__group-trigger {
-      width: 38px;
-      min-width: 38px;
-      padding: 0;
-      justify-content: center;
-
-      span {
-        display: none;
       }
     }
   }

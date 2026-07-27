@@ -8,6 +8,7 @@
   align-items: stretch;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
+  cursor: pointer;
 
   &:last-child {
     border-bottom: 0;
@@ -15,6 +16,13 @@
 
   &:hover {
     background: var(--color-surface-raised);
+  }
+
+  &:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
   }
 
   > div {
@@ -172,6 +180,53 @@
   }
 }
 
+@include mixins.tablet(980px) {
+  .substitute-relation-group {
+    grid-template-areas:
+      "identity decision"
+      "summary summary";
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px 14px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
+    gap: 10px;
+
+    &:last-child {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    > div {
+      padding: 0;
+      border: 0;
+    }
+
+    &__identity {
+      grid-area: identity;
+    }
+
+    &__summary {
+      grid-area: summary;
+      padding-top: 10px !important;
+      border-top: 1px solid var(--color-border) !important;
+    }
+
+    &__decision {
+      grid-area: decision;
+      align-items: flex-start;
+
+      > span {
+        display: none;
+      }
+    }
+
+    &__first {
+      width: 100%;
+    }
+  }
+}
+
 @include mixins.mobile {
   .substitute-relation-group {
     display: grid;
@@ -179,13 +234,13 @@
     grid-template-areas:
       "identity decision"
       "summary summary";
-    padding: 13px 14px;
+    padding: 12px;
     overflow: hidden;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
     box-shadow: 0 1px 2px rgb(23 32 42 / 5%);
-    gap: 11px 10px;
+    gap: 10px;
 
     &:last-child {
       border-bottom: 1px solid var(--color-border);

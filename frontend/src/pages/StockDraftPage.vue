@@ -27,26 +27,60 @@
     </template>
 
     <template #actions>
-      <button
-        class="secondary-button inbound-add-item-button"
-        type="button"
-        title="导入立创商城订单导出的表格"
-        @click="inbound.orderImportOpen.value = true"
+      <div
+        ref="importMenuRoot"
+        class="inbound-import-actions"
+        @keydown.esc.stop="closeImportMenu(true)"
       >
-        导入订单
-      </button>
-      <button
-        v-if="inbound.canCreateItem.value"
-        class="secondary-button inbound-add-item-button"
-        type="button"
-        title="导入第三方 ERP 备份，按库存生成期初入库草稿"
-        @click="inbound.backupImportOpen.value = true"
-      >
-        导入备份
-      </button>
+        <button
+          class="secondary-button inbound-add-item-button inbound-import-action--desktop"
+          type="button"
+          title="导入立创商城订单导出的表格"
+          @click="openOrderImport"
+        >
+          导入订单
+        </button>
+        <button
+          v-if="inbound.canCreateItem.value"
+          class="secondary-button inbound-add-item-button inbound-import-action--desktop"
+          type="button"
+          title="导入第三方 ERP 备份，按库存生成期初入库草稿"
+          @click="openBackupImport"
+        >
+          导入备份
+        </button>
+        <button
+          ref="importMenuTrigger"
+          class="icon-button inbound-import-menu__trigger"
+          type="button"
+          title="导入入库数据"
+          aria-label="导入入库数据"
+          :aria-expanded="importMenuOpen"
+          :aria-controls="importMenuId"
+          @click="toggleImportMenu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3v12M8 11l4 4 4-4M5 20h14" />
+          </svg>
+        </button>
+        <Transition name="inbound-import-menu">
+          <div
+            v-if="importMenuOpen"
+            :id="importMenuId"
+            class="inbound-import-menu"
+            role="group"
+            aria-label="选择导入方式"
+          >
+            <button type="button" @click="openOrderImport">导入订单</button>
+            <button v-if="inbound.canCreateItem.value" type="button" @click="openBackupImport">
+              导入备份
+            </button>
+          </div>
+        </Transition>
+      </div>
       <button
         v-if="inbound.pendingLocationCount.value > 0"
-        class="secondary-button inbound-add-item-button"
+        class="secondary-button inbound-add-item-button inbound-batch-location-button"
         type="button"
         title="为所有尚未选择库位的明细一次指定库位"
         @click="inbound.batchLocationOpen.value = true"
@@ -307,7 +341,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useId } from "vue";
 import { useRouter } from "vue-router";
 import StockDraftWorkspace from "../components/stock-draft/StockDraftWorkspace.vue";
 import LcscOrderImportDialog from "../components/stock-draft/LcscOrderImportDialog.vue";
@@ -316,6 +350,8 @@ import InboundBatchLocationDialog from "../components/inbound/InboundBatchLocati
 import InboundLineEditor from "../components/inbound/InboundLineEditor.vue";
 import ErpBackupImportDialog from "../components/stock-draft/ErpBackupImportDialog.vue";
 import ItemCreateDialog from "../components/items/ItemCreateDialog.vue";
+import { useNativeBackHandler } from "../composables/useNativeBackHandler";
+import { NativeBackPriority } from "../navigation/nativeBack";
 import {
   lineSubtotal,
   validQuantity,
@@ -338,6 +374,23 @@ const router = useRouter();
 const handle = createWorkspaceHandle();
 const inbound = props.kind === "inbound" ? useInboundDraft(handle) : null;
 const outbound = props.kind === "outbound" ? useOutboundDraft(handle) : null;
+const importMenuRoot = ref<HTMLElement | null>(null);
+const importMenuTrigger = ref<HTMLButtonElement | null>(null);
+const importMenuOpen = ref(false);
+const importMenuId = `inbound-import-menu-${useId()}`;
+
+useNativeBackHandler({
+  id: `stock-draft-import-menu:${importMenuId}`,
+  active: importMenuOpen,
+  priority: NativeBackPriority.TransientOverlay,
+  handle: () => {
+    if (!importMenuOpen.value) return { handled: false };
+    closeImportMenu(true);
+    return { handled: true, reason: "transient-overlay" };
+  },
+});
+
+onBeforeUnmount(removeImportMenuListener);
 
 const inboundLocationMap = computed(
   () => new Map((inbound?.locations.value ?? []).map((location) => [location.id, location])),
@@ -348,6 +401,43 @@ const inboundDraftSkus = computed<ReadonlySet<string>>(
   () =>
     new Set((inbound?.flow.lines.value ?? []).map((line) => line.item.sku.trim().toUpperCase())),
 );
+
+function toggleImportMenu(): void {
+  importMenuOpen.value ? closeImportMenu(true) : void showImportMenu();
+}
+
+async function showImportMenu(): Promise<void> {
+  importMenuOpen.value = true;
+  window.addEventListener("pointerdown", handleImportMenuOutsidePointer);
+  await nextTick();
+  importMenuRoot.value?.querySelector<HTMLElement>(".inbound-import-menu button")?.focus();
+}
+
+function closeImportMenu(restoreFocus = false): void {
+  if (!importMenuOpen.value) return;
+  importMenuOpen.value = false;
+  removeImportMenuListener();
+  if (restoreFocus) void nextTick(() => importMenuTrigger.value?.focus());
+}
+
+function handleImportMenuOutsidePointer(event: PointerEvent): void {
+  if (importMenuRoot.value?.contains(event.target as Node)) return;
+  closeImportMenu();
+}
+
+function removeImportMenuListener(): void {
+  window.removeEventListener("pointerdown", handleImportMenuOutsidePointer);
+}
+
+function openOrderImport(): void {
+  closeImportMenu();
+  if (inbound) inbound.orderImportOpen.value = true;
+}
+
+function openBackupImport(): void {
+  closeImportMenu();
+  if (inbound) inbound.backupImportOpen.value = true;
+}
 
 function inboundQuantityLabel(line: InboundDraftLine): string {
   return validQuantity(line.quantity)

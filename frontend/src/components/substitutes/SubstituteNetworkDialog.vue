@@ -17,7 +17,7 @@
             class="substitute-network-toolbar__search"
             label="搜索网络节点"
             name="substitute_network_search"
-            placeholder="搜索物品名称或 SKU"
+            placeholder="搜索物品名称或编号"
             hide-label
             @search="applySearch"
           />
@@ -35,7 +35,7 @@
               @click="selectSearchResult(node.id)"
             >
               <strong>{{ node.name }}</strong>
-              <span>{{ node.sku }} · {{ node.degree }} 条连接</span>
+              <span>编号 {{ node.sku }} · {{ node.degree }} 条连接</span>
             </button>
             <p v-if="!searchResults.length">没有匹配的网络节点</p>
           </div>
@@ -148,7 +148,7 @@
         >
           <strong>关系网络规模较大</strong>
           <span
-            >当前共有 {{ graph.nodes.length }} 个节点，请搜索名称或 SKU
+            >当前共有 {{ graph.nodes.length }} 个节点，请搜索名称或编号
             选择中心节点后查看局部网络。</span
           >
         </div>

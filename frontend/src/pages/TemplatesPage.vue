@@ -6,7 +6,7 @@
   <section class="route-page templates-page">
     <header class="content-header templates-page__header">
       <div>
-        <h1>分类与模板</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>维护物品归类与长期属性结构。</p>
       </div>
     </header>
@@ -42,14 +42,13 @@
             role="tabpanel"
             :aria-labelledby="`templates-tab-${activeDomain}`"
           >
-            <div class="templates-toolbar">
+            <div class="templates-toolbar" :class="{ 'templates-toolbar--readonly': !canManage }">
               <SearchField
                 :model-value="searchInputs[activeDomain]"
                 class="templates-toolbar__search"
                 :label="searchLabel"
                 :name="`template_search_${activeDomain}`"
                 :placeholder="searchPlaceholder"
-                hide-label
                 :disabled="currentState.loading && !currentState.loaded"
                 @update:model-value="searchInputs[activeDomain] = $event"
                 @search="applySearch"
@@ -61,7 +60,7 @@
                 </div>
                 <div class="templates-toolbar__actions">
                   <button
-                    class="icon-button"
+                    class="icon-button templates-toolbar__refresh"
                     :class="{ 'templates-toolbar__refresh--pending': showRefreshing }"
                     type="button"
                     :title="`刷新${activeDomainLabel}`"
@@ -77,7 +76,7 @@
                   </button>
                   <button
                     v-if="canManage"
-                    class="icon-button icon-button--primary"
+                    class="icon-button icon-button--primary templates-toolbar__create"
                     type="button"
                     :title="`新建${activeDomainLabel}`"
                     :aria-label="`新建${activeDomainLabel}`"

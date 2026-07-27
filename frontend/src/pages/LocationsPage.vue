@@ -6,7 +6,7 @@
   <section class="route-page locations-page">
     <header class="content-header locations-page__header">
       <div>
-        <h1>库位管理</h1>
+        <h1>{{ $route.meta.title }}</h1>
         <p>维护库位分组和入库、库存批次实际使用的存放位置。</p>
       </div>
     </header>
@@ -38,7 +38,7 @@
               type="button"
               title="关闭分组面板"
               aria-label="关闭分组面板"
-              @click="groupPanelOpen = false"
+              @click="closeGroupPanel"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
@@ -96,18 +96,35 @@
         class="location-groups-backdrop"
         type="button"
         aria-label="关闭分组面板"
-        @click="groupPanelOpen = false"
+        @click="closeGroupPanel"
       ></button>
 
       <section class="locations-catalog" aria-label="库位列表">
-        <div class="locations-catalog__toolbar">
+        <div
+          class="locations-catalog__toolbar"
+          :class="{ 'locations-catalog__toolbar--readonly': !canManage }"
+        >
+          <SearchField
+            v-model="searchInput"
+            class="locations-catalog__search"
+            label="搜索库位"
+            name="location_search"
+            placeholder="搜索名称或备注"
+            :disabled="locationsLoading && !locationsLoaded"
+            @search="applySearch"
+          />
+
           <div class="locations-catalog__context">
             <button
               ref="groupPanelTrigger"
               class="secondary-button locations-catalog__group-trigger"
               type="button"
-              title="选择分组"
-              aria-label="选择分组"
+              :title="`选择分组，当前${
+                selectedGroupPath.length ? selectedGroupPath.join(' / ') : '全部库位'
+              }`"
+              :aria-label="`选择分组，当前${
+                selectedGroupPath.length ? selectedGroupPath.join(' / ') : '全部库位'
+              }`"
               @click="groupPanelOpen = true"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -116,26 +133,13 @@
                 <rect x="3" y="18" width="6" height="4" rx="1" />
                 <rect x="15" y="18" width="6" height="4" rx="1" />
               </svg>
-              <span>选择分组</span>
+              <span>{{ selectedGroup?.name ?? "全部库位" }}</span>
             </button>
-            <div>
-              <span>{{
-                selectedGroupPath.length ? selectedGroupPath.join(" / ") : "全部库位"
-              }}</span>
+            <div class="locations-catalog__context-copy">
+              <span>库位分组</span>
               <strong>{{ selectedGroup?.name ?? "全部库位" }}</strong>
             </div>
           </div>
-
-          <SearchField
-            v-model="searchInput"
-            class="locations-catalog__search"
-            label="搜索库位"
-            name="location_search"
-            placeholder="搜索名称或备注"
-            hide-label
-            :disabled="locationsLoading && !locationsLoaded"
-            @search="applySearch"
-          />
 
           <div class="locations-catalog__commands">
             <div class="locations-catalog__summary">
@@ -319,13 +323,14 @@
                 class="locations-mobile-list__item"
               >
                 <header>
-                  <div>
-                    <strong :title="location.name"
-                      >{{ location.name
-                      }}<em v-if="location.is_default" class="locations-table__default-badge"
+                  <div class="locations-mobile-list__identity">
+                    <div class="locations-mobile-list__title">
+                      <strong :title="location.name">{{ location.name }}</strong>
+                      <em v-if="location.is_default" class="locations-table__default-badge"
                         >默认</em
-                      ></strong
-                    >
+                      >
+                    </div>
+                    <span :title="location.group_name">{{ location.group_name }}</span>
                   </div>
                   <span v-if="canManage" class="locations-mobile-list__actions">
                     <button
@@ -375,20 +380,12 @@
                 </header>
                 <dl>
                   <div>
-                    <dt>所属分组</dt>
-                    <dd>{{ location.group_name }}</dd>
+                    <dt>更新时间</dt>
+                    <dd>{{ formatDateTime(location.updated_at) }}</dd>
                   </div>
                   <div v-if="location.notes" class="locations-mobile-list__notes">
                     <dt>备注</dt>
                     <dd>{{ location.notes }}</dd>
-                  </div>
-                  <div>
-                    <dt>排序</dt>
-                    <dd>{{ location.sort_order }}</dd>
-                  </div>
-                  <div>
-                    <dt>更新时间</dt>
-                    <dd>{{ formatDateTime(location.updated_at) }}</dd>
                   </div>
                 </dl>
               </article>
@@ -545,8 +542,7 @@ useNativeBackHandler({
   priority: NativeBackPriority.Drawer,
   handle: () => {
     if (!groupPanelOpen.value) return { handled: false };
-    groupPanelOpen.value = false;
-    void nextTick(() => groupPanelTrigger.value?.focus());
+    closeGroupPanel();
     return { handled: true, reason: "drawer" };
   },
 });
@@ -626,10 +622,16 @@ async function refreshAll(): Promise<void> {
 }
 
 function selectGroup(groupId: number | null): void {
-  groupPanelOpen.value = false;
+  closeGroupPanel();
   if (selectedGroupId.value === groupId) return;
   selectedGroupId.value = groupId;
   void loadLocationList();
+}
+
+function closeGroupPanel(): void {
+  if (!groupPanelOpen.value) return;
+  groupPanelOpen.value = false;
+  void nextTick(() => groupPanelTrigger.value?.focus());
 }
 
 function toggleGroup(groupId: number): void {

@@ -77,14 +77,14 @@
             :transform="nodeTransform(node.id)"
             role="button"
             :tabindex="focusedNodeId === node.id ? 0 : -1"
-            :aria-label="`${node.name}，SKU ${node.sku}，${node.incomingCount} 个上游，${node.outgoingCount} 个直接替代`"
+            :aria-label="`${node.name}，编号 ${node.sku}，${node.incomingCount} 个上游，${node.outgoingCount} 个直接替代`"
             :aria-pressed="selectedId === node.id"
             :style="nodeStyle(node.id)"
             @pointerdown.stop="handleNodePointerDown($event, node.id)"
             @keydown="handleNodeKeydown($event, node.id)"
             @focus="focusedNodeId = node.id"
           >
-            <title>{{ node.name }} · SKU {{ node.sku }}</title>
+            <title>{{ node.name }} · 编号 {{ node.sku }}</title>
             <circle class="substitute-network-node__hit" :r="nodeHitRadius(node)" />
             <circle class="substitute-network-node__surface" :r="nodeRadius(node)" />
             <rect
@@ -108,7 +108,7 @@
               text-anchor="middle"
               :y="nodeRadius(node) + 34"
             >
-              SKU · {{ truncate(node.sku, 13) }}
+              编号 · {{ truncate(node.sku, 13) }}
             </text>
           </g>
         </g>
