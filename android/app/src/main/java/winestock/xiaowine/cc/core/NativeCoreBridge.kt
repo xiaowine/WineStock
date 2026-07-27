@@ -16,5 +16,5 @@ internal object NativeCoreBridge {
 
     @JvmStatic external fun nativeGetRuntimeState(): String?
 
-    @JvmStatic external fun nativeShutdownEngine(): String?
+//    @JvmStatic external fun nativeShutdownEngine(): String?
 }

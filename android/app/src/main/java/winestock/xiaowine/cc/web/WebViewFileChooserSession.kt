@@ -109,7 +109,7 @@ internal class WebViewFileChooserSession {
         }
 
         private fun normalize(uris: Array<String>?): Array<String>? {
-            if (uris == null || uris.isEmpty()) return null
+            if (uris.isNullOrEmpty()) return null
             val cleaned =
                 uris
                     .asSequence()

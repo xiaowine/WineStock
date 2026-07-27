@@ -52,7 +52,7 @@ object NativeContract {
             if (!result.optBoolean("initialized", false)) {
                 throw IllegalArgumentException("native engine 未初始化")
             }
-            Unit
+            run {}
         }
 
     fun parseDefaultConfig(raw: String?): NativeCallResult<EditableRuntimeConfig> =

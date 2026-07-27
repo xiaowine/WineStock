@@ -139,14 +139,14 @@ abstract class RustNativeBuildTask @Inject constructor(
                 if (sqliteFlags.isNotEmpty()) {
                     environment("LIBSQLITE3_FLAGS", sqliteFlags)
                 }
-                setStandardOutput(standardOutputBuffer)
-                setErrorOutput(errorOutputBuffer)
+                standardOutput = standardOutputBuffer
+                errorOutput = errorOutputBuffer
             }.assertNormalExitValue()
         } catch (error: Exception) {
             val detail = errorOutputBuffer.toString(StandardCharsets.UTF_8).trim()
             val suffix = if (detail.isBlank()) "" else "\n$detail"
             throw GradleException(
-                "Rust Android 构建失败；普通 Gradle 构建不会联网安装工具或依赖。" + suffix,
+                "Rust Android 构建失败；普通 Gradle 构建不会联网安装工具或依赖。$suffix",
                 error,
             )
         }

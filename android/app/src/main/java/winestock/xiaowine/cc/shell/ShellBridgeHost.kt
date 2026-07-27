@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import winestock.xiaowine.cc.core.ApplyRuntimeConfigResult
 import winestock.xiaowine.cc.core.LocalCoreRuntimeManager
+import androidx.core.net.toUri
 
 /**
  * Android shell 的 Shell Bridge v1 原生分发。
@@ -38,7 +39,7 @@ class ShellBridgeHost(
     private val runtimeManager: LocalCoreRuntimeManager,
     private val deviceName: String,
     private val appVersion: String,
-    private val nativeBackResponseTimeoutMs: Long,
+    nativeBackResponseTimeoutMs: Long,
     /** 前端报告首屏就绪时回调，用于隐藏加载遮罩；在主线程调用。 */
     private val onFrontendReady: () -> Unit = {},
 ) {
@@ -49,7 +50,7 @@ class ShellBridgeHost(
         NativeBackRequestBroker(
             responseTimeoutMs = nativeBackResponseTimeoutMs,
             scheduler =
-                NativeBackRequestBroker.TimeoutScheduler { delayMs, action ->
+                { delayMs, action ->
                     val runnable = Runnable(action)
                     mainHandler.postDelayed(runnable, delayMs)
                     NativeBackRequestBroker.TimeoutHandle {
@@ -271,8 +272,7 @@ class ShellBridgeHost(
                 ) {
                     return@post
                 }
-                val error = unwrapCompletionError(failure)
-                when (error) {
+                when (val error = unwrapCompletionError(failure)) {
                     null -> replySuccess(proxy, id, value)
                     is BridgeException ->
                         replyError(proxy, id, error.code, error.message ?: "Shell Bridge 调用失败")
@@ -358,7 +358,7 @@ class ShellBridgeHost(
         }
         val target =
             try {
-                Uri.parse(url.trim())
+                url.trim().toUri()
             } catch (_: Exception) {
                 throw BridgeException(ShellErrorCodes.INVALID_BRIDGE_PAYLOAD, "外部链接无效")
             }
@@ -507,7 +507,7 @@ class ShellBridgeHost(
 
     private fun isTrustedPageUrl(url: String?): Boolean {
         val uri = try {
-            Uri.parse(url ?: return false)
+            (url ?: return false).toUri()
         } catch (_: Exception) {
             return false
         }
