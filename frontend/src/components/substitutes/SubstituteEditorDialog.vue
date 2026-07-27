@@ -75,18 +75,35 @@
         重新选择主物品
       </button>
       <ItemSubstitutesPanel
+        ref="substitutesPanel"
         :item-id="chosenTarget.id"
         :can-manage="canManage"
         :can-search-candidates="canSearchCandidates"
+        :show-heading="false"
+        :show-save-action="false"
         @dirty-change="handleDirtyChange"
         @saving-change="saving = $event"
+        @save-error-change="saveError = $event"
         @saved="handleSaved"
       />
     </section>
 
+    <template v-if="saveError" #notice>
+      <p class="substitute-editor-dialog__save-error" role="alert">{{ saveError }}</p>
+    </template>
+
     <template #actions>
       <button class="secondary-button" type="button" :disabled="saving" @click="requestClose">
-        关闭
+        {{ chosenTarget && canManage ? "取消" : "关闭" }}
+      </button>
+      <button
+        v-if="chosenTarget && canManage"
+        class="primary-button substitute-editor-dialog__save"
+        type="button"
+        :disabled="saving || !dirty"
+        @click="requestSave"
+      >
+        {{ saving ? "保存中…" : "保存替代关系" }}
       </button>
     </template>
   </ModalDialog>
@@ -135,8 +152,10 @@ const chosenTarget = ref<SubstituteEditorTarget | null>(null);
 const searchInput = ref("");
 const activeSearch = ref("");
 const targets = ref<ItemOptionResponse[]>([]);
+const substitutesPanel = ref<{ requestSave: () => void } | null>(null);
 const searchLoading = ref(false);
 const searchError = ref("");
+const saveError = ref("");
 const dirty = ref(false);
 const saving = ref(false);
 const discardOpen = ref(false);
@@ -213,9 +232,14 @@ function handleSaved(): void {
   const current = chosenTarget.value;
   if (!current) return;
   dirty.value = false;
+  saveError.value = "";
   emit("dirty-change", false);
   emit("saved", current);
   emit("close");
+}
+
+function requestSave(): void {
+  substitutesPanel.value?.requestSave();
 }
 
 function requestClose(): void {
@@ -258,6 +282,7 @@ function reselectTarget(): void {
   activeSearch.value = "";
   targets.value = [];
   searchError.value = "";
+  saveError.value = "";
 }
 
 function resetSession(): void {
@@ -266,6 +291,7 @@ function resetSession(): void {
   activeSearch.value = "";
   targets.value = [];
   searchError.value = "";
+  saveError.value = "";
   dirty.value = false;
   saving.value = false;
   discardOpen.value = false;

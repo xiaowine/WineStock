@@ -4,8 +4,11 @@
 -->
 <template>
   <section class="item-substitutes-panel" aria-labelledby="item-substitutes-title">
-    <header class="item-substitutes-panel__header">
-      <div>
+    <header
+      v-if="showHeading || (canManage && showSaveAction)"
+      class="item-substitutes-panel__header"
+    >
+      <div v-if="showHeading">
         <h3 id="item-substitutes-title">维护替代物品</h3>
         <p>
           {{
@@ -14,7 +17,7 @@
         </p>
       </div>
       <button
-        v-if="canManage"
+        v-if="canManage && showSaveAction"
         class="primary-button item-substitutes-panel__save"
         type="button"
         :disabled="saving || loading || !dirty"
@@ -215,7 +218,7 @@
         </div>
       </section>
 
-      <p v-if="saveError" class="item-substitutes-panel__save-error" role="alert">
+      <p v-if="saveError && showSaveAction" class="item-substitutes-panel__save-error" role="alert">
         {{ saveError }}
       </p>
     </template>
@@ -277,17 +280,28 @@ interface SubstituteDraft {
   notes: string;
 }
 
-const props = defineProps<{
-  itemId: number;
-  canManage: boolean;
-  canSearchCandidates?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    itemId: number;
+    canManage: boolean;
+    canSearchCandidates?: boolean;
+    showHeading?: boolean;
+    showSaveAction?: boolean;
+  }>(),
+  {
+    canSearchCandidates: true,
+    showHeading: true,
+    showSaveAction: true,
+  },
+);
 
 const emit = defineEmits<{
   /** 通知工作区父级当前替代关系草稿是否有未保存修改。 */
   "dirty-change": [dirty: boolean];
   /** 通知 Dialog 当前保存请求状态，避免请求期间关闭会话。 */
   "saving-change": [saving: boolean];
+  /** 让外层 Dialog 可将保存错误固定展示在 modal-actions 上方。 */
+  "save-error-change": [message: string];
   /** 通知全局页面当前主物品的替代关系已保存。 */
   saved: [];
 }>();
@@ -309,7 +323,7 @@ let substituteController: AbortController | null = null;
 let candidateController: AbortController | null = null;
 
 const dirty = computed(() => fingerprint(drafts.value) !== baseline.value);
-const canSearchCandidates = computed(() => props.canSearchCandidates !== false);
+const canSearchCandidates = computed(() => props.canSearchCandidates);
 const visibleCandidates = computed(() =>
   candidates.value.filter(
     (candidate) => candidate.id !== props.itemId && !isSelected(candidate.id),
@@ -327,6 +341,7 @@ watch(
   },
 );
 watch(dirty, (value) => emit("dirty-change", value), { immediate: true });
+watch(saveError, (value) => emit("save-error-change", value), { immediate: true });
 onBeforeUnmount(() => {
   substituteController?.abort();
   candidateController?.abort();
@@ -458,6 +473,8 @@ function requestSave(): void {
   }
   void saveSubstitutes();
 }
+
+defineExpose({ requestSave });
 
 function confirmClearAll(): void {
   clearConfirmOpen.value = false;

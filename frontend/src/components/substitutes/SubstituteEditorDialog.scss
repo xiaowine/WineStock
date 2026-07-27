@@ -7,8 +7,10 @@
     min-width: 0;
     grid-template-columns: minmax(0, 1fr) minmax(140px, 0.4fr);
     gap: 12px;
-    padding: 9px 12px;
-    border-left: 4px solid var(--color-accent);
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-sm);
     background: var(--color-surface-raised);
 
     > div {
@@ -36,11 +38,35 @@
   }
 
   &__workspace {
+    display: grid;
     min-width: 0;
+
+    > .item-substitutes-panel {
+      gap: 16px;
+      padding: 14px 0 0;
+    }
+
+    .item-substitutes-panel__add {
+      padding: 12px 14px 14px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface-raised);
+    }
   }
 
   &__reselect {
-    margin: 12px 18px 0;
+    justify-self: start;
+    margin: 12px 0 0;
+  }
+
+  &__save {
+    min-width: 128px;
+  }
+
+  &__save-error {
+    margin: 0;
+    color: var(--color-danger);
+    font-size: 12px;
   }
 }
 
@@ -129,11 +155,21 @@
 @include mixins.mobile {
   .substitute-editor-dialog {
     &__context {
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(96px, 34%);
     }
 
     &__reselect {
-      margin: 10px 14px 0;
+      margin-top: 10px;
+    }
+
+    &__workspace {
+      > .item-substitutes-panel {
+        padding-top: 12px;
+      }
+
+      .item-substitutes-panel__add {
+        padding: 11px 12px 13px;
+      }
     }
   }
 
