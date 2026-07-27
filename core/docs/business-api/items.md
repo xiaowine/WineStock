@@ -57,11 +57,14 @@
 `/upload/public/product/` 或 `/upload/public/brand/product/certificate/` 路径。格式无效、未找到、并发繁忙、超时、上游失败和
 无效响应分别返回稳定错误码 `invalid_lcsc_product_code`、`lcsc_product_not_found`、`lcsc_lookup_busy`、
 `lcsc_lookup_timeout`、`lcsc_lookup_failed`、`lcsc_invalid_response`。
+商品图只按查询响应字段选择，不在 Core 查询阶段下载或探测图片：读取 `luceneBreviaryImageUrls` 的首项（缺失时使用
+`breviaryImageUrl`），能从受控 `/breviary/` 路径生成 `/source/` 地址时优先返回 source；否则返回该首张
+breviary，再回退到 `bigImageUrl`，均无受控地址时返回 `null`。
 候选名称优先取 `attributes["Manufacturer Part"]`，再回退到 `attributes["LCSC Part Name"]` 和商品编号；
 候选描述优先取顶层 `description`，再回退到 `attributes["LCSC Part Name"]`，均不存在时返回 `null`。
 前端确认覆盖后直接从白名单图片地址发起无凭据、无自定义头的简单 GET，复核状态、MIME、15 MiB 上限和
 PNG/JPEG/WebP 文件签名，再把 Blob 作为普通临时图片走现有 `POST /api/files/images` 上传和 `image_file_id`
-创建流程；图片缺失或读取失败不得阻断其它候选资料和参考单价回填。
+创建流程；图片缺失或读取失败时生成带客编的默认占位图，不得阻断其它候选资料和参考单价回填。
 
 更新请求中，字段缺失表示保留原值；`category_id`、`attribute_template_id`、`description`、`default_price` 和 `reorder_point` 明确传 `null` 时会清空。`image_file_id` 不允许清空；更换时必须传当前用户拥有的未绑定图片。原主图在事务成功后解除占用，可通过临时文件删除接口删除或等待孤儿清理。
 

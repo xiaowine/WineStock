@@ -16,6 +16,9 @@ const LCSC_IMAGE_PATH_PREFIXES: [&str; 2] = [
     "/upload/public/product/",
     "/upload/public/brand/product/certificate/",
 ];
+const LCSC_BREVIARY_IMAGE_PATH_PREFIX: &str = "/upload/public/product/breviary/";
+const LCSC_SOURCE_IMAGE_PATH_PREFIX: &str = "/upload/public/product/source/";
+const LCSC_IMAGE_LIST_SEPARATOR: &str = "<$>";
 const LCSC_DATASHEET_HOST: &str = "atta.szlcsc.com";
 const LCSC_DATASHEET_PATH_PREFIX: &str = "/upload/public/pdf/";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
@@ -235,8 +238,7 @@ fn normalize_product_record(record: LcscPhoneProductRecord) -> LcscProductRecord
         datasheet_url(&product.file_groups),
     );
 
-    let image_url = first_text(product.big_image_url, product.breviary_image_url)
-        .and_then(|source| controlled_image_url(&source));
+    let image_url = preferred_image_url(&product);
     LcscProductRecord {
         product_code: product.product_code,
         description: first_text(record.light_product_intro, product.product_name),
@@ -258,6 +260,43 @@ fn first_text(primary: Option<String>, fallback: Option<String>) -> Option<Strin
     primary
         .filter(|value| !value.trim().is_empty())
         .or_else(|| fallback.filter(|value| !value.trim().is_empty()))
+}
+
+/// 只依据查询响应中的首图字段选择地址，不在资料查询阶段下载图片。
+///
+/// 立创未提供独立 source 字段；首张 breviary 的稳定路径可归一化为 source。
+/// 无法生成受控 source 地址时依次退回首张 breviary 和 bigImageUrl。
+fn preferred_image_url(product: &LcscPhoneProduct) -> Option<String> {
+    let lucene_first = product
+        .lucene_breviary_image_urls
+        .as_deref()
+        .and_then(|urls| urls.split(LCSC_IMAGE_LIST_SEPARATOR).next())
+        .map(str::trim)
+        .filter(|url| !url.is_empty());
+    let first_breviary = lucene_first.and_then(controlled_image_url).or_else(|| {
+        product
+            .breviary_image_url
+            .as_deref()
+            .and_then(controlled_image_url)
+    });
+
+    first_breviary
+        .as_deref()
+        .and_then(source_image_url)
+        .or(first_breviary)
+        .or_else(|| {
+            product
+                .big_image_url
+                .as_deref()
+                .and_then(controlled_image_url)
+        })
+}
+
+fn source_image_url(breviary_url: &str) -> Option<String> {
+    let mut url = Url::parse(breviary_url).ok()?;
+    let suffix = url.path().strip_prefix(LCSC_BREVIARY_IMAGE_PATH_PREFIX)?;
+    url.set_path(&format!("{LCSC_SOURCE_IMAGE_PATH_PREFIX}{suffix}"));
+    controlled_image_url(url.as_str())
 }
 
 fn reference_price(record: &LcscPhoneProductRecord) -> Option<f64> {
@@ -380,6 +419,8 @@ struct LcscPhoneProduct {
     breviary_image_url: Option<String>,
     #[serde(default, rename = "bigImageUrl")]
     big_image_url: Option<String>,
+    #[serde(default, rename = "luceneBreviaryImageUrls")]
+    lucene_breviary_image_urls: Option<String>,
     #[serde(default, rename = "stockNumber")]
     stock_number: Option<i64>,
     #[serde(default, rename = "validStockNumber")]
@@ -427,6 +468,7 @@ mod tests {
                 product_model: None,
                 breviary_image_url: None,
                 big_image_url: None,
+                lucene_breviary_image_urls: None,
                 stock_number: Some(10),
                 valid_stock_number: None,
                 price_list: vec![
@@ -470,6 +512,63 @@ mod tests {
         )
         .is_none());
         assert!(controlled_image_url("https://alimg.szlcsc.com/private/a.jpg").is_none());
+    }
+
+    #[test]
+    fn selects_source_from_first_breviary_then_falls_back_without_downloading() {
+        let mut product = image_test_product();
+        product.lucene_breviary_image_urls = Some(
+            "https://alimg.szlcsc.com/upload/public/product/breviary/20230105/first.jpg<$>https://alimg.szlcsc.com/upload/public/product/breviary/20230105/second.jpg"
+                .to_owned(),
+        );
+        assert_eq!(
+            preferred_image_url(&product).as_deref(),
+            Some("https://alimg.szlcsc.com/upload/public/product/source/20230105/first.jpg")
+        );
+
+        product.lucene_breviary_image_urls = Some(
+            "https://alimg.szlcsc.com/upload/public/brand/product/certificate/20240701/first.png"
+                .to_owned(),
+        );
+        assert_eq!(
+            preferred_image_url(&product).as_deref(),
+            Some(
+                "https://alimg.szlcsc.com/upload/public/brand/product/certificate/20240701/first.png"
+            )
+        );
+
+        product.lucene_breviary_image_urls = Some("https://example.com/untrusted.jpg".to_owned());
+        product.breviary_image_url = None;
+        assert_eq!(
+            preferred_image_url(&product).as_deref(),
+            Some("https://alimg.szlcsc.com/upload/public/product/middle/20230105/fallback.jpg")
+        );
+
+        product.big_image_url = None;
+        assert_eq!(preferred_image_url(&product), None);
+    }
+
+    fn image_test_product() -> LcscPhoneProduct {
+        LcscPhoneProduct {
+            product_code: Some("C1".to_owned()),
+            product_name: None,
+            product_grade_plate_name: None,
+            encapsulation_model: None,
+            product_model: None,
+            breviary_image_url: Some(
+                "https://alimg.szlcsc.com/upload/public/product/breviary/20230105/fallback.jpg"
+                    .to_owned(),
+            ),
+            big_image_url: Some(
+                "https://alimg.szlcsc.com/upload/public/product/middle/20230105/fallback.jpg"
+                    .to_owned(),
+            ),
+            lucene_breviary_image_urls: None,
+            stock_number: None,
+            valid_stock_number: None,
+            price_list: Vec::new(),
+            file_groups: Vec::new(),
+        }
     }
 
     #[test]

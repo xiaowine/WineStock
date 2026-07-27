@@ -10,7 +10,7 @@ import {
   type ItemOptionResponse,
   type LcscItemLookupResponse,
 } from "../../api/items";
-import { readLcscItemImage } from "../../lcsc/image";
+import { prepareLcscItemImage } from "./lcscImageDraft";
 import { listItemCategories, type ItemCategoryResponse } from "../../api/itemCategories";
 import {
   listItemAttributeTemplates,
@@ -25,7 +25,6 @@ import {
 } from "../../pages/items/model";
 import { discardTemporaryItemFiles } from "../../pages/items/fileCleanup";
 import {
-  createMissingProductImage,
   createPendingImageDraft,
   isImageDraftValue,
   releaseImageDraft,
@@ -190,19 +189,11 @@ export function useBatchLcscItemCreation() {
       };
     }
 
-    // 主图为必填字段：上游明确无图时生成可识别占位图；真实图片读取失败仍保留失败语义。
+    // 主图为必填字段：Core 无候选或选定图片读取失败时统一生成可识别占位图。
     try {
-      let file: File;
-      if (candidate.image_url) {
-        const blob = await readLcscItemImage(candidate.image_url, signal);
-        const extension =
-          blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-        file = new File([blob], `${code}.${extension}`, { type: blob.type });
-      } else {
-        file = await createMissingProductImage(code);
-      }
+      const image = await prepareLcscItemImage(candidate.image_url, code, signal);
       if (signal.aborted) return cancelledResult();
-      draft.image = createPendingImageDraft(file);
+      draft.image = createPendingImageDraft(image.file);
       draft.imageTemporary = true;
     } catch (error) {
       if (isAbort(error, signal)) return cancelledResult();

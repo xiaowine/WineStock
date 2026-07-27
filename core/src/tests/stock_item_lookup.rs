@@ -50,7 +50,7 @@ async fn lookup_uses_fixed_search_request_and_returns_normalized_candidate() {
     assert_eq!(candidate.default_price, Some(9.91));
     assert_eq!(
         candidate.image_url.as_deref(),
-        Some("https://alimg.szlcsc.com/upload/public/product/middle/20241118/example.jpg")
+        Some("https://alimg.szlcsc.com/upload/public/product/source/20241118/example.jpg")
     );
     assert_eq!(candidate.parameters.len(), 1);
     assert_eq!(table_count(&app, "stock_items").await, item_count);
@@ -192,7 +192,9 @@ fn success_body() -> Value {
                 "productGradePlateName": "SM Switch",
                 "encapsulationModel": "插件",
                 "productModel": "BER-04",
+                "breviaryImageUrl": "https://alimg.szlcsc.com/upload/public/product/breviary/20241118/fallback.jpg",
                 "bigImageUrl": "https://alimg.szlcsc.com/upload/public/product/middle/20241118/example.jpg",
+                "luceneBreviaryImageUrls": "https://alimg.szlcsc.com/upload/public/product/breviary/20241118/example.jpg<$>https://alimg.szlcsc.com/upload/public/product/breviary/20241118/second.jpg",
                 "stockNumber": 10,
                 "productPriceList": [
                     { "startPurchasedNumber": 10, "productPrice": 8.2 },

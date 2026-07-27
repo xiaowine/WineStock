@@ -6,7 +6,7 @@ import {
   type ItemOptionResponse,
   type LcscItemLookupResponse,
 } from "../../api/items";
-import { readLcscItemImage } from "../../lcsc/image";
+import { prepareLcscItemImage } from "./lcscImageDraft";
 import { listItemCategories, type ItemCategoryResponse } from "../../api/itemCategories";
 import {
   listItemAttributeTemplates,
@@ -143,17 +143,17 @@ export function useItemCreateSession() {
     validationErrors.value = {};
     notice.info("已填写立创商品资料", { detail: candidate.product_code });
     try {
-      const blob = await readLcscItemImage(candidate.image_url);
+      const image = await prepareLcscItemImage(candidate.image_url, candidate.product_code);
       // 图片返回前草稿可能已被重置或改填其他编号，此时丢弃结果。
       if (draft.value.sku !== candidate.product_code) return;
-      const extension =
-        blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-      const file = new File([blob], `${candidate.product_code}.${extension}`, { type: blob.type });
       releaseImageDraft(draft.value.image ?? undefined);
-      draft.value.image = createPendingImageDraft(file);
+      draft.value.image = createPendingImageDraft(image.file);
       draft.value.imageTemporary = true;
+      if (image.usedPlaceholder) {
+        notice.warning("立创商品图片不可用", { detail: "已使用默认占位图。" });
+      }
     } catch {
-      notice.warning("立创商品图片未能填写", { detail: "已保留当前物品主图。" });
+      notice.warning("立创商品图片未能填写", { detail: "默认占位图也未能生成。" });
     }
   }
 
