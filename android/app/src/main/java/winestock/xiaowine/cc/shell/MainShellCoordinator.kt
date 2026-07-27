@@ -72,7 +72,8 @@ internal class MainShellCoordinator(
 
         viewportInsetsPublisher =
             WebViewportInsetsPublisher(
-                insetTarget = binding.root,
+                insetSource = binding.root,
+                imeInsetTarget = binding.webViewContainer,
                 webView = binding.webView,
                 trustedOrigin = AppConfig.TRUSTED_ORIGIN,
             ).also { it.install() }

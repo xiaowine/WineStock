@@ -10,7 +10,6 @@ import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.max
 import kotlin.math.round
 import kotlin.math.roundToInt
 
@@ -18,13 +17,15 @@ import kotlin.math.roundToInt
  * Android WebView 视口 inset 发布与输入法避让。
  *
  * 职责：采集 WindowInsets 的系统栏与挖孔区域，把物理像素转换为 CSS 像素，
- * 并只向受信任的前端文档发布 --shell-safe-area-inset-* 变量；同时消费 IME
- * inset——edge-to-edge 下 `adjustResize` 失效，由本类给内容根布局加底部
- * padding 压缩 WebView 视口，让 Chromium 自行把聚焦输入框滚入可见区。
- * 键盘弹出期间安全区底边发布为 0（导航栏在输入法后面）。不拥有业务协议。
+ * 并只向受信任的前端文档发布 --shell-safe-area-inset-* 变量；同时在内容容器
+ * 消费 IME inset——edge-to-edge 下 `adjustResize` 失效，由本类给 WebView 容器
+ * 加底部 padding 压缩 WebView 视口，让 Chromium 自行把聚焦输入框滚入可见区。
+ * 已处理类型向 WebView 下发置零副本，避免新版 WebView 再次生成 CSS safe area
+ * 或调整 visual viewport。键盘弹出期间安全区底边发布为 0。不拥有业务协议。
  */
 internal class WebViewportInsetsPublisher(
-    private val insetTarget: View,
+    private val insetSource: View,
+    private val imeInsetTarget: View,
     private val webView: WebView,
     private val trustedOrigin: String,
 ) {
@@ -33,35 +34,24 @@ internal class WebViewportInsetsPublisher(
     private var latestPhysicalInsets = Insets.of(0, 0, 0, 0)
     private var lastPublished: CssInsets? = null
     private var imeBottomPhysicalPx = 0
+    private val handledWebViewInsetTypes =
+        WindowInsetsCompat.Type.systemBars() or
+            WindowInsetsCompat.Type.displayCutout() or
+            WindowInsetsCompat.Type.ime()
 
     /** 安装监听并请求首轮 WindowInsets 分发。 */
     fun install() {
         if (disposed) return
-        ViewCompat.setOnApplyWindowInsetsListener(insetTarget) { _, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(insetSource) { _, insets ->
             if (!disposed) {
                 latestPhysicalInsets = extractContentSafeInsets(insets)
                 hasReceivedInsets = true
                 updateImeAccommodation(insets)
                 publishIfPossible(force = false)
             }
-            // 键盘避让通过根布局 padding 完成，inset 本身原样下发给子 View。
-            insets
+            zeroHandledInsets(insets)
         }
-        // WebView 也可能单独收到 inset 变化；两边都监听，取较大边写 CSS 变量。
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
-            if (!disposed) {
-                updateImeAccommodation(insets)
-                val candidate = extractContentSafeInsets(insets)
-                if (isStrictlyLarger(candidate, latestPhysicalInsets) || !hasReceivedInsets) {
-                    latestPhysicalInsets = mergeInsets(latestPhysicalInsets, candidate)
-                    hasReceivedInsets = true
-                    publishIfPossible(force = false)
-                }
-            }
-            insets
-        }
-        ViewCompat.requestApplyInsets(insetTarget)
-        ViewCompat.requestApplyInsets(webView)
+        ViewCompat.requestApplyInsets(insetSource)
     }
 
     /** 页面提交或加载完成后重发缓存值，覆盖页面导航造成的 CSS 变量丢失。 */
@@ -82,23 +72,32 @@ internal class WebViewportInsetsPublisher(
     fun dispose() {
         if (disposed) return
         disposed = true
-        ViewCompat.setOnApplyWindowInsetsListener(insetTarget, null)
-        ViewCompat.setOnApplyWindowInsetsListener(webView, null)
+        ViewCompat.setOnApplyWindowInsetsListener(insetSource, null)
     }
 
     /**
-     * 键盘弹出/收起时压缩或还原内容根布局：edge-to-edge 关闭了框架的
+     * 保留 Insets 更新分发，但把 shell 已处理的类型置零后交给 WebView。
+     * 不能返回 CONSUMED，否则输入法收起等后续零值通知可能被截断并留下 ghost padding。
+     */
+    private fun zeroHandledInsets(insets: WindowInsetsCompat): WindowInsetsCompat =
+        WindowInsetsCompat.Builder(insets)
+            .setInsets(handledWebViewInsetTypes, Insets.NONE)
+            .build()
+
+    /**
+     * 键盘弹出/收起时压缩或还原 WebView 内容容器：edge-to-edge 关闭了框架的
      * `adjustResize`，必须由 shell 自行消费 IME inset，否则输入法直接盖住 WebView。
+     * ProtectionLayout 根节点必须保持无 padding，避免底部 ColorProtection 被推到键盘上方。
      * 键盘弹出同时触发一次安全区重发（底边此时应为 0）。
      */
     private fun updateImeAccommodation(insets: WindowInsetsCompat) {
         val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
         if (imeBottom == imeBottomPhysicalPx) return
         imeBottomPhysicalPx = imeBottom
-        insetTarget.setPadding(
-            insetTarget.paddingLeft,
-            insetTarget.paddingTop,
-            insetTarget.paddingRight,
+        imeInsetTarget.setPadding(
+            imeInsetTarget.paddingLeft,
+            imeInsetTarget.paddingTop,
+            imeInsetTarget.paddingRight,
             imeBottom,
         )
         publishIfPossible(force = false)
@@ -195,7 +194,7 @@ internal class WebViewportInsetsPublisher(
     }
 
     private fun navigationBarHeightFallbackPx(): Int {
-        val resources = insetTarget.resources
+        val resources = insetSource.resources
         val resId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
         if (resId > 0) {
             val value = resources.getDimensionPixelSize(resId)
@@ -205,22 +204,8 @@ internal class WebViewportInsetsPublisher(
         return (48f * resources.displayMetrics.density).roundToInt()
     }
 
-    private fun mergeInsets(a: Insets, b: Insets): Insets =
-        Insets.of(
-            max(a.left, b.left),
-            max(a.top, b.top),
-            max(a.right, b.right),
-            max(a.bottom, b.bottom),
-        )
-
-    private fun isStrictlyLarger(candidate: Insets, current: Insets): Boolean =
-        candidate.left > current.left ||
-            candidate.top > current.top ||
-            candidate.right > current.right ||
-            candidate.bottom > current.bottom
-
     private fun Insets.toCssInsets(): CssInsets {
-        val density = insetTarget.resources.displayMetrics.density.takeIf { it > 0f } ?: 1f
+        val density = insetSource.resources.displayMetrics.density.takeIf { it > 0f } ?: 1f
         return CssInsets(
             top = toCssPx(top, density),
             right = toCssPx(right, density),

@@ -7,9 +7,16 @@
     android:background="@color/web_background"
     tools:context=".MainActivity">
 
-    <WebView
-        android:id="@+id/webView"
+    <!-- IME padding 只施加到内容容器，避免移动 ProtectionLayout 的系统栏保护层。 -->
+    <FrameLayout
+        android:id="@+id/webViewContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
 </androidx.core.view.insets.ProtectionLayout>

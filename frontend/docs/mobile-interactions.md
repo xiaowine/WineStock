@@ -13,7 +13,8 @@ foundation 层的 `styles/foundation/_safe-area.scss` 提供唯一消费入口�
 
 Android shell 的 `WebViewportInsetsPublisher` 读取 `systemBars | displayCutout`，
 按 display density 转成 CSS 像素后写入 shell 变量。IME/键盘不是通用安全区来源，
-继续由 `adjustResize`、visual viewport 和页面滚动行为处理。
+Android edge-to-edge 环境由 shell 给内部 WebView 内容容器添加 IME bottom padding 来压缩视口，
+再把已处理的 inset 类型置零后下发；普通浏览器继续依赖 visual viewport 和页面滚动行为。
 
 ## 布局规则
 
@@ -51,6 +52,7 @@ Android 声明 `capabilities.nativeBack = true` 时，前端通过统一 registr
 
 处理顺序固定为：
 
+0. Android IME：由原生 Shell 在进入前端 registry 前隐藏并消费，输入框保持焦点；
 1. `500`：Select listbox、图片来源与颜色等临时子浮层；
 2. `450`：图片全屏预览；
 3. `400`：最上层 Dialog，busy 时消费但不关闭；

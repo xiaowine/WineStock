@@ -17,6 +17,8 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 
 ## WebView 原生返回协商
 
+- IME 可见时，Activity 原生回调只请求隐藏输入法并消费本次返回；不发送前端返回请求，输入框焦点保留，
+  后续再次返回才进入浮层、路由与 Activity 的常规优先级。
 - `capabilities.nativeBack` 只在 AndroidX 消息通道、document-start shim 和 broker 成功安装后为 `true`。
 - `MainActivity` 继续只通过生命周期感知的 `OnBackPressedDispatcher` 接收返回提交，不另建平台回调链。
 - `ShellBridgeHost` 仅向当前可信、已调用 `frontendReady` 且 Activity 处于 resumed 的页面发送
@@ -101,7 +103,11 @@ Android shell 保持 `enableEdgeToEdge()`，让 Activity 根布局和 WebView �
 - 读取 systemBars/displayCutout，底边再与 navigationBars(ignoringVisibility)、
   tappableElement、mandatorySystemGestures 取较大值；仍为 0 且无侧栏导航时回退
   系统 `navigation_bar_height`；
-- 在 Activity 根与 WebView 上监听 inset，不消费 WindowInsets；
+- 只在 Activity 根监听原始 inset；系统栏/挖孔发布为 shell CSS 变量，IME 由内部 WebView 内容容器的
+  bottom padding 消费，`ProtectionLayout` 根节点保持无 padding，避免 `ColorProtection` 移到键盘上方；
+- 向 WebView 下发把 `systemBars | displayCutout | ime` 设为 `Insets.NONE` 的副本，避免 WebView M139/M144
+  再次调整 visual viewport 或生成重复 CSS safe area；不使用 `WindowInsetsCompat.CONSUMED`，确保键盘收起等
+  零值更新仍能继续分发；
 - 依据当前 display density 把物理像素转换为 CSS 像素；
 - 只向受信任 origin `https://winestock.internal` 发布
   `--shell-safe-area-inset-top/right/bottom/left`；

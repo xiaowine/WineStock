@@ -24,7 +24,7 @@
 
 - 资源加载：`WebViewAssetLoader` 把受信任 origin 根路径映射到 `assets/frontend`，根路径回退 `index.html`，不做 SPA 回退（前端使用 hash 路由）；`ShellWebViewConfigurator.kt` 集中 WebView 配置。
 - 摄像头授权：`WebViewCameraPermissionHost.kt` 处理 `onPermissionRequest`——仅受信任 origin 的 VIDEO_CAPTURE 且原生 CAMERA 运行时权限获准后才 grant，权限未授时经 Activity launcher 请求后结算，其余来源与资源一律 deny；manifest 声明 `CAMERA` 并以 `uses-feature required=false` 保持无摄像头设备可安装。
-- 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏在前端接管前跟随系统 day/night mode，之后由独立 JS 接口接收主题基线与临时覆盖并在 resume 时重放。Activity 根 `ProtectionLayout` 在透明底部系统栏下绘制主题相关 `ColorProtection`，不依赖系统自动 contrast scrim。应用主题的 `android:isLightTheme` 同样按 day/night 切换以驱动 WebView `prefers-color-scheme`，WebView 算法着色关闭，页面颜色只归前端双主题 CSS 所有。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时给内容根布局加底部 padding 压缩 WebView 视口（Chromium 自行滚动聚焦输入框），期间安全区底边发布为 0。
+- 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏在前端接管前跟随系统 day/night mode，之后由独立 JS 接口接收主题基线与临时覆盖并在 resume 时重放。Activity 根 `ProtectionLayout` 在透明底部系统栏下绘制主题相关 `ColorProtection`，不依赖系统自动 contrast scrim。应用主题的 `android:isLightTheme` 同样按 day/night 切换以驱动 WebView `prefers-color-scheme`，WebView 算法着色关闭，页面颜色只归前端双主题 CSS 所有。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时只给内部 WebView 内容容器添加 bottom padding，保持根保护层位于真实系统栏，期间安全区底边发布为 0；shell 已处理的系统栏、挖孔与 IME 类型置零后继续下发，避免新版 WebView 重复应用且保留后续更新通知。
 - 文件选择：单 pending 回调的纯状态机 Session（supersede/cancel/destroy 一次结算，JVM 单元测试覆盖竞态）加启动系统选择器的 Host；不声明存储/媒体权限。
 - `SplashFrontendGate.kt`：SplashScreen keep-on-screen 与超时/前端 ready 门闩。
 
@@ -32,7 +32,7 @@
 
 - `bridge.js` 是注入 WebView 的传输 shim（平台传输层，不是前端源码）：构造 `window.__WINESTOCK_SHELL_BRIDGE__`，以 call/reply/event 信封把 `frontend/src/shell/contract.ts` 的 v1 逻辑接口映射到原生消息通道，同时注入 `window.__WINESTOCK_RUNTIME_CONFIG__`；消息通道缺失时暴露降级桥。
 - `ShellBridgeHost.kt`：在受信任 origin 注册 `WebMessageListener` 与文档起始脚本（带能力检测），把配置与本地服务生命周期异步路由到 Application manager 并经主线程回复；管理页面代次与迟到结果丢弃（`AsyncBridgeReplyGate.kt`）；`openExternal` 只放行不含凭据的 http/https。只处理具名平台能力，不代理业务 HTTP、不传递业务 access/refresh token；`self-hosted` 快照会携带 core per-boot 的本机会话换取凭据（`localAuthExchangeToken`，仅经受信任 origin 通道下发，不落日志），由前端换取正常 token 实现本机免登录。
-- 原生返回：`NativeBackNavigator.kt` 先经 Bridge 协商，未处理时走 WebView history 或 finish；`NativeBackRequestBroker.kt` 是纯状态机（单 pending、400ms 超时、重复/迟到应答拒绝），由 JVM 单元测试覆盖竞态。
+- 原生返回：`NativeBackNavigator.kt` 在 IME 可见时只隐藏键盘并消费，否则经 Bridge 协商，未处理时走 WebView history 或 finish；`NativeBackRequestBroker.kt` 是纯状态机（单 pending、400ms 超时、重复/迟到应答拒绝），由 JVM 单元测试覆盖竞态。
 - 运行配置：四字段 `EditableRuntimeConfig` 模型与版本化 SharedPreferences 持久化（三态读取，与前端 `web.ts` 一致，只保存运行配置不保存 token）；`RuntimeSnapshotFactory.kt` 构造 v1 快照并发布 Shell 权威 `initialized`，`serverMode` 固定 false；native 不可用时仅校验远端地址降级路径。
 - `AppConfig.kt`：受信任 host `winestock.internal`（ICANN 保留、永不进入公网 DNS）、允许 origin、Splash 超时和原生返回应答超时等 shell 常量。
 
