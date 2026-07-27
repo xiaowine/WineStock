@@ -24,11 +24,11 @@ use crate::stock::service::{self, StockApiError};
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemCreateRequest {
     /// 物品名称，服务端会裁剪首尾空白。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 物品 SKU，未软删除记录内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
     /// 关联物品分类 ID。
@@ -44,11 +44,14 @@ pub(crate) struct ItemCreateRequest {
     pub image_file_id: i64,
 
     /// 计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
 
     /// 物品描述。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
 
     /// 参考单价，不允许为负。
@@ -69,11 +72,11 @@ pub(crate) struct ItemCreateRequest {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemUpdateRequest {
     /// 物品名称，存在时服务端会裁剪首尾空白。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub name: Option<String>,
 
     /// 物品 SKU，存在时未软删除记录内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_optional_not_blank))]
     pub sku: Option<String>,
 
     /// 关联物品分类 ID；字段缺失表示不修改，null 表示清空分类。
@@ -99,7 +102,7 @@ pub(crate) struct ItemUpdateRequest {
     pub image_file_id: Option<i64>,
 
     /// 计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,
 
     /// 物品描述；字段缺失表示不修改，null 表示清空。
@@ -108,7 +111,10 @@ pub(crate) struct ItemUpdateRequest {
         deserialize_with = "deserialize_nullable_field",
         skip_serializing_if = "Option::is_none"
     )]
-    #[garde(skip)]
+    #[garde(inner(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    ))]
     pub description: Option<Option<String>>,
 
     /// 参考单价；字段缺失表示不修改，null 表示清空。
@@ -289,11 +295,11 @@ pub(crate) struct ItemEditorResponse {
     pub id: i64,
 
     /// 物品名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 物品 SKU。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
     /// 关联物品分类 ID。
@@ -309,15 +315,18 @@ pub(crate) struct ItemEditorResponse {
     pub image_file_id: i64,
 
     /// 物品主图受控读取地址。
-    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 256), custom(validate_not_blank))]
     pub image_url: String,
 
     /// 计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
 
     /// 物品描述。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
 
     /// 参考单价。
@@ -472,15 +481,15 @@ pub(crate) struct ItemInventoryResponse {
     pub id: i64,
 
     /// 物品名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 物品 SKU。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
 
     /// 计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
 
     /// 再订货点。

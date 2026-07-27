@@ -63,10 +63,10 @@ pub(crate) struct ItemAttributeUnitRule {
     #[garde(dive)]
     pub mode: ItemAttributeUnitMode,
     /// fixed 模式的固定单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub value: Option<String>,
     /// select 模式的单位候选项。
-    #[garde(inner(length(min = 1, max = 32)))]
+    #[garde(inner(inner(length(utf16, min = 1, max = 32))))]
     pub options: Option<Vec<String>>,
 }
 
@@ -80,7 +80,7 @@ pub(crate) struct ItemAttributeTemplateFieldDef {
     #[garde(skip)]
     pub definition_id: Option<i64>,
     /// 字段名称，同一模板内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 字段类型。
     #[garde(dive)]
@@ -95,10 +95,10 @@ pub(crate) struct ItemAttributeTemplateFieldDef {
     #[garde(skip)]
     pub catalog_visible: Option<bool>,
     /// select 字段候选值。
-    #[garde(inner(length(min = 1, max = 128)))]
+    #[garde(inner(inner(length(utf16, min = 1, max = 128))))]
     pub options: Option<Vec<String>>,
     /// 可选默认值。
-    #[garde(length(min = 1, max = 256), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 256), custom(validate_optional_not_blank))]
     pub default_value: Option<String>,
     /// 可选单位规则；缺失时按 none 处理。
     #[garde(dive)]
@@ -155,10 +155,13 @@ pub(crate) struct ItemAttributeTemplateFieldResponse {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemAttributeTemplateCreateRequest {
     /// 模板名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 模板说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 物品属性预设字段。
     #[garde(dive)]
@@ -172,10 +175,13 @@ pub(crate) struct ItemAttributeTemplateCreateRequest {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemAttributeTemplateUpdateRequest {
     /// 模板名称。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub name: Option<String>,
     /// 模板说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 字段存在时整体替换。
     #[garde(skip)]
@@ -194,10 +200,13 @@ pub(crate) struct ItemAttributeTemplateResponse {
     #[garde(skip)]
     pub id: i64,
     /// 模板名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 模板说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 是否为全站默认模板；有效模板中至多一个为真。
     #[garde(skip)]

@@ -30,7 +30,7 @@ pub(crate) struct LocationGroupCreateRequest {
     pub parent_id: Option<i64>,
 
     /// 分组名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 排序值；为空时按 0 保存。
@@ -49,7 +49,7 @@ pub(crate) struct LocationGroupUpdateRequest {
     pub parent_id: Option<i64>,
 
     /// 分组名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 排序值；为空时按 0 保存。
@@ -71,7 +71,7 @@ pub(crate) struct LocationGroupResponse {
     pub parent_id: Option<i64>,
 
     /// 分组名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 排序值。
@@ -101,7 +101,7 @@ pub(crate) struct LocationGroupTreeNode {
     pub parent_id: Option<i64>,
 
     /// 分组名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 排序值。
@@ -147,11 +147,14 @@ pub(crate) struct LocationCreateRequest {
     pub group_id: i64,
 
     /// 库位名称，未删除库位内全局唯一。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 可选库位备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 排序值；为空时按 0 保存。
@@ -170,11 +173,14 @@ pub(crate) struct LocationUpdateRequest {
     pub group_id: i64,
 
     /// 库位名称，未删除库位内全局唯一。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 可选库位备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 排序值；为空时按 0 保存。
@@ -204,11 +210,14 @@ pub(crate) struct LocationResponse {
     pub group_name: String,
 
     /// 库位名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 
     /// 可选库位备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 排序值。
@@ -245,7 +254,10 @@ pub(crate) struct LocationTransferCreateRequest {
     pub to_location_id: i64,
 
     /// 移库备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 }
 
@@ -277,7 +289,10 @@ pub(crate) struct LocationTransferResponse {
     pub quantity: f64,
 
     /// 移库备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 操作人用户 ID。

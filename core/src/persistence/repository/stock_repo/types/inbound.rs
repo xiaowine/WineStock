@@ -21,10 +21,10 @@ pub(crate) struct CreateInboundOrderItem {
     #[garde(range(min = 1))]
     pub location_id: i64,
     /// 外部批次号；为空时审批阶段生成内部批次号。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub batch_no: Option<String>,
     /// 有效期日期文本。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
 }
 
@@ -32,10 +32,13 @@ pub(crate) struct CreateInboundOrderItem {
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
 pub(crate) struct CreateInboundOrder {
     /// 入库来源。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub source: String,
     /// 备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
     /// 创建人用户 ID。
     #[garde(skip)]

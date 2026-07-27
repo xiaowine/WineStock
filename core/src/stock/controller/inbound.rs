@@ -53,11 +53,11 @@ pub(crate) struct InboundItemRequest {
     pub location_id: i64,
 
     /// 外部批次号；为空时审批阶段生成内部批次号。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub batch_no: Option<String>,
 
     /// 有效期文本，首版按调用方输入保存。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
 }
 
@@ -70,11 +70,14 @@ pub(crate) struct InboundCreateRequest {
     pub submission_mode: InboundSubmissionMode,
 
     /// 入库来源。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub source: String,
 
     /// 入库备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 入库明细，至少一条。
@@ -155,11 +158,11 @@ pub(crate) struct InboundItemResponse {
     pub location_name: String,
 
     /// 批次号。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub batch_no: Option<String>,
 
     /// 有效期文本。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_optional_not_blank))]
     pub expires_at: Option<String>,
 
     /// 创建时间，使用 SQLite UTC 字符串格式。
@@ -175,7 +178,7 @@ pub(crate) struct InboundResponse {
     pub id: i64,
 
     /// 入库来源。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub source: String,
 
     /// 入库状态。
@@ -188,7 +191,10 @@ pub(crate) struct InboundResponse {
     pub submission_mode: Option<InboundSubmissionMode>,
 
     /// 入库备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 创建人用户 ID。

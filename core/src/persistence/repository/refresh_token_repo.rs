@@ -21,27 +21,27 @@ pub(crate) struct CreateRefreshToken {
     pub user_id: i64,
 
     /// 刷新令牌哈希值，明文令牌不得入库。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 128), custom(validate_not_blank))]
     pub token_hash: String,
 
     /// 设备名称，便于用户识别登录来源。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub device_name: String,
 
     /// 客户端类型，用于区分桌面、Android 或其他调用方。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 32), custom(validate_not_blank))]
     pub client_kind: String,
 
     /// App 版本号，用于定位登录来源的客户端版本。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub app_version: String,
 
     /// Refresh token 格式版本，由服务端当前 token 生成规则决定。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 32), custom(validate_not_blank))]
     pub refresh_token_version: String,
 
     /// 令牌过期时间，使用 SQLite UTC 字符串格式。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub expires_at: String,
 }
 

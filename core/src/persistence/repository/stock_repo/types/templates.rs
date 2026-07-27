@@ -14,10 +14,10 @@ pub(crate) struct TemplateFieldInput {
     #[garde(skip)]
     pub definition_id: Option<i64>,
     /// 字段名称，同一模板内不能重复。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 字段类型稳定代码。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 32), custom(validate_not_blank))]
     pub field_type: String,
     /// 是否必填。
     #[garde(skip)]
@@ -30,23 +30,23 @@ pub(crate) struct TemplateFieldInput {
     pub catalog_visible: bool,
     /// 候选值 JSON，仅 `select` 字段使用。
     #[garde(
-        length(min = 1, max = 4096),
+        length(bytes, min = 1, max = 4096),
         custom(validate_optional_not_blank),
         custom(validate_optional_json_text)
     )]
     pub options_json: Option<String>,
     /// 默认值。
-    #[garde(length(min = 1, max = 256), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 256), custom(validate_optional_not_blank))]
     pub default_value: Option<String>,
     /// 字段单位规则。
-    #[garde(length(min = 1, max = 16), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 16), custom(validate_not_blank))]
     pub unit_mode: String,
     /// fixed 模式的固定单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub fixed_unit: Option<String>,
     /// select 模式的单位候选值 JSON。
     #[garde(
-        length(min = 1, max = 2048),
+        length(bytes, min = 1, max = 2048),
         custom(validate_optional_not_blank),
         custom(validate_optional_json_text)
     )]
@@ -60,10 +60,13 @@ pub(crate) struct TemplateFieldInput {
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateItemAttributeTemplate {
     /// 模板名称，未软删除记录内唯一。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 模板说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 预设字段定义。
     #[garde(dive)]
@@ -74,10 +77,13 @@ pub(crate) struct CreateItemAttributeTemplate {
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct UpdateItemAttributeTemplate {
     /// 模板名称；为空表示不修改。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub name: Option<String>,
     /// 模板说明；外层表示是否修改，内层表示是否清空。
-    #[garde(skip)]
+    #[garde(inner(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    ))]
     pub description: Option<Option<String>>,
     /// 预设字段；存在时整体替换。
     #[garde(skip)]

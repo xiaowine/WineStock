@@ -612,6 +612,75 @@ async fn item_validation_and_authorization_fail_before_write() {
 }
 
 #[tokio::test]
+async fn item_description_length_counts_utf16_code_units() {
+    let app = seeded_app().await;
+    let token = login_request(&app, "admin", "password")
+        .await
+        .body
+        .access_token;
+    let description = "中".repeat(1024);
+    assert!(description.len() > 1024);
+
+    let created = authorized_json_request(
+        &app,
+        "POST",
+        "/api/items",
+        &token,
+        &ItemCreateRequest {
+            name: "Unicode description".to_owned(),
+            sku: "UNICODE-DESCRIPTION".to_owned(),
+            category_id: None,
+            attribute_template_id: None,
+            image_file_id: crate::test_support::upload_test_image(&app, &token).await,
+            unit: "pcs".to_owned(),
+            description: Some(description.clone()),
+            default_price: None,
+            reorder_point: None,
+            attributes: Vec::new(),
+        },
+    )
+    .await;
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let mutation: ItemMutationResponse = json_body(created).await;
+    let item = get_item_editor(&app, &token, mutation.id).await;
+    assert_eq!(item.description.as_deref(), Some(description.as_str()));
+
+    let too_long = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/items/{}", mutation.id),
+        &token,
+        &serde_json::json!({ "description": "中".repeat(1025) }),
+    )
+    .await;
+    assert_eq!(too_long.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(too_long).await, "invalid_request");
+
+    // 增补平面字符每个占 2 个 UTF-16 code unit：512 个恰好达到上限，513 个超出，
+    // 证明计数单位是 UTF-16 而非 Unicode scalar value。
+    let at_limit = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/items/{}", mutation.id),
+        &token,
+        &serde_json::json!({ "description": "🍷".repeat(512) }),
+    )
+    .await;
+    assert_eq!(at_limit.status(), StatusCode::OK);
+
+    let over_limit = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/items/{}", mutation.id),
+        &token,
+        &serde_json::json!({ "description": "🍷".repeat(513) }),
+    )
+    .await;
+    assert_eq!(over_limit.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(over_limit).await, "invalid_request");
+}
+
+#[tokio::test]
 async fn item_attributes_follow_template_unit_rules() {
     let app = seeded_app().await;
     let token = login_request(&app, "admin", "password")

@@ -65,7 +65,7 @@ impl TemplateFieldType {
 #[serde(deny_unknown_fields)]
 pub(crate) struct TemplateFieldDef {
     /// 字段名称，同一模板内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 字段类型。
     #[garde(dive)]
@@ -77,10 +77,10 @@ pub(crate) struct TemplateFieldDef {
     #[garde(skip)]
     pub searchable: Option<bool>,
     /// `select` 候选值。
-    #[garde(inner(length(min = 1, max = 128)))]
+    #[garde(inner(inner(length(utf16, min = 1, max = 128))))]
     pub options: Option<Vec<String>>,
     /// 可选默认值。
-    #[garde(length(min = 1, max = 256), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 256), custom(validate_optional_not_blank))]
     pub default_value: Option<String>,
 }
 
@@ -93,7 +93,7 @@ pub(crate) struct TemplateFieldResponse {
     #[garde(skip)]
     pub id: i64,
     /// 字段名称。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 字段类型。
     #[garde(dive)]
@@ -105,10 +105,10 @@ pub(crate) struct TemplateFieldResponse {
     #[garde(skip)]
     pub searchable: bool,
     /// `select` 候选值。
-    #[garde(inner(length(min = 1, max = 128)))]
+    #[garde(inner(inner(length(utf16, min = 1, max = 128))))]
     pub options: Option<Vec<String>>,
     /// 可选默认值。
-    #[garde(length(min = 1, max = 256), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 256), custom(validate_optional_not_blank))]
     pub default_value: Option<String>,
     /// 字段展示顺序。
     #[garde(range(min = 0))]
@@ -122,6 +122,6 @@ pub(crate) struct TemplateFieldResponse {
 #[serde(deny_unknown_fields)]
 pub(crate) struct TemplateCopyRequest {
     /// 新模板名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
 }

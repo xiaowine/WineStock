@@ -175,8 +175,22 @@ fn valid_http_url(value: &str) -> bool {
         .is_some_and(|url| matches!(url.scheme(), "http" | "https"))
 }
 
-fn truncate_chars(value: &str, max_chars: usize) -> String {
-    value.chars().take(max_chars).collect()
+/// 按 UTF-16 code unit 上限安全裁剪，与 HTTP DTO 的 `length(utf16, ...)` 契约一致。
+///
+/// 遍历 Unicode scalar value 并累加 `char::len_utf16()`，加入下一个字符会超过上限时停止，
+/// 因此不会在代理对中间切断，也不会生成非法字符串。
+fn truncate_chars(value: &str, max_utf16: usize) -> String {
+    let mut used = 0usize;
+    let mut end = value.len();
+    for (index, ch) in value.char_indices() {
+        let width = ch.len_utf16();
+        if used + width > max_utf16 {
+            end = index;
+            break;
+        }
+        used += width;
+    }
+    value[..end].to_owned()
 }
 
 fn map_lookup_error(error: LcscLookupError) -> StockApiError {
@@ -280,5 +294,21 @@ mod tests {
             map_lookup_error(LcscLookupError::InvalidResponse),
             StockApiError::LcscInvalidResponse
         ));
+    }
+
+    #[test]
+    fn truncate_chars_counts_utf16_code_units_without_splitting_characters() {
+        // ASCII 恰好达到上限。
+        assert_eq!(truncate_chars("abcdef", 3), "abc");
+
+        // 中文按 1 个 UTF-16 code unit 计数，字节数远超上限也不会被裁剪。
+        let chinese = "中".repeat(4);
+        assert_eq!(truncate_chars(&chinese, 4), chinese);
+        assert_eq!(truncate_chars(&chinese, 3), "中".repeat(3));
+
+        // 增补平面字符占 2 个 UTF-16 code unit；上限为奇数时不切断代理对。
+        assert_eq!(truncate_chars("😀😀", 4), "😀😀");
+        assert_eq!(truncate_chars("😀😀", 3), "😀");
+        assert_eq!(truncate_chars("😀😀", 1), "");
     }
 }

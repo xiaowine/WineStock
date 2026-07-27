@@ -33,7 +33,10 @@ pub(crate) struct SubstituteReplacementItem {
     pub priority: i32,
 
     /// 兼容性备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 }
 
@@ -60,11 +63,11 @@ pub(crate) struct ItemSubstituteResponse {
     pub substitute_item_id: i64,
 
     /// 替代料物品名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub substitute_item_name: String,
 
     /// 替代料物品 SKU。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub substitute_item_sku: String,
 
     /// 替代料分类名称。
@@ -76,11 +79,11 @@ pub(crate) struct ItemSubstituteResponse {
     pub substitute_item_image_file_id: i64,
 
     /// 替代料主图受控读取地址。
-    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 256), custom(validate_not_blank))]
     pub substitute_item_image_url: String,
 
     /// 替代料计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_not_blank))]
     pub substitute_item_unit: String,
 
     /// 替代料再订货点。
@@ -100,7 +103,10 @@ pub(crate) struct ItemSubstituteResponse {
     pub priority: i32,
 
     /// 兼容性备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 创建人用户 ID。
@@ -120,11 +126,11 @@ pub(crate) struct SubstituteRelationResponse {
     pub item_id: i64,
 
     /// 主物品名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub item_name: String,
 
     /// 主物品 SKU。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub item_sku: String,
 
     /// 替代料物品 ID。
@@ -132,11 +138,11 @@ pub(crate) struct SubstituteRelationResponse {
     pub substitute_item_id: i64,
 
     /// 替代料物品名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub substitute_item_name: String,
 
     /// 替代料物品 SKU。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub substitute_item_sku: String,
 
     /// 替代料当前库存量。
@@ -148,7 +154,10 @@ pub(crate) struct SubstituteRelationResponse {
     pub priority: i32,
 
     /// 兼容性备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 创建人用户 ID。

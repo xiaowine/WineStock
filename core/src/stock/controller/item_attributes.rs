@@ -17,7 +17,7 @@ pub(crate) struct ItemAttributeRequest {
     #[garde(skip)]
     pub definition_id: Option<i64>,
     /// 属性名称，同一物品内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 属性类型。
     #[garde(dive)]
@@ -40,7 +40,7 @@ pub(crate) struct ItemAttributeRequest {
     #[schema(value_type = ItemAttributeValue)]
     pub value: Value,
     /// 可选计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,
 }
 
@@ -57,7 +57,7 @@ pub(crate) struct ItemAttributeResponse {
     #[garde(skip)]
     pub custom: bool,
     /// 属性名称。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 属性类型。
     #[garde(dive)]
@@ -80,7 +80,7 @@ pub(crate) struct ItemAttributeResponse {
     #[schema(value_type = ItemAttributeValue)]
     pub value: Value,
     /// 可选计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,
     /// 属性展示顺序。
     #[garde(range(min = 0))]

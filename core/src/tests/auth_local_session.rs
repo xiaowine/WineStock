@@ -11,8 +11,8 @@ use crate::{
     persistence::repository::{AuthRepository, RbacRepository, UserRepository},
     rbac::builtin_permission_codes,
     test_support::{
-        empty_app, error_code, json_body, json_request, login_request, seeded_app,
-        server_mode_app, TestApp,
+        empty_app, error_code, json_body, json_request, login_request, seeded_app, server_mode_app,
+        TestApp,
     },
 };
 
@@ -35,7 +35,10 @@ fn exchange_request(app: &TestApp) -> AuthLocalSessionRequest {
     }
 }
 
-async fn raw_exchange(app: &TestApp, request: &AuthLocalSessionRequest) -> axum::response::Response {
+async fn raw_exchange(
+    app: &TestApp,
+    request: &AuthLocalSessionRequest,
+) -> axum::response::Response {
     app.router
         .clone()
         .oneshot(json_request("POST", "/api/auth/local-session", request))
@@ -125,7 +128,8 @@ async fn local_session_unavailable_for_unmarked_existing_users() {
 #[tokio::test]
 async fn local_session_heals_disabled_and_stripped_marked_user() {
     let app = empty_app().await;
-    let first: AuthTokenResponse = json_body(raw_exchange(&app, &exchange_request(&app)).await).await;
+    let first: AuthTokenResponse =
+        json_body(raw_exchange(&app, &exchange_request(&app)).await).await;
     let user_id: i64 = first.user.id.parse().expect("user id should parse");
 
     // 模拟 server-mode 期间标记用户被停用并清空权限。
@@ -238,10 +242,7 @@ async fn local_session_status_reflects_placeholder() {
             axum::http::Request::builder()
                 .method("GET")
                 .uri("/api/auth/local-session/status")
-                .header(
-                    "authorization",
-                    format!("Bearer {}", session.access_token),
-                )
+                .header("authorization", format!("Bearer {}", session.access_token))
                 .body(axum::body::Body::empty())
                 .expect("request should build"),
         )

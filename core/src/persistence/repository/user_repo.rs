@@ -17,11 +17,11 @@ use crate::persistence::repository::{time::sqlite_now, validation::validate_repo
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateUser {
     /// 登录用户名，数据库中保持唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub username: String,
 
     /// 已完成算法处理的密码哈希，不接受明文密码。
-    #[garde(length(min = 1, max = 512), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 512), custom(validate_not_blank))]
     pub password_hash: String,
 }
 

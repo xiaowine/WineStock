@@ -54,11 +54,11 @@ pub(crate) struct EventLogResponse {
     pub user_id: Option<i64>,
 
     /// 操作人用户名；用户被删除或外键置空时为空。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_optional_not_blank))]
     pub username: Option<String>,
 
     /// 被操作实体类型。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub entity_type: String,
 
     /// 被操作实体 ID。
@@ -66,7 +66,7 @@ pub(crate) struct EventLogResponse {
     pub entity_id: Option<i64>,
 
     /// 操作动作。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub action: String,
 
     /// 事件详情 JSON。

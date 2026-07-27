@@ -9,7 +9,7 @@ use tokio::{sync::oneshot, task::JoinHandle};
 use winestock_shared::AppConfig;
 
 use crate::{
-    bind_server, bootstrap_from_config, bootstrap::LocalSessionSecret, CoreBootstrapError,
+    bind_server, bootstrap::LocalSessionSecret, bootstrap_from_config, CoreBootstrapError,
     ServerStartError,
 };
 

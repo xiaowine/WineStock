@@ -20,11 +20,11 @@ use super::{
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateFileObject {
     /// 文件内容的 SHA-256 摘要，必须由调用方在写入元数据前计算。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 128), custom(validate_not_blank))]
     pub sha256: String,
 
     /// 文件 MIME 类型；调用方无法判断时允许为空。
-    #[garde(length(min = 1, max = 255), custom(validate_optional_not_blank))]
+    #[garde(length(bytes, min = 1, max = 255), custom(validate_optional_not_blank))]
     pub mime_type: Option<String>,
 
     /// 文件大小，单位字节。
@@ -32,11 +32,11 @@ pub(crate) struct CreateFileObject {
     pub size_bytes: i64,
 
     /// 文件在 `files/` 目录下的相对存储路径。
-    #[garde(length(min = 1, max = 4096), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 4096), custom(validate_not_blank))]
     pub storage_path: String,
 
     /// 上传或导入时的原始文件名。
-    #[garde(length(min = 1, max = 255), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 255), custom(validate_optional_not_blank))]
     pub original_name: Option<String>,
 
     /// 文件所有者用户 ID；系统级文件或未归属文件允许为空。

@@ -46,11 +46,14 @@ pub(crate) struct OutboundItemRequest {
 #[serde(deny_unknown_fields)]
 pub(crate) struct OutboundCreateRequest {
     /// 出库去向。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub destination: String,
 
     /// 出库备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 出库明细，至少一条。
@@ -136,7 +139,7 @@ pub(crate) struct OutboundResponse {
     pub id: i64,
 
     /// 出库去向。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub destination: String,
 
     /// 出库状态。
@@ -144,7 +147,10 @@ pub(crate) struct OutboundResponse {
     pub status: OrderStatus,
 
     /// 出库备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 
     /// 创建人用户 ID。

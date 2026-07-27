@@ -26,10 +26,13 @@ pub(crate) struct CreateOutboundOrderItem {
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
 pub(crate) struct CreateOutboundOrder {
     /// 出库去向。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub destination: String,
     /// 备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
     /// 创建人用户 ID。
     #[garde(skip)]

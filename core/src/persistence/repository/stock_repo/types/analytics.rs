@@ -57,7 +57,10 @@ pub(crate) struct StockSubstituteInput {
     #[garde(range(min = 1))]
     pub priority: i32,
     /// 兼容性备注。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub notes: Option<String>,
 }
 

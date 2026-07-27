@@ -24,10 +24,13 @@ use crate::{
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemCategoryCreateRequest {
     /// 分类名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 分类说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 展示顺序。
     #[garde(range(min = 0))]
@@ -41,10 +44,13 @@ pub(crate) struct ItemCategoryCreateRequest {
 #[serde(deny_unknown_fields)]
 pub(crate) struct ItemCategoryUpdateRequest {
     /// 分类名称。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub name: Option<String>,
     /// 分类说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 展示顺序。
     #[garde(range(min = 0))]
@@ -60,10 +66,13 @@ pub(crate) struct ItemCategoryResponse {
     #[garde(skip)]
     pub id: i64,
     /// 分类名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 分类说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 展示顺序。
     #[garde(range(min = 0))]

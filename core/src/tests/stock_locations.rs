@@ -254,8 +254,7 @@ async fn location_global_default_is_unique_and_cleared_on_delete() {
     assert!(!second.is_default);
 
     // 设为默认：响应携带 is_default。
-    let set_first =
-        set_location_default(&app, &login.body.access_token, &first, Some(true)).await;
+    let set_first = set_location_default(&app, &login.body.access_token, &first, Some(true)).await;
     assert!(set_first.is_default);
 
     // 换默认：服务层事务自动清除旧默认，全表至多一个。
@@ -270,8 +269,7 @@ async fn location_global_default_is_unique_and_cleared_on_delete() {
     assert!(keep.is_default);
 
     // 取消默认后全表无默认。
-    let unset =
-        set_location_default(&app, &login.body.access_token, &second, Some(false)).await;
+    let unset = set_location_default(&app, &login.body.access_token, &second, Some(false)).await;
     assert!(!unset.is_default);
     assert!(list_default_location_ids(&app, &login.body.access_token)
         .await

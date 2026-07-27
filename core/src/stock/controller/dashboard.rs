@@ -17,7 +17,7 @@ pub(crate) struct SlowMovingItem {
     pub item_id: i64,
 
     /// 物品名称。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub item_name: String,
 
     /// 当前库存量。

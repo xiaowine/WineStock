@@ -46,15 +46,19 @@ impl AuthClientKind {
 #[serde(deny_unknown_fields)]
 pub struct AuthLoginRequest {
     /// 登录用户名。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub username: String,
 
     /// 明文密码只允许出现在登录请求中，服务端不得持久化该值；登录不得用新密码策略拒绝历史凭据。
-    #[garde(length(min = 1, max = 256), custom(validate_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 256),
+        length(bytes, max = 1024),
+        custom(validate_not_blank)
+    )]
     pub password: String,
 
     /// 设备名称，用于标识 refresh token 来源。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub device_name: String,
 
     /// 客户端类型，仅允许桌面端、Android 端或 Web 前端。
@@ -62,7 +66,7 @@ pub struct AuthLoginRequest {
     pub client_kind: AuthClientKind,
 
     /// 客户端版本号，用于记录 refresh token 来源版本。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub version: String,
 }
 
@@ -73,11 +77,15 @@ pub struct AuthLoginRequest {
 #[serde(deny_unknown_fields)]
 pub struct AuthRegisterRequest {
     /// 登录用户名，服务端会去除首尾空白并要求非空。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub username: String,
 
     /// 明文密码只允许出现在注册请求中，长度要求为 8 至 256 个字符，服务端会保存 Argon2 哈希。
-    #[garde(length(min = 8, max = 256), custom(validate_not_blank))]
+    #[garde(
+        length(utf16, min = 8, max = 256),
+        length(bytes, max = 1024),
+        custom(validate_not_blank)
+    )]
     pub password: String,
 }
 
@@ -88,11 +96,11 @@ pub struct AuthRegisterRequest {
 #[serde(deny_unknown_fields)]
 pub struct AuthLocalSessionRequest {
     /// 每次本地服务启动生成的一次性换取凭据明文。
-    #[garde(length(min = 1, max = 512), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 512), custom(validate_not_blank))]
     pub exchange_token: String,
 
     /// 设备名称，用于标识 refresh token 来源。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub device_name: String,
 
     /// 客户端类型，仅允许桌面端、Android 端或 Web 前端。
@@ -100,7 +108,7 @@ pub struct AuthLocalSessionRequest {
     pub client_kind: AuthClientKind,
 
     /// 客户端版本号，用于记录 refresh token 来源版本。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub version: String,
 }
 

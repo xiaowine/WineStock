@@ -11,10 +11,10 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
 pub(crate) struct CreateStockItem {
     /// 物品名称，裁剪后不能为空。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 物品 SKU，未软删除记录内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_not_blank))]
     pub sku: String,
     /// 物品分类 ID；为空表示暂不分类。
     #[garde(skip)]
@@ -29,10 +29,13 @@ pub(crate) struct CreateStockItem {
     #[garde(range(min = 1))]
     pub image_owner_user_id: i64,
     /// 计量单位，裁剪后不能为空。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_not_blank))]
     pub unit: String,
     /// 物品描述。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 参考单价，不允许为负。
     #[garde(skip)]
@@ -49,10 +52,10 @@ pub(crate) struct CreateStockItem {
 #[derive(Debug, Clone, PartialEq, garde::Validate)]
 pub(crate) struct UpdateStockItem {
     /// 物品名称，存在时裁剪后不能为空。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub name: Option<String>,
     /// 物品 SKU，存在时裁剪后不能为空且未软删除记录内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_optional_not_blank))]
+    #[garde(length(bytes, min = 1, max = 64), custom(validate_optional_not_blank))]
     pub sku: Option<String>,
     /// 分类 ID；外层表示是否修改，内层表示是否清空。
     #[garde(skip)]
@@ -67,10 +70,13 @@ pub(crate) struct UpdateStockItem {
     #[garde(custom(crate::persistence::repository::validation::validate_optional_positive_id))]
     pub image_owner_user_id: Option<i64>,
     /// 计量单位，存在时裁剪后不能为空。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,
     /// 物品描述；外层表示是否修改，内层表示是否清空。
-    #[garde(skip)]
+    #[garde(inner(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    ))]
     pub description: Option<Option<String>>,
     /// 参考单价；外层表示是否修改，内层表示是否清空。
     #[garde(skip)]
@@ -186,10 +192,13 @@ pub(crate) struct ItemOptionCriteria {
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateItemCategory {
     /// 分类名称，未软删除记录内唯一。
-    #[garde(length(min = 1, max = 128), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_not_blank))]
     pub name: String,
     /// 分类说明。
-    #[garde(length(min = 1, max = 1024), custom(validate_optional_not_blank))]
+    #[garde(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    )]
     pub description: Option<String>,
     /// 分类展示顺序。
     #[garde(range(min = 0))]
@@ -200,10 +209,13 @@ pub(crate) struct CreateItemCategory {
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct UpdateItemCategory {
     /// 分类名称；为空表示不修改。
-    #[garde(length(min = 1, max = 128), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 128), custom(validate_optional_not_blank))]
     pub name: Option<String>,
     /// 分类说明；外层表示是否修改，内层表示是否清空。
-    #[garde(skip)]
+    #[garde(inner(
+        length(utf16, min = 1, max = 1024),
+        custom(validate_optional_not_blank)
+    ))]
     pub description: Option<Option<String>>,
     /// 分类展示顺序；为空表示不修改。
     #[garde(range(min = 0))]
@@ -217,10 +229,10 @@ pub(crate) struct ItemAttributeInput {
     #[garde(skip)]
     pub definition_id: Option<i64>,
     /// 属性名称，同一物品内唯一。
-    #[garde(length(min = 1, max = 64), custom(validate_not_blank))]
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub field_name: String,
     /// 稳定属性类型代码。
-    #[garde(length(min = 1, max = 32), custom(validate_not_blank))]
+    #[garde(length(bytes, min = 1, max = 32), custom(validate_not_blank))]
     pub field_type: String,
     /// 自定义 select 候选值 JSON。
     #[garde(skip)]
@@ -236,13 +248,13 @@ pub(crate) struct ItemAttributeInput {
     pub unit_options_json: Option<String>,
     /// JSON 编码后的属性值。
     #[garde(
-        length(min = 1, max = 8192),
+        length(bytes, min = 1, max = 8192),
         custom(validate_not_blank),
         custom(validate_json_text)
     )]
     pub value_json: String,
     /// 可选计量单位。
-    #[garde(length(min = 1, max = 32), custom(validate_optional_not_blank))]
+    #[garde(length(utf16, min = 1, max = 32), custom(validate_optional_not_blank))]
     pub unit: Option<String>,
     /// 属性展示顺序。
     #[garde(range(min = 0))]
