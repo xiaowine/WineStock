@@ -2,6 +2,8 @@
 @use "./mixins" as mixins;
 * {
   box-sizing: border-box;
+  /* 全局使用项目自己的交互反馈，避免 Chrome/WebView 在可点击元素上闪现系统蓝色高亮。 */
+  -webkit-tap-highlight-color: transparent;
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-gutter: auto;
   scrollbar-width: thin;
@@ -105,8 +107,6 @@ img {
 
 button {
   cursor: pointer;
-  /* 使用项目自己的按压与焦点反馈，避免 Chrome/WebView 触摸时闪现系统蓝色高亮。 */
-  -webkit-tap-highlight-color: transparent;
 }
 
 button:focus-visible,
