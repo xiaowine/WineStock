@@ -7,9 +7,10 @@ import {
   createItem,
   listItemOptions,
   lookupLcscItem,
-  readLcscItemImage,
   type ItemOptionResponse,
+  type LcscItemLookupResponse,
 } from "../../api/items";
+import { readLcscItemImage } from "../../lcsc/image";
 import { listItemCategories, type ItemCategoryResponse } from "../../api/itemCategories";
 import {
   listItemAttributeTemplates,
@@ -24,6 +25,7 @@ import {
 } from "../../pages/items/model";
 import { discardTemporaryItemFiles } from "../../pages/items/fileCleanup";
 import {
+  createMissingProductImage,
   createPendingImageDraft,
   isImageDraftValue,
   releaseImageDraft,
@@ -175,8 +177,9 @@ export function useBatchLcscItemCreation() {
     draft.unit = batchOptions.unit;
     draft.categoryId = batchOptions.categoryId;
 
+    let candidate: LcscItemLookupResponse;
     try {
-      const candidate = await lookupLcscItem(code, signal);
+      candidate = await lookupLcscItem(code, signal);
       applyLcscLookupToDraft(draft, candidate, template);
     } catch (error) {
       if (isAbort(error, signal)) return cancelledResult();
@@ -187,12 +190,18 @@ export function useBatchLcscItemCreation() {
       };
     }
 
-    // 主图为必填字段：商品图拉取失败即本行失败，可重试或回落单个新建人工处理。
+    // 主图为必填字段：上游明确无图时生成可识别占位图；真实图片读取失败仍保留失败语义。
     try {
-      const blob = await readLcscItemImage(code, signal);
-      const extension =
-        blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-      const file = new File([blob], `${code}.${extension}`, { type: blob.type });
+      let file: File;
+      if (candidate.image_url) {
+        const blob = await readLcscItemImage(candidate.image_url, signal);
+        const extension =
+          blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
+        file = new File([blob], `${code}.${extension}`, { type: blob.type });
+      } else {
+        file = await createMissingProductImage(code);
+      }
+      if (signal.aborted) return cancelledResult();
       draft.image = createPendingImageDraft(file);
       draft.imageTemporary = true;
     } catch (error) {

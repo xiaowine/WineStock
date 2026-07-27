@@ -401,7 +401,6 @@ import {
   getItem,
   getItemFilterValues,
   listItemCatalog,
-  readLcscItemImage,
   updateItem,
   type CatalogAttributeResponse,
   type ItemCatalogFilters,
@@ -413,6 +412,7 @@ import {
   type ItemStockState,
   type LcscItemLookupResponse,
 } from "../api/items";
+import { readLcscItemImage } from "../lcsc/image";
 import { listItemCategories, type ItemCategoryResponse } from "../api/itemCategories";
 import {
   listItemAttributeTemplates,
@@ -816,7 +816,7 @@ async function applyLcscLookup(
   validationErrors.value = {};
   notice.info("已填写立创商品资料", { detail: candidate.product_code });
   try {
-    const blob = await readLcscItemImage(candidate.product_code);
+    const blob = await readLcscItemImage(candidate.image_url);
     if (dialogMode.value !== "create" || draft.value.sku !== candidate.product_code) return;
     const extension =
       blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";

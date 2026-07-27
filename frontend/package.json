@@ -13,6 +13,7 @@
     "test:native-back": "node --test tests/nativeBackCore.test.mjs",
     "test:runtime-funnel": "node --test tests/runtimeFunnel.test.mjs",
     "test:item-lcsc": "node --test tests/itemLcscMapping.test.mjs",
+    "test:lcsc-image": "node --test tests/lcscImage.test.mjs",
     "test:lcsc-bag": "node --test tests/lcscBagCode.test.mjs",
     "test:lcsc-order": "node --test tests/lcscOrderExport.test.mjs",
     "test:erp-backup": "node --test tests/erpBackupImport.test.mjs",

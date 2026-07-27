@@ -114,7 +114,11 @@
       <button
         v-if="parsed && canCreateItem && (creatableCount > 0 || batch.running.value)"
         class="secondary-button erp-backup-import__batch-action"
+        :class="{
+          'erp-backup-import__action--pending': batch.metadataLoading.value || batch.running.value,
+        }"
         type="button"
+        :aria-busy="batch.metadataLoading.value || batch.running.value"
         :disabled="batch.metadataLoading.value || busy || selectedCreatableCount === 0"
         @click="openBatchCreate"
       >
@@ -129,8 +133,10 @@
       <button class="secondary-button" type="button" @click="emit('close')">取消</button>
       <button
         v-if="parsed"
-        class="primary-button"
+        class="primary-button erp-backup-import__import-action"
+        :class="{ 'erp-backup-import__action--pending': importing }"
         type="button"
+        :aria-busy="importing"
         :disabled="!canImport || busy"
         @click="confirmImport"
       >
@@ -625,5 +631,13 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
 
 .erp-backup-import__batch-action {
   margin-right: auto;
+}
+
+.erp-backup-import__import-action:disabled {
+  cursor: not-allowed;
+}
+
+.erp-backup-import__action--pending:disabled {
+  cursor: wait;
 }
 </style>

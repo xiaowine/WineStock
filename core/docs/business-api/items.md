@@ -45,29 +45,23 @@
 - `PUT /api/items/{id}`：更新基础资料；传入 `attributes` 时整体替换实际属性，成功返回轻量命令结果。
 - `DELETE /api/items/{id}`：软删除物品。
 - `GET /api/items/lookups/lcsc/{product_code}`：使用 `stock.item.manage` 权限查询一个 `C` 开头的
-  立创商城商品编号，返回归一化候选资料；查询不创建物品、不写文件、库存或审计事件。core 内部固定请求
-  `https://pro.lceda.cn/api/devices/search`。请求固定使用 `path`、`uid`、`page = 1`、`pageSize = 50`、
-  `tag = []` 和 `attributes = {}`，只有 `wd` 取规范化后的单个商品编号；不得改用 `searchByCodes`。
-  前端不能提供上游 URL、请求上下文、Cookie 或批量编号。core 必须遍历搜索结果，并按顶层
-  `product_code` 或 `attributes["Supplier Part"]` 与输入编号精确匹配，不能直接采用模糊搜索结果第一项。
-  core 同时请求固定价格接口 `https://pro.lceda.cn/api/components/getSmtPartInfo`，请求只包含固定 `path`
-  和单元素 `numbers`。只有价格记录客编精确匹配、`onSale = 1`、`stock_num > 0` 且存在有效阶梯价时，
-  才返回 `default_price`；价格取 `startNumber` 最小档的正数 `productPrice`。价格接口失败、空结果、
-  零库存或无有效价格不影响器件资料结果，只令 `default_price` 为 `null`。
-- `GET /api/items/lookups/lcsc/{product_code}/image`：使用 `stock.item.manage` 权限读取精确命中器件的首张商品图。
-  core 不公开第三方图片 URL，只允许 `https://alimg.szlcsc.com` 主机，禁止重定向，并复核响应状态、15 MiB 上限、
-  图片 MIME 与 PNG/JPEG/WebP 文件签名。搜索结果为 `/upload/public/product/middle/` 路径时，core 优先读取
-  同日期、同文件名的 `/upload/public/product/source/` 高清版本，高清版本不可用时回退搜索结果原地址；其它路径
-  不做推导。无图片返回 404，上游或图片校验失败返回稳定错误。该接口不创建 WineStock 文件对象，也不写数据库。
+  立创商城商品编号，返回归一化候选资料；查询不创建物品、不写文件、库存或审计事件。Core 固定 POST
+  `https://so.szlcsc.com/phone/global/query`，请求只包含规范化后的单个 `keyword`、`pageSize = 10`、
+  `currentPage = 1`、`searchSource = "main_so"` 和 `asyncRequest = false`。前端不能提供上游 URL、请求头、
+  Cookie、token 或批量编号。Core 必须遍历 `result.searchResult.productRecordList`，按
+  `productVO.productCode` 与输入编号选择唯一精确匹配项，不能直接采用搜索结果第一项。参考单价取精确匹配
+  商品 `productPriceList` 中起订量最小的正数价格；无库存或无有效价格时返回 `null`。
 
-立创查询响应只保留商品编号、候选名称、描述、制造商、制造商型号、封装、数据手册、可选参考单价和过滤后的标量参数，
-不公开 EasyEDA Symbol、Footprint/3D Model UUID 或原始 JSON。格式无效、未找到、并发繁忙、超时、上游失败和
+立创查询响应只保留商品编号、候选名称、描述、制造商、制造商型号、封装、数据手册、可选参考单价、过滤后的标量参数
+和可空 `image_url`，不公开原始 JSON。图片地址只接受 HTTPS、严格主机 `alimg.szlcsc.com` 和
+`/upload/public/product/` 或 `/upload/public/brand/product/certificate/` 路径。格式无效、未找到、并发繁忙、超时、上游失败和
 无效响应分别返回稳定错误码 `invalid_lcsc_product_code`、`lcsc_product_not_found`、`lcsc_lookup_busy`、
 `lcsc_lookup_timeout`、`lcsc_lookup_failed`、`lcsc_invalid_response`。
 候选名称优先取 `attributes["Manufacturer Part"]`，再回退到 `attributes["LCSC Part Name"]` 和商品编号；
 候选描述优先取顶层 `description`，再回退到 `attributes["LCSC Part Name"]`，均不存在时返回 `null`。
-前端确认覆盖后可以通过受控图片接口读取 Blob，并把它作为普通临时图片走现有 `POST /api/files/images` 上传和
-`image_file_id` 创建流程；图片缺失或读取失败不得阻断其它候选资料和参考单价回填。
+前端确认覆盖后直接从白名单图片地址发起无凭据、无自定义头的简单 GET，复核状态、MIME、15 MiB 上限和
+PNG/JPEG/WebP 文件签名，再把 Blob 作为普通临时图片走现有 `POST /api/files/images` 上传和 `image_file_id`
+创建流程；图片缺失或读取失败不得阻断其它候选资料和参考单价回填。
 
 更新请求中，字段缺失表示保留原值；`category_id`、`attribute_template_id`、`description`、`default_price` 和 `reorder_point` 明确传 `null` 时会清空。`image_file_id` 不允许清空；更换时必须传当前用户拥有的未绑定图片。原主图在事务成功后解除占用，可通过临时文件删除接口删除或等待孤儿清理。
 

@@ -1,4 +1,4 @@
-// 本文件拥有前端图片草稿、纯色 PNG 生成和延迟上传；它不决定图片最终绑定到物品还是入库明细。
+// 本文件拥有前端图片草稿、占位/纯色 PNG 生成和延迟上传；它不决定图片最终绑定到物品还是入库明细。
 import { uploadImage } from "../../api/files";
 import {
   ApiConfigurationError,
@@ -75,15 +75,63 @@ export async function createSolidColorImage(color: string, size = 512): Promise<
   if (!context) throw new Error("当前浏览器无法生成纯色图片");
   context.fillStyle = color;
   context.fillRect(0, 0, size, size);
+  return canvasPngFile(canvas, `solid-${color.replace("#", "").toLowerCase()}.png`);
+}
+
+/** 为没有商城商品图的有效器件生成明确的默认主图，避免批量创建被主图必填规则阻断。 */
+export async function createMissingProductImage(partNumber: string, size = 512): Promise<File> {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("当前浏览器无法生成默认商品图片");
+
+  const scale = size / 512;
+  context.fillStyle = "#f4f5f6";
+  context.fillRect(0, 0, size, size);
+  context.strokeStyle = "#c7ccd1";
+  context.lineWidth = 2 * scale;
+  context.strokeRect(24 * scale, 24 * scale, 464 * scale, 464 * scale);
+
+  // 只表达“图片缺失”，不绘制可能被误认为真实商品外观的器件图。
+  context.strokeStyle = "#8a939c";
+  context.lineWidth = 7 * scale;
+  context.strokeRect(176 * scale, 126 * scale, 160 * scale, 126 * scale);
+  context.beginPath();
+  context.moveTo(188 * scale, 238 * scale);
+  context.lineTo(238 * scale, 184 * scale);
+  context.lineTo(273 * scale, 218 * scale);
+  context.lineTo(324 * scale, 166 * scale);
+  context.stroke();
+
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = "#3f4851";
+  context.font = `650 ${30 * scale}px system-ui, sans-serif`;
+  context.fillText("暂无商品图片", size / 2, 326 * scale);
+
+  const normalizedCode = partNumber.trim().toUpperCase() || "UNKNOWN";
+  let codeFontSize = 25 * scale;
+  do {
+    context.font = `600 ${codeFontSize}px ui-monospace, monospace`;
+    if (context.measureText(normalizedCode).width <= 360 * scale) break;
+    codeFontSize -= 1 * scale;
+  } while (codeFontSize > 15 * scale);
+  context.fillStyle = "#707981";
+  context.fillText(normalizedCode, size / 2, 376 * scale);
+
+  const safeCode = normalizedCode.replace(/[^A-Z0-9_-]/g, "") || "unknown";
+  return canvasPngFile(canvas, `${safeCode}-no-product-image.png`);
+}
+
+async function canvasPngFile(canvas: HTMLCanvasElement, name: string): Promise<File> {
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (value) => (value ? resolve(value) : reject(new Error("纯色图片生成失败"))),
+      (value) => (value ? resolve(value) : reject(new Error("PNG 图片生成失败"))),
       "image/png",
     );
   });
-  return new File([blob], `solid-${color.replace("#", "").toLowerCase()}.png`, {
-    type: "image/png",
-  });
+  return new File([blob], name, { type: "image/png" });
 }
 
 /** 从受控色板随机生成默认物品主图草稿。 */

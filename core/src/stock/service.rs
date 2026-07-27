@@ -25,7 +25,7 @@ pub(crate) use inbound::{
     approve_inbound, create_inbound, get_inbound, inbound_filter_values, list_inbound,
     reject_inbound,
 };
-pub(crate) use item_lookup::{lookup_lcsc_item, lookup_lcsc_item_image};
+pub(crate) use item_lookup::lookup_lcsc_item;
 pub(crate) use items::{
     create_item, delete_item, get_item, get_item_inventory, item_filter_values, list_item_batches,
     list_item_catalog, list_item_options, update_item,

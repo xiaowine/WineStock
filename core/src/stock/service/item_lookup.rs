@@ -8,7 +8,7 @@ use serde_json::Value;
 use url::Url;
 
 use crate::{
-    external::{LcscLookupError, LcscProductImage, LcscProductRecord},
+    external::{LcscLookupError, LcscProductRecord},
     state::CoreState,
     stock::controller::{ItemLookupSource, LcscItemLookupResponse, LcscLookupParameterResponse},
 };
@@ -56,27 +56,6 @@ pub(crate) async fn lookup_lcsc_item(
     normalize_lookup_result(&product_code, records, default_price)
 }
 
-pub(crate) async fn lookup_lcsc_item_image(
-    state: &CoreState,
-    product_code: &str,
-) -> Result<LcscProductImage, StockApiError> {
-    let product_code = normalize_product_code(product_code)?;
-    let (records, _) = state
-        .external_catalog()
-        .lcsc()
-        .lookup(&product_code)
-        .await
-        .map_err(map_lookup_error)?;
-    let record = exact_record(&product_code, records)?;
-    let source = record.image_url.ok_or(StockApiError::LcscProductNotFound)?;
-    state
-        .external_catalog()
-        .lcsc()
-        .download_image(&source)
-        .await
-        .map_err(map_lookup_error)
-}
-
 fn normalize_product_code(product_code: &str) -> Result<String, StockApiError> {
     let normalized = product_code.trim().to_ascii_uppercase();
     let digits = normalized
@@ -97,6 +76,7 @@ fn normalize_lookup_result(
 
     let part_name = attribute_text(&record, "LCSC Part Name");
     let manufacturer_part = attribute_text(&record, "Manufacturer Part");
+    let parameters = additional_parameters(&record);
     let name = manufacturer_part
         .clone()
         .or_else(|| part_name.clone())
@@ -117,8 +97,9 @@ fn normalize_lookup_result(
         manufacturer_part,
         footprint: attribute_text(&record, "Supplier Footprint"),
         datasheet_url,
+        image_url: record.image_url,
         default_price,
-        parameters: additional_parameters(&record),
+        parameters,
     })
 }
 

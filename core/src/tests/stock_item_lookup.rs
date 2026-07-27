@@ -24,7 +24,6 @@ use crate::{
 #[derive(Clone, Default)]
 struct MockState {
     request: Arc<Mutex<Option<(HeaderMap, Value)>>>,
-    price_request: Arc<Mutex<Option<Value>>>,
 }
 
 #[tokio::test]
@@ -49,6 +48,10 @@ async fn lookup_uses_fixed_search_request_and_returns_normalized_candidate() {
     assert_eq!(candidate.name, "BER-04");
     assert_eq!(candidate.manufacturer.as_deref(), Some("SM Switch"));
     assert_eq!(candidate.default_price, Some(9.91));
+    assert_eq!(
+        candidate.image_url.as_deref(),
+        Some("https://alimg.szlcsc.com/upload/public/product/middle/20241118/example.jpg")
+    );
     assert_eq!(candidate.parameters.len(), 1);
     assert_eq!(table_count(&app, "stock_items").await, item_count);
     assert_eq!(table_count(&app, "audit_events").await, event_count);
@@ -59,25 +62,15 @@ async fn lookup_uses_fixed_search_request_and_returns_normalized_candidate() {
         .expect("request lock should work")
         .clone()
         .expect("upstream request should exist");
-    assert_eq!(body["attributes"], json!({}));
-    assert_eq!(body["path"], "0819f05c4eef4c71ace90d822a990e87");
-    assert_eq!(body["uid"], "0819f05c4eef4c71ace90d822a990e87");
-    assert_eq!(body["page"], 1);
-    assert_eq!(body["pageSize"], 50);
-    assert_eq!(body["tag"], json!([]));
-    assert_eq!(body["wd"], "C2983288");
-    assert!(body.get("codes").is_none());
+    assert_eq!(body["keyword"], "C2983288");
+    assert_eq!(body["pageSize"], 10);
+    assert_eq!(body["currentPage"], 1);
+    assert_eq!(body["searchSource"], "main_so");
+    assert_eq!(body["asyncRequest"], false);
+    assert_eq!(body.as_object().map(|object| object.len()), Some(5));
     assert!(headers.get("cookie").is_none());
     assert!(headers.get("origin").is_none());
     assert!(headers.get("referer").is_none());
-    let price_body = mock
-        .price_request
-        .lock()
-        .expect("price request lock should work")
-        .clone()
-        .expect("price request should exist");
-    assert_eq!(price_body["numbers"], json!(["C2983288"]));
-    assert_eq!(price_body["path"], "0819f05c4eef4c71ace90d822a990e87");
 }
 
 #[tokio::test]
@@ -123,7 +116,11 @@ async fn lookup_validates_permissions_input_and_upstream_errors() {
     let missing_endpoint = spawn_mock_server(
         MockState::default(),
         StatusCode::OK,
-        json!({ "success": true, "code": 0, "result": { "lists": {} } }),
+        json!({
+            "code": 200,
+            "ok": true,
+            "result": { "searchResult": { "productRecordList": [] } }
+        }),
     )
     .await;
     let missing_app = empty_app_with_mock_lcsc(missing_endpoint).await;
@@ -161,7 +158,7 @@ async fn spawn_mock_server(state: MockState, status: StatusCode, body: Value) ->
     let search_body = body.clone();
     let router = Router::new()
         .route(
-            "/api/devices/search",
+            "/phone/global/query",
             post(
                 move |State(state): State<MockState>,
                       headers: HeaderMap,
@@ -175,57 +172,44 @@ async fn spawn_mock_server(state: MockState, status: StatusCode, body: Value) ->
                 },
             ),
         )
-        .route(
-            "/api/components/getSmtPartInfo",
-            post(
-                |State(state): State<MockState>, Json(request): Json<Value>| async move {
-                    *state
-                        .price_request
-                        .lock()
-                        .expect("price request lock should work") = Some(request);
-                    (
-                        StatusCode::OK,
-                        Json(json!({
-                            "success": true,
-                            "code": 0,
-                            "result": [{
-                                "component_code": "C2983288",
-                                "onSale": 1,
-                                "stock_num": 10,
-                                "priceList": [
-                                    { "startNumber": 10, "productPrice": 8.2 },
-                                    { "startNumber": 1, "productPrice": 9.91 }
-                                ]
-                            }]
-                        })),
-                    )
-                },
-            ),
-        )
         .with_state(state);
     tokio::spawn(async move {
         axum::serve(listener, router)
             .await
             .expect("mock server should run");
     });
-    format!("http://{address}/api/devices/search")
+    format!("http://{address}/phone/global/query")
 }
 
 fn success_body() -> Value {
     json!({
-        "success": true,
-        "code": 0,
-        "result": { "lists": { "lcsc": [{
-            "product_code": "C2983288",
-            "description": "旋转编码开关",
-            "attributes": {
-                "LCSC Part Name": "旋转编码开关",
-                "Supplier Part": "C2983288",
-                "Manufacturer": "SM Switch",
-                "Manufacturer Part": "BER-04",
-                "Supplier Footprint": "插件",
-                "Datasheet": "https://example.com/BER-04.pdf",
-                "Symbol": "private-symbol-id",
+        "code": 200,
+        "ok": true,
+        "result": { "searchResult": { "productRecordList": [{
+            "productVO": {
+                "productCode": "C2983288",
+                "productName": "旋转编码开关",
+                "productGradePlateName": "SM Switch",
+                "encapsulationModel": "插件",
+                "productModel": "BER-04",
+                "bigImageUrl": "https://alimg.szlcsc.com/upload/public/product/middle/20241118/example.jpg",
+                "stockNumber": 10,
+                "productPriceList": [
+                    { "startPurchasedNumber": 10, "productPrice": 8.2 },
+                    { "startPurchasedNumber": 1, "productPrice": 9.91 }
+                ],
+                "fileTypeVOList": [{
+                    "fileType": "pdf_property",
+                    "detailVOList": [{
+                        "fileUrl": "/upload/public/pdf/source/20241012/BER-04.pdf"
+                    }]
+                }]
+            },
+            "lightProductIntro": "旋转编码开关",
+            "lightBrandName": "SM Switch",
+            "lightProductModel": "BER-04",
+            "lightStandard": "插件",
+            "paramLinkedMap": {
                 "Operating Temperature": "-40℃~+85℃"
             }
         }] } }

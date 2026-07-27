@@ -86,7 +86,6 @@ pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
         crate::stock::controller::items::update_item,
         crate::stock::controller::items::delete_item,
         crate::stock::controller::item_lookup::lookup_lcsc_item,
-        crate::stock::controller::item_lookup::lookup_lcsc_item_image,
         crate::stock::controller::locations::list_location_group_tree,
         crate::stock::controller::locations::create_location_group,
         crate::stock::controller::locations::update_location_group,

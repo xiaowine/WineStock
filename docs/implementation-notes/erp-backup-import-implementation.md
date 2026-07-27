@@ -75,7 +75,8 @@ export interface ErpBackupParseResult =
    `code → locationId` 映射。库位新建串行，失败即停并提示。
 2. **物品批量创建**：`items` 中未匹配现有 C 码的（`listItemOptions` 精确匹配）走
    `useBatchLcscItemCreation.run(codes, options)`（弹批次选项对话框，同特性一，含勾选可分批）；
-   已匹配的直接复用。得到 `partNumber → ItemOptionResponse` 映射。
+   已匹配的直接复用。商城明确无图时生成带客编的“暂无商品图片”PNG，不放弃有效器件；真实图片
+   地址存在但读取失败时仍保持失败。得到 `partNumber → ItemOptionResponse` 映射。
 3. **组装期初草稿**：`items` → 草稿行 `{ item, quantity, unitPrice: 0, locationId }`（locationCode 经步骤1
    映射为 id；null 时留待预填/批量设置）。经 `emit("import", payload)` 交入库装配。
 
@@ -93,6 +94,7 @@ export interface ErpBackupParseResult =
   - **物品**：真 C 码行，复用订单导入的匹配/未匹配/勾选批量创建 UI（可直接复用 Dialog 的行渲染结构）；
   - **跳过**：C0 手工器件（灰显不可选，徽标"手工器件"），顶部提示文案（方案文档已定）。
 - 主操作："导入 N 项到入库草稿"（执行三阶段）；批量创建入口沿用特性一（勾选 + 创建选中）。
+  导入条件不满足时使用普通禁止指针，仅导入或一键创建实际运行期间使用等待指针。
 - 关闭中止安全；解析失败在 `backupImportFile.ts` 唯一入口记 `trackTelemetryIssue`。
 
 ## 入口

@@ -39,6 +39,7 @@
 - `GET /api/items`：物品目录分页、搜索、库存状态、分类、模板与结构化字段筛选；动态 `filters` 使用稳定字段 key 和参数化精确匹配。
 - `GET /api/items/options`：轻量选择投影物品基础字段、分类与属性模板 ID。
 - `GET /api/items/filter-values`：按当前目录上下文返回单位、有效库位和可搜索模板属性的分面候选值与计数。
+- `GET /api/items/lookups/lcsc/{product_code}`：由 Core 查询立创商城并返回归一化候选资料和受控商品图地址。
 - `GET /api/items/{id}`
 - `GET /api/items/{id}/inventory`
 - `GET /api/items/{id}/batches`

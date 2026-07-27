@@ -87,10 +87,6 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 auth.item_manage(get(controller::lookup_lcsc_item)),
             )
             .route(
-                "/items/lookups/lcsc/{product_code}/image",
-                auth.item_manage(get(controller::lookup_lcsc_item_image)),
-            )
-            .route(
                 "/items/{id}",
                 auth.item_read(get(controller::get_item))
                     .merge(auth.item_manage(put(controller::update_item)))

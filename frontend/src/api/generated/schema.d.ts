@@ -455,23 +455,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/items/lookups/lcsc/{product_code}/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 读取单个立创商品的受控首图；本接口不创建 WineStock 文件对象。 */
-        get: operations["lookup_lcsc_item_image"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/items/options": {
         parameters: {
             query?: never;
@@ -2056,21 +2039,37 @@ export interface components {
         };
         /** @description 可由用户确认后填写到新建物品草稿的立创候选资料。 */
         LcscItemLookupResponse: {
+            /** @description 可选受控数据手册地址。 */
             datasheet_url?: string | null;
-            /** Format: double */
+            /**
+             * Format: double
+             * @description 有库存且存在有效阶梯价时的最小起订量参考单价。
+             */
             default_price?: number | null;
+            /** @description 可选商品描述。 */
             description?: string | null;
+            /** @description 可选封装信息。 */
             footprint?: string | null;
+            /** @description 已通过 Core 白名单校验、允许前端无凭据跨域读取的立创商品图。 */
+            image_url?: string | null;
+            /** @description 可选制造商名称。 */
             manufacturer?: string | null;
+            /** @description 可选制造商型号。 */
             manufacturer_part?: string | null;
+            /** @description 用于物品草稿的候选名称。 */
             name: string;
+            /** @description 未映射为固定字段的附加标量参数。 */
             parameters: components["schemas"]["LcscLookupParameterResponse"][];
+            /** @description 规范化后的立创商品编号。 */
             product_code: string;
+            /** @description 候选资料来源。 */
             source: components["schemas"]["ItemLookupSource"];
         };
         /** @description 立创商品中未映射为固定字段的标量参数。 */
         LcscLookupParameterResponse: {
+            /** @description 立创商品参数名称。 */
             name: string;
+            /** @description 已归一化为文本的参数值。 */
             value: string;
         };
         /** @description 创建库位请求。 */
@@ -4355,92 +4354,6 @@ export interface operations {
                 };
             };
             /** @description LCSC service failed or returned invalid data */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description LCSC lookup timed out */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-        };
-    };
-    lookup_lcsc_item_image: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Single LCSC product code such as C2983288 */
-                product_code: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Validated LCSC product image */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/jpeg": unknown;
-                };
-            };
-            /** @description Invalid LCSC product code */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Invalid access token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description Item manage permission required */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description LCSC product or image not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description LCSC lookup concurrency limit reached */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorResponse"];
-                };
-            };
-            /** @description LCSC service or image validation failed */
             502: {
                 headers: {
                     [name: string]: unknown;

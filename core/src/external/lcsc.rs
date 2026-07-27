@@ -1,4 +1,4 @@
-//! 立创 EDA 商品资料接口适配器。
+//! 立创商城商品查询接口适配器。
 //!
 //! 本模块只理解固定上游请求与原始响应，不公开 WineStock HTTP DTO，也不写数据库。
 
@@ -10,16 +10,17 @@ use serde_json::Value;
 use tokio::sync::Semaphore;
 use url::Url;
 
-const LCEDA_SEARCH_URL: &str = "https://pro.lceda.cn/api/devices/search";
-const LCEDA_PRICE_URL: &str = "https://pro.lceda.cn/api/components/getSmtPartInfo";
-const LCEDA_SEARCH_PATH: &str = "0819f05c4eef4c71ace90d822a990e87";
-const LCEDA_IMAGE_HOST: &str = "alimg.szlcsc.com";
-const LCEDA_IMAGE_MIDDLE_PREFIX: &str = "/upload/public/product/middle/";
-const LCEDA_IMAGE_SOURCE_PREFIX: &str = "/upload/public/product/source/";
+const LCSC_PHONE_QUERY_URL: &str = "https://so.szlcsc.com/phone/global/query";
+const LCSC_IMAGE_HOST: &str = "alimg.szlcsc.com";
+const LCSC_IMAGE_PATH_PREFIXES: [&str; 2] = [
+    "/upload/public/product/",
+    "/upload/public/brand/product/certificate/",
+];
+const LCSC_DATASHEET_HOST: &str = "atta.szlcsc.com";
+const LCSC_DATASHEET_PATH_PREFIX: &str = "/upload/public/pdf/";
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
-const MAX_IMAGE_BYTES: usize = 15 * 1024 * 1024;
 const MAX_CONCURRENT_LOOKUPS: usize = 4;
 
 /// 构建立创查询 client 失败。
@@ -52,50 +53,37 @@ pub(crate) enum LcscLookupError {
 /// 单个立创商品的原始业务记录。
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct LcscProductRecord {
-    /// 搜索结果声明的立创客编；模糊结果可能不包含该字段。
+    /// 商城搜索结果声明的立创客编。
     pub(crate) product_code: Option<String>,
-    /// 搜索结果顶层的商品参数描述。
+    /// 商城搜索结果中的商品描述。
     pub(crate) description: Option<String>,
-    /// 搜索结果中的首张商品图片地址；只允许由受控下载方法读取。
+    /// 已通过 HTTPS、主机和路径白名单校验的商品图片地址。
     pub(crate) image_url: Option<String>,
     /// 上游器件属性；业务层只投影允许公开的字段。
     pub(crate) attributes: HashMap<String, Value>,
-}
-
-/// 已复核 MIME 和文件签名的立创商品图片。
-pub(crate) struct LcscProductImage {
-    pub(crate) bytes: Vec<u8>,
-    pub(crate) mime_type: &'static str,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct LcscLookupClient {
     client: Client,
     search_endpoint: String,
-    price_endpoint: String,
     permits: Arc<Semaphore>,
 }
 
 impl LcscLookupClient {
     pub(crate) fn build() -> Result<Self, ExternalCatalogBootstrapError> {
-        Self::build_inner(
-            LCEDA_SEARCH_URL.to_owned(),
-            LCEDA_PRICE_URL.to_owned(),
-            true,
-        )
+        Self::build_inner(LCSC_PHONE_QUERY_URL.to_owned(), true)
     }
 
     #[cfg(test)]
     pub(crate) fn build_for_test(
         search_endpoint: String,
-        price_endpoint: String,
     ) -> Result<Self, ExternalCatalogBootstrapError> {
-        Self::build_inner(search_endpoint, price_endpoint, false)
+        Self::build_inner(search_endpoint, false)
     }
 
     fn build_inner(
         search_endpoint: String,
-        price_endpoint: String,
         https_only: bool,
     ) -> Result<Self, ExternalCatalogBootstrapError> {
         let client = Client::builder()
@@ -111,11 +99,11 @@ impl LcscLookupClient {
         Ok(Self {
             client,
             search_endpoint,
-            price_endpoint,
             permits: Arc::new(Semaphore::new(MAX_CONCURRENT_LOOKUPS)),
         })
     }
 
+    /// 查询单个规范化客编；请求槽只覆盖完整上游请求和响应读取。
     pub(crate) async fn lookup(
         &self,
         product_code: &str,
@@ -125,93 +113,22 @@ impl LcscLookupClient {
             .clone()
             .try_acquire_owned()
             .map_err(|_| LcscLookupError::Busy)?;
-        let search_request = LcedaSearchRequest {
-            attributes: HashMap::new(),
-            path: LCEDA_SEARCH_PATH,
-            uid: LCEDA_SEARCH_PATH,
-            page: 1,
-            page_size: 50,
-            tag: [],
-            wd: product_code,
+        let request = LcscPhoneQueryRequest {
+            keyword: product_code,
+            page_size: 10,
+            current_page: 1,
+            search_source: "main_so",
+            async_request: false,
         };
-        let price_request = LcedaPriceRequest {
-            numbers: [product_code],
-            path: LCEDA_SEARCH_PATH,
-        };
-        let search = self
+        let response = self
             .client
             .post(&self.search_endpoint)
             .header(reqwest::header::ACCEPT, "application/json")
-            .json(&search_request)
-            .send();
-        let price = self
-            .client
-            .post(&self.price_endpoint)
-            .header(reqwest::header::ACCEPT, "application/json")
-            .json(&price_request)
-            .send();
-        let (search_response, price_response) = tokio::join!(search, price);
-        let records = read_search_response(search_response.map_err(map_reqwest_error)?).await?;
-        let price = match price_response {
-            Ok(response) => read_price_response(response, product_code)
-                .await
-                .ok()
-                .flatten(),
-            Err(_) => None,
-        };
-        Ok((records, price))
-    }
-
-    pub(crate) async fn download_image(
-        &self,
-        source: &str,
-    ) -> Result<LcscProductImage, LcscLookupError> {
-        let candidates = image_candidates(source)?;
-        let mut last_error = LcscLookupError::InvalidResponse;
-        for url in candidates {
-            match self.download_image_url(url).await {
-                Ok(image) => return Ok(image),
-                Err(error) => last_error = error,
-            }
-        }
-
-        Err(last_error)
-    }
-
-    /// 下载单个已通过地址白名单校验的图片候选，并复核响应内容。
-    async fn download_image_url(&self, url: Url) -> Result<LcscProductImage, LcscLookupError> {
-        let mut response = self
-            .client
-            .get(url)
+            .json(&request)
             .send()
             .await
             .map_err(map_reqwest_error)?;
-        if !response.status().is_success()
-            || response
-                .content_length()
-                .is_some_and(|length| length > MAX_IMAGE_BYTES as u64)
-        {
-            return Err(LcscLookupError::Failed);
-        }
-        let declared_mime = response
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.split(';').next())
-            .map(str::trim)
-            .map(str::to_owned);
-        let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(map_reqwest_error)? {
-            if bytes.len().saturating_add(chunk.len()) > MAX_IMAGE_BYTES {
-                return Err(LcscLookupError::InvalidResponse);
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        let mime_type = detected_image_mime(&bytes).ok_or(LcscLookupError::InvalidResponse)?;
-        if declared_mime.as_deref() != Some(mime_type) {
-            return Err(LcscLookupError::InvalidResponse);
-        }
-        Ok(LcscProductImage { bytes, mime_type })
+        read_search_response(response, product_code).await
     }
 }
 
@@ -224,46 +141,15 @@ fn webpki_tls_config() -> rustls::ClientConfig {
     let mut config = rustls::ClientConfig::builder()
         .with_root_certificates(roots)
         .with_no_client_auth();
-    // 只声明 http/1.1：工作区 reqwest 未启用 http2 feature，若 ALPN 协商出 h2（如立创图片主机）
-    // hyper 会直接 panic。
+    // 只声明 http/1.1：工作区 reqwest 未启用 http2 feature，若 ALPN 协商出 h2，hyper 会直接 panic。
     config.alpn_protocols = vec![b"http/1.1".to_vec()];
     config
 }
 
-fn image_candidates(source: &str) -> Result<Vec<Url>, LcscLookupError> {
-    let original = Url::parse(source).map_err(|_| LcscLookupError::InvalidResponse)?;
-    if original.scheme() != "https" || original.host_str() != Some(LCEDA_IMAGE_HOST) {
-        return Err(LcscLookupError::InvalidResponse);
-    }
-
-    let Some(suffix) = original.path().strip_prefix(LCEDA_IMAGE_MIDDLE_PREFIX) else {
-        return Ok(vec![original]);
-    };
-    if suffix.is_empty() {
-        return Ok(vec![original]);
-    }
-
-    // 搜索接口返回中等尺寸图；同一受控路径下优先尝试 source 原图，失败后仍保留原地址兜底。
-    let mut source_variant = original.clone();
-    source_variant.set_path(&format!("{LCEDA_IMAGE_SOURCE_PREFIX}{suffix}"));
-    Ok(vec![source_variant, original])
-}
-
-fn detected_image_mime(bytes: &[u8]) -> Option<&'static str> {
-    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
-        Some("image/png")
-    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {
-        Some("image/jpeg")
-    } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
-        Some("image/webp")
-    } else {
-        None
-    }
-}
-
 async fn read_search_response(
     mut response: reqwest::Response,
-) -> Result<Vec<LcscProductRecord>, LcscLookupError> {
+    product_code: &str,
+) -> Result<(Vec<LcscProductRecord>, Option<f64>), LcscLookupError> {
     if !response.status().is_success() {
         return Err(LcscLookupError::Failed);
     }
@@ -282,68 +168,144 @@ async fn read_search_response(
         bytes.extend_from_slice(&chunk);
     }
 
-    let body: LcedaSearchResponse =
+    let body: LcscPhoneQueryResponse =
         serde_json::from_slice(&bytes).map_err(|_| LcscLookupError::InvalidResponse)?;
-    if !body.success || body.code != 0 {
+    if body.code != 200 || !body.ok {
         return Err(LcscLookupError::InvalidResponse);
     }
-
-    Ok(body
+    let search_result = body
         .result
-        .lists
-        .into_records()
-        .map(|record| LcscProductRecord {
-            product_code: record.product_code,
-            description: record.description,
-            image_url: record.images.into_iter().next(),
-            attributes: record.attributes,
+        .and_then(|result| result.search_result)
+        .ok_or(LcscLookupError::InvalidResponse)?;
+
+    let default_price = search_result
+        .product_record_list
+        .iter()
+        .filter(|record| {
+            record
+                .product
+                .product_code
+                .as_deref()
+                .is_some_and(|candidate| candidate.trim().eq_ignore_ascii_case(product_code))
         })
-        .collect())
-}
-
-async fn read_price_response(
-    mut response: reqwest::Response,
-    product_code: &str,
-) -> Result<Option<f64>, LcscLookupError> {
-    if !response.status().is_success() {
-        return Err(LcscLookupError::Failed);
-    }
-    let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(map_reqwest_error)? {
-        if bytes.len().saturating_add(chunk.len()) > MAX_RESPONSE_BYTES {
-            return Err(LcscLookupError::InvalidResponse);
-        }
-        bytes.extend_from_slice(&chunk);
-    }
-    let body: LcedaPriceResponse =
-        serde_json::from_slice(&bytes).map_err(|_| LcscLookupError::InvalidResponse)?;
-    if !body.success || body.code != 0 {
-        return Err(LcscLookupError::InvalidResponse);
-    }
-    Ok(reference_price(body.result, product_code))
-}
-
-fn reference_price(records: Vec<LcedaPriceRecord>, product_code: &str) -> Option<f64> {
-    let mut matches = records.into_iter().filter(|record| {
-        record
-            .component_code
-            .trim()
-            .eq_ignore_ascii_case(product_code)
-    });
-    let Some(record) = matches.next() else {
-        return None;
-    };
-    if matches.next().is_some() || record.on_sale != 1 || record.stock_num <= 0 {
-        return None;
-    }
-    record
-        .price_list
+        .filter_map(reference_price)
+        .next();
+    let records = search_result
+        .product_record_list
         .into_iter()
+        .map(normalize_product_record)
+        .collect();
+    Ok((records, default_price))
+}
+
+fn normalize_product_record(record: LcscPhoneProductRecord) -> LcscProductRecord {
+    let product = record.product;
+    let mut attributes = record.parameters;
+    insert_attribute(
+        &mut attributes,
+        "LCSC Part Name",
+        first_text(record.light_product_name, product.product_name.clone()),
+    );
+    insert_attribute(
+        &mut attributes,
+        "Supplier Part",
+        product.product_code.clone(),
+    );
+    insert_attribute(
+        &mut attributes,
+        "Manufacturer",
+        first_text(
+            record.light_brand_name,
+            product.product_grade_plate_name.clone(),
+        ),
+    );
+    insert_attribute(
+        &mut attributes,
+        "Manufacturer Part",
+        first_text(record.light_product_model, product.product_model.clone()),
+    );
+    insert_attribute(
+        &mut attributes,
+        "Supplier Footprint",
+        first_text(record.light_standard, product.encapsulation_model.clone()),
+    );
+    insert_attribute(
+        &mut attributes,
+        "Datasheet",
+        datasheet_url(&product.file_groups),
+    );
+
+    let image_url = first_text(product.big_image_url, product.breviary_image_url)
+        .and_then(|source| controlled_image_url(&source));
+    LcscProductRecord {
+        product_code: product.product_code,
+        description: first_text(record.light_product_intro, product.product_name),
+        image_url,
+        attributes,
+    }
+}
+
+fn insert_attribute(attributes: &mut HashMap<String, Value>, name: &str, value: Option<String>) {
+    if let Some(value) = value
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+    {
+        attributes.insert(name.to_owned(), Value::String(value));
+    }
+}
+
+fn first_text(primary: Option<String>, fallback: Option<String>) -> Option<String> {
+    primary
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| fallback.filter(|value| !value.trim().is_empty()))
+}
+
+fn reference_price(record: &LcscPhoneProductRecord) -> Option<f64> {
+    let product = &record.product;
+    let available_stock = product
+        .valid_stock_number
+        .or(product.stock_number)
+        .unwrap_or_default();
+    if available_stock <= 0 {
+        return None;
+    }
+    product
+        .price_list
+        .iter()
         .filter(|tier| {
-            tier.start_number >= 1 && tier.product_price.is_finite() && tier.product_price > 0.0
+            tier.start_purchased_number >= 1
+                && tier.product_price.is_finite()
+                && tier.product_price > 0.0
         })
-        .min_by_key(|tier| tier.start_number)
+        .min_by_key(|tier| tier.start_purchased_number)
         .map(|tier| tier.product_price)
+}
+
+fn controlled_image_url(source: &str) -> Option<String> {
+    let url = Url::parse(source).ok()?;
+    (url.scheme() == "https"
+        && url.host_str() == Some(LCSC_IMAGE_HOST)
+        && url.username().is_empty()
+        && url.password().is_none()
+        && LCSC_IMAGE_PATH_PREFIXES
+            .iter()
+            .any(|prefix| url.path().starts_with(prefix))
+        && url.query().is_none()
+        && url.fragment().is_none())
+    .then(|| url.into())
+}
+
+fn datasheet_url(groups: &[LcscPhoneFileGroup]) -> Option<String> {
+    let path = groups
+        .iter()
+        .find(|group| group.file_type == "pdf_property")?
+        .details
+        .iter()
+        .filter_map(|detail| detail.file_url.as_deref())
+        .find(|path| path.starts_with(LCSC_DATASHEET_PATH_PREFIX))?;
+    let mut url = Url::parse(&format!("https://{LCSC_DATASHEET_HOST}")).ok()?;
+    url.set_path(path);
+    Some(url.into())
 }
 
 fn map_reqwest_error(error: reqwest::Error) -> LcscLookupError {
@@ -355,166 +317,172 @@ fn map_reqwest_error(error: reqwest::Error) -> LcscLookupError {
 }
 
 #[derive(Debug, Serialize)]
-struct LcedaSearchRequest<'a> {
-    attributes: HashMap<&'static str, &'static str>,
-    path: &'static str,
-    uid: &'static str,
-    page: u8,
-    #[serde(rename = "pageSize")]
+#[serde(rename_all = "camelCase")]
+struct LcscPhoneQueryRequest<'a> {
+    keyword: &'a str,
     page_size: u8,
-    tag: [&'static str; 0],
-    wd: &'a str,
-}
-
-#[derive(Debug, Serialize)]
-struct LcedaPriceRequest<'a> {
-    numbers: [&'a str; 1],
-    path: &'static str,
+    current_page: u8,
+    search_source: &'static str,
+    async_request: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct LcedaPriceResponse {
-    success: bool,
+struct LcscPhoneQueryResponse {
     code: i64,
     #[serde(default)]
-    result: Vec<LcedaPriceRecord>,
+    ok: bool,
+    result: Option<LcscPhoneQueryResult>,
 }
 
 #[derive(Debug, Deserialize)]
-struct LcedaPriceRecord {
-    component_code: String,
-    #[serde(rename = "onSale")]
-    on_sale: i64,
-    stock_num: i64,
-    #[serde(default, rename = "priceList")]
-    price_list: Vec<LcedaPriceTier>,
+struct LcscPhoneQueryResult {
+    #[serde(rename = "searchResult")]
+    search_result: Option<LcscPhoneSearchResult>,
 }
 
 #[derive(Debug, Deserialize)]
-struct LcedaPriceTier {
-    #[serde(rename = "startNumber")]
-    start_number: i64,
+struct LcscPhoneSearchResult {
+    #[serde(default, rename = "productRecordList")]
+    product_record_list: Vec<LcscPhoneProductRecord>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LcscPhoneProductRecord {
+    #[serde(rename = "productVO")]
+    product: LcscPhoneProduct,
+    #[serde(default, rename = "lightBrandName")]
+    light_brand_name: Option<String>,
+    #[serde(default, rename = "lightProductIntro")]
+    light_product_intro: Option<String>,
+    #[serde(default, rename = "lightProductName")]
+    light_product_name: Option<String>,
+    #[serde(default, rename = "lightProductModel")]
+    light_product_model: Option<String>,
+    #[serde(default, rename = "lightStandard")]
+    light_standard: Option<String>,
+    #[serde(default, rename = "paramLinkedMap")]
+    parameters: HashMap<String, Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LcscPhoneProduct {
+    #[serde(default, rename = "productCode")]
+    product_code: Option<String>,
+    #[serde(default, rename = "productName")]
+    product_name: Option<String>,
+    #[serde(default, rename = "productGradePlateName")]
+    product_grade_plate_name: Option<String>,
+    #[serde(default, rename = "encapsulationModel")]
+    encapsulation_model: Option<String>,
+    #[serde(default, rename = "productModel")]
+    product_model: Option<String>,
+    #[serde(default, rename = "breviaryImageUrl")]
+    breviary_image_url: Option<String>,
+    #[serde(default, rename = "bigImageUrl")]
+    big_image_url: Option<String>,
+    #[serde(default, rename = "stockNumber")]
+    stock_number: Option<i64>,
+    #[serde(default, rename = "validStockNumber")]
+    valid_stock_number: Option<i64>,
+    #[serde(default, rename = "productPriceList")]
+    price_list: Vec<LcscPhonePriceTier>,
+    #[serde(default, rename = "fileTypeVOList")]
+    file_groups: Vec<LcscPhoneFileGroup>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LcscPhonePriceTier {
+    #[serde(rename = "startPurchasedNumber")]
+    start_purchased_number: i64,
     #[serde(rename = "productPrice")]
     product_price: f64,
 }
 
 #[derive(Debug, Deserialize)]
-struct LcedaSearchResponse {
-    success: bool,
-    code: i64,
-    #[serde(default)]
-    result: LcedaSearchResult,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct LcedaSearchResult {
-    #[serde(default)]
-    lists: LcedaSearchLists,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct LcedaSearchLists {
-    #[serde(default)]
-    lcsc: Vec<LcedaProductRecord>,
-    #[serde(flatten)]
-    other: HashMap<String, Vec<LcedaProductRecord>>,
-}
-
-impl LcedaSearchLists {
-    fn into_records(self) -> impl Iterator<Item = LcedaProductRecord> {
-        let mut other = self.other.into_iter().collect::<Vec<_>>();
-        other.sort_by(|left, right| left.0.cmp(&right.0));
-        self.lcsc
-            .into_iter()
-            .chain(other.into_iter().flat_map(|(_, records)| records))
-    }
+struct LcscPhoneFileGroup {
+    #[serde(default, rename = "fileType")]
+    file_type: String,
+    #[serde(default, rename = "detailVOList")]
+    details: Vec<LcscPhoneFileDetail>,
 }
 
 #[derive(Debug, Deserialize)]
-struct LcedaProductRecord {
-    #[serde(default)]
-    product_code: Option<String>,
-    #[serde(default)]
-    description: Option<String>,
-    #[serde(default)]
-    images: Vec<String>,
-    #[serde(default)]
-    attributes: HashMap<String, Value>,
+struct LcscPhoneFileDetail {
+    #[serde(default, rename = "fileUrl")]
+    file_url: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn price_record(code: &str, stock_num: i64, prices: &[(i64, f64)]) -> LcedaPriceRecord {
-        LcedaPriceRecord {
-            component_code: code.to_owned(),
-            on_sale: 1,
-            stock_num,
-            price_list: prices
-                .iter()
-                .map(|(start_number, product_price)| LcedaPriceTier {
-                    start_number: *start_number,
-                    product_price: *product_price,
-                })
-                .collect(),
-        }
-    }
-
     #[test]
     fn selects_first_quantity_tier_only_for_available_products() {
-        assert_eq!(
-            reference_price(
-                vec![price_record("C2983288", 10, &[(10, 8.2), (1, 9.91)])],
-                "C2983288"
-            ),
-            Some(9.91)
-        );
-        assert_eq!(
-            reference_price(vec![price_record("C2982", 0, &[(1, 7.17)])], "C2982"),
-            None
-        );
-        assert_eq!(reference_price(Vec::new(), "C9900201662"), None);
+        let record = LcscPhoneProductRecord {
+            product: LcscPhoneProduct {
+                product_code: Some("C1".to_owned()),
+                product_name: None,
+                product_grade_plate_name: None,
+                encapsulation_model: None,
+                product_model: None,
+                breviary_image_url: None,
+                big_image_url: None,
+                stock_number: Some(10),
+                valid_stock_number: None,
+                price_list: vec![
+                    LcscPhonePriceTier {
+                        start_purchased_number: 10,
+                        product_price: 8.2,
+                    },
+                    LcscPhonePriceTier {
+                        start_purchased_number: 1,
+                        product_price: 9.91,
+                    },
+                ],
+                file_groups: Vec::new(),
+            },
+            light_brand_name: None,
+            light_product_intro: None,
+            light_product_name: None,
+            light_product_model: None,
+            light_standard: None,
+            parameters: HashMap::new(),
+        };
+        assert_eq!(reference_price(&record), Some(9.91));
     }
 
     #[test]
-    fn recognizes_only_supported_image_signatures() {
+    fn accepts_only_controlled_image_urls() {
+        let source = "https://alimg.szlcsc.com/upload/public/product/middle/20241118/example.jpg";
+        assert_eq!(controlled_image_url(source).as_deref(), Some(source));
+        let certificate =
+            "https://alimg.szlcsc.com/upload/public/brand/product/certificate/20240701/example.jpg";
         assert_eq!(
-            detected_image_mime(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]),
-            Some("image/png")
+            controlled_image_url(certificate).as_deref(),
+            Some(certificate)
         );
-        assert_eq!(detected_image_mime(&[0xff, 0xd8, 0xff]), Some("image/jpeg"));
-        assert_eq!(detected_image_mime(b"not-an-image"), None);
-    }
-
-    #[test]
-    fn prefers_source_image_and_keeps_middle_as_fallback() {
-        let candidates = image_candidates(
-            "https://alimg.szlcsc.com/upload/public/product/middle/20230105/C6EA1F0A304B456033FFA9E209D5B049.jpg",
+        assert!(
+            controlled_image_url("http://alimg.szlcsc.com/upload/public/product/a.jpg").is_none()
+        );
+        assert!(controlled_image_url("https://example.com/upload/public/product/a.jpg").is_none());
+        assert!(controlled_image_url(
+            "https://user@alimg.szlcsc.com/upload/public/product/middle/example.jpg"
         )
-        .expect("controlled LCSC image should be accepted");
-
-        assert_eq!(candidates.len(), 2);
-        assert_eq!(
-            candidates[0].as_str(),
-            "https://alimg.szlcsc.com/upload/public/product/source/20230105/C6EA1F0A304B456033FFA9E209D5B049.jpg"
-        );
-        assert_eq!(
-            candidates[1].as_str(),
-            "https://alimg.szlcsc.com/upload/public/product/middle/20230105/C6EA1F0A304B456033FFA9E209D5B049.jpg"
-        );
+        .is_none());
+        assert!(controlled_image_url("https://alimg.szlcsc.com/private/a.jpg").is_none());
     }
 
     #[test]
-    fn does_not_rewrite_unrecognized_image_paths() {
-        let source = "https://alimg.szlcsc.com/upload/public/product/thumb/20230105/example.jpg";
-        let candidates = image_candidates(source).expect("allowed host should remain downloadable");
-        assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].as_str(), source);
-
-        assert!(matches!(
-            image_candidates("https://example.com/upload/public/product/middle/example.jpg"),
-            Err(LcscLookupError::InvalidResponse)
-        ));
+    fn accepts_only_controlled_datasheet_paths() {
+        let groups = vec![LcscPhoneFileGroup {
+            file_type: "pdf_property".to_owned(),
+            details: vec![LcscPhoneFileDetail {
+                file_url: Some("/upload/public/pdf/source/20241012/example.pdf".to_owned()),
+            }],
+        }];
+        assert_eq!(
+            datasheet_url(&groups).as_deref(),
+            Some("https://atta.szlcsc.com/upload/public/pdf/source/20241012/example.pdf")
+        );
     }
 }

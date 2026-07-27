@@ -106,14 +106,6 @@ export async function lookupLcscItem(productCode: string, signal?: AbortSignal) 
   }
 }
 
-/** 通过 WineStock Core 读取立创商品首图；浏览器不直接访问第三方图片地址。 */
-export function readLcscItemImage(productCode: string, signal?: AbortSignal) {
-  return apiClient.request<Blob>(
-    `/api/items/lookups/lcsc/${encodeURIComponent(productCode)}/image`,
-    { signal, responseType: "blob" },
-  );
-}
-
 export function listItemCatalog(
   search: string,
   page: number,

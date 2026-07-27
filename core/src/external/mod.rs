@@ -6,7 +6,7 @@
 mod lcsc;
 
 pub use lcsc::ExternalCatalogBootstrapError;
-pub(crate) use lcsc::{LcscLookupClient, LcscLookupError, LcscProductImage, LcscProductRecord};
+pub(crate) use lcsc::{LcscLookupClient, LcscLookupError, LcscProductRecord};
 
 /// core 共享的外部资料查询运行时。
 #[derive(Debug, Clone)]
@@ -26,12 +26,11 @@ impl ExternalCatalogRuntime {
     }
 
     #[cfg(test)]
-    pub(crate) fn with_lcsc_endpoints(
+    pub(crate) fn with_lcsc_endpoint(
         search_endpoint: String,
-        price_endpoint: String,
     ) -> Result<Self, ExternalCatalogBootstrapError> {
         Ok(Self {
-            lcsc: LcscLookupClient::build_for_test(search_endpoint, price_endpoint)?,
+            lcsc: LcscLookupClient::build_for_test(search_endpoint)?,
         })
     }
 }

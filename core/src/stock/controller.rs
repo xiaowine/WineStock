@@ -37,8 +37,7 @@ pub(crate) use inbound::{
 };
 pub(crate) use item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
 pub(crate) use item_lookup::{
-    lookup_lcsc_item, lookup_lcsc_item_image, ItemLookupSource, LcscItemLookupResponse,
-    LcscLookupParameterResponse,
+    lookup_lcsc_item, ItemLookupSource, LcscItemLookupResponse, LcscLookupParameterResponse,
 };
 pub(crate) use items::{
     create_item, delete_item, get_item, get_item_inventory, item_filter_values, list_item_batches,

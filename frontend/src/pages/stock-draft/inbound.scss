@@ -701,7 +701,8 @@
   }
 
   .inbound-lines {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    min-height: 0;
     max-height: none;
     padding: 10px;
   }
@@ -928,6 +929,7 @@
   }
 
   .inbound-lines {
+    flex: 0 0 auto;
     max-height: none;
     overflow: visible;
     padding: 10px 10px 0;

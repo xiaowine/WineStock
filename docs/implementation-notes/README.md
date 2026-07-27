@@ -28,4 +28,5 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `self-hosted-silent-auth.md`：self-hosted 本机模式免登录的自动默认管理员（惰性开通）、壳内换取凭据与静默会话方案，含 server-mode 切换设密门、模式切换语义与安全边界（已实施，实机验证待做）。
 - `lcsc-batch-item-creation-and-erp-backup-import.md`：立创物品批量创建（勾选子集分批/每批一个模板/前置选项对话框/串行限速）与 LCSC Android ERP 备份导入器（四表解析、C0 跳过、期初入库草稿、重复导入防护）的方案（两特性均已实施）。
 - `erp-backup-import-implementation.md`：阶段2 ERP 备份导入的落地细化——解析三层架构、四表解析契约、库位/物品/期初三阶段执行、预览交互、入口装配与测试（已实施，真机走查待补）。
+- `lcsc-phone-query-and-direct-image.md`：立创商城移动查询接口替换 EDA 器件库、Core 归一化契约与前端直连受控商品图的跨 Core/Frontend 实施方案。
 - `inbound-location-prefill.md`：入库库位分层预填方案——同编号历史库位（严格同物品不做相似推断）→ 全局默认库位（`is_default` 模式复刻）→ 批量设置库位兜底（待实施）。

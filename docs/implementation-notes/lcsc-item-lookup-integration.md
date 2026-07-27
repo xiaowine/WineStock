@@ -1,5 +1,9 @@
 # 立创商品资料查询与新建物品回填实施方案
 
+> 历史方案：其中 EDA 双接口与 Core 图片代理已由
+> [`lcsc-phone-query-and-direct-image.md`](lcsc-phone-query-and-direct-image.md) 取代；本文只保留首版交互与字段
+> 回填决策记录，不再作为当前上游协议依据。
+
 ## 1. 状态与目标
 
 本文是 WineStock 在物品管理的新建会话中，根据单个立创商城商品编号查询电子元器件资料并回填草稿的实施方案。
