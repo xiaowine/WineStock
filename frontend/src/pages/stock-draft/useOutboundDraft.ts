@@ -59,7 +59,7 @@ export const outboundDraftTexts: StockDraftTexts = {
   notesPlaceholder: "可选，记录出库说明",
   linesAriaLabel: "出库明细复核",
   emptyTitle: "还没有出库明细",
-  emptyHint: "点击“添加物品”选择一项，完成对应出库明细。",
+  emptyHint: "点击“选择物品”选择一项，完成对应出库明细。",
   columns: ["数量", "分配 / 批次", "库位", "预计成本"],
   editorTitle: "配置出库明细",
   editorDescription: "数量和扣减方式属于同一条明细；完成后才能继续添加下一项。",

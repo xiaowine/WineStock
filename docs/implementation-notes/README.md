@@ -26,5 +26,6 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `first-run-setup-wizard.md`：首次启动漏斗从运行设置页迁移到初始化向导的页面结构、文案定稿、守卫分流、数据收集偏好与 UI 实现约束（已实施；含纯网页端单能力跳页/运行设置页 web 限制）。
 - `server-mode-tls-pinning.md`：server-mode 自签 HTTPS-only + 客户端 TOFU 首次信任与 SPKI 指纹固定的跨 core/契约/Android/frontend 设计（设计定稿、未实施，作为后续任务执行依据）。
 - `self-hosted-silent-auth.md`：self-hosted 本机模式免登录的自动默认管理员（惰性开通）、壳内换取凭据与静默会话方案，含 server-mode 切换设密门、模式切换语义与安全边界（已实施，实机验证待做）。
-- `lcsc-batch-item-creation-and-erp-backup-import.md`：立创物品批量创建（勾选子集分批/每批一个模板/前置选项对话框/串行限速）与 LCSC Android ERP 备份导入器（四表解析、C0 跳过、期初入库草稿、重复导入防护）的方案（特性一已实施，备份导入待实施）。
+- `lcsc-batch-item-creation-and-erp-backup-import.md`：立创物品批量创建（勾选子集分批/每批一个模板/前置选项对话框/串行限速）与 LCSC Android ERP 备份导入器（四表解析、C0 跳过、期初入库草稿、重复导入防护）的方案（两特性均已实施）。
+- `erp-backup-import-implementation.md`：阶段2 ERP 备份导入的落地细化——解析三层架构、四表解析契约、库位/物品/期初三阶段执行、预览交互、入口装配与测试（已实施，真机走查待补）。
 - `inbound-location-prefill.md`：入库库位分层预填方案——同编号历史库位（严格同物品不做相似推断）→ 全局默认库位（`is_default` 模式复刻）→ 批量设置库位兜底（待实施）。

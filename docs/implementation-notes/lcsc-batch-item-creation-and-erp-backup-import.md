@@ -5,8 +5,8 @@
 > `BatchLcscCreateOptionsDialog.vue` 批次选项 + `LcscOrderImportDialog` 操作区入口
 > （modal-actions 左侧独立左置，与右侧“取消/加入明细”决策流分开，经用户确认）与
 > `creating`/`create-failed` 行状态（行内重试/手动新建，关闭中止安全）。
-> 特性二（备份导入器）待实施。交付顺序：先批量创建（订单导入立即受益），
-> 再备份导入器（复用批量创建）。
+> **特性二（备份导入器）已实施**（2026-07-27，阶段2）——落地细化与状态见
+> `erp-backup-import-implementation.md`；复用了特性一的批量创建 composable。
 
 两个关联特性：
 

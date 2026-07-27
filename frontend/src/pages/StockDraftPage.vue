@@ -36,6 +36,15 @@
         导入订单
       </button>
       <button
+        v-if="inbound.canCreateItem.value"
+        class="secondary-button inbound-add-item-button"
+        type="button"
+        title="导入第三方 ERP 备份，按库存生成期初入库草稿"
+        @click="inbound.backupImportOpen.value = true"
+      >
+        导入备份
+      </button>
+      <button
         v-if="inbound.pendingLocationCount.value > 0"
         class="secondary-button inbound-add-item-button"
         type="button"
@@ -151,6 +160,12 @@
         :locations="inbound.locations.value"
         @close="inbound.batchLocationOpen.value = false"
         @confirm="inbound.applyBatchLocation"
+      />
+      <ErpBackupImportDialog
+        :open="inbound.backupImportOpen.value"
+        :can-create-item="inbound.canCreateItem.value"
+        @close="inbound.backupImportOpen.value = false"
+        @import="inbound.importBackup"
       />
     </template>
   </StockDraftWorkspace>
@@ -299,6 +314,7 @@ import LcscOrderImportDialog from "../components/stock-draft/LcscOrderImportDial
 import OutboundAllocationEditor from "../components/stock-draft/OutboundAllocationEditor.vue";
 import InboundBatchLocationDialog from "../components/inbound/InboundBatchLocationDialog.vue";
 import InboundLineEditor from "../components/inbound/InboundLineEditor.vue";
+import ErpBackupImportDialog from "../components/stock-draft/ErpBackupImportDialog.vue";
 import ItemCreateDialog from "../components/items/ItemCreateDialog.vue";
 import {
   lineSubtotal,

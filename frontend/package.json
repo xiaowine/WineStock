@@ -15,6 +15,7 @@
     "test:item-lcsc": "node --test tests/itemLcscMapping.test.mjs",
     "test:lcsc-bag": "node --test tests/lcscBagCode.test.mjs",
     "test:lcsc-order": "node --test tests/lcscOrderExport.test.mjs",
+    "test:erp-backup": "node --test tests/erpBackupImport.test.mjs",
     "test:availability-policy": "node --test tests/serviceAvailabilityPolicy.test.mjs",
     "test:clipboard": "node --test tests/clipboardModel.test.mjs",
     "gen:api-types": "openapi-typescript ../target/openapi/openapi.json -o src/api/generated/schema.d.ts",

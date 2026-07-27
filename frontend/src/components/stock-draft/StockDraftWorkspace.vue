@@ -70,7 +70,7 @@
               title="选择物品并配置明细"
               @click="openPicker"
             >
-              添加物品
+              选择物品
             </button>
           </div>
         </header>

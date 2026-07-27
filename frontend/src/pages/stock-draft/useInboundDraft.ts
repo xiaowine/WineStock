@@ -7,6 +7,7 @@ import { ApiError } from "../../api/errors";
 import { useInboundDraftPersistence } from "../../composables/useInboundDraftPersistence";
 import type { LcscBagCode } from "../../lcsc/bagCode";
 import type { LcscOrderImportPayload } from "../../components/stock-draft/LcscOrderImportDialog.vue";
+import type { ErpBackupImportPayload } from "../../components/stock-draft/ErpBackupImportDialog.vue";
 import { notice } from "../../notices/notice";
 import { trackTelemetryEvent, trackTelemetryIssue } from "../../telemetry/clarity";
 import { authSession } from "../../auth/session";
@@ -46,7 +47,7 @@ export const inboundDraftTexts: StockDraftTexts = {
   notesPlaceholder: "可选，记录采购或收货说明",
   linesAriaLabel: "入库明细",
   emptyTitle: "还没有入库明细",
-  emptyHint: "点击“添加物品”选择一项，完成对应入库明细。",
+  emptyHint: "点击“选择物品”选择一项，完成对应入库明细。",
   columns: ["数量", "单价 / 小计", "库位", "批次"],
   editorTitle: "入库物品明细",
   editorDescription: "数量、单价和收货信息属于同一条明细；完成后才能继续添加下一项。",
@@ -79,6 +80,7 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
   const locationError = ref("");
   const itemCreateOpen = ref(false);
   const orderImportOpen = ref(false);
+  const backupImportOpen = ref(false);
   let locationAbortController: AbortController | null = null;
 
   // 扫码状态：来源提示条、同单去重、快速新建的待应用料袋信息。
@@ -396,6 +398,44 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
   }
 
   /**
+   * ERP 备份导入确认：期初库存行按 库位/数量 写入草稿（单价 0），来源与备注预填。
+   * 库位与物品已由 Dialog 落地；同物品多库位在此展开为多条明细，库位已定的行不再走预填。
+   */
+  async function importBackup(payload: ErpBackupImportPayload): Promise<void> {
+    // Dialog 可能刚创建了备份中的库位；先同步选项，避免新 locationId 被误判为已失效。
+    await loadLocationOptions();
+    let added = 0;
+    for (const row of payload.rows) {
+      // 同物品可跨多个库位，逐行独立建明细（addItem 的同物品去重不适用，直接建行）。
+      const line = createDraftLine(row.item);
+      line.quantity = row.quantity;
+      line.unitPrice = 0;
+      if (row.locationId !== null) line.locationId = row.locationId;
+      else prefillLineLocation(line);
+      lines.value.push(line);
+      added += 1;
+    }
+    if (!source.value.trim()) source.value = `备份导入 ${payload.fileName}`;
+    if (!notes.value.trim()) {
+      const parts = ["第三方 ERP 备份期初导入"];
+      if (payload.appVersion) parts.push(`导出版本 ${payload.appVersion}`);
+      if (payload.skippedManualCount > 0)
+        parts.push(`跳过手工器件 ${payload.skippedManualCount} 项`);
+      notes.value = parts.join("；");
+      notesOpen.value = true;
+    }
+    backupImportOpen.value = false;
+    if (added > 0) {
+      trackTelemetryEvent("erp_backup_imported");
+      notice.success(`已导入 ${added} 条期初库存明细`, {
+        detail: "请核对后提交；单价按 0 记，可按需在明细中补填。",
+      });
+    } else {
+      notice.info("没有可导入的库存明细");
+    }
+  }
+
+  /**
    * 扫码命中（或扫码新建完成）后的入库预填：袋内数量可改，来源按规则询问。
    * 扫码路径的行总是刚创建的（重复扫描在工作台层已拦截），覆盖默认数量是安全的。
    */
@@ -481,6 +521,8 @@ export function useInboundDraft(handle: StockDraftWorkspaceHandle) {
     handleItemCreateClosed,
     orderImportOpen,
     importOrderLines,
+    backupImportOpen,
+    importBackup,
     batchLocationOpen,
     pendingLocationCount,
     applyBatchLocation,
