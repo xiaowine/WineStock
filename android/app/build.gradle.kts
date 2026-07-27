@@ -130,6 +130,15 @@ androidComponents {
         val variantTaskSuffix = variantName.replaceFirstChar { character -> character.uppercase() }
         val strictVerification = variant.buildType == "release"
 
+        if (variant.buildType == "release") {
+            // 发布 APK 使用产品名和版本号；AGP 元数据与实际文件名由同一 VariantOutput 属性生成。
+            variant.outputs.forEach { output ->
+                output.outputFileName.set(
+                    output.versionName.map { versionName -> "WineStock-$versionName-release.apk" },
+                )
+            }
+        }
+
         val verifyFrontendAssets =
             tasks.register<FrontendVerifyTask>("verify${variantTaskSuffix}FrontendAssets") {
                 group = "verification"

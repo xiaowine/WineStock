@@ -65,7 +65,7 @@ Drawer、Popover 和活动明细编辑层都未处理时，registry 的最后一
 | `/locations`          | `locations`          | `AppShell`     | 是             | 真实库位分组树、库位搜索和分组/库位 CRUD；读取需要 `stock.location.read`，管理操作需要 `stock.location.manage`；整批次移库等待按库位查询批次契约                                                                                              |
 | `/templates`          | `templates`          | `AppShell`     | 是             | 真实物品分类与物品属性模板列表、查看、创建、编辑、复制、删除确认与全站默认模板设置；需要 `stock.template.read`，写操作需要 `stock.template.manage`                                                                                            |
 | `/substitutes`        | `substitutes`        | `AppShell`     | 是             | 全局替代关系治理页面；需要 `stock.substitute.read`，编辑需要 `stock.substitute.manage`                                                                                                                                                        |
-| `/events`             | `events`             | `AppShell`     | 是             | 真实审计日志筛选、自动加载、三段式列表和历史 JSON 详情；需要 `audit.read`                                                                                                                                                                     |
+| `/events`             | `events`             | `AppShell`     | 是             | 真实操作日志筛选、自动加载、三段式列表和历史 JSON 详情；底层读取审计事件，需要 `audit.read`                                                                                                                                                   |
 | `/users`              | `users`              | `AppShell`     | 是             | 用户管理真实列表和管理操作；另需 `user.read`                                                                                                                                                                                                  |
 | `/setup`              | `setup-wizard`       | 独立响应式页面 | 否             | 首次初始化向导（`unconfigured` 且未初始化时由守卫导入）；`requiresService = false`；分步选择使用方式/服务器地址/数据收集偏好后一次性 apply，完成自动进入 `/auth`；已初始化访问被重定向回业务默认页                                            |
 | `/settings/runtime`   | `runtime-settings`   | 独立响应式页面 | 否             | 运行配置维护与修复入口（`invalid`、已配置但服务未就绪时由守卫导入；首次未配置改走 `/setup`）；`requiresService = false`；匿名离开统一进 `/auth`，已登录回业务；侧入口仍可从账户弹层等打开                                                     |
@@ -83,6 +83,7 @@ Drawer、Popover 和活动明细编辑层都未处理时，registry 的最后一
 - 移动导航 Drawer 只覆盖导航节点，不包含也不销毁当前路由页面；页面组件和业务状态在断点变化时保持不变。
 - 一级导航配置集中在 `router/navigation.ts`；OpenAPI 业务域路由已补充对应侧栏入口，并继续复用现有业务/管理分组和图标样式。
 - 入库审批与出库审批路由使用同一个库存审批工作台，只由两个薄路由页注入领域差异；历史单据查询仍留在入库单、出库单页面。
+- 本机静默模式的默认管理员拥有全部权限，新建出入库会直接完成，因此一级导航隐藏用户管理、入库审批和出库审批；对应路由与单据详情中的审批入口仍保留，用于处理历史或异常中断留下的待审批单据。远端与服务器模式仍按权限显示这些导航。
 - 运行设置、统一认证入口、登录、注册和修改密码页面不进入业务应用壳；未匹配路径不渲染独立页面，直接返回总览。
 
 ## 启动界面顺序

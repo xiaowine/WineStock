@@ -1,8 +1,8 @@
-<!-- 本组件拥有审计日志高级筛选草稿和本地校验；它不请求事件 API。 -->
+<!-- 本组件拥有操作日志高级筛选草稿和本地校验；它不请求事件 API。 -->
 <template>
   <ModalDialog
     :open="open"
-    title="更多审计筛选"
+    title="筛选操作日志"
     description="按业务实体、操作人或分页数量进一步缩小结果范围。"
     @close="emit('close')"
   >

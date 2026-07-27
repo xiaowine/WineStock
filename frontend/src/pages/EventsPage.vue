@@ -1,5 +1,5 @@
 <!--
-  本文件拥有审计日志页面的路由筛选、服务端分页、刷新和详情编排。
+  本文件拥有操作日志页面的路由筛选、服务端分页、刷新和详情编排。
   它只读取审计事件，不修改业务对象，也不根据当前对象覆盖历史详情。
 -->
 <template>
@@ -11,7 +11,7 @@
       </div>
     </header>
 
-    <section class="events-workspace" aria-label="审计日志列表">
+    <section class="events-workspace" aria-label="操作日志列表">
       <div class="events-toolbar">
         <label class="events-toolbar__field events-toolbar__entity">
           <span>实体类型</span>
@@ -63,8 +63,8 @@
               class="icon-button events-toolbar__refresh"
               :class="{ 'events-toolbar__refresh--pending': showStableRefreshing }"
               type="button"
-              title="刷新审计日志"
-              aria-label="刷新审计日志"
+              title="刷新操作日志"
+              aria-label="刷新操作日志"
               :aria-busy="requestPending"
               :disabled="requestPending"
               @click="refreshCurrentPage"
@@ -104,26 +104,24 @@
         :aria-busy="requestPending"
       >
         <section v-if="loadError && !loaded" class="events-state events-state--error" role="alert">
-          <strong>无法加载审计日志</strong>
+          <strong>无法加载操作日志</strong>
           <span>{{ loadError }}</span>
           <button class="secondary-button" type="button" @click="loadCurrentPage">重试</button>
         </section>
         <section v-else-if="showInitialLoading && !loaded" class="events-state" role="status">
-          正在加载审计日志…
+          正在加载操作日志…
         </section>
         <section v-else-if="events.length === 0" class="events-state">
           <strong>{{
-            activeFilters.length ? "没有符合筛选条件的审计事件" : "暂无审计事件"
+            activeFilters.length ? "没有符合筛选条件的操作记录" : "暂无操作记录"
           }}</strong>
           <span>{{
-            activeFilters.length
-              ? "可以调整或清除筛选条件。"
-              : "业务操作产生审计记录后会显示在这里。"
+            activeFilters.length ? "可以调整或清除筛选条件。" : "业务操作产生记录后会显示在这里。"
           }}</span>
         </section>
         <template v-else>
           <p v-if="loadError" class="events-inline-error" role="alert">{{ loadError }}</p>
-          <div class="events-table" role="table" aria-label="审计事件">
+          <div class="events-table" role="table" aria-label="操作记录">
             <div class="events-table__head" role="row">
               <span role="columnheader">时间与操作人</span>
               <span role="columnheader">对象与变更摘要</span>
@@ -177,7 +175,7 @@
                 <button
                   class="icon-button"
                   type="button"
-                  title="查看审计详情"
+                  title="查看操作详情"
                   :aria-label="`查看事件 ${event.id} 详情`"
                   @click.stop="selectedEvent = event"
                 >
@@ -206,7 +204,7 @@
                 <button
                   class="icon-button"
                   type="button"
-                  title="查看审计详情"
+                  title="查看操作详情"
                   :aria-label="`查看事件 ${event.id} 详情`"
                   @click="selectedEvent = event"
                 >
@@ -238,7 +236,7 @@
           </div>
 
           <div ref="loadMoreSentinel" class="events-load-more" aria-live="polite">
-            <span v-if="loadingMore" role="status">正在加载更多审计事件…</span>
+            <span v-if="loadingMore" role="status">正在加载更多操作记录…</span>
             <button
               v-else-if="loadMoreError"
               class="secondary-button"
@@ -248,7 +246,7 @@
               加载失败，点击重试
             </button>
             <span v-else-if="hasMoreEvents">继续向下滚动加载</span>
-            <span v-else>已加载全部 {{ total }} 条审计事件</span>
+            <span v-else>已加载全部 {{ total }} 条操作记录</span>
           </div>
         </template>
       </div>
@@ -439,10 +437,10 @@ async function loadEvents(targetPage: number, append = false): Promise<boolean> 
     if (shouldAppend) loadMoreError.value = message;
     else loadError.value = message;
     const title = shouldAppend
-      ? "加载更多审计事件失败"
+      ? "加载更多操作记录失败"
       : loaded.value
-        ? "刷新审计日志失败"
-        : "加载审计日志失败";
+        ? "刷新操作日志失败"
+        : "加载操作日志失败";
     notice.error(title, { detail: message });
     return false;
   } finally {
@@ -456,7 +454,7 @@ async function loadEvents(targetPage: number, append = false): Promise<boolean> 
 }
 
 async function refreshCurrentPage(): Promise<void> {
-  if (await loadCurrentPage()) notice.success("审计日志已刷新");
+  if (await loadCurrentPage()) notice.success("操作日志已刷新");
 }
 
 function eventQuery(targetPage: number): EventListQuery {
@@ -533,7 +531,7 @@ function applyAdvancedFilters(value: EventAdvancedFilterValue): void {
     (value.dateTo && !dateTo) ||
     (dateFrom && dateTo && dateFrom > dateTo)
   ) {
-    notice.warning("请输入有效的审计时间范围");
+    notice.warning("请输入有效的操作时间范围");
     return;
   }
   filterDialogOpen.value = false;
@@ -740,13 +738,13 @@ function entityTargetLabel(event: EventLogResponse): string {
 
 function eventErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.code === "permission_denied") return "当前账号没有查看审计日志的权限";
+    if (error.code === "permission_denied") return "当前账号没有查看操作日志的权限";
     return error.message;
   }
   if (error instanceof ApiConfigurationError) return error.message;
   if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
   if (error instanceof ApiResponseError) return "服务响应格式无效，请检查前后端版本";
-  return "加载审计日志失败，请稍后重试";
+  return "加载操作日志失败，请稍后重试";
 }
 </script>
 

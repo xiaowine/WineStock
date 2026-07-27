@@ -3,7 +3,7 @@
   <ModalDialog
     :open="event !== null"
     :title="dialogTitle"
-    description="审计详情来自操作发生时的服务端记录。"
+    description="操作详情来自操作发生时的服务端记录。"
     wide
     @close="emit('close')"
   >
@@ -81,7 +81,7 @@
 
       <section v-if="diffRows.length" class="event-detail__section">
         <h3>字段变化</h3>
-        <div class="event-diff-table" role="table" aria-label="审计字段变化">
+        <div class="event-diff-table" role="table" aria-label="操作字段变化">
           <div class="event-diff-table__head" role="row">
             <span role="columnheader">字段</span><span role="columnheader">修改前</span
             ><span role="columnheader">修改后</span>
@@ -119,7 +119,7 @@
         <header>
           <span>完整服务端 JSON</span>
           <button
-            v-copyable="{ text: rawJson, label: '审计详情 JSON' }"
+            v-copyable="{ text: rawJson, label: '操作详情 JSON' }"
             class="secondary-button"
             type="button"
           >
@@ -164,7 +164,7 @@ const emit = defineEmits<{ close: []; related: [event: EventLogResponse] }>();
 const dialogTitle = computed(() =>
   props.event
     ? `${eventActionLabel(props.event.action)}${eventEntityLabel(props.event.entity_type)}`
-    : "审计详情",
+    : "操作详情",
 );
 const diffRows = computed(() => (props.event ? eventDiffRows(props.event.details) : []));
 const permissionChanges = computed(() =>

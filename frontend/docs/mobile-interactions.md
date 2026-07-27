@@ -39,7 +39,7 @@ Android shell 的 `WebViewportInsetsPublisher` 读取 `systemBars | displayCutou
 - 登录/注册/修改密码与运行设置；
 - 服务不可用全屏状态；
 - 通用 Dialog、审批/物品/替代关系固定操作区；
-- Notice、图片预览、库位 Drawer、审计日志触底区域和入库工作台操作栏。
+- Notice、图片预览、库位 Drawer、操作日志触底区域和入库工作台操作栏。
 
 新增固定定位或全屏组件时，必须在对应组件样式中说明安全区消费位置，并避免重新引入
 `env(safe-area-inset-*)`。

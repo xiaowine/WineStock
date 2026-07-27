@@ -103,7 +103,7 @@ export const appRouteCatalog = {
     navigation: { group: "management", icon: "substitutes", order: 30 },
   },
   events: {
-    title: "审计日志",
+    title: "操作日志",
     requiredPermission: stockPermissions.auditRead,
     navigation: { group: "management", icon: "events", order: 40 },
   },

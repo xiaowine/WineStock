@@ -32,7 +32,7 @@
 ## 鉴权会话
 
 - `frontend/src/auth/`：内存 access token 与五态会话模型、跨标签页 Web Locks 协调、到期前自动续期、版本化 refresh token 持久化（绑定 API 根地址）和前端权限快照；任何登出结果都清除本地会话，权限快照只收敛导航与操作入口，不替代服务端实时授权。
-- 本机静默会话：Shell 快照携带 `localAuthExchangeToken`（仅 ownership=local）时进入静默免登录模式——refresh 无法恢复会话则用换取凭据调 `/api/auth/local-session` 静默建会话；服务端返回 `local_session_unavailable`（存量库未转换/浏览器场景）按普通匿名回落登录流程，其余失败落 `unavailable` 并入服务可用性覆盖层（不回落登录页），core 重启带来新凭据或健康恢复时自动重试。静默模式下 AppShell 隐藏账户身份与退出登录、隐藏用户管理导航，只保留中性"本机"选项入口；设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
+- 本机静默会话：Shell 快照携带 `localAuthExchangeToken`（仅 ownership=local）时进入静默免登录模式——refresh 无法恢复会话则用换取凭据调 `/api/auth/local-session` 静默建会话；服务端返回 `local_session_unavailable`（存量库未转换/浏览器场景）按普通匿名回落登录流程，其余失败落 `unavailable` 并入服务可用性覆盖层（不回落登录页），core 重启带来新凭据或健康恢复时自动重试。静默模式下 AppShell 隐藏账户身份与退出登录，并收起用户管理及出入库审批一级导航，只保留中性"本机"选项入口；审批路由仍供历史或异常待审批单据从详情页进入。设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
 
 ## 扫码与立创料袋
 
@@ -77,7 +77,7 @@
 - 库位：`LocationsPage` 与 `components/locations/` 最多十层分组树、库位 CRUD、删除确认与全局默认库位星标（`is_default`，仅用于入库明细预填）。
 - 替代料：`SubstitutesPage` 全局分组治理与确定性星链网络视图（力导向布局 composable），`components/substitutes/` 关系组、共享编辑 Dialog 与 SVG 画布。
 - 用户：`UsersPage` 与 `components/users/` 管理表单族；编辑当前账号时锁定权限管理关键权限。
-- 审计：`EventsPage` 与 `components/events/` 高级筛选、只读详情和历史 JSON 差异兼容。
+- 操作日志：`EventsPage` 与 `components/events/` 读取后端审计事件，提供高级筛选、只读详情和历史 JSON 差异兼容。
 - 运行设置：`RuntimeSettingsPage` 无 API 和鉴权依赖；self-hosted 端口由 Shell 自动分配，server-mode 编辑固定端口与监听地址。
 
 ## 样式与存储

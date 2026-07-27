@@ -73,6 +73,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
   入口等平台边界需要稳定二进制名称的类/方法。
 - Release APK 通过 packaging resources exclude 移除 `kotlinx-coroutines` 调试探针资源
   `DebugProbesKt.bin`；不排除 Kotlin builtins 元数据。
+- Release APK 输出为 `app/build/outputs/apk/release/WineStock-<versionName>-release.apk`；名称由 AGP variant 输出属性生成，`output-metadata.json` 同步记录该名称，Debug APK 仍沿用默认命名。
 - `.so` 只进入 `app/build/generated/winestockRustJniLibs/<variant>/arm64-v8a`，不写入源码树 `src/main/jniLibs`。
 - `verify<Variant>RustNativeLibraries` 校验 ELF64/AArch64、JNI 导出、`DT_NEEDED` 和 profile marker；
   `verify<Variant>RustNativeApkPackage` 再检查最终 APK 只包含目标 ABI 和目标 `.so`。

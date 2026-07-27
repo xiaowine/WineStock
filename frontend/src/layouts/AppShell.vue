@@ -179,10 +179,11 @@ const { handleLogout, isLoggingOut, logoutError } = useShellLogout();
 const pageTitle = computed(() => route.meta.title);
 // 本机静默免登录模式：界面彻底无账号感，只保留中性的"本机选项"入口与运行设置能力。
 const silentLocalMode = computed(() => localSilentAuthActive.value);
-const visibleNavigation = computed(() => {
-  const items = getVisibleAppNavigation(authSession.value?.user.permissions);
-  return silentLocalMode.value ? items.filter((item) => item.routeName !== "users") : items;
-});
+const visibleNavigation = computed(() =>
+  getVisibleAppNavigation(authSession.value?.user.permissions, {
+    localSilentMode: silentLocalMode.value,
+  }),
+);
 const userDisplayName = computed(() => authSession.value?.user.username ?? "");
 const accountDisplayName = computed(() => (silentLocalMode.value ? "本机" : userDisplayName.value));
 const accountInitials = computed(() =>

@@ -25,6 +25,18 @@ export interface AppNavigationItem {
   requiredPermissions?: readonly string[];
 }
 
+/** 会话形态对一级导航的附加收敛规则。 */
+export interface AppNavigationVisibility {
+  /** 本机静默会话隐藏无需常驻的多用户与审批入口，但不禁用对应路由。 */
+  localSilentMode?: boolean;
+}
+
+const LOCAL_SILENT_HIDDEN_ROUTES: ReadonlySet<AppRouteName> = new Set([
+  "inbound-approvals",
+  "outbound-approvals",
+  "users",
+]);
+
 /** 应用壳当前可见的一级导航入口。 */
 export const appNavigation: readonly AppNavigationItem[] = (
   Object.keys(appRouteCatalog) as AppRouteName[]
@@ -50,12 +62,16 @@ export const appNavigation: readonly AppNavigationItem[] = (
     };
   });
 
-/** 根据当前会话权限返回可见导航，不把前端隐藏当作安全边界。 */
-export function getVisibleAppNavigation(permissions: readonly string[] | undefined) {
+/** 根据当前会话权限与会话形态返回可见导航，不把前端隐藏当作安全边界。 */
+export function getVisibleAppNavigation(
+  permissions: readonly string[] | undefined,
+  visibility: AppNavigationVisibility = {},
+) {
   return appNavigation.filter(
     (item) =>
       hasPermission(permissions, item.requiredPermission) &&
-      hasPermissions(permissions, item.requiredPermissions),
+      hasPermissions(permissions, item.requiredPermissions) &&
+      (!visibility.localSilentMode || !LOCAL_SILENT_HIDDEN_ROUTES.has(item.routeName)),
   );
 }
 
