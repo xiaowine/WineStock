@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">WineStock</string>
+    <string name="webview_compatibility_title">需要更新系统 WebView</string>
+    <string name="webview_compatibility_brand_mark" translatable="false">W</string>
+    <string name="webview_compatibility_message_provider_unavailable">系统没有提供可用的 WebView。请在系统侧启用或更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
+    <string name="webview_compatibility_message_version_unreadable">无法确认当前 WebView 版本。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
+    <string name="webview_compatibility_message_version_too_old">当前 WebView 版本过低，无法可靠运行 WineStock。更新后即可继续，应用数据不会受到影响。</string>
+    <string name="webview_compatibility_message_features_missing">当前 WebView 缺少 WineStock 所需的安全通信能力。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
+    <string name="webview_compatibility_current_provider_label">当前 WebView</string>
+    <string name="webview_compatibility_current_provider_value">%1$s\n%2$s</string>
+    <string name="webview_compatibility_provider_unavailable">未检测到 WebView provider</string>
+    <string name="webview_compatibility_unknown">未知版本</string>
+    <string name="webview_compatibility_requirement_label">最低要求</string>
+    <string name="webview_compatibility_requirement_value">Chromium/WebView 111 或更高版本，并支持必要的 WebView 接口</string>
+    <string name="webview_compatibility_retry">重新检测</string>
 </resources>

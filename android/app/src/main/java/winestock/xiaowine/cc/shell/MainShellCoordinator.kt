@@ -9,7 +9,6 @@ import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen
@@ -62,10 +61,9 @@ internal class MainShellCoordinator(
      * 完成 edge-to-edge、内容视图、WebView、Bridge 与返回协商，并加载前端入口。
      * 调用前 Activity 须已 `super.onCreate`。
      */
-    fun start(splashScreen: SplashScreen) {
-        splashGate.attach(splashScreen)
+    fun start(splashScreen: SplashScreen? = null) {
+        splashScreen?.let(splashGate::attach)
 
-        activity.enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(activity.layoutInflater)
         activity.setContentView(binding.root)
 

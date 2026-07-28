@@ -6,4 +6,9 @@
     <!-- 透明系统栏下的应用侧保护层；基色与前端主内容表面一致，70% alpha 保留内容透出。 -->
     <color name="navigation_bar_protection_light">#B3FFFFFF</color>
     <color name="navigation_bar_protection_dark">#B3191C20</color>
+    <color name="compatibility_background">#FFF4F5F7</color>
+    <color name="compatibility_text_primary">#FF17202A</color>
+    <color name="compatibility_text_secondary">#FF59636F</color>
+    <color name="compatibility_action_background">#FF6F2A36</color>
+    <color name="compatibility_action_text">#FFFFFFFF</color>
 </resources>

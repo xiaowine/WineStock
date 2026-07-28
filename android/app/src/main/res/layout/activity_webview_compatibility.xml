@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.view.insets.ProtectionLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/compatibilityRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <ScrollView
+        android:id="@+id/content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="32dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/brandMark"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:background="@drawable/bg_compatibility_brand_mark"
+                android:contentDescription="@string/app_name"
+                android:gravity="center"
+                android:text="@string/webview_compatibility_brand_mark"
+                android:textColor="@color/compatibility_action_background"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/compatibilityTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/webview_compatibility_title"
+                android:textColor="@color/compatibility_text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/compatibilityMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="3dp"
+                android:textColor="@color/compatibility_text_secondary"
+                android:textSize="16sp"
+                tools:text="当前 WebView 版本过低。更新后即可继续，应用数据不会受到影响。" />
+
+            <TextView
+                android:id="@+id/currentProviderLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
+                android:text="@string/webview_compatibility_current_provider_label"
+                android:textColor="@color/compatibility_text_secondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/currentProviderValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:breakStrategy="balanced"
+                android:textColor="@color/compatibility_text_primary"
+                android:textIsSelectable="true"
+                android:textSize="15sp"
+                tools:text="com.google.android.webview\n110.0.5481.154" />
+
+            <TextView
+                android:id="@+id/requirementLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/webview_compatibility_requirement_label"
+                android:textColor="@color/compatibility_text_secondary"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/requirementValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/webview_compatibility_requirement_value"
+                android:textColor="@color/compatibility_text_primary"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/retryButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="32dp"
+                android:backgroundTint="@color/compatibility_action_background"
+                android:text="@string/webview_compatibility_retry"
+                android:textAllCaps="false"
+                android:textColor="@color/compatibility_action_text"
+                android:textSize="15sp" />
+        </LinearLayout>
+    </ScrollView>
+</androidx.core.view.insets.ProtectionLayout>

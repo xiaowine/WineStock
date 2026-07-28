@@ -9,12 +9,13 @@
 
 - 单 `:app` 模块工程，命名空间 `winestock.xiaowine.cc`；固定 NDK 与唯一 ABI `arm64-v8a`，交付物只支持 APK（无 AAB 校验或 bundle 挂钩）。
 - Release variant 通过 AGP `VariantOutput.outputFileName` 生成 `WineStock-<versionName>-release.apk`，文件名与 `output-metadata.json` 保持一致；Debug 沿用 AGP 默认命名。
-- 前端打包任务链：从当前 `PATH` 直接执行本机 `pnpm run build:android`（不固定或下载 Node/pnpm，不读取 `frontend/dist`），经目录校验、generated assets 暂存、legacy 守卫和 APK 包级验证；依赖未准备或产物缺失立即失败。
+- 前端打包任务链：从当前 `PATH` 直接执行本机 `pnpm run build:android`（不固定或下载 Node/pnpm，不读取 `frontend/dist`），Android Vite 产物显式以 `chrome111` 为语法目标，再经目录校验、generated assets 暂存、legacy 守卫和 APK 包级验证；依赖未准备或产物缺失立即失败。
 - Rust JNI 构建任务链：`cargo-ndk --locked --offline` 按 variant 构建 ARM64 `.so`（Release 走 Cargo `--release`，core/shared 传递依赖同 profile），并校验 ELF64/AArch64、8 个具名 JNI 导出、允许的系统动态库和 APK 内唯一 `.so`。
 
 ## Activity 装配与 Application 级 core
 
-- `MainActivity.kt` 是唯一 Activity 入口，只保留系统生命周期与 ActivityResult；系统 day/night `uiMode` 由当前 Activity 原地处理，避免重建 WebView。`shell/MainShellCoordinator.kt` 组装 edge-to-edge、Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host，`loadUrl` 前安装 Bridge；renderer 退出时只销毁并重建该 UI 链路，不重启 Application 级 core。
+- `MainActivity.kt` 是唯一 Activity 入口，拥有 WebView 启动门禁、系统生命周期与 ActivityResult；在膨胀静态 WebView 布局前检查当前 provider 主版本不低于 M111，且支持 `WEB_MESSAGE_LISTENER`、`DOCUMENT_START_SCRIPT`。不兼容时只显示原生全屏提示页并允许手动复检，不从应用跳转商店或系统设置，不创建 WebView，也不清理运行配置、认证或业务数据。系统 day/night `uiMode` 由当前 Activity 原地处理，避免重建已运行的 WebView。
+- `shell/MainShellCoordinator.kt` 在门禁通过后组装 Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host，`loadUrl` 前安装 Bridge；renderer 退出时只销毁并重建该 UI 链路，不重启 Application 级 core。
 - `WineStockApplication.kt` 在进程创建时初始化唯一 `LocalCoreRuntimeManager`；Activity 重建不替换 core runtime，Activity 生命周期不触发 shutdown。
 - `core/LocalCoreRuntimeManager.kt`：单线程后台 executor 串行执行 JNI、配置校验、启动/停止/重启和 SharedPreferences 提交。缺少持久配置时只发布 `initialized=false` 且不启动本地 HTTP 服务；首次确认 `self-hosted` 用端口 `0` 请求系统分配并把实际端口写回持久化，已保存端口冲突时仅 `self-hosted` 自动重试一次；候选配置先激活后提交，失败时恢复旧服务。
 - `core/` 其余模块：安全幂等加载 `.so` 并封装 native protocol v1 调用（load/JNI 失败映射 `native_library_unavailable`，不在类初始化时崩溃）；编解码请求/响应并拒绝协议版本不匹配，校验 `running` 状态发布的是同一非零实际端口；存储固定使用 `noBackupFilesDir/winestock/data`。
@@ -23,6 +24,7 @@
 ## WebView 环境（`app/.../web/`）
 
 - 资源加载：`WebViewAssetLoader` 把受信任 origin 根路径映射到 `assets/frontend`，根路径回退 `index.html`，不做 SPA 回退（前端使用 hash 路由）；`ShellWebViewConfigurator.kt` 集中 WebView 配置。
+- 启动兼容性：`WebViewCompatibility.kt` 读取并记录实际 provider package/version，使用主版本和两个 AndroidX WebKit capability 共同判定，未知状态按不兼容处理；纯判定由 JVM 单测覆盖。`WebViewCompatibilityScreen.kt` 与 `activity_webview_compatibility.xml` 构成不依赖 WebView 的恢复边界。
 - 摄像头授权：`WebViewCameraPermissionHost.kt` 处理 `onPermissionRequest`——仅受信任 origin 的 VIDEO_CAPTURE 且原生 CAMERA 运行时权限获准后才 grant，权限未授时经 Activity launcher 请求后结算，其余来源与资源一律 deny；manifest 声明 `CAMERA` 并以 `uses-feature required=false` 保持无摄像头设备可安装。
 - 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏在前端接管前跟随系统 day/night mode，之后由独立 JS 接口接收主题基线与临时覆盖并在 resume 时重放。Activity 根 `ProtectionLayout` 在透明底部系统栏下绘制主题相关 `ColorProtection`，不依赖系统自动 contrast scrim。应用主题的 `android:isLightTheme` 同样按 day/night 切换以驱动 WebView `prefers-color-scheme`，WebView 算法着色关闭，页面颜色只归前端双主题 CSS 所有。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时只给内部 WebView 内容容器添加 bottom padding，保持根保护层位于真实系统栏，期间安全区底边发布为 0；shell 已处理的系统栏、挖孔与 IME 类型置零后继续下发，避免新版 WebView 重复应用且保留后续更新通知。
 - 文件选择：单 pending 回调的纯状态机 Session（supersede/cancel/destroy 一次结算，JVM 单元测试覆盖竞态）加启动系统选择器的 Host；不声明存储/媒体权限。
@@ -38,7 +40,7 @@
 
 ## 资源与配置
 
-- `res/`：全屏 WebView 布局、按系统 day/night mode 区分的 Window/SplashScreen 背景与系统栏图标布尔资源、放行明文流量的 network security config。
+- `res/`：全屏 WebView 布局、WebView 不兼容原生恢复页、按系统 day/night mode 区分的 Window/SplashScreen/恢复页颜色与系统栏图标布尔资源、放行明文流量的 network security config。
 - `AndroidManifest.xml`：声明 `INTERNET` 与扫码所需的可选 `CAMERA` 能力，唯一 Activity 原地处理 `uiMode`；文件选择走系统选择器。
 - `app/build/` 下的前端中间输出与 generated assets 由 Gradle 生成和清理。
 
@@ -47,6 +49,9 @@
 ```text
 MainActivity.onCreate
   -> WineStockApplication.LocalCoreRuntimeManager（进程级异步初始化；只自动激活持久配置）
+  -> WebView provider/version + 必需 feature 门禁（发生在任何 WebView 布局膨胀前）
+     -> 不兼容：原生提示页 -> 用户在系统侧处理 -> 手动复检
+     -> 兼容：MainShellCoordinator
   -> WebViewAssetLoader（域名 winestock.internal，/ -> assets/frontend）
   -> ShellBridgeHost.install（WebMessageListener + document-start shim，限受信任 origin）
   -> WebView.loadUrl(https://winestock.internal/)

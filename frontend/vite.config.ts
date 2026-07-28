@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => {
     define: sharedDefine,
     plugins: [vue()],
     build: {
+      // Android 启动门禁使用同一 M111 下限；语法转换不代表自动提供 Web API polyfill。
+      target: "chrome111",
       outDir: androidOutputDirectory,
       emptyOutDir: true,
       manifest: "asset-manifest.json",
