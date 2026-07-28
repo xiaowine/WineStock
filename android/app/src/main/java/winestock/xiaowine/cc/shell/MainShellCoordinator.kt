@@ -4,6 +4,10 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResult
@@ -48,6 +52,8 @@ internal class MainShellCoordinator(
         )
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var webView: WebView
+    private lateinit var assetLoader: WebViewAssetLoader
     private lateinit var systemBarAppearance: SystemBarAppearanceController
     private var shellBridge: ShellBridgeHost? = null
     private var viewportInsetsPublisher: WebViewportInsetsPublisher? = null
@@ -70,39 +76,14 @@ internal class MainShellCoordinator(
                 mainHandler = mainHandler,
             ).also { it.applyDefaultBars() }
 
-        viewportInsetsPublisher =
-            WebViewportInsetsPublisher(
-                insetSource = binding.root,
-                imeInsetTarget = binding.webViewContainer,
-                webView = binding.webView,
-                trustedOrigin = AppConfig.TRUSTED_ORIGIN,
-            ).also { it.install() }
-
-        val assetLoader =
-            WebViewAssetLoader.Builder()
-                .setDomain(AppConfig.TRUSTED_HOST)
-                .addPathHandler("/", FrontendPathHandler(activity))
-                .build()
-
-        ShellWebViewConfigurator(
-            context = activity,
-            assetLoader = assetLoader,
-            systemBarAppearance = systemBarAppearance,
-            fileChooserHost = fileChooserHost,
-            cameraPermissionHost = cameraPermissionHost,
-            onPageStarted = { url -> shellBridge?.onPageStarted(url) },
-            onPageVisible = { url -> viewportInsetsPublisher?.onPageVisible(url) },
-            onFrontendReady = { splashGate.markReady() },
-        ).configure(binding.webView)
-
-        installShellBridge()
+        assetLoader = createAssetLoader()
+        webView = binding.webView
+        configureWebView(webView)
         NativeBackNavigator(
             activity = activity,
-            webView = { binding.webView },
+            webView = { webView },
             shellBridge = { shellBridge },
         ).install(activity.onBackPressedDispatcher)
-
-        binding.webView.loadUrl(AppConfig.FRONTEND_HOME_URL)
     }
 
     fun onFileChooserResult(result: ActivityResult) {
@@ -128,14 +109,14 @@ internal class MainShellCoordinator(
         val backgroundColor = ContextCompat.getColor(activity, R.color.web_background)
         activity.window.setBackgroundDrawableResource(R.color.web_background)
         binding.root.setBackgroundColor(backgroundColor)
-        binding.webView.setBackgroundColor(backgroundColor)
+        webView.setBackgroundColor(backgroundColor)
         systemBarAppearance.onConfigurationChanged(newConfig)
         viewportInsetsPublisher?.refresh()
         // WebView 会更新 CSS media query，但部分版本不派发 MediaQueryList change；前端需主动重读。
-        binding.webView.post {
+        webView.post {
             if (activity.isFinishing || activity.isDestroyed) return@post
             runCatching {
-                binding.webView.evaluateJavascript(SYSTEM_THEME_REFRESH_SCRIPT, null)
+                webView.evaluateJavascript(SYSTEM_THEME_REFRESH_SCRIPT, null)
             }
         }
     }
@@ -152,14 +133,95 @@ internal class MainShellCoordinator(
         splashGate.cancelTimeout()
         fileChooserHost.destroy()
         cameraPermissionHost.destroy()
+        disposeWebViewInfrastructure()
+        if (::webView.isInitialized) {
+            binding.webViewContainer.removeView(webView)
+            webView.destroy()
+        }
+    }
+
+    private fun configureWebView(target: WebView) {
+        viewportInsetsPublisher =
+            WebViewportInsetsPublisher(
+                insetSource = binding.root,
+                imeInsetTarget = binding.webViewContainer,
+                webView = target,
+                trustedOrigin = AppConfig.TRUSTED_ORIGIN,
+            ).also { it.install() }
+        ShellWebViewConfigurator(
+            context = activity,
+            assetLoader = assetLoader,
+            systemBarAppearance = systemBarAppearance,
+            fileChooserHost = fileChooserHost,
+            cameraPermissionHost = cameraPermissionHost,
+            onPageStarted = { url -> shellBridge?.onPageStarted(url) },
+            onPageVisible = { url -> viewportInsetsPublisher?.onPageVisible(url) },
+            onFrontendReady = { splashGate.markReady() },
+            onRendererExit = ::recoverFromRendererExit,
+        ).configure(target)
+        installShellBridge(target)
+        target.loadUrl(AppConfig.FRONTEND_HOME_URL)
+    }
+
+    /** Renderer 退出后的 WebView 不可复用；只重建 UI 链路，不重启 Application 级本地 core。 */
+    private fun recoverFromRendererExit(
+        failedWebView: WebView,
+        detail: RenderProcessGoneDetail,
+    ): Boolean {
+        logRendererExit(detail)
+        if (failedWebView !== webView) {
+            failedWebView.destroy()
+            return true
+        }
+
+        fileChooserHost.cancelPending()
+        cameraPermissionHost.cancelPending()
+        disposeWebViewInfrastructure()
+        binding.webViewContainer.removeView(failedWebView)
+        failedWebView.destroy()
+
+        if (activity.isFinishing || activity.isDestroyed) return true
+
+        WebView(activity).also { replacement ->
+            webView = replacement
+            binding.webViewContainer.addView(
+                replacement,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+            configureWebView(replacement)
+        }
+        return true
+    }
+
+    private fun disposeWebViewInfrastructure() {
         shellBridge?.destroy()
         shellBridge = null
         viewportInsetsPublisher?.dispose()
         viewportInsetsPublisher = null
     }
 
+    private fun createAssetLoader(): WebViewAssetLoader =
+        WebViewAssetLoader.Builder()
+            .setDomain(AppConfig.TRUSTED_HOST)
+            .addPathHandler("/", FrontendPathHandler(activity))
+            .build()
+
+    private fun logRendererExit(detail: RenderProcessGoneDetail) {
+        val provider = WebView.getCurrentWebViewPackage()
+        Log.e(
+            LOG_TAG,
+            "WebView renderer exited: didCrash=${detail.didCrash()}, " +
+                "priorityAtExit=${detail.rendererPriorityAtExit()}, " +
+                "provider=${provider?.packageName ?: "unavailable"}, " +
+                "version=${provider?.versionName ?: "unknown"}",
+        )
+    }
+
     /** 在加载前端前安装 Shell Bridge，保证 document-start 脚本先于页面脚本注入。 */
-    private fun installShellBridge() {
+    private fun installShellBridge(webView: WebView) {
         val bridge =
             ShellBridgeHost(
                 context = activity,
@@ -170,7 +232,7 @@ internal class MainShellCoordinator(
                 nativeBackResponseTimeoutMs = AppConfig.NATIVE_BACK_RESPONSE_TIMEOUT_MS,
                 onFrontendReady = { splashGate.markReady() },
             )
-        if (bridge.install(binding.webView)) {
+        if (bridge.install(webView)) {
             shellBridge = bridge
         } else {
             bridge.destroy()
@@ -179,6 +241,7 @@ internal class MainShellCoordinator(
     }
 
     companion object {
+        private const val LOG_TAG = "WineStockWebView"
         private const val SYSTEM_THEME_REFRESH_SCRIPT =
             "window.dispatchEvent(new Event(\"winestock:system-theme-refresh\"));"
     }

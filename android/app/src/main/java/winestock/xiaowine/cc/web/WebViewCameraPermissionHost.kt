@@ -54,10 +54,15 @@ internal class WebViewCameraPermissionHost(
         if (granted) grantCamera(request) else request.deny()
     }
 
-    /** Activity 销毁时以 deny 结算未完成请求。 */
-    fun destroy() {
+    /** WebView renderer 退出时拒绝旧页面的请求，但保留宿主以供新 WebView 使用。 */
+    fun cancelPending() {
         pendingRequest?.deny()
         pendingRequest = null
+    }
+
+    /** Activity 销毁时以 deny 结算未完成请求。 */
+    fun destroy() {
+        cancelPending()
     }
 
     private fun hasNativeCameraPermission(): Boolean =

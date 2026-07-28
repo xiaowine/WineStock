@@ -71,6 +71,11 @@ internal class WebViewFileChooserHost(
         }
     }
 
+    /** WebView renderer 退出时取消旧页面请求，但保留宿主以供新 WebView 继续使用。 */
+    fun cancelPending() {
+        session.cancel()
+    }
+
     /** 必须以 null 结算未完成回调，避免 WebView 挂起。 */
     fun destroy() {
         session.destroy()

@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.view.View
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -32,6 +33,7 @@ internal class ShellWebViewConfigurator(
     private val onPageStarted: (url: String?) -> Unit,
     private val onPageVisible: (url: String?) -> Unit,
     private val onFrontendReady: () -> Unit,
+    private val onRendererExit: (view: WebView, detail: RenderProcessGoneDetail) -> Boolean,
 ) {
     @SuppressLint("SetJavaScriptEnabled")
     fun configure(webView: WebView) {
@@ -64,6 +66,11 @@ internal class ShellWebViewConfigurator(
                         // 兜底：真正的就绪信号来自前端，但 SPA 首屏未绘制时也不应长期保持启动画面。
                         onFrontendReady()
                     }
+
+                    override fun onRenderProcessGone(
+                        view: WebView,
+                        detail: RenderProcessGoneDetail,
+                    ): Boolean = onRendererExit(view, detail)
                 }
             // HTML <input type="file">：系统选择器返回 content URI，无存储权限。
             // getUserMedia 摄像头：仅受信任 origin 且原生 CAMERA 已获准时放行，见 cameraPermissionHost。
@@ -97,6 +104,8 @@ internal class ShellWebViewConfigurator(
                 // 前端在 https://winestock.internal，远端模式常连局域网 HTTP；明文范围由 network_security_config 控制。
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
+            // 前台可见时降低 renderer 被低内存回收的概率；不可见时仍允许系统降低其优先级。
+            setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
         }
     }
 }

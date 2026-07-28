@@ -14,7 +14,7 @@
 
 ## Activity 装配与 Application 级 core
 
-- `MainActivity.kt` 是唯一 Activity 入口，只保留系统生命周期与 ActivityResult；系统 day/night `uiMode` 由当前 Activity 原地处理，避免重建 WebView。`shell/MainShellCoordinator.kt` 组装 edge-to-edge、Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host，`loadUrl` 前安装 Bridge。
+- `MainActivity.kt` 是唯一 Activity 入口，只保留系统生命周期与 ActivityResult；系统 day/night `uiMode` 由当前 Activity 原地处理，避免重建 WebView。`shell/MainShellCoordinator.kt` 组装 edge-to-edge、Splash、inset、WebView、Shell Bridge、返回协商与文件选择 Host，`loadUrl` 前安装 Bridge；renderer 退出时只销毁并重建该 UI 链路，不重启 Application 级 core。
 - `WineStockApplication.kt` 在进程创建时初始化唯一 `LocalCoreRuntimeManager`；Activity 重建不替换 core runtime，Activity 生命周期不触发 shutdown。
 - `core/LocalCoreRuntimeManager.kt`：单线程后台 executor 串行执行 JNI、配置校验、启动/停止/重启和 SharedPreferences 提交。缺少持久配置时只发布 `initialized=false` 且不启动本地 HTTP 服务；首次确认 `self-hosted` 用端口 `0` 请求系统分配并把实际端口写回持久化，已保存端口冲突时仅 `self-hosted` 自动重试一次；候选配置先激活后提交，失败时恢复旧服务。
 - `core/` 其余模块：安全幂等加载 `.so` 并封装 native protocol v1 调用（load/JNI 失败映射 `native_library_unavailable`，不在类初始化时崩溃）；编解码请求/响应并拒绝协议版本不匹配，校验 `running` 状态发布的是同一非零实际端口；存储固定使用 `noBackupFilesDir/winestock/data`。
