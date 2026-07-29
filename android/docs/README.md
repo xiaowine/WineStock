@@ -70,7 +70,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 
 ## Rust/ARM64 APK 打包
 
-- 当前唯一 ABI 为 `arm64-v8a`，`minSdk/API` 为 26；不生成 32 位 ARM、x86 或 x86_64。
+- 当前唯一 ABI 为 `arm64-v8a`，`minSdk/API` 为 28；不生成 32 位 ARM、x86 或 x86_64。
 - `build<Variant>RustNativeLibraries` 使用预先准备的 `cargo-ndk 4.1.2` 和 NDK `30.0.14904198`，
   以 `--locked --offline` 构建；Debug 使用 Cargo debug profile，Release 使用 `--release`，因此
   `winestock-android-native -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
@@ -134,13 +134,15 @@ scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 pa
 `MainActivity` 在 Manifest 中只接管 `uiMode` 配置变化，并原地刷新 Window/WebView 背景、系统栏与安全区；随后向保留的页面发送 `winestock:system-theme-refresh`，覆盖部分 WebView 只更新 media query 结果却不派发 `change` 的行为。系统深浅色切换不会销毁 WebView、重载前端或丢失当前路由，手动主题也不会被系统配置覆盖。旋转等其它配置变化仍使用 Android 默认重建行为。
 主题联动已在 API 33 三键导航真机覆盖系统浅/深、手动浅/深、图片查看临时系统栏覆盖与关闭恢复，以及 Activity 后台恢复。系统 `uiMode` 双向切换期间 PID、ActivityRecord、WebView 调试 target、当前路由、Dialog 和未提交输入均保持，事件日志没有 Activity create/destroy；测试结束恢复设备原系统模式和应用“跟随系统”偏好。
 
-`MainActivity` 只做系统入口与 Activity Result 注册；组装与业务接线在
-`shell/MainShellCoordinator`。WebView 配置、文件选择、Splash、系统栏与返回分别在
+`MainActivity` 在膨胀静态 WebView 布局前执行 M111 + Shell Bridge 必需 capability 启动门禁，并负责系统入口与 Activity Result 注册；不兼容时使用不依赖 WebView 的原生全屏提示页，只提供手动复检，不从应用跳转商店或系统设置。门禁通过后的组装与业务接线在
+`shell/MainShellCoordinator`。兼容性探针/恢复页、WebView 配置、文件选择、Splash、系统栏与返回分别在
+`web/WebViewCompatibility` / `web/WebViewCompatibilityScreen`、
 `web/ShellWebViewConfigurator`、`web/WebViewFileChooserHost`、`web/SplashFrontendGate`、
 `web/SystemBarAppearanceController`、`shell/NativeBackNavigator`。
 
 ## 相关文档
 
+- [`webview-evolution-api26-to-2026.md`](webview-evolution-api26-to-2026.md)：API 26 至 2026-07-28 的 Android/WebView/AndroidX WebKit 演进统计、项目影响分级与测试矩阵。
 - [`release-package-size-analysis.md`](release-package-size-analysis.md)：Release APK/native library 实测组成、Swagger UI 移除结果与后续压缩方向。
 - [`webview-file-selection-permissions.md`](webview-file-selection-permissions.md)：通用的 WebView 文件选择、URI 授权、媒体库与相机权限提示；不作为具体功能契约。
 - [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md)：Shell Bridge v1 契约与边界（权威）。

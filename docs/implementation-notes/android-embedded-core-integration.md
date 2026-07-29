@@ -3,7 +3,7 @@
 > 文档状态：代码与 APK 集成已完成，API 33 关键真机 smoke 已通过，完整业务与异常矩阵待补齐<br>
 > 涉及组件：`shared`、`core`、`server`、`android`、少量 `frontend` 运行状态联调<br>
 > 编制日期：2026-07-23<br>
-> 当前 Android 基线：AGP `9.2.1`、`minSdk 26`、`targetSdk 36`、Java 17、原生 WebView Shell
+> 当前 Android 基线：AGP `9.2.1`、`minSdk 28`、`targetSdk 36`、Java 17、原生 WebView Shell
 
 ## 1. 结论
 
@@ -1422,7 +1422,7 @@ lib/arm64-v8a/libwinestock_android_native.so
 以下项目尚未形成完整证据，不应从本次 API 33 smoke 推断为通过：
 
 - 本机首次用户创建、完整业务写入、图片上传和下载；
-- API 26、29/30、34、35、36 的 embedded-core 回归，以及手势导航；
+- API 28、29/30、34、35、36 的 embedded-core 回归，以及手势导航；
 - 页面 reload 期间的 generation 取消、bridge/proxy 缺失、迟到应答和 JS 主线程卡顿；
 - 远端/本地多轮切换中的失败回滚、端口占用、migration/storage 故障恢复；
 - 系统主动杀进程后的 SQLite WAL 恢复；

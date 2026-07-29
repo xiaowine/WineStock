@@ -145,7 +145,7 @@ resetTlsIdentity(): Promise<RuntimeSnapshot>;   // 仅本机 server-mode 有效
 - `WebViewClient.onReceivedSslError`：
   - 仅处理主因为 `SSL_UNTRUSTED`/`SSL_IDMISMATCH` 的错误，且请求 URL 的 host:port
     与当前远端配置一致；其余一律 `cancel()`。
-  - 证书提取：API 29+ 用 `SslCertificate.getX509Certificate()`；minSdk 26 兼容路径
+  - 证书提取：API 29+ 用 `SslCertificate.getX509Certificate()`；minSdk 28 兼容路径
     经 `SslCertificate.saveState()` bundle 的 `x509-certificate` 字节重建。
   - SPKI 指纹 == `remoteCertFingerprint` → `proceed()`；否则 `cancel()` 并按上节
     报告失配。比对逻辑抽成纯类（如 `PinnedFingerprintMatcher`）供 JVM 单测。
