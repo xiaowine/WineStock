@@ -59,7 +59,7 @@ Android 返回提交
 | 前端顺序          | 临时浮层 → Dialog → Drawer/Popover → 页面内步骤 → Vue Router → 未处理 |
 | 路由确认          | 调用 `router.back()` 后立即报告已处理，不等待导航守卫或动画结束       |
 | Busy Dialog       | 消费返回但不关闭，防止提交过程中退出或露出下层页面                    |
-| Predictive back   | 第一版只处理手势提交结果，不向 Web 传递手势进度                       |
+| Predictive back   | 产品只处理手势提交结果；不向 Web 传递手势进度                         |
 | 失败回退          | 重新检查 `WebView.canGoBack()`，否则交回 Activity                     |
 
 该方案与 `docs/shell-bridge.md` 已有约束一致：原生返回键先允许前端关闭 Dialog、Drawer 或执行路由返回，前端未处理或超时后 Activity 才执行系统返回。
@@ -885,16 +885,16 @@ Set-Location ..\android
 
 ## 16. Predictive back 边界
 
-项目当前使用 AndroidX Activity `1.13.0` 和生命周期感知的 `OnBackPressedDispatcher`。第一版应继续走该路径，以获得 AndroidX 对新旧 Android 返回分发的兼容。
+项目当前使用 AndroidX Activity `1.13.0` 和生命周期感知的 `OnBackPressedDispatcher`，以获得 AndroidX 对新旧 Android 返回分发的兼容。产品只要求返回提交结果正确，不要求 Web 内容实现 predictive back 跟手动画。
 
-第一版只在返回手势**提交**时向前端发送请求：
+原生只在返回手势**提交**时向前端发送请求，以下各项是明确的产品边界，不是待实现功能：
 
 - 不发送 gesture started/progressed/cancelled；
 - 不让 Web UI 跟随手指平移或缩放；
 - 不伪造目的页面预览；
 - 不直接绕过 AndroidX 注册平台 callback。
 
-验收重点是提交后的结果正确、没有双重返回和卡死。完整 predictive-back 动画需要额外定义连续进度事件、取消回滚、Web 动画性能和路由预览语义，应作为独立后续任务。
+验收重点是提交后的结果正确、没有双重返回和卡死。除非产品需求发生变化，否则不增加连续进度事件、取消回滚、Web 跟手动画或路由预览。
 
 ## 17. 安全、可靠性与可观测性
 
