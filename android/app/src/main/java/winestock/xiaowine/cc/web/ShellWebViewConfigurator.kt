@@ -97,6 +97,11 @@ internal class ShellWebViewConfigurator(
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
+                // Android shell 是应用界面，不允许 WebView 对整页执行双指缩放；
+                // 页面内画布等局部缩放仍由前端自己的 pointer/touch 逻辑负责。
+                setSupportZoom(false)
+                builtInZoomControls = false
+                displayZoomControls = false
                 // 前端已有完整双主题；禁用 WebView 算法着色，避免在深色 CSS 上再次反色。
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
                     WebSettingsCompat.setAlgorithmicDarkeningAllowed(this, false)
