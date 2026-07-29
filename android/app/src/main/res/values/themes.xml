@@ -16,7 +16,7 @@
          就绪后回到 postSplashScreenTheme 指向的常规主题。 -->
     <style name="Theme.WineStock.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/web_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.WineStock</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>

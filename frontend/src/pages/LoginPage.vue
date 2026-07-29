@@ -7,7 +7,7 @@
     <section class="auth-panel" aria-labelledby="login-title">
       <header class="auth-header">
         <div class="brand-lockup">
-          <span class="brand-mark">W</span>
+          <BrandMark />
           <span class="brand-name">WineStock</span>
         </div>
         <div>
@@ -84,6 +84,7 @@ import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } fr
 import { resolveApiClientMetadata } from "../api/runtime-config";
 import { establishAuthSession } from "../auth/session";
 import { AuthPersistenceError } from "../auth/storage";
+import BrandMark from "../components/BrandMark.vue";
 import { notice } from "../notices/notice";
 import { resolvePostLoginLocation } from "../router/guards";
 import PasswordInput from "../components/PasswordInput.vue";

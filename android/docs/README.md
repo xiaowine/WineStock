@@ -52,6 +52,12 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - 其它 API 版本、手势导航、异常注入和完整业务回归仍是剩余覆盖项；JVM、lint、assemble 和本次真机
   smoke 都不能替代完整矩阵。首次未初始化不启服、选择模式后再 apply 的新漏斗尚未完成真机复验。
 
+## 品牌与平台图标
+
+- 跨平台权威母版位于仓库根 `brand/`；Android `res/drawable` 只保存 VectorDrawable 派生资源。
+- launcher 使用直接颜色背景和冷白 Cube 前景；round icon 与 themed monochrome 复用同一个 adaptive/前景资源，前景按真机启动器的视觉安全区缩放，圆形与圆角方形遮罩保留稳定留白。
+- SplashScreen 使用比界面标志更紧凑的专用 Cube 派生路径，避免系统启动图标容器把母版放大得过重；不兼容 WebView 恢复页继续使用正常尺寸的透明标志。两者通过 day/night 颜色资源保证浅色、深色背景对比，不再使用模板机器人、绿色网格或文字 `W`。
+
 ## 前端资源打包
 
 - Android 构建直接从当前 `PATH` 执行本机 `pnpm run build:android`，不固定、下载或切换 Node/pnpm 版本。

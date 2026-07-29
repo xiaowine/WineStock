@@ -21,17 +21,13 @@
             android:layout_gravity="center_vertical"
             android:orientation="vertical">
 
-            <TextView
+            <ImageView
                 android:id="@+id/brandMark"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
-                android:background="@drawable/bg_compatibility_brand_mark"
                 android:contentDescription="@string/app_name"
-                android:gravity="center"
-                android:text="@string/webview_compatibility_brand_mark"
-                android:textColor="@color/compatibility_action_background"
-                android:textSize="30sp"
-                android:textStyle="bold" />
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_brand_mark" />
 
             <TextView
                 android:id="@+id/compatibilityTitle"

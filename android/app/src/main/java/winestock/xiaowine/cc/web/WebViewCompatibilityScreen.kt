@@ -55,10 +55,7 @@ internal class WebViewCompatibilityScreen(
         binding.retryButton.setTextColor(
             ContextCompat.getColor(activity, R.color.compatibility_action_text),
         )
-        binding.brandMark.setTextColor(
-            ContextCompat.getColor(activity, R.color.compatibility_action_background),
-        )
-        binding.brandMark.setBackgroundResource(R.drawable.bg_compatibility_brand_mark)
+        binding.brandMark.setImageResource(R.drawable.ic_brand_mark)
         val darkMode =
             newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         androidx.core.view.WindowInsetsControllerCompat(activity.window, binding.root).apply {

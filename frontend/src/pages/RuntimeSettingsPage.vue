@@ -10,7 +10,7 @@
       <header class="auth-header">
         <div class="runtime-next__masthead">
           <div class="brand-lockup">
-            <span class="brand-mark">W</span>
+            <BrandMark />
             <span class="brand-name">WineStock</span>
           </div>
           <!-- 已登录用返回图标；匿名完成设置后的「继续」是漏斗动作，保持文字按钮。 -->
@@ -299,6 +299,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { changeOwnPassword, getLocalSessionStatus } from "../api/auth";
 import { authSession, authStatus, localSilentAuthActive } from "../auth/session";
+import BrandMark from "../components/BrandMark.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import ModalDialog from "../components/ModalDialog.vue";

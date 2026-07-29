@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">WineStock</string>
     <string name="webview_compatibility_title">需要更新系统 WebView</string>
-    <string name="webview_compatibility_brand_mark" translatable="false">W</string>
     <string name="webview_compatibility_message_provider_unavailable">系统没有提供可用的 WebView。请在系统侧启用或更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
     <string name="webview_compatibility_message_version_unreadable">无法确认当前 WebView 版本。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
     <string name="webview_compatibility_message_version_too_old">当前 WebView 版本过低，无法可靠运行 WineStock。更新后即可继续，应用数据不会受到影响。</string>

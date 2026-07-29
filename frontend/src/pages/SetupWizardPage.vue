@@ -8,7 +8,7 @@
     <section class="auth-panel setup-wizard" aria-labelledby="setup-wizard-title">
       <header class="auth-header">
         <div class="brand-lockup">
-          <span class="brand-mark">W</span>
+          <BrandMark />
           <span class="brand-name">WineStock</span>
         </div>
       </header>
@@ -172,6 +172,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import BrandMark from "../components/BrandMark.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import ThemePreferenceSelector from "../components/preferences/ThemePreferenceSelector.vue";
 import { startTelemetryIfConsented } from "../telemetry/clarity";

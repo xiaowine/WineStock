@@ -21,13 +21,13 @@
         </button>
 
         <div class="brand-lockup">
-          <span class="brand-mark">W</span>
+          <BrandMark />
           <span class="brand-name">WineStock</span>
           <span v-if="APP_STAGE_LABEL" class="brand-badge">{{ APP_STAGE_LABEL }}</span>
         </div>
 
         <div class="app-topbar__context">
-          <span class="app-topbar__context-mark" aria-hidden="true">W</span>
+          <BrandMark class="app-topbar__context-mark" />
           <span class="app-topbar__context-copy">
             <small
               >WineStock<span v-if="APP_STAGE_LABEL" class="brand-badge">{{
@@ -89,7 +89,7 @@
       >
         <div class="app-navigation-pane__header">
           <div class="app-navigation-pane__brand">
-            <span class="brand-mark" aria-hidden="true">W</span>
+            <BrandMark />
             <div>
               <strong
                 >WineStock<span v-if="APP_STAGE_LABEL" class="brand-badge">{{
@@ -147,6 +147,7 @@ import { authSession, localSilentAuthActive } from "../auth/session";
 import AccountPopover from "../components/AccountPopover.vue";
 import AccountUserSummary from "../components/AccountUserSummary.vue";
 import AppNavigationList from "../components/AppNavigationList.vue";
+import BrandMark from "../components/BrandMark.vue";
 import RouteContentView from "../components/RouteContentView.vue";
 import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import AppPreferencesDialog from "../components/preferences/AppPreferencesDialog.vue";

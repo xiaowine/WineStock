@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="WineStock">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-labelledby="title desc">
+  <title id="title">WineStock</title>
+  <desc id="desc">The WineStock inventory package mark on a burgundy app-icon background.</desc>
   <rect x="4" y="4" width="100" height="100" rx="22" fill="#6F2A36" />
   <path
     fill="#F4F5F7"

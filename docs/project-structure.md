@@ -47,6 +47,7 @@ Items marked as current already exist.
 ```text
 WineStock/
   AGENTS.md
+  brand/                         # 跨平台品牌矢量母版；平台目录只保存格式化派生资源
   docs/
     README.md                     # 项目级文档入口，只保存跨组件规范
     architecture.md
@@ -134,6 +135,10 @@ Current workspace dependencies:
 `tokio` is used by core service startup and the server shell.
 
 ## Component Ownership
+
+`brand` owns the platform-neutral WineStock mark and app-icon vector masters.
+Frontend and platform shells may derive resources required by their toolchains, but must not redesign
+the mark independently or make another platform directory the canonical source.
 
 `core` owns the shared Axum service library.
 It depends on `shared` as needed.

@@ -7,7 +7,7 @@
 
 ## 工程入口与启动
 
-- `frontend/package.json`、`vite.config.ts`：pnpm 脚本、Web/Android 双构建模式和 Node test runner 纯逻辑测试入口；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest，不固定 Node/pnpm 版本；package.json `appStage` 字段经 define 注入为品牌阶段徽标常量（Web/Android 双模式一致，空串时应用壳徽标隐藏）。
+- `frontend/package.json`、`vite.config.ts`、`public/`：pnpm 脚本、Web/Android 双构建模式、Node test runner 纯逻辑测试入口及从根 `brand/` 母版派生的 favicon；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest，不固定 Node/pnpm 版本；package.json `appStage` 字段经 define 注入为品牌阶段徽标常量（Web/Android 双模式一致，空串时应用壳徽标隐藏）。
 - `frontend/src/main.ts` 与 `src/bootstrap/`：在任何异步启动工作前初始化主题，再初始化 Shell 运行快照和动态 API 地址；随后按需启动健康检查、会话恢复、跨标签页同步、浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
 - `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
 - `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。
@@ -53,7 +53,7 @@
 ## 布局与通用组件
 
 - `frontend/src/layouts/AppShell.*`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
-- `frontend/src/components/` 顶层：账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件；`components/preferences/` 的主题三态控件由初始化向导和偏好 Dialog 共用。
+- `frontend/src/components/` 顶层：从根品牌母版派生并供应用壳/认证/设置复用的 `BrandMark`、账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件；`components/preferences/` 的主题三态控件由初始化向导和偏好 Dialog 共用。
 - `frontend/src/components/forms/`：FormField 族、Teleport listbox 的 `SelectControl` 和不依赖浏览器原生弹层的日期时间字段；不包含业务校验规则。
 - `frontend/src/components/attributes/`：物品侧的单张图片属性控件、无依赖 HSV 颜色选择器、鉴权图片加载和图片草稿/纯色生成/提交阶段批量上传模型。
 - `frontend/src/composables/`：表单校验定位、原生返回注册、稳定 pending 指示、目录搜索分页、草稿持久化等页面无关组合逻辑。

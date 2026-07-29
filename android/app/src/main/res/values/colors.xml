@@ -11,4 +11,7 @@
     <color name="compatibility_text_secondary">#FF59636F</color>
     <color name="compatibility_action_background">#FF6F2A36</color>
     <color name="compatibility_action_text">#FFFFFFFF</color>
+    <color name="brand_mark">#FF6F2A36</color>
+    <color name="brand_icon_background">#FF6F2A36</color>
+    <color name="brand_icon_foreground">#FFF4F5F7</color>
 </resources>

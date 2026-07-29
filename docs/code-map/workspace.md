@@ -9,6 +9,7 @@ Cargo 工作区成员：`android/native`、`core`、`server`、`shared`。
 
 - `AGENTS.md`：全项目 agent 操作入口，导航到跨组件规范、领域文档、代码地图和完成检查清单。
 - `Cargo.toml`/`Cargo.lock`：工作区成员、共享依赖版本和锁文件。
+- `brand/`：WineStock 跨平台矢量母版；frontend、Android 和未来 Shell 只保存各自工具链需要的派生资源，不在平台目录重新设计标志。
 - `docs/`：跨组件架构、网络、平台、项目结构、代理清单、分层代码地图和跨组件实现笔记（`docs/implementation-notes/` 只保留跨组件方案与历史演进记录）。
 - `core/`、`shared/`、`server/`：共享 Rust/Axum 服务库、平台无关配置 crate 和无头服务端 shell；各自的 `docs/` 拥有组件实现文档（core 业务 API 文档入口为 `core/docs/business-api.md`）。
 - `frontend/`：共享前端源码和 pnpm 工程，不由 Axum 服务；`frontend/docs/` 拥有前端规范与页面文档。
@@ -25,6 +26,7 @@ server -> shared
 android/native -> core -> shared
 android app -> packaged frontend assets + android/native
 frontend -> HTTP API
+frontend/android/future shells -> brand vector masters (build-time derivation only)
 ```
 
 禁止方向：
@@ -34,7 +36,10 @@ shared -> core
 core   -> server
 core   -> desktop/android/frontend platform assets
 core   -> android/native
+brand  -> frontend/android platform code
 ```
+
+`brand` 只提供静态设计母版，不依赖任何运行时组件；上面的禁止方向表示母版不得反向依赖平台实现。
 
 ## 测试布局
 

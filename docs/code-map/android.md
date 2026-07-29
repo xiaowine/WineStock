@@ -9,6 +9,7 @@
 
 - 单 `:app` 模块工程，命名空间 `winestock.xiaowine.cc`；固定 NDK 与唯一 ABI `arm64-v8a`，交付物只支持 APK（无 AAB 校验或 bundle 挂钩）。
 - Release variant 通过 AGP `VariantOutput.outputFileName` 生成 `WineStock-<versionName>-release.apk`，文件名与 `output-metadata.json` 保持一致；Debug 沿用 AGP 默认命名。
+- `app/src/main/res` 持有从根 `brand/` 母版派生的 adaptive launcher 前景、紧凑 SplashScreen 和兼容页 VectorDrawable；launcher 背景直接引用品牌颜色，round/themed 复用主 adaptive 与前景轮廓。Android 遮罩/启动容器的视觉缩放与 day/night 着色属于平台派生，不改变母版几何。
 - 前端打包任务链：从当前 `PATH` 直接执行本机 `pnpm run build:android`（不固定或下载 Node/pnpm，不读取 `frontend/dist`），Android Vite 产物显式以 `chrome111` 为语法目标，再经目录校验、generated assets 暂存、legacy 守卫和 APK 包级验证；依赖未准备或产物缺失立即失败。
 - Rust JNI 构建任务链：`cargo-ndk --locked --offline` 按 variant 构建 ARM64 `.so`（Release 走 Cargo `--release`，core/shared 传递依赖同 profile），并校验 ELF64/AArch64、8 个具名 JNI 导出、允许的系统动态库和 APK 内唯一 `.so`。
 

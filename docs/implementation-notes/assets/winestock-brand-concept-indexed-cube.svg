@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="board-title board-desc">
+  <title id="board-title">WineStock Indexed Cube cross-platform brand concept</title>
+  <desc id="board-desc">Review board showing a non-letter indexed inventory cube across launcher, themed icon, favicon, and frontend contexts.</desc>
+  <defs>
+    <symbol id="indexed-cube" viewBox="0 0 108 108">
+      <path
+        fill="currentColor"
+        fill-rule="evenodd"
+        d="M54 18 88 35 54 52 20 35l34-17ZM20 43l30 15v32L20 75V43Zm38 15 30-15v32L58 90V58Zm7 5 16-8v7l-16 8v-7Z"
+      />
+    </symbol>
+    <clipPath id="circle-mask-c">
+      <circle cx="925" cy="292" r="64" />
+    </clipPath>
+    <clipPath id="squircle-mask-c">
+      <rect x="1008" y="228" width="128" height="128" rx="30" />
+    </clipPath>
+  </defs>
+
+  <rect width="1200" height="820" fill="#F4F5F7" />
+
+  <g font-family="Inter, Segoe UI, Arial, sans-serif" letter-spacing="0">
+    <text x="64" y="68" fill="#24272C" font-size="30" font-weight="700">WineStock</text>
+    <text x="64" y="98" fill="#6B7078" font-size="16">Cross-platform identity concept / Indexed Cube / option C</text>
+    <line x1="64" y1="126" x2="1136" y2="126" stroke="#D8DBE0" />
+
+    <g transform="translate(64 168)">
+      <rect width="610" height="282" rx="8" fill="#FFFFFF" stroke="#D8DBE0" />
+      <text x="28" y="40" fill="#6B7078" font-size="13" font-weight="600">PRIMARY ICON</text>
+
+      <rect x="28" y="66" width="188" height="188" rx="8" fill="#6F2A36" />
+      <use href="#indexed-cube" x="58" y="96" width="128" height="128" color="#F4F5F7" />
+
+      <g transform="translate(258 100)">
+        <use href="#indexed-cube" width="68" height="68" color="#6F2A36" />
+        <text x="86" y="47" fill="#24272C" font-size="42" font-weight="700">WineStock</text>
+        <rect x="88" y="65" width="49" height="24" rx="4" fill="#EAD4D8" />
+        <text x="112.5" y="82" fill="#6F2A36" font-size="11" font-weight="700" text-anchor="middle">BETA</text>
+      </g>
+
+      <g transform="translate(258 205)">
+        <rect width="260" height="42" rx="4" fill="#F4F5F7" stroke="#D8DBE0" />
+        <use href="#indexed-cube" x="9" y="7" width="28" height="28" color="#6F2A36" />
+        <text x="47" y="27" fill="#24272C" font-size="15" font-weight="650">WineStock</text>
+        <text x="238" y="27" fill="#6B7078" font-size="11" text-anchor="end">compact</text>
+      </g>
+    </g>
+
+    <g>
+      <text x="714" y="192" fill="#6B7078" font-size="13" font-weight="600">SHELL MASKS</text>
+
+      <rect x="714" y="228" width="128" height="128" rx="8" fill="#6F2A36" />
+      <use href="#indexed-cube" x="735" y="249" width="86" height="86" color="#F4F5F7" />
+
+      <g clip-path="url(#circle-mask-c)">
+        <rect x="861" y="228" width="128" height="128" fill="#6F2A36" />
+        <use href="#indexed-cube" x="882" y="249" width="86" height="86" color="#F4F5F7" />
+      </g>
+
+      <g clip-path="url(#squircle-mask-c)">
+        <rect x="1008" y="228" width="128" height="128" fill="#6F2A36" />
+        <use href="#indexed-cube" x="1029" y="249" width="86" height="86" color="#F4F5F7" />
+      </g>
+
+      <text x="778" y="382" fill="#6B7078" font-size="12" text-anchor="middle">square</text>
+      <text x="925" y="382" fill="#6B7078" font-size="12" text-anchor="middle">circle crop</text>
+      <text x="1072" y="382" fill="#6B7078" font-size="12" text-anchor="middle">squircle crop</text>
+    </g>
+
+    <g transform="translate(64 490)">
+      <rect width="1072" height="168" rx="8" fill="#FFFFFF" stroke="#D8DBE0" />
+      <text x="28" y="40" fill="#6B7078" font-size="13" font-weight="600">MONOCHROME + THEMED ICON</text>
+
+      <g transform="translate(28 58)">
+        <rect width="86" height="86" rx="20" fill="#24272C" />
+        <use href="#indexed-cube" x="13" y="13" width="60" height="60" color="#F4F5F7" />
+      </g>
+      <g transform="translate(134 58)">
+        <rect width="86" height="86" rx="43" fill="#EAD4D8" />
+        <use href="#indexed-cube" x="13" y="13" width="60" height="60" color="#6F2A36" />
+      </g>
+      <g transform="translate(240 58)">
+        <rect width="86" height="86" rx="20" fill="#E1E5E8" />
+        <use href="#indexed-cube" x="13" y="13" width="60" height="60" color="#3D4A50" />
+      </g>
+
+      <line x1="360" y1="57" x2="360" y2="145" stroke="#D8DBE0" />
+      <text x="392" y="80" fill="#24272C" font-size="17" font-weight="650">A cataloged stock unit, not a letter</text>
+      <text x="392" y="108" fill="#6B7078" font-size="14">Separated facets preserve the cube in one-color system themes.</text>
+      <text x="392" y="132" fill="#6B7078" font-size="14">The inset face label suggests indexing without barcode detail.</text>
+    </g>
+
+    <g transform="translate(64 694)">
+      <rect width="460" height="94" rx="8" fill="#FFFFFF" stroke="#D8DBE0" />
+      <text x="24" y="32" fill="#6B7078" font-size="12" font-weight="600">SMALL SIZE</text>
+      <g transform="translate(128 22)">
+        <rect width="32" height="32" rx="4" fill="#6F2A36" />
+        <use href="#indexed-cube" x="4" y="4" width="24" height="24" color="#F4F5F7" />
+        <text x="16" y="54" fill="#6B7078" font-size="11" text-anchor="middle">32</text>
+      </g>
+      <g transform="translate(198 26)">
+        <rect width="24" height="24" rx="3" fill="#6F2A36" />
+        <use href="#indexed-cube" x="3" y="3" width="18" height="18" color="#F4F5F7" />
+        <text x="12" y="50" fill="#6B7078" font-size="11" text-anchor="middle">24</text>
+      </g>
+      <g transform="translate(260 30)">
+        <rect width="16" height="16" rx="2" fill="#6F2A36" />
+        <use href="#indexed-cube" x="2" y="2" width="12" height="12" color="#F4F5F7" />
+        <text x="8" y="46" fill="#6B7078" font-size="11" text-anchor="middle">16</text>
+      </g>
+      <use href="#indexed-cube" x="344" y="18" width="58" height="58" color="#6F2A36" />
+    </g>
+
+    <g transform="translate(548 694)">
+      <rect width="588" height="94" rx="8" fill="#FFFFFF" stroke="#D8DBE0" />
+      <use href="#indexed-cube" x="22" y="16" width="62" height="62" color="#6F2A36" />
+      <text x="108" y="38" fill="#24272C" font-size="16" font-weight="650">Indexed Cube</text>
+      <text x="108" y="63" fill="#6B7078" font-size="13">One stock object, structured identity, platform-neutral geometry.</text>
+    </g>
+  </g>
+</svg>

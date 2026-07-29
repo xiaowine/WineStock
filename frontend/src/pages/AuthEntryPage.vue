@@ -4,7 +4,7 @@
     <section class="auth-panel" aria-labelledby="auth-entry-title">
       <header class="auth-header">
         <div class="brand-lockup">
-          <span class="brand-mark">W</span>
+          <BrandMark />
           <span class="brand-name">WineStock</span>
         </div>
         <div>
@@ -31,6 +31,7 @@
 import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getAuthBootstrapStatus } from "../api/auth";
+import BrandMark from "../components/BrandMark.vue";
 
 const router = useRouter();
 const route = useRoute();
