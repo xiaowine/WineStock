@@ -14,7 +14,7 @@ where
     C: ConnectionTrait,
 {
     let row = connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT COALESCE(SUM(remaining_quantity), 0.0) AS quantity
@@ -42,7 +42,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             INSERT INTO audit_events (user_id, entity_type, entity_id, action, details_json)

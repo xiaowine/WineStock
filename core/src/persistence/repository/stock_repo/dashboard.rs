@@ -20,7 +20,7 @@ where
     ) -> Result<DashboardOverviewRecord, DbErr> {
         let summary = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
@@ -73,7 +73,7 @@ where
     ) -> Result<Vec<DailyMovementTrendRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 WITH RECURSIVE dates(date, remaining) AS (
@@ -126,7 +126,7 @@ where
     ) -> Result<Vec<SlowMovingStockItemRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 WITH item_stock AS (

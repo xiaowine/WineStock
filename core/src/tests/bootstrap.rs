@@ -234,7 +234,7 @@ async fn auth_defaults_do_not_overwrite_database_managed_settings() {
     first
         .storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE auth_settings SET value = '1200' WHERE key = 'access_token_ttl_seconds'"
                 .to_owned(),
@@ -268,7 +268,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_
     first
         .storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE auth_permissions SET description = '自定义用户读取说明' WHERE code = 'user.read'"
                 .to_owned(),
@@ -319,7 +319,7 @@ async fn default_attribute_templates_are_idempotent_and_preserve_user_changes() 
     first
         .storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE stock_item_attribute_templates SET description = '自定义元器件模板' WHERE name = '元器件属性'"
                 .to_owned(),
@@ -329,7 +329,7 @@ async fn default_attribute_templates_are_idempotent_and_preserve_user_changes() 
     first
         .storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE stock_item_attribute_templates SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE name = '通用物品属性'"
                 .to_owned(),
@@ -395,7 +395,7 @@ async fn default_stock_location_reuses_existing_group_when_location_was_removed(
     first
         .storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE stock_locations SET deleted_at = '2026-07-09T00:00:00.000Z' WHERE name = '示例库位'"
                 .to_owned(),
@@ -469,7 +469,7 @@ fn test_config(
 
 async fn query_i64(database: &sea_orm::DatabaseConnection, sql: &str, column: &str) -> i64 {
     database
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             sql.to_owned(),
         ))
@@ -486,7 +486,7 @@ async fn query_string_vec(
     column: &str,
 ) -> Vec<String> {
     database
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             sql.to_owned(),
         ))
@@ -502,7 +502,7 @@ async fn item_template_field_names(
     template_name: &str,
 ) -> Vec<String> {
     database
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT field.field_name

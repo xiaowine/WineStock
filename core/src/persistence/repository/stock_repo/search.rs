@@ -348,7 +348,7 @@ where
     C: ConnectionTrait,
 {
     let rows = database
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             sql,
             values,

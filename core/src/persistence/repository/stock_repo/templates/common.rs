@@ -26,7 +26,7 @@ where
     C: ConnectionTrait,
 {
     let now = sqlite_now(connection).await?;
-    let result = item_attribute_template::Entity::insert(item_attribute_template::ActiveModel {
+    item_attribute_template::Entity::insert(item_attribute_template::ActiveModel {
         name: Set(name.to_owned()),
         description: Set(description),
         created_at: Set(now.clone()),
@@ -34,12 +34,8 @@ where
         deleted_at: Set(None),
         ..Default::default()
     })
-    .exec(connection)
-    .await?;
-    item_attribute_template::Entity::find_by_id(result.last_insert_id)
-        .one(connection)
-        .await?
-        .ok_or_else(|| DbErr::RecordNotFound("created item attribute template".to_owned()))
+    .exec_with_returning(connection)
+    .await
 }
 
 /// 整体替换物品属性模板字段；调用方负责提供事务连接。
@@ -66,7 +62,7 @@ where
         )
     };
     connection
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             delete_sql,
             delete_values,

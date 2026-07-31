@@ -277,7 +277,7 @@ async fn table_count(app: &crate::test_support::TestApp, table: &str) -> i64 {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             format!("SELECT COUNT(*) AS count FROM {table}"),
         ))

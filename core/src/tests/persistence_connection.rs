@@ -1,6 +1,6 @@
 //! SQLite 连接和 migration 测试。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
+use sea_orm::{ConnectionTrait, DatabaseBackend, Statement, TransactionTrait};
 use tempfile::tempdir;
 use winestock_shared::StorageConfig;
 
@@ -31,6 +31,93 @@ async fn opens_sqlite_database_with_wal_pragmas() {
     assert_eq!(
         query_i64(&storage.database, "PRAGMA foreign_keys", "foreign_keys").await,
         1
+    );
+
+    let sqlite_version = query_string(
+        &storage.database,
+        "SELECT sqlite_version() AS version",
+        "version",
+    )
+    .await;
+    assert!(
+        sqlite_version_at_least(&sqlite_version, 3, 35),
+        "SQLite {sqlite_version} does not support RETURNING; version 3.35 or newer is required"
+    );
+}
+
+#[tokio::test]
+async fn sqlite_returning_row_does_not_escape_a_rolled_back_transaction() {
+    let temp = tempdir().expect("temp dir should exist");
+    let config = StorageConfig {
+        database_path: temp
+            .path()
+            .join("winestock.sqlite")
+            .to_string_lossy()
+            .into_owned(),
+        files_dir: temp.path().join("files").to_string_lossy().into_owned(),
+        auto_migrate: true,
+    };
+    let storage = open_sqlite_storage(&config)
+        .await
+        .expect("storage should open");
+    migrate_storage_schema(&storage)
+        .await
+        .expect("schema should migrate");
+    let transaction = storage
+        .database
+        .begin()
+        .await
+        .expect("transaction should begin");
+
+    let returned = transaction
+        .query_one_raw(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            r#"
+            INSERT INTO stock_location_groups
+                (parent_id, name, sort_order, created_at, updated_at)
+            VALUES (NULL, 'RETURNING 回滚测试', 0, '2026-07-29T00:00:00.000Z', '2026-07-29T00:00:00.000Z')
+            RETURNING id, name
+            "#
+            .to_owned(),
+        ))
+        .await
+        .expect("returning insert should execute")
+        .expect("returning insert should return one row");
+    let returned_id: i64 = returned.try_get("", "id").expect("id should decode");
+    assert!(returned_id > 0);
+    assert_eq!(
+        returned
+            .try_get::<String>("", "name")
+            .expect("name should decode"),
+        "RETURNING 回滚测试"
+    );
+
+    let conflict = transaction
+        .query_one_raw(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            r#"
+            INSERT INTO stock_location_groups
+                (parent_id, name, sort_order, created_at, updated_at)
+            VALUES (NULL, 'RETURNING 回滚测试', 0, '2026-07-29T00:00:00.000Z', '2026-07-29T00:00:00.000Z')
+            RETURNING id
+            "#
+            .to_owned(),
+        ))
+        .await;
+    assert!(conflict.is_err(), "duplicate group should fail");
+    transaction
+        .rollback()
+        .await
+        .expect("failed workflow should roll back");
+
+    assert_eq!(
+        query_i64(
+            &storage.database,
+            "SELECT COUNT(*) AS count FROM stock_location_groups WHERE name = 'RETURNING 回滚测试'",
+            "count",
+        )
+        .await,
+        0
     );
 }
 
@@ -285,7 +372,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
 
     storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "INSERT INTO stock_item_attribute_templates (name, description) VALUES ('URL Template', NULL)"
                 .to_owned(),
@@ -294,7 +381,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         .expect("template should insert");
     storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "INSERT INTO stock_item_attribute_definitions (template_id, field_name, field_type) VALUES (1, 'datasheet', 'url')"
                 .to_owned(),
@@ -304,7 +391,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
 
     storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "INSERT INTO auth_users (username, password_hash) VALUES ('web-user', 'hash')"
                 .to_owned(),
@@ -313,7 +400,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
         .expect("web user should insert");
     storage
         .database
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"
             INSERT INTO auth_refresh_tokens (
@@ -343,7 +430,7 @@ async fn migration_is_idempotent_and_creates_current_schema() {
 
 async fn query_string(database: &DatabaseConnection, sql: &str, column: &str) -> String {
     database
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             sql.to_owned(),
         ))
@@ -356,7 +443,7 @@ async fn query_string(database: &DatabaseConnection, sql: &str, column: &str) ->
 
 async fn query_i64(database: &DatabaseConnection, sql: &str, column: &str) -> i64 {
     database
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             sql.to_owned(),
         ))
@@ -365,4 +452,16 @@ async fn query_i64(database: &DatabaseConnection, sql: &str, column: &str) -> i6
         .expect("row should exist")
         .try_get("", column)
         .expect("column should decode")
+}
+
+fn sqlite_version_at_least(version: &str, required_major: u32, required_minor: u32) -> bool {
+    let mut parts = version.split('.');
+    let Some(major) = parts.next().and_then(|part| part.parse::<u32>().ok()) else {
+        return false;
+    };
+    let Some(minor) = parts.next().and_then(|part| part.parse::<u32>().ok()) else {
+        return false;
+    };
+
+    (major, minor) >= (required_major, required_minor)
 }

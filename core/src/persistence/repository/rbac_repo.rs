@@ -40,7 +40,7 @@ where
         // 用户权限只通过直接分配表读取，避免业务层重新引入角色继承语义。
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT DISTINCT auth_permissions.code AS code
@@ -63,7 +63,7 @@ where
     pub(crate) async fn list_permissions(&self) -> Result<Vec<PermissionRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT id, code, description
@@ -109,7 +109,7 @@ where
     ) -> Result<i64, DbErr> {
         // 权限定义属于内置基础数据，已存在时不覆盖管理员后续调整。
         self.database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO auth_permissions (code, description)
@@ -132,7 +132,7 @@ where
         permission_id: i64,
     ) -> Result<(), DbErr> {
         self.database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO auth_user_permission_assignments (user_id, permission_id)
@@ -153,7 +153,7 @@ where
         permission_ids: &[i64],
     ) -> Result<(), DbErr> {
         self.database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "DELETE FROM auth_user_permission_assignments WHERE user_id = ?",
                 [user_id.into()],
@@ -176,7 +176,7 @@ where
     ) -> Result<bool, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT COUNT(DISTINCT auth_users.id) AS count
@@ -203,7 +203,7 @@ where
     async fn find_permission_id_by_code(&self, code: &str) -> Result<Option<i64>, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "SELECT id FROM auth_permissions WHERE code = ?",
                 [code.into()],

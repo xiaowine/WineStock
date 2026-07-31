@@ -291,7 +291,7 @@ async fn registration_checks_current_register_permission_in_database() {
 
     app.state
         .database()
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"
                 DELETE FROM auth_user_permission_assignments
@@ -368,7 +368,7 @@ async fn audit_events_for_user(
 ) -> Vec<AuditEventRow> {
     app.state
         .database()
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT user_id, action, details_json

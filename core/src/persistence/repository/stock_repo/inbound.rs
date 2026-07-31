@@ -3,7 +3,9 @@
 //! 本模块属于 `core` 持久化层，封装入库单、入库明细、审批批次、库存流水和审计写入。
 //! 待审批创建不改变库存；直接入库和后续审批都在单一事务内写入批次与流水。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait, Value};
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionSession, TransactionTrait, Value,
+};
 
 use super::{
     common::{current_item_quantity_on_connection, insert_audit_event_on_connection, json_string},
@@ -34,7 +36,7 @@ where
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
         let result = transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_inbound_orders
@@ -56,7 +58,7 @@ where
         for item in &input.items {
             validate_repository_input(item)?;
             transaction
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_inbound_order_items
@@ -183,7 +185,7 @@ where
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_inbound_orders
@@ -220,7 +222,7 @@ where
         id: i64,
     ) -> Result<Option<InboundOrderRecord>, DbErr> {
         self.database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 inbound_order_select_sql("WHERE id = ?"),
                 [id.into()],
@@ -234,7 +236,7 @@ where
         let (where_clause, values) = inbound_order_filters(input);
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!("SELECT COUNT(*) AS count FROM stock_inbound_orders {where_clause}"),
                 values,
@@ -257,7 +259,7 @@ where
         values.push(offset.into());
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!(
                     "{} {where_clause} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
@@ -285,7 +287,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             UPDATE stock_inbound_orders
@@ -311,7 +313,7 @@ where
             .clone()
             .unwrap_or_else(|| format!("IN-{order_id}-{}", item.id));
         let batch_result = connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_batches
@@ -335,7 +337,7 @@ where
             .await?;
         let balance_after = current_item_quantity_on_connection(connection, item.item_id).await?;
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_movements
@@ -378,7 +380,7 @@ where
     C: ConnectionTrait,
 {
     let row = connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT COUNT(*) AS count
@@ -466,7 +468,7 @@ where
     C: ConnectionTrait,
 {
     let rows = connection
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT inbound_items.id,

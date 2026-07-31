@@ -3,7 +3,9 @@
 //! 本模块属于 `core` 持久化层，封装出库单、出库明细、搜索、审批扣减、库存流水和审计写入。
 //! 创建出库单不扣减库存，审批出库单才按指定批次或 FIFO 扣减。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait, Value};
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionSession, TransactionTrait, Value,
+};
 
 use super::{
     common::{current_item_quantity_on_connection, insert_audit_event_on_connection, json_string},
@@ -42,7 +44,7 @@ where
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
         let result = transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_outbound_orders
@@ -64,7 +66,7 @@ where
         for item in &input.items {
             validate_repository_input(item)?;
             transaction
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_outbound_order_items
@@ -155,7 +157,7 @@ where
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_outbound_orders
@@ -209,7 +211,7 @@ where
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_outbound_orders
@@ -246,7 +248,7 @@ where
         id: i64,
     ) -> Result<Option<OutboundOrderRecord>, DbErr> {
         self.database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 outbound_order_select_sql("WHERE id = ?"),
                 [id.into()],
@@ -260,7 +262,7 @@ where
         let (where_clause, values) = outbound_order_filters(input);
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!("SELECT COUNT(*) AS count FROM stock_outbound_orders {where_clause}"),
                 values,
@@ -283,7 +285,7 @@ where
         values.push(offset.into());
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!(
                     "{} {where_clause} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
@@ -364,7 +366,7 @@ where
     C: ConnectionTrait,
 {
     let rows = connection
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT outbound_items.id,
@@ -437,7 +439,7 @@ where
         let deducted = remaining_to_deduct.min(batch.remaining_quantity);
         let new_remaining = batch.remaining_quantity - deducted;
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_batches
@@ -455,7 +457,7 @@ where
         remaining_to_deduct -= deducted;
         let balance_after = current_item_quantity_on_connection(connection, item.item_id).await?;
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_movements
@@ -505,7 +507,7 @@ where
         values.push(location_id.into());
     }
     connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             sql,
             values,
@@ -536,7 +538,7 @@ where
     }
     sql.push_str(" ORDER BY expires_at IS NULL ASC, expires_at ASC, received_at ASC, id ASC");
     let rows = connection
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             sql,
             values,

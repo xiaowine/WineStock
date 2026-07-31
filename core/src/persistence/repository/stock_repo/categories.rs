@@ -4,7 +4,7 @@
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionSession, TransactionTrait,
 };
 use serde_json::json;
 use std::collections::HashMap;
@@ -34,7 +34,7 @@ where
         validate_repository_input(&input)?;
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
-        let result = stock_item_category::Entity::insert(stock_item_category::ActiveModel {
+        let model = stock_item_category::Entity::insert(stock_item_category::ActiveModel {
             name: Set(input.name),
             description: Set(input.description),
             sort_order: Set(input.sort_order),
@@ -43,12 +43,8 @@ where
             deleted_at: Set(None),
             ..Default::default()
         })
-        .exec(&transaction)
+        .exec_with_returning(&transaction)
         .await?;
-        let model = stock_item_category::Entity::find_by_id(result.last_insert_id)
-            .one(&transaction)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created item category".to_owned()))?;
         if let Some(user_id) = audit_user_id {
             insert_audit_event_on_connection(
                 &transaction,
@@ -101,7 +97,7 @@ where
         &self,
     ) -> Result<HashMap<i64, u64>, DbErr> {
         self.database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT category_id, COUNT(*) AS item_usage_count FROM stock_items WHERE deleted_at IS NULL AND category_id IS NOT NULL GROUP BY category_id".to_owned(),
             ))

@@ -140,7 +140,7 @@ async fn login_accepts_web_client_kind_and_stores_it() {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT client_kind, app_version
@@ -171,7 +171,7 @@ async fn login_stores_client_and_refresh_token_versions_separately() {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT device_name, client_kind, app_version, refresh_token_version

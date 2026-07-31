@@ -74,6 +74,8 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `build<Variant>RustNativeLibraries` 使用预先准备的 `cargo-ndk 4.1.2` 和 NDK `30.0.14904198`，
   以 `--locked --offline` 构建；Debug 使用 Cargo debug profile，Release 使用 `--release`，因此
   `winestock-android-native -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
+- 工作区 Release profile 启用 fat LTO，并显式关闭 Cargo strip；最终 Android `.so` 的符号处理仍由
+  Android Gradle Plugin/NDK 打包流程负责。
 - Debug 构建启用 `debug-swagger-ui` feature 并使用 vendored Swagger UI 资源；Release 不启用该 feature，
   不编译或链接 `utoipa-swagger-ui`，也不注册 `/api-docs/openapi.json` 或 `/swagger-ui`。
 - Release 构建通过 `LIBSQLITE3_FLAGS` 取消 SQLite bundled FTS3/FTS5，以移除当前业务未使用的全文索引代码。

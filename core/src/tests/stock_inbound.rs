@@ -445,7 +445,7 @@ async fn assert_inbound_search_total(
 async fn zero_order_inventory(app: &crate::test_support::TestApp, order_id: i64) {
     app.state
         .database()
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             UPDATE stock_batches
@@ -526,7 +526,7 @@ async fn table_count(app: &crate::test_support::TestApp, table: &str) -> i64 {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             format!("SELECT COUNT(*) AS count FROM {table}"),
         ))
@@ -541,7 +541,7 @@ async fn audit_count_for_entity(app: &crate::test_support::TestApp, entity_type:
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT COUNT(*) AS count FROM audit_events WHERE entity_type = ?",
             [entity_type.into()],

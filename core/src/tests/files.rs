@@ -352,7 +352,7 @@ async fn stale_unbound_image_metadata_and_content_are_cleaned() {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT storage_path FROM storage_file_objects WHERE id = ?",
             [file_id.into()],
@@ -363,7 +363,7 @@ async fn stale_unbound_image_metadata_and_content_are_cleaned() {
     let storage_path: String = row.try_get("", "storage_path").unwrap();
     app.state
         .database()
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "UPDATE storage_file_objects SET created_at = '2000-01-01T00:00:00.000Z' WHERE id = ?",
             [file_id.into()],
@@ -528,7 +528,7 @@ async fn table_count(app: &crate::test_support::TestApp, table: &str) -> i64 {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             format!("SELECT COUNT(*) AS count FROM {table}"),
         ))

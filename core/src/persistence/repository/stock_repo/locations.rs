@@ -3,7 +3,9 @@
 //! 本模块属于 `core` 持久化层，封装树形库位分组、具体库位、默认库位补齐和整批次移库事务。
 //! 物品主数据不持有库位；当前库存位置由批次的 `location_id` 决定。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait, Value};
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionSession, TransactionTrait, Value,
+};
 use serde_json::json;
 
 use super::{
@@ -46,7 +48,7 @@ where
             group_id
         } else {
             let group_result = transaction
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     r#"
                         INSERT INTO stock_location_groups
@@ -60,7 +62,7 @@ where
                 .map_err(|_| DbErr::Custom("location group id overflow".to_owned()))?
         };
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_locations
@@ -81,7 +83,7 @@ where
     ) -> Result<Vec<StockLocationGroupRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT id, parent_id, name, sort_order, created_at, updated_at
@@ -114,7 +116,7 @@ where
         let (where_clause, values) = location_group_name_filter(parent_id, name, except_id);
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!("SELECT COUNT(*) AS count FROM stock_location_groups WHERE {where_clause}"),
                 values,
@@ -137,7 +139,7 @@ where
         }
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 WITH RECURSIVE descendants(id) AS (
@@ -175,13 +177,14 @@ where
         validate_repository_input(&input)?;
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
-        let result = transaction
-            .execute(Statement::from_sql_and_values(
+        let group = transaction
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_location_groups
                     (parent_id, name, sort_order, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
+                RETURNING id, parent_id, name, sort_order, created_at, updated_at
                 "#,
                 vec![
                     input.parent_id.into(),
@@ -191,11 +194,9 @@ where
                     now.into(),
                 ],
             ))
-            .await?;
-        let group_id = i64::try_from(result.last_insert_id())
-            .map_err(|_| DbErr::Custom("location group id overflow".to_owned()))?;
-        let group = find_active_location_group_by_id_on_connection(&transaction, group_id)
             .await?
+            .map(location_group_from_row)
+            .transpose()?
             .ok_or_else(|| DbErr::RecordNotFound("created stock location group".to_owned()))?;
         if let Some(user_id) = audit_user_id {
             insert_audit_event_on_connection(
@@ -232,13 +233,14 @@ where
             return Ok(None);
         };
         let now = sqlite_now(&transaction).await?;
-        transaction
-            .execute(Statement::from_sql_and_values(
+        let updated = transaction
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_location_groups
                 SET parent_id = ?, name = ?, sort_order = ?, updated_at = ?
                 WHERE id = ? AND deleted_at IS NULL
+                RETURNING id, parent_id, name, sort_order, created_at, updated_at
                 "#,
                 vec![
                     input.parent_id.into(),
@@ -248,9 +250,9 @@ where
                     id.into(),
                 ],
             ))
-            .await?;
-        let updated = find_active_location_group_by_id_on_connection(&transaction, id)
             .await?
+            .map(location_group_from_row)
+            .transpose()?
             .ok_or_else(|| DbErr::RecordNotFound("updated stock location group".to_owned()))?;
         if let Some(user_id) = audit_user_id {
             let action = if previous.parent_id != updated.parent_id {
@@ -290,7 +292,7 @@ where
         };
         let now = sqlite_now(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_location_groups
@@ -320,7 +322,7 @@ where
     pub(crate) async fn location_group_has_children(&self, id: i64) -> Result<bool, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT COUNT(*) AS count
@@ -340,7 +342,7 @@ where
     pub(crate) async fn location_group_has_locations(&self, id: i64) -> Result<bool, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT COUNT(*) AS count
@@ -388,7 +390,7 @@ where
 
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 sql,
                 values,
@@ -422,7 +424,7 @@ where
         }
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 sql,
                 values,
@@ -447,7 +449,7 @@ where
         let transaction = self.database.begin().await?;
         let now = sqlite_now(&transaction).await?;
         let result = transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_locations
@@ -506,7 +508,7 @@ where
         // “至多一个默认”由服务层事务保证：设为默认前先清除其它默认库位。
         if input.is_default == Some(true) && !previous.is_default {
             transaction
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     "UPDATE stock_locations SET is_default = 0, updated_at = ? WHERE is_default = 1",
                     vec![now.clone().into()],
@@ -515,7 +517,7 @@ where
         }
         let next_is_default = input.is_default.unwrap_or(previous.is_default);
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_locations
@@ -556,7 +558,7 @@ where
     pub(crate) async fn location_has_current_stock(&self, id: i64) -> Result<bool, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT COUNT(*) AS count
@@ -589,7 +591,7 @@ where
         };
         let now = sqlite_now(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_locations
@@ -651,7 +653,7 @@ where
 
         let now = sqlite_now(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 UPDATE stock_batches
@@ -667,13 +669,15 @@ where
                 ],
             ))
             .await?;
-        let result = transaction
-            .execute(Statement::from_sql_and_values(
+        let transfer = transaction
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO stock_location_transfers
                     (batch_id, item_id, from_location_id, to_location_id, quantity, notes, created_by_user_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id, batch_id, item_id, from_location_id, to_location_id,
+                          quantity, notes, created_by_user_id, created_at
                 "#,
                 vec![
                     batch.id.into(),
@@ -686,14 +690,15 @@ where
                     now.into(),
                 ],
             ))
-            .await?;
-        let transfer_id = i64::try_from(result.last_insert_id())
-            .map_err(|_| DbErr::Custom("location transfer id overflow".to_owned()))?;
+            .await?
+            .map(location_transfer_from_row)
+            .transpose()?
+            .ok_or_else(|| DbErr::RecordNotFound("created stock location transfer".to_owned()))?;
         insert_audit_event_on_connection(
             &transaction,
             input.created_by_user_id,
             "location_transfer",
-            Some(transfer_id),
+            Some(transfer.id),
             "created",
             Some(
                 json!({
@@ -711,30 +716,7 @@ where
         .await?;
         transaction.commit().await?;
 
-        self.find_location_transfer_by_id(transfer_id)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created stock location transfer".to_owned()))
-    }
-
-    /// 按 ID 查询移库记录。
-    pub(crate) async fn find_location_transfer_by_id(
-        &self,
-        id: i64,
-    ) -> Result<Option<StockLocationTransferRecord>, DbErr> {
-        self.database
-            .query_one(Statement::from_sql_and_values(
-                DatabaseBackend::Sqlite,
-                r#"
-                SELECT id, batch_id, item_id, from_location_id, to_location_id,
-                       quantity, notes, created_by_user_id, created_at
-                FROM stock_location_transfers
-                WHERE id = ?
-                "#,
-                [id.into()],
-            ))
-            .await?
-            .map(location_transfer_from_row)
-            .transpose()
+        Ok(transfer)
     }
 }
 
@@ -743,7 +725,7 @@ where
     C: ConnectionTrait,
 {
     let row = connection
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"
             SELECT COUNT(*) AS count
@@ -767,7 +749,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT id
@@ -789,7 +771,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT id, parent_id, name, sort_order, created_at, updated_at
@@ -811,7 +793,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT locations.id, locations.group_id, groups.name AS group_name,
@@ -838,7 +820,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT id, item_id, batch_no, location_id, remaining_quantity

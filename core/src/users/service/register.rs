@@ -116,7 +116,7 @@ pub(super) async fn acquire_registration_write_lock(
     transaction: &impl ConnectionTrait,
 ) -> Result<(), DbErr> {
     transaction
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "UPDATE auth_settings SET value = value WHERE key = 'access_token_ttl_seconds'"
                 .to_owned(),

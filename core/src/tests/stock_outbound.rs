@@ -584,7 +584,7 @@ async fn batch_id(app: &crate::test_support::TestApp, batch_no: &str) -> i64 {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT id FROM stock_batches WHERE batch_no = ?",
             [batch_no.into()],
@@ -600,7 +600,7 @@ async fn batch_remaining(app: &crate::test_support::TestApp, batch_no: &str) -> 
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT remaining_quantity FROM stock_batches WHERE batch_no = ?",
             [batch_no.into()],
@@ -617,7 +617,7 @@ async fn table_count(app: &crate::test_support::TestApp, table: &str, filter: &s
     let row = app
         .state
         .database()
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             format!("SELECT COUNT(*) AS count FROM {table} WHERE {filter}"),
         ))

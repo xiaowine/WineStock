@@ -208,7 +208,7 @@ async fn wal_allows_reads_while_a_write_transaction_is_open() {
         .await
         .expect("write transaction should begin");
     transaction
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             r#"
             INSERT INTO auth_users (username, password_hash, status, created_at, updated_at)
@@ -258,7 +258,7 @@ async fn migrated_storage() -> TestStorage {
 async fn query_i64(storage: &StorageRuntime, sql: &str, column: &str) -> i64 {
     storage
         .database
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             sql.to_owned(),
         ))
@@ -272,7 +272,7 @@ async fn query_i64(storage: &StorageRuntime, sql: &str, column: &str) -> i64 {
 async fn user_permission_codes(storage: &StorageRuntime, user_id: i64) -> Vec<String> {
     storage
         .database
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT auth_permissions.code AS code

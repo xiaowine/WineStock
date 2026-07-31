@@ -133,7 +133,7 @@ pub(crate) async fn seed_stock_location(app: &TestApp, name: &str) -> i64 {
     let group_id = query_default_location_group_id(app).await;
     app.state
         .database()
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             INSERT INTO stock_locations (group_id, name, notes, sort_order)
@@ -151,7 +151,7 @@ async fn query_default_location_group_id(app: &TestApp) -> i64 {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT id FROM stock_location_groups WHERE name = '示例库区' AND deleted_at IS NULL",
             [],
@@ -168,7 +168,7 @@ async fn query_location_id_by_name(app: &TestApp, name: &str) -> i64 {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT id FROM stock_locations WHERE name = ? AND deleted_at IS NULL",
             [name.into()],

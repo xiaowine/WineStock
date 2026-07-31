@@ -5,7 +5,7 @@
 
 use sea_orm::{
     sea_query::OnConflict, ColumnTrait, ConnectionTrait, DatabaseConnection, DbErr, EntityTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, Set,
+    QueryFilter, QueryOrder, SelectExt, Set,
 };
 
 use crate::persistence::entity::{auth_setting, auth_signing_key, user};
@@ -120,14 +120,9 @@ where
             ..Default::default()
         };
 
-        let result = auth_signing_key::Entity::insert(active_key)
-            .exec(self.database)
-            .await?;
-
-        auth_signing_key::Entity::find_by_id(result.last_insert_id)
-            .one(self.database)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created auth signing key".to_owned()))
+        auth_signing_key::Entity::insert(active_key)
+            .exec_with_returning(self.database)
+            .await
     }
 
     /// 判断是否已经存在任何用户，用于首次管理员初始化判断。

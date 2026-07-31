@@ -183,7 +183,7 @@ async fn configure_sqlite(
         "PRAGMA wal_autocheckpoint = 1000",
     ] {
         database
-            .execute(Statement::from_string(
+            .execute_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 statement.to_owned(),
             ))

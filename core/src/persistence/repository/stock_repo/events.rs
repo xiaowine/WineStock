@@ -28,7 +28,7 @@ where
         let (where_clause, values) = audit_event_filters(input);
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!("SELECT COUNT(*) AS count FROM audit_events {where_clause}"),
                 values,
@@ -51,7 +51,7 @@ where
         values.push(offset.into());
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!(
                     r#"

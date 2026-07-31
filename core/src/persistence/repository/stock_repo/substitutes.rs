@@ -3,7 +3,9 @@
 //! 本模块属于 `core` 持久化层，封装替代料关系整体替换、查询、删除和环路检测。
 //! 替换操作必须在事务中同时完成关系写入和包含前后列表的审计事件写入。
 
-use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionTrait};
+use sea_orm::{
+    ConnectionTrait, DatabaseBackend, DbErr, Statement, TransactionSession, TransactionTrait,
+};
 use serde_json::json;
 use std::collections::HashSet;
 
@@ -55,7 +57,7 @@ where
         let previous_substitute_item_ids =
             list_substitute_item_ids_on_connection(&transaction, item_id).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "DELETE FROM stock_substitutes WHERE item_id = ?",
                 [item_id.into()],
@@ -64,7 +66,7 @@ where
         for substitute in substitutes {
             validate_repository_input(&substitute)?;
             transaction
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     r#"
                     INSERT INTO stock_substitutes
@@ -109,7 +111,7 @@ where
     ) -> Result<Vec<StockSubstituteRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
@@ -179,7 +181,7 @@ where
     ) -> Result<Vec<StockSubstituteRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
@@ -254,7 +256,7 @@ where
     {
         let transaction = self.database.begin().await?;
         let result = transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 DELETE FROM stock_substitutes
@@ -287,7 +289,7 @@ where
     ) -> Result<bool, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 WITH RECURSIVE substitute_path(current_item_id) AS (
@@ -326,7 +328,7 @@ where
     C: ConnectionTrait,
 {
     let rows = connection
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT substitute_item_id

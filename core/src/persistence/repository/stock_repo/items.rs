@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    QueryFilter, QueryResult, Set, Statement, TransactionTrait, Value,
+    QueryFilter, QueryResult, Set, Statement, TransactionSession, TransactionTrait, Value,
 };
 use serde_json::json;
 
@@ -56,13 +56,9 @@ where
             deleted_at: Set(None),
             ..Default::default()
         };
-        let result = stock_item::Entity::insert(active_model)
-            .exec(&transaction)
+        let item = stock_item::Entity::insert(active_model)
+            .exec_with_returning(&transaction)
             .await?;
-
-        let item = find_active_item_by_id_on_connection(&transaction, result.last_insert_id)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created stock item".to_owned()))?;
         replace_item_attributes_on_connection(&transaction, item.id, &input.attributes).await?;
         if let Some(user_id) = audit_user_id {
             insert_audit_event_on_connection(
@@ -170,7 +166,7 @@ where
         let total_sql = format!("SELECT COUNT(*) AS count FROM ({base_sql}) catalog {filter_sql}");
         let total_row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 total_sql,
                 base_values.clone(),
@@ -190,7 +186,7 @@ where
         );
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 page_sql,
                 page_values,
@@ -242,7 +238,7 @@ where
         );
         let count_row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!("SELECT COUNT(*) AS count FROM ({base_sql}) options"),
                 values.clone(),
@@ -255,7 +251,7 @@ where
         page_values.push((((input.page.saturating_sub(1)) * input.page_size) as i64).into());
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!(
                     "SELECT * FROM ({base_sql}) options ORDER BY lower(name), id LIMIT ? OFFSET ?"
@@ -315,7 +311,7 @@ where
         let offset = ((page.saturating_sub(1)) * page_size) as i64;
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT batches.id, batches.batch_no, batches.location_id,
@@ -434,14 +430,14 @@ where
         active_model.deleted_at = Set(Some(now));
         let deleted = active_model.update(&transaction).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "DELETE FROM stock_item_attributes WHERE item_id = ?",
                 [id.into()],
             ))
             .await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "DELETE FROM stock_item_attribute_definitions WHERE owner_item_id = ?",
                 [id.into()],
@@ -466,7 +462,7 @@ where
     async fn query_item_stock_summary(&self, item_id: i64) -> Result<(f64, f64), DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
@@ -490,7 +486,7 @@ where
     async fn query_item_batch_count(&self, item_id: i64) -> Result<u64, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "SELECT COUNT(*) AS count FROM stock_batches WHERE item_id = ? AND remaining_quantity > 0",
                 [item_id.into()],
@@ -517,7 +513,7 @@ where
         );
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 sql,
                 values,
@@ -554,7 +550,7 @@ where
         );
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 sql,
                 item_ids.iter().copied().map(Into::into),
@@ -581,7 +577,7 @@ where
     ) -> Result<Vec<StockItemLocationRecord>, DbErr> {
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT
@@ -944,7 +940,7 @@ where
     C: ConnectionTrait,
 {
     connection
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "DELETE FROM stock_item_attributes WHERE item_id = ?",
             [item_id.into()],
@@ -956,7 +952,7 @@ where
         .collect::<Vec<_>>();
     if retained_private_ids.is_empty() {
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "DELETE FROM stock_item_attribute_definitions WHERE owner_item_id = ?",
                 [item_id.into()],
@@ -970,7 +966,7 @@ where
         let mut values = vec![item_id.into()];
         values.extend(retained_private_ids.iter().copied().map(Into::into));
         connection
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 sql,
                 values,
@@ -1044,7 +1040,7 @@ where
         let Some(owner_id) = attribute.file_owner_user_id else {
             return Err(DbErr::Custom("item file owner missing".to_owned()));
         };
-        let binding = connection.execute(Statement::from_sql_and_values(
+        let binding = connection.execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             INSERT INTO storage_item_file_bindings (file_object_id, item_attribute_id, created_at)
@@ -1073,7 +1069,7 @@ where
     C: ConnectionTrait,
 {
     let row = connection
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT COUNT(*) AS count
@@ -1102,7 +1098,7 @@ async fn list_item_attributes_on_connection<C>(
 where
     C: ConnectionTrait,
 {
-    let rows = connection.query_all(Statement::from_sql_and_values(
+    let rows = connection.query_all_raw(Statement::from_sql_and_values(
         DatabaseBackend::Sqlite,
         r#"
         SELECT a.id, a.item_id, a.definition_id, a.value_json, a.unit, a.sort_order,

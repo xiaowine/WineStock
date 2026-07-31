@@ -4,7 +4,7 @@
 
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
+    PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionSession, TransactionTrait,
 };
 use std::collections::HashMap;
 
@@ -81,7 +81,7 @@ where
         &self,
     ) -> Result<HashMap<i64, u64>, DbErr> {
         self.database
-            .query_all(Statement::from_string(
+            .query_all_raw(Statement::from_string(
                 DatabaseBackend::Sqlite,
                 "SELECT attribute_template_id, COUNT(*) AS item_usage_count FROM stock_items WHERE deleted_at IS NULL AND attribute_template_id IS NOT NULL GROUP BY attribute_template_id".to_owned(),
             ))
@@ -164,7 +164,7 @@ where
         // 全站至多一个默认：置真前在同一事务里清除其它有效模板的默认标记。
         if input.is_default == Some(true) && !template.is_default {
             transaction
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     DatabaseBackend::Sqlite,
                     "UPDATE stock_item_attribute_templates SET is_default = 0, updated_at = ? WHERE is_default = 1",
                     vec![now.clone().into()],
@@ -252,13 +252,13 @@ where
             .count(&transaction)
             .await?;
         let count = list_item_attribute_fields(&transaction, id).await?.len();
-        transaction.execute(Statement::from_sql_and_values(
+        transaction.execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "UPDATE stock_items SET attribute_template_id = NULL, updated_at = ? WHERE attribute_template_id = ?",
             vec![now.clone().into(), id.into()],
         )).await?;
         transaction
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "DELETE FROM stock_item_attribute_definitions WHERE template_id = ?",
                 [id.into()],

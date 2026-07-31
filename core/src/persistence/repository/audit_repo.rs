@@ -46,7 +46,7 @@ where
     pub(crate) async fn record(&self, input: RecordAuditEvent) -> Result<(), DbErr> {
         let details_json = input.details.map(|details| details.to_string());
         self.database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 INSERT INTO audit_events (user_id, entity_type, entity_id, action, details_json)

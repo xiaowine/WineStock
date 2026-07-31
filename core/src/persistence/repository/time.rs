@@ -8,7 +8,7 @@ use sea_orm::{ConnectionTrait, DatabaseBackend, DbErr, Statement};
 /// 从 SQLite 读取统一时间戳，避免 Rust 进程时间和数据库默认时间格式不一致。
 pub(crate) async fn sqlite_now(database: &impl ConnectionTrait) -> Result<String, DbErr> {
     let row = database
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AS current_time".to_owned(),
         ))
@@ -24,7 +24,7 @@ pub(crate) async fn sqlite_time_after_seconds(
     seconds: u64,
 ) -> Result<String, DbErr> {
     let row = database
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             format!(
                 "SELECT strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+{seconds} seconds') AS target_time"

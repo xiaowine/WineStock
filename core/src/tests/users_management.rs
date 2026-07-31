@@ -202,7 +202,7 @@ async fn user_soft_delete_requires_permission_and_invalidates_account() {
     let row = app
         .state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT status, deleted_at FROM auth_users WHERE id = ?",
             [managed_id.into()],
@@ -763,7 +763,7 @@ async fn assign_single_permission(
 async fn audit_count(app: &crate::test_support::TestApp, user_id: i64) -> i64 {
     app.state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT COUNT(*) AS count FROM audit_events WHERE entity_type = 'user' AND entity_id = ?",
             [user_id.into()],
@@ -778,7 +778,7 @@ async fn audit_count(app: &crate::test_support::TestApp, user_id: i64) -> i64 {
 async fn audit_action(app: &crate::test_support::TestApp, user_id: i64) -> String {
     app.state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT action FROM audit_events WHERE entity_type = 'user' AND entity_id = ? ORDER BY id DESC LIMIT 1",
             [user_id.into()],

@@ -374,7 +374,7 @@ async fn audit_events_for_entity(
 ) -> Vec<AuditEventRow> {
     app.state
         .database()
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT action, details_json

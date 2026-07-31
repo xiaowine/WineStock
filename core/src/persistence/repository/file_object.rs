@@ -101,18 +101,9 @@ impl<'db> FileObjectRepository<'db> {
             owner_user_id: Set(input.owner_user_id),
             ..Default::default()
         };
-        let result = file_object::Entity::insert(active_file)
-            .exec(self.database)
-            .await?;
-
-        self.find_by_id(result.last_insert_id)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created file object".to_owned()))
-    }
-
-    /// 按数据库主键查询文件元数据。
-    pub(crate) async fn find_by_id(&self, id: i64) -> Result<Option<file_object::Model>, DbErr> {
-        file_object::Entity::find_by_id(id).one(self.database).await
+        file_object::Entity::insert(active_file)
+            .exec_with_returning(self.database)
+            .await
     }
 
     /// 按 SHA-256 摘要查询文件元数据，可能返回多个不同 owner 或路径的记录。
@@ -134,7 +125,7 @@ impl<'db> FileObjectRepository<'db> {
     ) -> Result<Option<FileAccessRecord>, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT f.id, f.sha256, f.mime_type, f.size_bytes, f.storage_path,
@@ -166,7 +157,7 @@ impl<'db> FileObjectRepository<'db> {
     ) -> Result<bool, DbErr> {
         let result = self
             .database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 DELETE FROM storage_file_objects
@@ -194,7 +185,7 @@ impl<'db> FileObjectRepository<'db> {
         let modifier = format!("-{older_than_hours} hours");
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 SELECT f.id, f.storage_path
@@ -220,7 +211,7 @@ impl<'db> FileObjectRepository<'db> {
     pub(crate) async fn delete_stale_unbound(&self, id: i64) -> Result<bool, DbErr> {
         let result = self
             .database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 r#"
                 DELETE FROM storage_file_objects
@@ -244,7 +235,7 @@ impl<'db> FileObjectRepository<'db> {
     pub(crate) async fn count_by_storage_path(&self, path: &str) -> Result<i64, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 "SELECT COUNT(*) AS count FROM storage_file_objects WHERE storage_path = ?",
                 [path.into()],

@@ -1263,7 +1263,7 @@ async fn create_and_approve_inbound(
 async fn zero_item_inventory(app: &crate::test_support::TestApp, item_id: i64) {
     app.state
         .database()
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "UPDATE stock_batches SET remaining_quantity = 0 WHERE item_id = ?",
             [item_id.into()],
@@ -1285,7 +1285,7 @@ async fn audit_events_for_entity(
 ) -> Vec<AuditEventRow> {
     app.state
         .database()
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             SELECT action, details_json

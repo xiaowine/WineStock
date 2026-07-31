@@ -13,29 +13,33 @@ members = [
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+lto = "fat"
+strip = false
+
 [workspace.dependencies]
 # 统一在工作区根声明依赖版本，成员包通过 workspace = true 复用。
 axum = { version = "0.8", features = ["multipart"] }
 argon2 = "0.5.3"
-base64 = "0.22"
+base64 = "0.23.0"
 getrandom = "0.4.3"
 garde = { version = "0.23.0", features = ["derive"] }
-jsonwebtoken = { version = "10.4.0", default-features = false, features = ["rust_crypto"] }
+jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto"] }
 jni = "0.22.4"
 log = "0.4"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls"] }
 # 出站 TLS 使用内置 webpki 根证书：reqwest 默认的 rustls-platform-verifier 在 Android 上需要
 # JNI 初始化，未初始化时首次握手直接 panic；上游只有固定公网域名，内置根即可且三端行为一致。
-rustls = "0.23"
+rustls = { version = "0.23", default-features = false, features = ["std"] }
 webpki-roots = "1"
-sea-orm = { version = "1.1.20", default-features = false, features = ["macros", "runtime-tokio", "sqlx-sqlite"] }
-sea-orm-migration = { version = "1.1.20", default-features = false, features = ["runtime-tokio", "sqlx-sqlite"] }
+sea-orm = { version = "2.0.0", default-features = false, features = ["macros", "runtime-tokio", "sqlite-use-returning-for-3_35", "sqlx-sqlite"] }
+sea-orm-migration = { version = "2.0.0", default-features = false, features = ["runtime-tokio", "sqlx-sqlite"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11.0"
-sqlx = { version = "0.8.4", default-features = false, features = ["runtime-tokio", "sqlite"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tempfile = "3"
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
 tower = "0.5.3"
 utoipa = "5"
 utoipa-axum = "0.2"

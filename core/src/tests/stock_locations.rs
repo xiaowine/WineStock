@@ -47,6 +47,10 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
 
     let root = create_group(&app, &login.body.access_token, None, "主仓").await;
     let child = create_group(&app, &login.body.access_token, Some(root.id), "A区").await;
+    assert_eq!(child.parent_id, Some(root.id));
+    assert_eq!(child.sort_order, 0);
+
+    let created_audit_count = location_group_created_audit_count(&app).await;
     let duplicate_child = authorized_json_request(
         &app,
         "POST",
@@ -64,6 +68,29 @@ async fn default_location_and_group_tree_follow_hierarchy_rules() {
         error_code(duplicate_child).await,
         "location_group_name_taken"
     );
+    assert_eq!(
+        location_group_created_audit_count(&app).await,
+        created_audit_count
+    );
+
+    let updated_child = authorized_json_request(
+        &app,
+        "PUT",
+        &format!("/api/location-groups/{}", child.id),
+        &login.body.access_token,
+        &LocationGroupUpdateRequest {
+            parent_id: Some(root.id),
+            name: "A区成品".to_owned(),
+            sort_order: Some(7),
+        },
+    )
+    .await;
+    assert_eq!(updated_child.status(), StatusCode::OK);
+    let updated_child: LocationGroupResponse = json_body(updated_child).await;
+    assert_eq!(updated_child.id, child.id);
+    assert_eq!(updated_child.parent_id, Some(root.id));
+    assert_eq!(updated_child.name, "A区成品");
+    assert_eq!(updated_child.sort_order, 7);
 
     let cycle = authorized_json_request(
         &app,
@@ -196,7 +223,13 @@ async fn locations_can_be_created_moved_and_protected_by_current_stock() {
     assert_eq!(transfer.status(), StatusCode::CREATED);
     let transfer: LocationTransferResponse = json_body(transfer).await;
     assert_eq!(transfer.batch_id, batch_id);
+    assert_eq!(transfer.item_id, item_id);
+    assert_eq!(transfer.from_location_id, from_location.id);
+    assert_eq!(transfer.to_location_id, to_location.id);
     assert_eq!(transfer.quantity, 5.0);
+    assert_eq!(transfer.notes.as_deref(), Some("整批移库"));
+    assert!(transfer.created_by_user_id.is_some());
+    assert!(!transfer.created_at.is_empty());
 
     let detail = authorized_empty_request(
         &app,
@@ -442,7 +475,7 @@ async fn seed_approved_inbound(
 async fn default_group_id(app: &crate::test_support::TestApp) -> i64 {
     app.state
         .database()
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             DatabaseBackend::Sqlite,
             "SELECT id FROM stock_location_groups WHERE name = '示例库区'".to_owned(),
         ))
@@ -456,7 +489,7 @@ async fn default_group_id(app: &crate::test_support::TestApp) -> i64 {
 async fn batch_id_by_no(app: &crate::test_support::TestApp, batch_no: &str) -> i64 {
     app.state
         .database()
-        .query_one(Statement::from_sql_and_values(
+        .query_one_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             "SELECT id FROM stock_batches WHERE batch_no = ?",
             [batch_no.into()],
@@ -466,6 +499,21 @@ async fn batch_id_by_no(app: &crate::test_support::TestApp, batch_no: &str) -> i
         .expect("batch should exist")
         .try_get("", "id")
         .expect("batch id should decode")
+}
+
+async fn location_group_created_audit_count(app: &crate::test_support::TestApp) -> i64 {
+    app.state
+        .database()
+        .query_one_raw(Statement::from_string(
+            DatabaseBackend::Sqlite,
+            "SELECT COUNT(*) AS count FROM audit_events WHERE entity_type = 'location_group' AND action = 'created'"
+                .to_owned(),
+        ))
+        .await
+        .expect("location group audit count should query")
+        .expect("location group audit count should exist")
+        .try_get("", "count")
+        .expect("location group audit count should decode")
 }
 
 async fn authorized_json_request<T: serde::Serialize>(

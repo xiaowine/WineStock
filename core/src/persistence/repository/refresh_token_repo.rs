@@ -91,7 +91,7 @@ where
     pub(crate) async fn revoke_active_for_user(&self, user_id: i64) -> Result<(), DbErr> {
         let now = sqlite_now(self.database).await?;
         self.database
-            .execute(Statement::from_sql_and_values(
+            .execute_raw(Statement::from_sql_and_values(
                 self.database.get_database_backend(),
                 r#"
                 UPDATE auth_refresh_tokens
@@ -163,14 +163,9 @@ where
         replaced_by_token_id: Set(None),
         ..Default::default()
     };
-    let result = refresh_token::Entity::insert(active_token)
-        .exec(connection)
-        .await?;
-
-    refresh_token::Entity::find_by_id(result.last_insert_id)
-        .one(connection)
-        .await?
-        .ok_or_else(|| DbErr::RecordNotFound("created refresh token".to_owned()))
+    refresh_token::Entity::insert(active_token)
+        .exec_with_returning(connection)
+        .await
 }
 
 /// 在指定连接或事务上查找未吊销令牌，轮换前必须用同一事务视图读取。

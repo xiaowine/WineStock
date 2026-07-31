@@ -6,7 +6,7 @@
 use crate::validation::validate_not_blank;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DbErr,
-    EntityTrait, PaginatorTrait, QueryFilter, Set, Statement, Value,
+    EntityTrait, QueryFilter, SelectExt, Set, Statement, Value,
 };
 
 use crate::persistence::entity::user;
@@ -82,13 +82,9 @@ where
             deleted_at: Set(None),
             ..Default::default()
         };
-        let result = user::Entity::insert(active_user)
-            .exec(self.database)
-            .await?;
-
-        self.find_by_id(result.last_insert_id)
-            .await?
-            .ok_or_else(|| DbErr::RecordNotFound("created user".to_owned()))
+        user::Entity::insert(active_user)
+            .exec_with_returning(self.database)
+            .await
     }
 
     /// 按数据库主键查询用户。
@@ -147,7 +143,7 @@ where
         data_values.push(offset.into());
         let rows = self
             .database
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!(
                     r#"
@@ -236,7 +232,7 @@ where
     ) -> Result<u64, DbErr> {
         let row = self
             .database
-            .query_one(Statement::from_sql_and_values(
+            .query_one_raw(Statement::from_sql_and_values(
                 DatabaseBackend::Sqlite,
                 format!(
                     r#"

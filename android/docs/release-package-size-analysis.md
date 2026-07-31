@@ -85,9 +85,10 @@ crate 后的收益。
 
 ## 仍可评估的压缩方向
 
-1. 不采用 `opt-level = "z"`，也不限制 `codegen-units`，避免为了包体牺牲运行效率或增量构建弹性。隔离
-   构建验证了只启用 fat LTO、保持默认 `opt-level=3` 时，strip 后 `.so` 为 12,339,360 bytes，比当前
-   默认 Release 还多约 1.1 KiB，因此 fat LTO 目前不是有效压缩项。
+1. 工作区 Release profile 现已启用 fat LTO，并显式关闭 Cargo strip；仍不采用 `opt-level = "z"`，也不
+   限制 `codegen-units`。此前隔离构建验证显示，只启用 fat LTO、保持默认 `opt-level=3` 时，Android
+   打包流程 strip 后 `.so` 为 12,339,360 bytes，比当时默认 Release 多约 1.1 KiB，因此该配置不应被视为
+   Android 包体压缩措施。
 2. SQLite bundled 构建原先固定启用了 FTS3、FTS5、JSON、RTREE、STAT4 等能力。项目当前使用
    `json_extract` 查询动态属性，因此 JSON 不能关闭；源码未使用 FTS3/FTS5。Android Release 构建已通过
    `LIBSQLITE3_FLAGS` 取消 FTS3/FTS5；最终 `.so` 字符串与符号扫描未检出 FTS3/FTS5 入口。

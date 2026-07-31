@@ -236,7 +236,7 @@ fn outbound_request(item_id: i64, quantity: f64) -> OutboundCreateRequest {
 async fn age_item_movements(app: &crate::test_support::TestApp, item_id: i64, days: i64) {
     app.state
         .database()
-        .execute(Statement::from_sql_and_values(
+        .execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Sqlite,
             r#"
             UPDATE stock_movements
