@@ -8,7 +8,7 @@ import {
   applyShellServiceStateSignal,
   resetServiceAvailabilityForRuntimeChange,
 } from "../service/availability";
-import { createShellBridge } from "./bridge";
+import { createShellBridge } from "./transportFactory";
 import {
   assertCompleteShellBridge,
   assertApplyRuntimeConfigResult,

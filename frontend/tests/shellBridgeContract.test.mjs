@@ -22,7 +22,7 @@ const { assertCompatibleRuntimeSnapshot, ShellBridgeContractError } = await load
   "../src/shell/contract.ts",
 );
 const { normalizeShellBridgeTransportError, ShellBridgeTransportError } = await loadModule(
-  "../src/shell/bridgeError.ts",
+  "../src/shell/transports/bridgeError.ts",
 );
 
 function snapshot(overrides = {}) {

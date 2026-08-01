@@ -155,7 +155,7 @@ frontend/
 
 android/app/
   src/main/assets/
-    shell/bridge.js                    # Android 平台源码资源，继续纳入版本库
+    shell/android-transport.js         # Android 平台源码资源，继续纳入版本库
   build/
     intermediates/winestockFrontend/android/dist/
       index.html
@@ -174,7 +174,7 @@ android/app/
 
 - Vite 输出到 `build/intermediates`，验证通过后由 `Sync` 暂存到 `build/generated`。
 - Android generated assets 的根目录是 `<variant>/`，其中保留 `frontend/` 子目录，因此运行时路径仍是 `assets/frontend/...`。
-- `src/main/assets` 只保存平台拥有、需要版本控制的 `shell/bridge.js` 等静态资源。
+- `src/main/assets` 只保存平台拥有、需要版本控制的 `shell/android-transport.js` 等静态资源。
 - 迁移时删除本机旧 `src/main/assets/frontend`，并增加守卫：该目录再次出现时构建直接失败，避免来源优先级不明确。
 - `frontend/dist` 可以继续作为独立 Web 构建输出，但 Android 永不读取它。
 
@@ -379,7 +379,7 @@ Android WebView 当前 Shell Bridge 明确限制在 `https://winestock.internal`
 只验证 generated assets 还不足以证明 APK/AAB 正确。应增加 `verify<Variant>FrontendPackage`，读取 Android 构建产物并检查：
 
 ```text
-assets/shell/bridge.js
+assets/shell/android-transport.js
 assets/frontend/index.html
 assets/frontend/asset-manifest.json
 assets/frontend/assets/...
@@ -529,7 +529,7 @@ android/gradlew :app:bundleRelease :app:verifyReleaseFrontendPackage --configura
 - [x] Vite manifest 中的全部入口、CSS、静态资源和 dynamic import 都存在。
 - [x] `index.html` 的本地引用全部可解析。
 - [x] Release 输出不包含 source map、Vite dev client 或 HMR 地址。
-- [x] APK/AAB 同时包含 `assets/shell/bridge.js` 与完整 `assets/frontend`。
+- [x] APK/AAB 同时包含 `assets/shell/android-transport.js` 与完整 `assets/frontend`。
 - [x] 包内 manifest 摘要与已验证暂存产物一致。
 
 ### 16.4 运行 smoke

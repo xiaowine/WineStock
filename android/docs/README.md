@@ -13,7 +13,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - 通过 `androidx.webkit` 的 `WebMessageListener` + document-start 脚本，在受信任 origin `https://winestock.internal` 上建立 JS ↔ Kotlin 消息通道。
 - 前端资源由 `WebViewAssetLoader` 从 `assets/frontend` 提供；Gradle 使用本机 pnpm 构建当前源码，校验后注册为 variant generated assets。
 - 运行配置与本地服务调用异步交给 Application 级 `LocalCoreRuntimeManager`；WebMessage/UI 线程不打开数据库或执行 JNI 启停。
-- 信封协议、方法路由和快照派生写在代码注释中（`shell/bridge.js`、`shell/ShellBridgeHost.kt`）。
+- 信封协议、方法路由和快照派生写在代码注释中（`shell/android-transport.js`、`shell/ShellBridgeHost.kt`）。
 
 ## WebView 原生返回协商
 
@@ -67,7 +67,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `verify<Variant>FrontendAssets` 校验入口、manifest、资源引用、开发服务器标记和路径泄漏。
 - `stage<Variant>FrontendAssets` 把通过校验的产物同步到 `app/build/generated/winestockFrontendAssets/<variant>/frontend`，并通过 AGP variant API 注册。
 - `verify<Variant>FrontendPackage` 校验 APK 内的最终前端资源；当前不注册 AAB 前端校验或 bundle 挂钩。
-- `app/src/main/assets/frontend` 已废弃并受构建守卫禁止；`assets/shell/bridge.js` 仍是 Android 平台源码资源。
+- `app/src/main/assets/frontend` 已废弃并受构建守卫禁止；`assets/shell/android-transport.js` 仍是 Android 平台源码资源。
 
 ## Rust/ARM64 APK 打包
 

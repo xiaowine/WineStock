@@ -147,7 +147,8 @@ winestock-runtime-state-changed
 winestock-app-resumed
 ```
 
-前端新增 `frontend/src/shell/tauri.ts`，使用 `invoke` 和 `listen` 实现现有 `ShellBridge` 接口。
+前端新增 `frontend/src/shell/transports/tauri.ts`，使用 `invoke` 和 `listen` 实现现有 `ShellBridge` 接口；
+`frontend/src/shell/transportFactory.ts` 负责选择注入桥、Tauri 传输或 Web fallback。
 Vite 增加明确的 desktop 构建模式来选择该适配层；普通浏览器继续使用 Web fallback，不通过
 `window.__TAURI__` 或 User-Agent 猜测能力。
 
@@ -252,7 +253,7 @@ Windows 门禁在创建主窗口前调用 WebView2 官方 Loader API；低版本
 - `DesktopRuntimeManager` 负责 app-data 下的可编辑配置原子写入、平台派生的数据库/文件路径、首次
   未初始化快照、local/remote 应用事务、端口冲突一次动态重试、异常退出快照及退出前 graceful shutdown。
   `RunningLocalService` 由 manager 持有，服务不会因启动函数返回而提前停止。
-- 前端已增加 Desktop Vite mode 与 `src/shell/tauri.ts`，通过 `invoke`、`listen` 对接现有 Shell Bridge v1；
+- 前端已增加 Desktop Vite mode 与 `src/shell/transports/tauri.ts`，通过 `invoke`、`listen` 对接现有 Shell Bridge v1；
   浏览器仍只使用明确的 Web fallback，不以 User-Agent 或 Tauri 全局对象猜测平台。
 - 已补充无 WebView 的 runtime manager 集成测试，覆盖首次未配置、local/remote、端口冲突、损坏配置和
   冷启动自动恢复。Windows 集成测试目标复用 Tauri 生成的 `resource.lib` manifest，并在 Tokio 多线程

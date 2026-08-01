@@ -27,17 +27,17 @@
 ```text
 frontend/src/shell/contract.ts   v1 逻辑契约、快照校验、能力判断
         │
-        ├── frontend/src/shell/tauri.ts
+        ├── frontend/src/shell/transports/tauri.ts
         │      └── Tauri invoke/listen
         │             └── desktop/tauri/src/commands.rs
         │                    └── DesktopRuntimeManager
         │
-        ├── android/app/src/main/assets/shell/bridge.js
+        ├── android/app/src/main/assets/shell/android-transport.js
         │      └── WebMessageListener 信封
         │             └── ShellBridgeHost.kt
         │                    └── LocalCoreRuntimeManager
         │
-        └── frontend/src/shell/web.ts
+        └── frontend/src/shell/transports/web.ts
                └── 浏览器 localStorage、环境变量和 Web API fallback
 ```
 
@@ -112,14 +112,13 @@ Shell Bridge 只负责运行配置、服务生命周期、运行快照、平台�
 
 ### 已完成：统一 Desktop invoke 错误码
 
-Android shim 的 `toBridgeError` 会把 `{ code, message }` 还原为带 `code` 的 Error；Tauri 的
-`frontend/src/shell/tauri.ts` 目前直接返回 `invoke` Promise，`commands.rs` 把错误 JSON 放在 `String`
-中，调用失败时前端拿到的通常是普通字符串错误。
+整改前 Android shim 的 `toBridgeError` 会把 `{ code, message }` 还原为带 `code` 的 Error；Tauri 传输则直接返回
+`invoke` Promise，`commands.rs` 把错误 JSON 放在 `String` 中，调用失败时前端拿到的通常是普通字符串错误。
 
-影响：`start/stop/restart/openExternal` 的 command 失败不能稳定按 `port_in_use`、
+这会导致 `start/stop/restart/openExternal` 的 command 失败不能稳定按 `port_in_use`、
 `service_start_failed` 等错误码分支，和 `docs/shell-bridge.md` 的稳定错误码要求不完全一致。
 
-实现：`frontend/src/shell/bridgeError.ts` 提供统一规范化函数，`tauri.ts` 的所有 command invoke 都经过该函数，
+实现：`frontend/src/shell/transports/bridgeError.ts` 提供统一规范化函数，`transports/tauri.ts` 的所有 command invoke 都经过该函数，
 兼容 Tauri rejection 的字符串、对象和 Error 三种形状，输出带稳定 `code` 的 `ShellBridgeTransportError`。
 页面组件不再各自解析错误文案。
 

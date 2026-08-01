@@ -8,7 +8,7 @@ import org.json.JSONObject
  * Android shell 的运行配置持久化。
  *
  * 使用版本化 SharedPreferences 记录 frontend 交来的运行配置，读取分为
- * missing / invalid / loaded 三态，与 frontend/src/shell/web.ts 的 loadPersistedConfig 一致。
+ * missing / invalid / loaded 三态，与 frontend/src/shell/transports/web.ts 的 loadPersistedConfig 一致。
  * 本文件只保存运行配置，不保存 access token、refresh token 或业务数据。
  */
 interface RuntimeConfigRepository {

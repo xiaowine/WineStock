@@ -20,7 +20,7 @@ import androidx.core.net.toUri
 /**
  * Android shell 的 Shell Bridge v1 原生分发。
  *
- * 职责：在受信任 origin 上注册 WebMessageListener 通道、在文档起始注入 assets/shell/bridge.js，
+ * 职责：在受信任 origin 上注册 WebMessageListener 通道、在文档起始注入 assets/shell/android-transport.js，
  * 解析前端请求信封并路由到运行配置、具名平台能力与本地服务生命周期处理，通过 JavaScriptReplyProxy
  * 回复，并向前端推送运行状态、应用恢复和原生返回事件。
  *
@@ -29,7 +29,7 @@ import androidx.core.net.toUri
  * 本地 Axum 生命周期由 Application 级 LocalCoreRuntimeManager 异步管理；本类不在 WebMessage/UI
  * 线程执行 JNI、数据库打开或 migration。
  *
- * 传输协议与 assets/shell/bridge.js 对齐：
+ * 传输协议与 assets/shell/android-transport.js 对齐：
  *   - JS -> Native 请求：{ type:"call", id, method, params }
  *   - Native -> JS 回复：{ type:"reply", id, ok, result?, error? }
  *   - Native -> JS 事件：{ type:"event", event, payload? }
@@ -520,13 +520,13 @@ class ShellBridgeHost(
     private class BridgeException(val code: String, message: String) : Exception(message)
 
     companion object {
-        /** 注入到 window 的原生消息通道对象名，需与 bridge.js 的 channelName 默认值一致。 */
+        /** 注入到 window 的原生消息通道对象名，需与 android-transport.js 的 channelName 默认值一致。 */
         const val CHANNEL_NAME = "__winestockShellBridgeNative__"
 
         /** 前端打包资源与桥消息共同信任的本地 origin。 */
         const val TRUSTED_ORIGIN = "https://winestock.internal"
 
-        private const val SHIM_ASSET_PATH = "shell/bridge.js"
+        private const val SHIM_ASSET_PATH = "shell/android-transport.js"
 
         private val NATIVE_BACK_REASONS =
             setOf(

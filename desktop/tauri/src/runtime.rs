@@ -30,7 +30,7 @@ use crate::contract::{
     ERROR_STORAGE_UNAVAILABLE, ERROR_UNSUPPORTED_RUNTIME_MODE,
 };
 
-/// 事件名与 frontend `src/shell/tauri.ts` 保持一致。
+/// 事件名与 frontend `src/shell/transports/tauri.ts` 保持一致。
 pub const RUNTIME_STATE_CHANGED_EVENT: &str = "winestock-runtime-state-changed";
 pub const APP_RESUMED_EVENT: &str = "winestock-app-resumed";
 

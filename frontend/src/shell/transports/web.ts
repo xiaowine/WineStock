@@ -1,6 +1,6 @@
-// 本文件实现普通浏览器和 Vite 开发环境的 Shell Bridge fallback；它不启动本地 Axum 或访问平台文件系统。
-import { ApiConfigurationError } from "../api/errors";
-import { normalizeApiBaseUrl, resolveInitialApiBaseUrl } from "../api/runtime-config";
+// 本文件实现普通浏览器和 Vite 开发环境的 Shell Bridge 传输 fallback；它不启动本地 Axum 或访问平台文件系统。
+import { ApiConfigurationError } from "../../api/errors";
+import { normalizeApiBaseUrl, resolveInitialApiBaseUrl } from "../../api/runtime-config";
 import {
   cloneRuntimeConfig,
   cloneRuntimeSnapshot,
@@ -11,7 +11,7 @@ import {
   type RuntimeConfigValidationResult,
   type RuntimeSnapshot,
   type ShellBridge,
-} from "./contract";
+} from "../contract";
 
 const STORAGE_KEY = "winestock.runtime.config.v1";
 const listeners = new Set<(snapshot: RuntimeSnapshot) => void>();

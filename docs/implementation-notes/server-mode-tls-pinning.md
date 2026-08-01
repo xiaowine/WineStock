@@ -110,7 +110,7 @@ resetTlsIdentity(): Promise<RuntimeSnapshot>;   // 仅本机 server-mode 有效
   仅远端模式允许非空。
 - 新稳定错误码：`tls_fingerprint_mismatch`、`tls_probe_failed`。
 - `frontend/src/shell/contract.ts` 的快照/配置断言、`cloneRuntimeConfig`、
-  web fallback（capability=false、字段透传）、`shell/bridge.js` 方法路由、
+  web fallback（capability=false、字段透传）、Android `android-transport.js` 方法路由、
   `ShellBridgeHost` 信封分发同步更新。
 - Web fallback 语义：纯浏览器无 pinning 能力，`https://` 自签地址依赖用户在
   系统/浏览器层手动信任；前端按 capability 隐藏 TOFU 流程，属二等路径。

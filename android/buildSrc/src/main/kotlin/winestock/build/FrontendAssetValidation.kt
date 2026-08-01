@@ -72,8 +72,8 @@ internal object FrontendAssetValidation {
             if (zip.getEntry("${frontendPrefix}index.html") == null) {
                 return null
             }
-            if (zip.getEntry("${normalizedAssetsPrefix}shell/bridge.js") == null) {
-                throw IllegalStateException("${archive.name} 缺少 assets/shell/bridge.js")
+            if (zip.getEntry("${normalizedAssetsPrefix}shell/android-transport.js") == null) {
+                throw IllegalStateException("${archive.name} 缺少 assets/shell/android-transport.js")
             }
             return validateAssetSet(
                 source = ZipAssetSource(zip, frontendPrefix),

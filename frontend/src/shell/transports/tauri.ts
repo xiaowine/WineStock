@@ -1,4 +1,4 @@
-// 本文件实现 Desktop Tauri v2 的 Shell Bridge 传输；它不管理运行状态或代理业务 HTTP 请求。
+// 本文件实现 Desktop Tauri v2 的 Shell Bridge 前端传输适配；它不管理运行状态或代理业务 HTTP 请求。
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { normalizeShellBridgeTransportError } from "./bridgeError";
@@ -8,7 +8,7 @@ import type {
   RuntimeConfigValidationResult,
   RuntimeSnapshot,
   ShellBridge,
-} from "./contract";
+} from "../contract";
 
 const RUNTIME_STATE_EVENT = "winestock-runtime-state-changed";
 const APP_RESUMED_EVENT = "winestock-app-resumed";

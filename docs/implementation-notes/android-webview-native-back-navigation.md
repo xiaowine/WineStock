@@ -705,7 +705,7 @@ Vue Router 的 history traversal 方法不提供可直接等待的导航 Promise
 | `android/app/src/main/java/winestock/xiaowine/cc/shell/ShellBridgeHost.kt`         | 发布 `nativeBackRequested`；分发 `resolveNativeBack`；管理页面代次、ready 和 proxy 生命周期 |
 | `android/app/src/main/java/winestock/xiaowine/cc/shell/NativeBackRequestBroker.kt` | 新增单 pending 状态机、requestId、timeout、结算和取消                                       |
 | `android/app/src/main/java/winestock/xiaowine/cc/shell/RuntimeSnapshotFactory.kt`  | 从真实安装能力生成 `capabilities.nativeBack`                                                |
-| `android/app/src/main/assets/shell/bridge.js`                                      | 增加事件 listener set、订阅方法、应答调用和 unavailable bridge 行为                         |
+| `android/app/src/main/assets/shell/android-transport.js`                           | 增加事件 listener set、订阅方法、应答调用和 unavailable bridge 行为                         |
 | `android/app/src/test/.../NativeBackRequestBrokerTest.kt`                          | 覆盖 handled、unhandled、timeout、重复、迟到、取消和页面代次                                |
 | `android/docs/README.md`                                                           | 记录原生返回协商所有权、超时和 fallback                                                     |
 | `docs/code-map/android.md`                                                         | 增加 broker、桥事件和 MainActivity 新职责                                                   |
@@ -718,7 +718,7 @@ Vue Router 的 history traversal 方法不提供可直接等待的导航 Promise
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | `frontend/src/shell/contract.ts`                             | 增加 request/resolution/ack 类型、capability-gated extension 和结构校验 |
 | `frontend/src/shell/runtime.ts`                              | 提供订阅/应答薄包装；按 capability 校验方法；HMR 时取消订阅             |
-| `frontend/src/shell/web.ts`                                  | 保持 `nativeBack = false`；提供兼容 no-op 或不暴露 optional extension   |
+| `frontend/src/shell/transports/web.ts`                       | 保持 `nativeBack = false`；提供兼容 no-op 或不暴露 optional extension   |
 | `frontend/src/navigation/nativeBack.ts`                      | 新增 registry、优先级、LIFO 调度、router fallback 和单次结算            |
 | `frontend/src/composables/useNativeBackHandler.ts`           | 新增响应式注册/注销辅助                                                 |
 | `frontend/src/main.ts`                                       | Vue 挂载后、`frontendReady` 前安装 native back 订阅                     |
@@ -1007,7 +1007,7 @@ Release 日志只保留异常和超时摘要，不记录当前路由名称、表
 1. 固化协议 DTO、超时和 broker 单元测试
 2. Android request broker + ShellBridgeHost 事件/应答
 3. MainActivity 协商入口、fallback 和 lifecycle cancel
-4. Android bridge.js + frontend contract/runtime
+4. Android android-transport.js + frontend contract/runtime
 5. 前端 registry + main.ts ready 顺序
 6. ModalDialog / PreviewImage / Select / AttributeImageField
 7. AppShell / Account / Locations / Inbound Drawer

@@ -19,7 +19,7 @@
 
 ## Shell 运行时与服务可用性
 
-- `frontend/src/shell/`：Shell Bridge v1 契约与运行时结构校验（不能只信任 TypeScript 静态类型）、Android 注入桥、Tauri `invoke`/event 适配和 Web fallback 的明确传输选择（不判断 User-Agent）、版本化 localStorage Web 配置、响应式运行快照编排和局域网地址派生；`systemChrome.ts` 独立协调主题系统栏基线与图片查看临时覆盖，不进入 Shell Bridge 业务契约。收到不兼容快照时保留设置页并进入可修复失败态。
+- `frontend/src/shell/`：Shell Bridge v1 契约与运行时结构校验（不能只信任 TypeScript 静态类型）、传输工厂及 `transports/` 下的 Tauri `invoke`/event 适配和 Web fallback（不判断 User-Agent）、版本化 localStorage Web 配置、响应式运行快照编排和局域网地址派生；Android document-start shim 由 Android 资源目录拥有；`systemChrome.ts` 独立协调主题系统栏基线与图片查看临时覆盖，不进入 Shell Bridge 业务契约。收到不兼容快照时保留设置页并进入可修复失败态。
 - `frontend/src/service/availability.ts`：独立于登录状态的服务健康探测、断连/恢复节奏和窗口焦点补检；API 地址变化时取消旧探测。
 - `frontend/src/api/runtime-config.ts`：动态 API 根地址与登录客户端元数据；禁止把全接口监听地址作为访问地址。
 
