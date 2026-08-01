@@ -1,4 +1,4 @@
-// 本文件拥有立创物品一键批量创建会话：按 C 号串行查资料、拉图、套模板并创建物品；
+// 本文件拥有立创物品一键批量创建会话：按 C 号查询资料后立即拉图、套模板并创建物品；
 // 它不拥有预览列表 UI，也不决定批量入口所在的业务流程（订单导入/备份导入共用）。
 // 设计见 docs/implementation-notes/lcsc-batch-item-creation-and-erp-backup-import.md。
 import { computed, onBeforeUnmount, ref } from "vue";
@@ -6,7 +6,9 @@ import { ApiError } from "../../api/errors";
 import {
   createItem,
   listItemOptions,
-  lookupLcscItem,
+  lookupItemOptions,
+  lookupLcscItems,
+  type LcscBatchLookupError,
   type ItemOptionResponse,
   type LcscItemLookupResponse,
 } from "../../api/items";
@@ -31,6 +33,8 @@ import {
   uploadImageDrafts,
 } from "../attributes/imageDraft";
 
+const LCSC_BATCH_LOOKUP_SIZE = 10;
+
 /** 批次级创建选项；整批一个模板，个别物品事后精调。 */
 export interface BatchLcscCreationOptions {
   templateId: number | null;
@@ -40,21 +44,23 @@ export interface BatchLcscCreationOptions {
 
 /** 单个 C 号的批量创建结果。 */
 export type BatchLcscItemResult =
-  | { ok: true; item: ItemOptionResponse }
+  | { ok: true; item: ItemOptionResponse; created: boolean }
   | { ok: false; reason: string }
   | { ok: false; cancelled: true; reason: "" };
 
 export interface BatchLcscRunCallbacks {
+  /** 某 C 号开始查询立创资料。 */
+  onItemLookupStarted?: (code: string) => void;
   /** 某 C 号开始创建（用于行状态转"创建中"）。 */
   onItemStarted?: (code: string) => void;
-  /** 某 C 号创建成功或确认已存在（自动匹配）。 */
-  onItemCreated?: (code: string, item: ItemOptionResponse) => void;
+  /** 某 C 号已就绪；created 为 false 时表示本地或并发会话已存在。 */
+  onItemCreated?: (code: string, item: ItemOptionResponse, created: boolean) => void;
   /** 某 C 号创建失败及可见原因。 */
   onItemFailed?: (code: string, reason: string) => void;
 }
 
 /**
- * 创建可复用的批量创建会话。串行执行（同时天然限制对立创上游的请求频率），
+ * 创建可复用的批量创建会话。每个 C 号按“查询资料 -> 创建物品”顺序执行，
  * 单项失败不阻塞后续；同 C 号去重，`sku_taken` 视为已存在并自动匹配。
  */
 export function useBatchLcscItemCreation() {
@@ -65,6 +71,7 @@ export function useBatchLcscItemCreation() {
   const running = ref(false);
   const progressDone = ref(0);
   const progressTotal = ref(0);
+  const progressPhase = ref("准备本地物品");
   /** 批次选项在同一会话内记住，连续批量创建不必重选；不做持久化。 */
   const options = ref<BatchLcscCreationOptions | null>(null);
   let metadataController: AbortController | null = null;
@@ -72,7 +79,7 @@ export function useBatchLcscItemCreation() {
   let metadataLoaded = false;
 
   const progressLabel = computed(() =>
-    running.value ? `${progressDone.value}/${progressTotal.value}` : "",
+    running.value ? `${progressPhase.value} ${progressDone.value}/${progressTotal.value}` : "",
   );
 
   onBeforeUnmount(() => {
@@ -122,7 +129,7 @@ export function useBatchLcscItemCreation() {
     );
   }
 
-  /** 串行批量创建；codes 去重后逐个执行，结束返回成功数。 */
+  /** 按客编每 10 个批量查询立创资料，批次返回后逐个创建；codes 去重后执行。 */
   async function run(
     codes: readonly string[],
     nextOptions: BatchLcscCreationOptions,
@@ -138,19 +145,93 @@ export function useBatchLcscItemCreation() {
     running.value = true;
     progressDone.value = 0;
     progressTotal.value = uniqueCodes.length;
+    progressPhase.value = "检查本地物品";
     let createdCount = 0;
     try {
-      for (const code of uniqueCodes) {
-        if (controller.signal.aborted) break;
-        callbacks.onItemStarted?.(code);
-        const result = await createOne(code, options.value, controller.signal);
-        progressDone.value += 1;
-        if ("cancelled" in result) break;
-        if (result.ok) {
-          createdCount += 1;
-          callbacks.onItemCreated?.(code, result.item);
-        } else {
-          callbacks.onItemFailed?.(code, result.reason);
+      let pendingCodes = uniqueCodes;
+      try {
+        // 创建前再次确认本地 SKU，避免匹配完成后被其他会话创建的物品重复走立创资料和图片流程。
+        const existing = await lookupItemOptions(uniqueCodes, controller.signal);
+        const existingCodes = new Set<string>();
+        for (const result of existing.results) {
+          if (result.item) {
+            existingCodes.add(normalizeProductCode(result.product_code));
+            progressDone.value += 1;
+            callbacks.onItemCreated?.(result.product_code, result.item, false);
+          }
+        }
+        pendingCodes = uniqueCodes.filter((code) => !existingCodes.has(code));
+      } catch (error) {
+        if (isAbort(error, controller.signal)) return 0;
+        const reason =
+          error instanceof ApiError
+            ? `无法确认本地物品：${error.message}`
+            : "无法确认本地物品，请重试";
+        for (const code of uniqueCodes) {
+          progressDone.value += 1;
+          callbacks.onItemFailed?.(code, reason);
+        }
+        return 0;
+      }
+
+      for (let start = 0; start < pendingCodes.length; start += LCSC_BATCH_LOOKUP_SIZE) {
+        if (controller.signal.aborted) return 0;
+        const batchCodes = pendingCodes.slice(start, start + LCSC_BATCH_LOOKUP_SIZE);
+        for (const code of batchCodes) callbacks.onItemLookupStarted?.(code);
+        progressPhase.value = "查询立创资料";
+        let lookupResults: Awaited<ReturnType<typeof lookupLcscItems>>;
+        try {
+          lookupResults = await lookupLcscItems(batchCodes, controller.signal);
+        } catch (error) {
+          if (isAbort(error, controller.signal)) return 0;
+          const reason =
+            error instanceof ApiError
+              ? `立创资料查询失败：${error.message}`
+              : "立创资料查询失败，请重试";
+          for (const code of batchCodes) {
+            progressDone.value += 1;
+            callbacks.onItemFailed?.(code, reason);
+          }
+          continue;
+        }
+
+        // 批量响应到达后逐个落地，避免等待整批创建完成才更新列表。
+        // 按请求批次取结果，缺失结果也要明确结束该行，避免界面永久停留在查询中。
+        const resultByCode = new Map(
+          lookupResults.results.map((result) => [
+            normalizeProductCode(result.product_code),
+            result,
+          ]),
+        );
+        for (const code of batchCodes) {
+          if (controller.signal.aborted) return 0;
+          const result = resultByCode.get(code);
+          if (!result) {
+            progressDone.value += 1;
+            callbacks.onItemFailed?.(code, lookupFailureMessage("invalid_response"));
+            continue;
+          }
+          if (!result.candidate) {
+            progressDone.value += 1;
+            callbacks.onItemFailed?.(code, lookupFailureMessage(result.error));
+            continue;
+          }
+          progressPhase.value = "创建物品";
+          callbacks.onItemStarted?.(code);
+          const createResult = await createOne(
+            code,
+            result.candidate,
+            options.value,
+            controller.signal,
+          );
+          progressDone.value += 1;
+          if ("cancelled" in createResult) return 0;
+          if (createResult.ok) {
+            createdCount += 1;
+            callbacks.onItemCreated?.(code, createResult.item, createResult.created);
+          } else {
+            callbacks.onItemFailed?.(code, createResult.reason);
+          }
         }
       }
     } finally {
@@ -167,6 +248,7 @@ export function useBatchLcscItemCreation() {
 
   async function createOne(
     code: string,
+    candidate: LcscItemLookupResponse,
     batchOptions: BatchLcscCreationOptions,
     signal: AbortSignal,
   ): Promise<BatchLcscItemResult> {
@@ -176,18 +258,7 @@ export function useBatchLcscItemCreation() {
     draft.unit = batchOptions.unit;
     draft.categoryId = batchOptions.categoryId;
 
-    let candidate: LcscItemLookupResponse;
-    try {
-      candidate = await lookupLcscItem(code, signal);
-      applyLcscLookupToDraft(draft, candidate, template);
-    } catch (error) {
-      if (isAbort(error, signal)) return cancelledResult();
-      return {
-        ok: false,
-        reason:
-          error instanceof ApiError ? `立创资料查询失败：${error.message}` : "立创资料查询失败",
-      };
-    }
+    applyLcscLookupToDraft(draft, candidate, template);
 
     // 主图为必填字段：Core 无候选或选定图片读取失败时统一生成可识别占位图。
     try {
@@ -215,14 +286,14 @@ export function useBatchLcscItemCreation() {
       const result = await createItem(itemCreateRequest(draft));
       const created = await findItemOption(code, result.id, signal);
       if (!created) return { ok: false, reason: "创建成功但未能读取物品，请重试匹配" };
-      return { ok: true, item: created };
+      return { ok: true, item: created, created: true };
     } catch (error) {
       if (isAbort(error, signal)) return cancelledResult();
       if (error instanceof ApiError && error.code === "sku_taken") {
         // 并发或既有数据已占用该编号：视为已存在，直接匹配。
         await cleanupDraft();
         const existing = await findItemOption(code, null, signal).catch(() => null);
-        if (existing) return { ok: true, item: existing };
+        if (existing) return { ok: true, item: existing, created: false };
         return { ok: false, reason: "编号已存在但未能匹配到物品，请重试匹配" };
       }
       await cleanupDraft();
@@ -264,11 +335,34 @@ export function useBatchLcscItemCreation() {
     progressDone,
     progressTotal,
     progressLabel,
+    progressPhase,
     loadMetadata,
     defaultOptions,
     run,
     cancel,
   };
+}
+
+function lookupFailureMessage(error: LcscBatchLookupError | null): string {
+  switch (error) {
+    case "invalid_product_code":
+      return "立创资料查询失败：客编格式无效";
+    case "product_not_found":
+      return "立创资料查询失败：未查询到该立创商品";
+    case "timeout":
+      return "立创资料查询失败：查询超时";
+    case "busy":
+      return "立创资料查询失败：查询繁忙";
+    case "invalid_response":
+      return "立创资料查询失败：立创返回了无法识别的数据";
+    case "failed":
+    default:
+      return "立创资料查询失败，请重试";
+  }
+}
+
+function normalizeProductCode(code: string): string {
+  return code.trim().toUpperCase();
 }
 
 function isAbort(error: unknown, signal: AbortSignal): boolean {

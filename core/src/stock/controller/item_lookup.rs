@@ -5,7 +5,11 @@
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 
-use crate::{http::ValidatedPath, state::CoreState, stock::service};
+use crate::{
+    http::{ValidatedJson, ValidatedPath},
+    state::CoreState,
+    stock::service,
+};
 
 use super::super::service::StockApiError;
 
@@ -53,6 +57,41 @@ pub(crate) struct LcscItemLookupResponse {
     pub parameters: Vec<LcscLookupParameterResponse>,
 }
 
+/// 批量查询立创商品候选资料请求；单次最多查询 10 个客编。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct LcscBatchLookupRequest {
+    /// 待查询的立创商品编号；服务端会去重并归一化大小写。
+    #[garde(length(min = 1, max = 10))]
+    pub product_codes: Vec<String>,
+}
+
+/// 批量查询中单个客编的稳定错误分类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LcscBatchLookupError {
+    InvalidProductCode,
+    ProductNotFound,
+    Busy,
+    Timeout,
+    Failed,
+    InvalidResponse,
+}
+
+/// 批量查询中单个客编的候选资料或错误。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct LcscBatchLookupResult {
+    pub product_code: String,
+    pub candidate: Option<LcscItemLookupResponse>,
+    pub error: Option<LcscBatchLookupError>,
+}
+
+/// 批量立创查询响应；结果顺序与去重后的输入顺序一致。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct LcscBatchLookupResponse {
+    pub results: Vec<LcscBatchLookupResult>,
+}
+
 #[utoipa::path(
     get,
     path = "/api/items/lookups/lcsc/{product_code}",
@@ -77,5 +116,28 @@ pub(crate) async fn lookup_lcsc_item(
 ) -> Result<Json<LcscItemLookupResponse>, StockApiError> {
     Ok(Json(
         service::lookup_lcsc_item(&state, &product_code).await?,
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/items/lookups/lcsc",
+    tag = "items",
+    request_body = LcscBatchLookupRequest,
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Batch normalized LCSC item candidates", body = LcscBatchLookupResponse),
+        (status = 400, description = "Invalid batch request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item manage permission required", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 批量查询立创商城商品候选资料；单个客编失败不会阻断同批其它结果。
+pub(crate) async fn lookup_lcsc_items(
+    State(state): State<CoreState>,
+    ValidatedJson(request): ValidatedJson<LcscBatchLookupRequest>,
+) -> Result<Json<LcscBatchLookupResponse>, StockApiError> {
+    Ok(Json(
+        service::lookup_lcsc_items(&state, &request.product_codes).await?,
     ))
 }

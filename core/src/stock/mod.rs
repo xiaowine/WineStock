@@ -83,8 +83,16 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
                 auth.outbound_draft_item_read(get(controller::list_item_options)),
             )
             .route(
+                "/items/options/lookup",
+                auth.outbound_draft_item_read(post(controller::lookup_item_options)),
+            )
+            .route(
                 "/items/lookups/lcsc/{product_code}",
                 auth.item_manage(get(controller::lookup_lcsc_item)),
+            )
+            .route(
+                "/items/lookups/lcsc",
+                auth.item_manage(post(controller::lookup_lcsc_items)),
             )
             .route(
                 "/items/{id}",

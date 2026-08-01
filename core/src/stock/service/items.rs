@@ -10,7 +10,7 @@ use crate::{
     persistence::repository::{
         CatalogSort, CatalogStockFilter, CreateStockItem, FileObjectRepository,
         ItemCatalogCriteria, ItemCatalogFieldFilter, ItemFilterValuesCriteria, ItemOptionCriteria,
-        StockRepository, UpdateStockItem,
+        ItemOptionLookupCriteria, StockRepository, UpdateStockItem,
     },
     security::CurrentUser,
     state::CoreState,
@@ -306,6 +306,53 @@ pub(crate) async fn list_item_options(
         page,
         page_size,
         total_pages: total_pages(result.total, page_size),
+    })
+}
+
+const MAX_ITEM_OPTION_LOOKUP_CODES: usize = 500;
+
+/// 批量精确查询本地物品，按输入去重并保持输入顺序返回结果。
+pub(crate) async fn lookup_item_options(
+    state: &CoreState,
+    request: controller::ItemOptionLookupRequest,
+) -> Result<controller::ItemOptionLookupResponse, StockApiError> {
+    let mut skus = Vec::with_capacity(request.product_codes.len());
+    for code in request.product_codes {
+        let normalized = normalize_required_text(&code)?.to_uppercase();
+        if !skus.iter().any(|existing| existing == &normalized) {
+            skus.push(normalized);
+        }
+    }
+    if skus.is_empty() || skus.len() > MAX_ITEM_OPTION_LOOKUP_CODES {
+        return Err(StockApiError::InvalidRequest);
+    }
+    let repository = StockRepository::new(state.database());
+    let records = repository
+        .lookup_item_options(ItemOptionLookupCriteria { skus: skus.clone() })
+        .await?;
+    let by_sku = records
+        .into_iter()
+        .map(|record| {
+            let response = item_option_response(record);
+            (response.sku.trim().to_uppercase(), response)
+        })
+        .collect::<std::collections::HashMap<_, _>>();
+    Ok(controller::ItemOptionLookupResponse {
+        results: skus
+            .into_iter()
+            .map(|product_code| match by_sku.get(&product_code) {
+                Some(item) => controller::ItemOptionLookupResult {
+                    product_code,
+                    item: Some(item.clone()),
+                    error: None,
+                },
+                None => controller::ItemOptionLookupResult {
+                    product_code,
+                    item: None,
+                    error: Some("not_found".to_owned()),
+                },
+            })
+            .collect(),
     })
 }
 

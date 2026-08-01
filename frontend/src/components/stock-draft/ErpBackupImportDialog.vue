@@ -9,13 +9,19 @@
     title="导入 ERP 备份"
     description="选择第三方「LCSC Android ERP」导出的 .xlsx 备份，按备份库存生成一张期初入库草稿。"
     workspace
-    @close="emit('close')"
+    :busy="importing || preparing || matching"
+    @close="requestClose"
   >
     <div class="erp-backup-import">
       <div class="erp-backup-import__file-row">
         <label class="secondary-button erp-backup-import__file">
           {{ fileName ? "重新选择文件" : "选择备份文件" }}
-          <input type="file" accept=".xlsx" @change="handleFileChange" />
+          <input
+            type="file"
+            accept=".xlsx"
+            :disabled="busy || preparing || matching"
+            @change="handleFileChange"
+          />
         </label>
         <span v-if="fileName" class="erp-backup-import__file-name" :title="fileName">
           {{ fileName }}
@@ -24,6 +30,20 @@
 
       <p v-if="parseError" class="erp-backup-import__error" role="alert">{{ parseError }}</p>
       <p v-else-if="parsing" class="erp-backup-import__hint" role="status">正在解析备份…</p>
+      <p v-else-if="preparing" class="erp-backup-import__hint" role="status" aria-live="polite">
+        {{ preparationMessage }}
+      </p>
+      <p v-if="matching" class="erp-backup-import__hint" role="status" aria-live="polite">
+        正在一次性匹配本地物品 {{ matchCompleted }}/{{ matchTotal }}…
+      </p>
+      <div v-if="preparationError" class="erp-backup-import__error" role="alert">
+        {{ preparationError }}
+        <button class="text-button" type="button" @click="retryPreparation">重试检查</button>
+      </div>
+      <div v-if="importError" class="erp-backup-import__error" role="alert">
+        {{ importError }}
+        <button class="text-button" type="button" @click="retryImport">重试导入</button>
+      </div>
 
       <template v-else-if="parsed">
         <p class="erp-backup-import__summary" role="status">
@@ -48,6 +68,13 @@
 
         <div class="erp-backup-import__table-wrap">
           <table class="erp-backup-import__table">
+            <colgroup>
+              <col class="erp-backup-import__col--select" />
+              <col class="erp-backup-import__col--name" />
+              <col class="erp-backup-import__col--code" />
+              <col class="erp-backup-import__col--quantity" />
+              <col class="erp-backup-import__col--status" />
+            </colgroup>
             <thead>
               <tr>
                 <th scope="col" class="erp-backup-import__select-col">
@@ -85,15 +112,22 @@
                 </td>
                 <td>{{ row.component.partNumber }}</td>
                 <td>{{ row.totalQuantity }}</td>
-                <td>
+                <td class="erp-backup-import__status-cell">
                   <template v-if="row.status === 'matched'">
                     <span class="erp-backup-import__status--ok" :title="row.item?.name"
                       >已在库</span
                     >
                   </template>
+                  <template v-else-if="row.status === 'created'">
+                    <span class="erp-backup-import__status--ok">已创建</span>
+                  </template>
                   <template v-else-if="row.status === 'matching'">匹配中…</template>
+                  <template v-else-if="row.status === 'lookup'">查询立创资料…</template>
                   <template v-else-if="row.status === 'creating'">创建中…</template>
                   <template v-else-if="row.status === 'missing'">待创建</template>
+                  <template v-else-if="row.status === 'failed'">
+                    <span :title="row.reason">{{ row.reason }}</span>
+                  </template>
                   <template v-else-if="row.status === 'create-failed'">
                     <span :title="row.reason">{{ row.reason }}</span>
                   </template>
@@ -124,13 +158,20 @@
       >
         {{
           batch.running.value
-            ? `正在创建 ${batch.progressLabel.value}…`
+            ? `${batch.progressLabel.value}…`
             : batch.metadataLoading.value
               ? "准备中…"
               : `创建选中的 ${selectedCreatableCount} 个物品`
         }}
       </button>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
+      <button
+        class="secondary-button"
+        type="button"
+        :disabled="importing || preparing || matching"
+        @click="requestClose"
+      >
+        取消
+      </button>
       <button
         v-if="parsed"
         class="primary-button erp-backup-import__import-action"
@@ -140,7 +181,7 @@
         :disabled="!canImport || busy"
         @click="confirmImport"
       >
-        {{ importing ? "正在导入…" : `导入 ${importableCount} 条库存` }}
+        {{ importing ? `${importProgressMessage}…` : `导入 ${importableCount} 条库存` }}
       </button>
     </template>
   </ModalDialog>
@@ -155,6 +196,24 @@
     @close="batchOptionsOpen = false"
     @confirm="startBatchCreate"
   />
+
+  <ModalDialog
+    :open="closeConfirmOpen"
+    title="停止批量创建？"
+    description="关闭后将停止尚未完成的创建；已经创建的物品会保留。"
+    compact
+    nested
+    @close="closeConfirmOpen = false"
+  >
+    <template #actions>
+      <button class="secondary-button" type="button" @click="closeConfirmOpen = false">
+        继续创建
+      </button>
+      <button class="danger-button" type="button" @click="confirmCloseWhileCreating">
+        停止并关闭
+      </button>
+    </template>
+  </ModalDialog>
 </template>
 
 <script lang="ts">
@@ -178,7 +237,7 @@ export interface ErpBackupImportPayload {
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { listItemOptions } from "../../api/items";
+import { lookupItemOptions } from "../../api/items";
 import { listInboundOrders } from "../../api/inboundOrders";
 import { createLocation, listLocationGroupTree, listLocations } from "../../api/locations";
 import { notice } from "../../notices/notice";
@@ -191,7 +250,15 @@ import {
 } from "../items/useBatchLcscItemCreation";
 import ModalDialog from "../ModalDialog.vue";
 
-type ComponentStatus = "matching" | "matched" | "missing" | "creating" | "create-failed";
+type ComponentStatus =
+  | "matching"
+  | "matched"
+  | "created"
+  | "missing"
+  | "failed"
+  | "lookup"
+  | "creating"
+  | "create-failed";
 
 interface ComponentRow {
   component: ErpBackupComponent;
@@ -220,14 +287,27 @@ const parseError = ref("");
 const parsed = ref<ParsedBackup | null>(null);
 const componentRows = ref<ComponentRow[]>([]);
 const importing = ref(false);
+const importProgressMessage = ref("");
+const importProgressDone = ref(0);
+const importProgressTotal = ref(0);
+const importError = ref("");
+const preparing = ref(false);
+const preparationMessage = ref("");
+const preparationError = ref("");
+const matchTotal = ref(0);
+const matchCompleted = ref(0);
+const fileRunId = ref(0);
 const batchOptionsOpen = ref(false);
+const closeConfirmOpen = ref(false);
 const batch = useBatchLcscItemCreation();
 let matchAbortController: AbortController | null = null;
 
 const busy = computed(() => batch.running.value || importing.value);
 const locations = computed(() => parsed.value?.locations ?? []);
 const matchedComponentCount = computed(
-  () => componentRows.value.filter((row) => row.status === "matched").length,
+  () =>
+    componentRows.value.filter((row) => row.status === "matched" || row.status === "created")
+      .length,
 );
 const creatableRows = computed(() => componentRows.value.filter((row) => isCreatable(row)));
 const creatableCount = computed(() => creatableRows.value.length);
@@ -247,12 +327,14 @@ const importableCount = computed(() => {
   if (!parsed.value) return 0;
   const matchedParts = new Set(
     componentRows.value
-      .filter((row) => row.status === "matched")
+      .filter((row) => row.status === "matched" || row.status === "created")
       .map((row) => row.component.partNumber),
   );
   return parsed.value.items.filter((item) => matchedParts.has(item.component.partNumber)).length;
 });
-const canImport = computed(() => !matching.value && importableCount.value > 0);
+const canImport = computed(
+  () => !matching.value && !preparing.value && !preparationError.value && importableCount.value > 0,
+);
 
 const newLocationCount = ref(0);
 const duplicateExists = ref(false);
@@ -278,6 +360,7 @@ watch(
 onBeforeUnmount(() => matchAbortController?.abort());
 
 function resetState(): void {
+  fileRunId.value += 1;
   matchAbortController?.abort();
   matchAbortController = null;
   batch.cancel();
@@ -287,7 +370,17 @@ function resetState(): void {
   parsed.value = null;
   componentRows.value = [];
   importing.value = false;
+  importProgressMessage.value = "";
+  importProgressDone.value = 0;
+  importProgressTotal.value = 0;
+  importError.value = "";
+  preparing.value = false;
+  preparationMessage.value = "";
+  preparationError.value = "";
+  matchTotal.value = 0;
+  matchCompleted.value = 0;
   batchOptionsOpen.value = false;
+  closeConfirmOpen.value = false;
   newLocationCount.value = 0;
   duplicateExists.value = false;
 }
@@ -298,9 +391,11 @@ async function handleFileChange(event: Event): Promise<void> {
   input.value = "";
   if (!file) return;
   resetState();
+  const runId = fileRunId.value;
   fileName.value = file.name;
   parsing.value = true;
   const result = await parseErpBackupFile(file);
+  if (runId !== fileRunId.value) return;
   parsing.value = false;
   if (!result.ok) {
     parseError.value = result.error;
@@ -325,67 +420,99 @@ async function handleFileChange(event: Event): Promise<void> {
     }
   }
   componentRows.value = [...byPart.values()];
-  await Promise.all([matchComponents(), computeNewLocationCount(), checkDuplicate()]);
+  await prepareImport(runId);
+}
+
+async function prepareImport(runId: number): Promise<void> {
+  if (!parsed.value || runId !== fileRunId.value) return;
+  preparing.value = true;
+  preparationError.value = "";
+  preparationMessage.value = "正在检查重复导入并读取现有库位…";
+  const results = await Promise.allSettled([
+    matchComponents(runId),
+    computeNewLocationCount(),
+    checkDuplicate(),
+  ]);
+  if (runId !== fileRunId.value) return;
+  const failures = results.filter((result) => result.status === "rejected");
+  preparing.value = false;
+  if (failures.length > 0) {
+    preparationError.value = "导入准备未完成，请重试检查后再导入。";
+  }
+}
+
+function retryPreparation(): void {
+  if (preparing.value || !parsed.value) return;
+  for (const row of componentRows.value) {
+    if (row.status === "failed") {
+      row.status = "matching";
+      row.reason = "";
+    }
+  }
+  void prepareImport(fileRunId.value);
 }
 
 /** best-effort 重复导入检测：已存在以本文件名为来源的入库单则提示（不阻止）。 */
 async function checkDuplicate(): Promise<void> {
-  try {
-    const page = await listInboundOrders({
-      page: 1,
-      page_size: 1,
-      search: `备份导入 ${fileName.value}`,
-    });
-    duplicateExists.value = page.total > 0;
-  } catch {
-    duplicateExists.value = false;
-  }
+  const page = await listInboundOrders({
+    page: 1,
+    page_size: 1,
+    search: `备份导入 ${fileName.value}`,
+  });
+  duplicateExists.value = page.total > 0;
 }
 
-/** 按 C 号精确匹配库内物品；少量并发以兼顾速度与服务压力。 */
-async function matchComponents(): Promise<void> {
+/** 按 C 号批量精确匹配库内物品，响应完成后一次性提交全部器件状态。 */
+async function matchComponents(runId: number): Promise<void> {
   matchAbortController?.abort();
   const controller = new AbortController();
   matchAbortController = controller;
-  const queue = componentRows.value.filter((row) => row.status === "matching");
-  const workers = Array.from({ length: Math.min(4, queue.length) }, async () => {
-    for (let row = queue.shift(); row; row = queue.shift()) {
-      await matchOne(row, controller.signal);
-    }
-  });
-  await Promise.all(workers);
-}
-
-async function matchOne(row: ComponentRow, signal: AbortSignal): Promise<void> {
-  const code = row.component.partNumber;
+  const codes = [
+    ...new Set(
+      componentRows.value
+        .filter((row) => row.status === "matching")
+        .map((row) => row.component.partNumber),
+    ),
+  ];
+  matchTotal.value = codes.length;
+  matchCompleted.value = 0;
+  if (codes.length === 0) return;
   try {
-    const response = await listItemOptions(code, 1, 20, signal);
-    if (signal.aborted) return;
-    const item = response.items.find((candidate) => candidate.sku.trim().toUpperCase() === code);
-    if (item) {
-      row.item = item;
-      row.status = "matched";
-    } else {
-      row.status = "missing";
-    }
-  } catch {
-    if (signal.aborted) return;
-    row.status = "missing";
+    const response = await lookupItemOptions(codes, controller.signal);
+    if (controller.signal.aborted || runId !== fileRunId.value) return;
+    const resultByCode = new Map(
+      response.results.map((result) => [result.product_code.trim().toUpperCase(), result]),
+    );
+    componentRows.value = componentRows.value.map((row) => {
+      if (row.status !== "matching") return row;
+      const result = resultByCode.get(row.component.partNumber.trim().toUpperCase());
+      if (result?.item) return { ...row, item: result.item, status: "matched", reason: "" };
+      return {
+        ...row,
+        status: "missing",
+        reason: result?.error === "not_found" ? "库中没有该编号" : "",
+      };
+    });
+    matchCompleted.value = codes.length;
+  } catch (error) {
+    if (controller.signal.aborted || runId !== fileRunId.value) return;
+    componentRows.value = componentRows.value.map((row) =>
+      row.status === "matching"
+        ? { ...row, status: "failed", reason: "查询失败，可重试检查" }
+        : row,
+    );
+    throw error;
   }
 }
 
 /** 预览"待新建库位"数：备份库位按 name===code 与现有库位比对。 */
 async function computeNewLocationCount(): Promise<void> {
   if (!parsed.value) return;
-  try {
-    const existing = await listLocations();
-    const names = new Set(existing.map((location) => location.name));
-    newLocationCount.value = parsed.value.locations.filter(
-      (location) => !names.has(location.code),
-    ).length;
-  } catch {
-    newLocationCount.value = 0;
-  }
+  const existing = await listLocations();
+  const names = new Set(existing.map((location) => location.name));
+  newLocationCount.value = parsed.value.locations.filter(
+    (location) => !names.has(location.code),
+  ).length;
 }
 
 async function openBatchCreate(): Promise<void> {
@@ -401,19 +528,20 @@ async function startBatchCreate(options: BatchLcscCreationOptions): Promise<void
     .map((row) => row.component.partNumber);
   if (codes.length === 0) return;
   await batch.run(codes, options, {
+    onItemLookupStarted: (code) => setRowStatus(code, "lookup"),
     onItemStarted: (code) => setRowStatus(code, "creating"),
-    onItemCreated: (code, item) => {
+    onItemCreated: (code, item, created) => {
       const row = rowByCode(code);
       if (row) {
         row.item = item;
-        row.status = "matched";
+        row.status = created ? "created" : "matched";
         row.reason = "";
       }
     },
     onItemFailed: (code, reason) => setRowStatus(code, "create-failed", reason),
   });
   for (const row of componentRows.value) {
-    if (row.status === "creating") row.status = "missing";
+    if (row.status === "creating" || row.status === "lookup") row.status = "missing";
   }
 }
 
@@ -428,18 +556,36 @@ function setRowStatus(code: string, status: ComponentStatus, reason = ""): void 
   }
 }
 
+function requestClose(): void {
+  if (batch.running.value) {
+    closeConfirmOpen.value = true;
+    return;
+  }
+  emit("close");
+}
+
+function confirmCloseWhileCreating(): void {
+  closeConfirmOpen.value = false;
+  batch.cancel();
+  emit("close");
+}
+
 /** 落地库位（匹配现有/新建）→ 按已匹配器件组装期初库存行 → 回传装配。 */
 async function confirmImport(): Promise<void> {
   if (!parsed.value || !canImport.value || busy.value) return;
   importing.value = true;
+  importError.value = "";
+  importProgressMessage.value = "准备库位…";
   try {
     const itemByPart = new Map(
       componentRows.value
-        .filter((row) => row.status === "matched" && row.item)
+        .filter((row) => (row.status === "matched" || row.status === "created") && row.item)
         .map((row) => [row.component.partNumber, row.item as ItemOptionResponse]),
     );
     const locationIdByCode = await resolveLocations();
     if (!locationIdByCode) return;
+
+    importProgressMessage.value = `组装库存明细 ${parsed.value.items.length} 条`;
 
     const rows = parsed.value.items
       .map((item) => {
@@ -464,9 +610,17 @@ async function confirmImport(): Promise<void> {
   }
 }
 
+function retryImport(): void {
+  if (importing.value || !canImport.value) return;
+  void confirmImport();
+}
+
 /** 备份库位按 name===code 匹配现有；缺失的在首个根分组（示例库区）下串行新建。 */
 async function resolveLocations(): Promise<Map<string, number> | null> {
   if (!parsed.value) return null;
+  importProgressTotal.value = parsed.value.locations.length;
+  importProgressDone.value = 0;
+  importProgressMessage.value = "查询现有库位";
   try {
     const existing = await listLocations();
     const idByName = new Map(existing.map((location) => [location.name, location.id]));
@@ -475,27 +629,32 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
 
     let groupId: number | null = null;
     if (missing.length > 0) {
+      importProgressMessage.value = "查询库位分组";
       const tree = await listLocationGroupTree();
       groupId = tree[0]?.id ?? null;
       if (groupId === null) {
-        notice.error("无法导入", { detail: "没有可用的库位分组来新建库位。" });
+        importError.value = "没有可用的库位分组来新建库位。";
+        notice.error("无法导入", { detail: importError.value });
         return null;
       }
     }
     for (const location of parsed.value.locations) {
+      importProgressMessage.value = `准备库位 ${importProgressDone.value + 1}/${importProgressTotal.value}`;
       const existingId = idByName.get(location.code);
       if (existingId !== undefined) {
         result.set(location.code, existingId);
+        importProgressDone.value += 1;
         continue;
       }
       const created = await createLocation({ group_id: groupId as number, name: location.code });
       result.set(location.code, created.id);
+      importProgressDone.value += 1;
     }
     return result;
   } catch (error) {
-    notice.error("库位准备失败", {
-      detail: error instanceof Error ? error.message : "请稍后重试。",
-    });
+    importError.value =
+      error instanceof Error ? `库位准备失败：${error.message}` : "库位准备失败，请重试。";
+    notice.error("库位准备失败", { detail: importError.value });
     return null;
   }
 }
@@ -585,26 +744,53 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
 
 .erp-backup-import__table {
   width: 100%;
+  min-width: 620px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 
   th,
   td {
+    box-sizing: border-box;
+    height: 34px;
     padding: 6px 10px;
     border-bottom: 1px solid var(--color-border);
+    overflow: hidden;
     text-align: left;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   thead th {
     position: sticky;
     top: 0;
+    height: 36px;
     background: var(--color-surface);
   }
 
   tbody tr:last-child td {
     border-bottom: none;
   }
+}
+
+.erp-backup-import__col--select {
+  width: 40px;
+}
+
+.erp-backup-import__col--name {
+  width: 28%;
+}
+
+.erp-backup-import__col--code {
+  width: 22%;
+}
+
+.erp-backup-import__col--quantity {
+  width: 80px;
+}
+
+.erp-backup-import__col--status {
+  width: auto;
 }
 
 .erp-backup-import__select-col {
@@ -621,7 +807,11 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
 
 .erp-backup-import__name {
   overflow: hidden;
-  max-width: 240px;
+  text-overflow: ellipsis;
+}
+
+.erp-backup-import__status-cell {
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 

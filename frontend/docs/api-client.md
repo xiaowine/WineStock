@@ -96,7 +96,9 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 `outboundOrders.ts` 负责出库单分页和按需详情读取。列表筛选把关键词、`pending`/`approved`/`rejected` 状态和日期范围提交给 `GET /api/outbound`；物品名称、编码、单位和主图文件 ID 必须由该接口批量投影，不能逐行补请求。
 
 `items.ts` 的 `lookupLcscItem` 只调用 WineStock 的
-`GET /api/items/lookups/lcsc/{product_code}`，浏览器和 WebView 不直接访问立创商品查询接口。响应是新建物品候选资料；
+`GET /api/items/lookups/lcsc/{product_code}`；批量导入使用 `lookupLcscItems` 调用
+`POST /api/items/lookups/lcsc`，请求最多包含 10 个客编，响应按去重后的客编返回候选或稳定错误分类。
+Core 会先组合客编查询立创，再对缺失客编补查；浏览器和 WebView 不直接访问立创商品查询接口。响应是新建物品候选资料；
 用户确认“覆盖填写”时同时提交确认态选择的物品属性模板 ID，前端先应用该模板，再覆盖同名属性并把模板缺少的
 候选字段创建为自定义属性。有效候选价格覆盖参考单价。确认覆盖后，`lcsc/image.ts` 使用 Core 已校验的
 `image_url` 直接从 `alimg.szlcsc.com` 读取图片 Blob，且不携带 WineStock token、Cookie 或自定义请求头；前端

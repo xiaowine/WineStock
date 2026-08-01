@@ -22,6 +22,11 @@ export type LcscItemLookupParameterResponse = ApiResponse<ApiSchema<"LcscLookupP
 /** 立创资料服务返回的单物品候选信息；应用前不会修改物品草稿。 */
 export type LcscItemLookupResponse = ApiResponse<ApiSchema<"LcscItemLookupResponse">>;
 
+export type LcscBatchLookupRequest = ApiSchema<"LcscBatchLookupRequest">;
+export type LcscBatchLookupError = ApiSchema<"LcscBatchLookupError">;
+export type LcscBatchLookupResult = ApiResponse<ApiSchema<"LcscBatchLookupResult">>;
+export type LcscBatchLookupResponse = ApiResponse<ApiSchema<"LcscBatchLookupResponse">>;
+
 export type ItemStockState = ApiSchema<"ItemStockState">;
 export type ItemStockFilter = ApiSchema<"ItemStockFilter">;
 export type ItemCatalogSort = ApiSchema<"ItemCatalogSort">;
@@ -51,6 +56,9 @@ export interface ItemCatalogFilters {
 export type ItemOptionResponse = ApiResponse<ApiSchema<"ItemOptionResponse">>;
 
 export type ItemOptionPageResponse = ApiResponse<ApiSchema<"ItemOptionPageResponse">>;
+export type ItemOptionLookupRequest = ApiSchema<"ItemOptionLookupRequest">;
+export type ItemOptionLookupResult = ApiResponse<ApiSchema<"ItemOptionLookupResult">>;
+export type ItemOptionLookupResponse = ApiResponse<ApiSchema<"ItemOptionLookupResponse">>;
 
 export type ItemLocationStockResponse = ApiResponse<ApiSchema<"ItemLocationStockResponse">>;
 
@@ -102,6 +110,21 @@ export async function lookupLcscItem(productCode: string, signal?: AbortSignal) 
     const aborted = error instanceof DOMException && error.name === "AbortError";
     const notFound = error instanceof ApiError && error.code === "lcsc_product_not_found";
     if (!aborted && !notFound) trackTelemetryIssue("lcsc_lookup_failed");
+    throw error;
+  }
+}
+
+/** 批量查询立创候选资料；Core 会组合关键词并对缺失客编自动补查。 */
+export async function lookupLcscItems(productCodes: readonly string[], signal?: AbortSignal) {
+  try {
+    return await apiClient.request<LcscBatchLookupResponse>("/api/items/lookups/lcsc", {
+      method: "POST",
+      json: { product_codes: productCodes },
+      signal,
+    });
+  } catch (error) {
+    const aborted = error instanceof DOMException && error.name === "AbortError";
+    if (!aborted) trackTelemetryIssue("lcsc_lookup_batch_failed");
     throw error;
   }
 }
@@ -183,6 +206,26 @@ export function listItemOptions(
     query: { page, page_size: pageSize, search: search.trim() || undefined },
     signal,
   });
+}
+
+/** 按 SKU 批量精确匹配本地物品；响应完成后由调用方一次性应用结果。 */
+export function lookupItemOptions(productCodes: readonly string[], signal?: AbortSignal) {
+  const normalized = [
+    ...new Set(productCodes.map((code) => code.trim().toUpperCase()).filter(Boolean)),
+  ];
+  const requests: Promise<ItemOptionLookupResponse>[] = [];
+  for (let start = 0; start < normalized.length; start += 500) {
+    requests.push(
+      apiClient.request<ItemOptionLookupResponse>("/api/items/options/lookup", {
+        method: "POST",
+        json: { product_codes: normalized.slice(start, start + 500) },
+        signal,
+      }),
+    );
+  }
+  return Promise.all(requests).then((responses) => ({
+    results: responses.flatMap((response) => response.results),
+  }));
 }
 
 export function getItemInventory(id: number, signal?: AbortSignal) {

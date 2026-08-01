@@ -21,6 +21,46 @@ use crate::{
 };
 
 #[tokio::test]
+async fn batch_item_option_lookup_matches_skus_once_and_preserves_input_order() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    create_simple_item(&app, &login.body.access_token, "Lookup one", "C3131", None).await;
+    create_simple_item(
+        &app,
+        &login.body.access_token,
+        "Lookup two",
+        "C41371860",
+        None,
+    )
+    .await;
+
+    let response = authorized_json_request(
+        &app,
+        "POST",
+        "/api/items/options/lookup",
+        &login.body.access_token,
+        &serde_json::json!({
+            "product_codes": [" c41371860 ", "C000", "C3131", "C41371860"]
+        }),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: serde_json::Value = json_body(response).await;
+    let results = body["results"]
+        .as_array()
+        .expect("results should be an array");
+    assert_eq!(results.len(), 3);
+    assert_eq!(results[0]["product_code"], "C41371860");
+    assert_eq!(results[0]["item"]["sku"], "C41371860");
+    assert!(results[0]["error"].is_null());
+    assert_eq!(results[1]["product_code"], "C000");
+    assert!(results[1]["item"].is_null());
+    assert_eq!(results[1]["error"], "not_found");
+    assert_eq!(results[2]["product_code"], "C3131");
+    assert_eq!(results[2]["item"]["sku"], "C3131");
+}
+
+#[tokio::test]
 async fn item_crud_uses_permissions_and_soft_delete() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;

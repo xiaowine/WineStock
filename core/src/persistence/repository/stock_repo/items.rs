@@ -15,8 +15,9 @@ use super::{
     common::insert_audit_event_on_connection, search, CatalogAttributeRecord, CatalogSort,
     CatalogStockFilter, CreateStockItem, ItemAttributeInput, ItemCatalogCountsRecord,
     ItemCatalogCriteria, ItemCatalogFieldFilter, ItemCatalogPage, ItemCatalogRecord,
-    ItemInventoryRecord, ItemOptionCriteria, ItemOptionRecord, Page, StockItemBatchRecord,
-    StockItemListRecord, StockItemLocationRecord, StockRepository, UpdateStockItem,
+    ItemInventoryRecord, ItemOptionCriteria, ItemOptionLookupCriteria, ItemOptionRecord, Page,
+    StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord, StockRepository,
+    UpdateStockItem,
 };
 use crate::persistence::{
     entity::{item_attribute, item_attribute_definition, stock_item},
@@ -275,6 +276,42 @@ where
             })
             .collect::<Result<Vec<_>, DbErr>>()?;
         Ok(Page { items, total })
+    }
+
+    /// 按 SKU 精确查询轻量物品，不执行模糊搜索或库存聚合。
+    pub(crate) async fn lookup_item_options(
+        &self,
+        input: ItemOptionLookupCriteria,
+    ) -> Result<Vec<ItemOptionRecord>, DbErr> {
+        if input.skus.is_empty() {
+            return Ok(Vec::new());
+        }
+        let (mut sql, mut values) = item_option_base_query(None, None, None);
+        sql.push_str(" AND upper(stock_items.sku) IN (");
+        append_bound_values(&mut sql, &mut values, &input.skus);
+        sql.push(')');
+        let rows = self
+            .database
+            .query_all_raw(Statement::from_sql_and_values(
+                DatabaseBackend::Sqlite,
+                sql,
+                values,
+            ))
+            .await?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(ItemOptionRecord {
+                    id: row.try_get("", "id")?,
+                    name: row.try_get("", "name")?,
+                    sku: row.try_get("", "sku")?,
+                    category_id: row.try_get("", "category_id")?,
+                    category_name: row.try_get("", "category_name")?,
+                    attribute_template_id: row.try_get("", "attribute_template_id")?,
+                    image_file_id: row.try_get("", "image_file_id")?,
+                    unit: row.try_get("", "unit")?,
+                })
+            })
+            .collect()
     }
 
     /// 查询已有物品的库存摘要和库位分布，不加载批次明细。

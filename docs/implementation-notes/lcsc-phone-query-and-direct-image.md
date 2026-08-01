@@ -38,11 +38,11 @@ Core 固定发送：
 
 只设置 `Accept: application/json` 和 `Content-Type: application/json`。不复制微信 User-Agent、Referer、
 `Sec-Fetch-*`、`x-lc-accesstoken`、`x-lc-accesssharecode` 或手工 `Content-Length`。保持现有 HTTPS-only、
-禁重定向、连接/完整请求超时、1 MiB 响应上限和共享并发限制。
+禁重定向、连接/完整请求超时和共享并发限制；不对上游 JSON 响应体设置大小上限。
 
-响应必须满足 HTTP 2xx、顶层 `code = 200`、`ok = true`，并从
+响应必须满足 HTTP 2xx、顶层 `code = 200`，若存在 `ok` 则必须为 `true`，并从
 `result.searchResult.productRecordList` 中按 `productVO.productCode` 选择唯一精确匹配项。空列表或没有精确
-匹配返回 `lcsc_product_not_found`；HTTP、超时、超限、JSON 或结构错误继续映射到现有稳定错误码。
+匹配返回 `lcsc_product_not_found`；HTTP、超时、JSON 或结构错误继续映射到现有稳定错误码。
 
 ## 字段映射
 

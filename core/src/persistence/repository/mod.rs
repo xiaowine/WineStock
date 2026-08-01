@@ -29,13 +29,14 @@ pub(crate) use stock_repo::{
     DailyMovementTrendRecord, DashboardOverviewRecord, InboundOrderDetail, InboundOrderItemRecord,
     InboundOrderRecord, ItemAttributeInput, ItemAttributeRecord, ItemAttributeTemplateDetail,
     ItemCatalogCriteria, ItemCatalogFieldFilter, ItemCatalogPage, ItemFilterValuesCriteria,
-    ItemInventoryRecord, ItemOptionCriteria, ItemOptionRecord, ListAuditEvents, ListInboundOrders,
-    ListOutboundOrders, OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
-    SlowMovingStockItemRecord, StockFilterFieldRecord, StockFilterValueRecord,
-    StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord, StockLocationGroupRecord,
-    StockLocationRecord, StockLocationTransferRecord, StockRepository, StockSubstituteInput,
-    StockSubstituteRecord, TemplateFieldInput, UpdateItemAttributeTemplate, UpdateItemCategory,
-    UpdateLocation, UpdateLocationGroup, UpdateStockItem,
+    ItemInventoryRecord, ItemOptionCriteria, ItemOptionLookupCriteria, ItemOptionRecord,
+    ListAuditEvents, ListInboundOrders, ListOutboundOrders, OutboundOrderDetail,
+    OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
+    StockFilterFieldRecord, StockFilterValueRecord, StockItemBatchRecord, StockItemListRecord,
+    StockItemLocationRecord, StockLocationGroupRecord, StockLocationRecord,
+    StockLocationTransferRecord, StockRepository, StockSubstituteInput, StockSubstituteRecord,
+    TemplateFieldInput, UpdateItemAttributeTemplate, UpdateItemCategory, UpdateLocation,
+    UpdateLocationGroup, UpdateStockItem,
 };
 pub(crate) use time::{sqlite_now, sqlite_time_after_seconds};
 #[allow(unused_imports)]

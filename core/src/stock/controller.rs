@@ -37,16 +37,23 @@ pub(crate) use inbound::{
 };
 pub(crate) use item_attributes::{ItemAttributeRequest, ItemAttributeResponse};
 pub(crate) use item_lookup::{
-    lookup_lcsc_item, ItemLookupSource, LcscItemLookupResponse, LcscLookupParameterResponse,
+    lookup_lcsc_item, lookup_lcsc_items, ItemLookupSource, LcscBatchLookupError,
+    LcscBatchLookupResponse, LcscBatchLookupResult, LcscItemLookupResponse,
+    LcscLookupParameterResponse,
 };
+// 供 http::docs 的 OpenAPI schema 注册通过 controller 路径引用。
+#[allow(unused_imports)]
+pub(crate) use item_lookup::LcscBatchLookupRequest;
 pub(crate) use items::{
     create_item, delete_item, get_item, get_item_inventory, item_filter_values, list_item_batches,
-    list_item_options, list_items, update_item, CatalogAttributeResponse, ItemBatchPageResponse,
-    ItemBatchQuery, ItemBatchStockResponse, ItemCatalogCountsResponse, ItemCatalogEntryResponse,
-    ItemCatalogFieldFilterQuery, ItemCatalogPageResponse, ItemCatalogQuery, ItemCatalogSort,
-    ItemCreateRequest, ItemEditorResponse, ItemFilterValuesQuery, ItemInventoryResponse,
-    ItemLocationStockResponse, ItemMutationResponse, ItemOptionPageResponse, ItemOptionQuery,
-    ItemOptionResponse, ItemStockFilter, ItemStockState, ItemUpdateRequest,
+    list_item_options, list_items, lookup_item_options, update_item, CatalogAttributeResponse,
+    ItemBatchPageResponse, ItemBatchQuery, ItemBatchStockResponse, ItemCatalogCountsResponse,
+    ItemCatalogEntryResponse, ItemCatalogFieldFilterQuery, ItemCatalogPageResponse,
+    ItemCatalogQuery, ItemCatalogSort, ItemCreateRequest, ItemEditorResponse,
+    ItemFilterValuesQuery, ItemInventoryResponse, ItemLocationStockResponse, ItemMutationResponse,
+    ItemOptionLookupRequest, ItemOptionLookupResponse, ItemOptionLookupResult,
+    ItemOptionPageResponse, ItemOptionQuery, ItemOptionResponse, ItemStockFilter, ItemStockState,
+    ItemUpdateRequest,
 };
 pub(crate) use locations::{
     create_location, create_location_group, create_location_transfer, delete_location,

@@ -438,6 +438,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/lookups/lcsc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 批量查询立创商城商品候选资料；单个客编失败不会阻断同批其它结果。 */
+        post: operations["lookup_lcsc_items"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/items/lookups/lcsc/{product_code}": {
         parameters: {
             query?: never;
@@ -466,6 +483,23 @@ export interface paths {
         get: operations["list_item_options"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/options/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 按客编批量精确查询业务选择器使用的轻量物品。 */
+        post: operations["lookup_item_options"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1877,6 +1911,24 @@ export interface components {
             /** @description 服务端最终资料更新时间。 */
             updated_at: string;
         };
+        /** @description 按客编批量查询库内轻量物品的请求。 */
+        ItemOptionLookupRequest: {
+            /** @description 需要精确匹配的物品 SKU，最多 500 个。 */
+            product_codes: string[];
+        };
+        /** @description 批量本地物品匹配响应。 */
+        ItemOptionLookupResponse: {
+            /** @description 按去重后的输入顺序返回的匹配结果。 */
+            results: components["schemas"]["ItemOptionLookupResult"][];
+        };
+        /** @description 单个客编的本地物品匹配结果。 */
+        ItemOptionLookupResult: {
+            /** @description 结果级错误；未命中使用 `not_found`，正常命中为空。 */
+            error?: string | null;
+            item?: null | components["schemas"]["ItemOptionResponse"];
+            /** @description 请求中的规范化客编。 */
+            product_code: string;
+        };
         /** @description 轻量物品选择分页响应。 */
         ItemOptionPageResponse: {
             /** @description 当前页物品选项。 */
@@ -2036,6 +2088,26 @@ export interface components {
             sku?: string | null;
             /** @description 计量单位。 */
             unit?: string | null;
+        };
+        /**
+         * @description 批量查询中单个客编的稳定错误分类。
+         * @enum {string}
+         */
+        LcscBatchLookupError: "invalid_product_code" | "product_not_found" | "busy" | "timeout" | "failed" | "invalid_response";
+        /** @description 批量查询立创商品候选资料请求；单次最多查询 10 个客编。 */
+        LcscBatchLookupRequest: {
+            /** @description 待查询的立创商品编号；服务端会去重并归一化大小写。 */
+            product_codes: string[];
+        };
+        /** @description 批量立创查询响应；结果顺序与去重后的输入顺序一致。 */
+        LcscBatchLookupResponse: {
+            results: components["schemas"]["LcscBatchLookupResult"][];
+        };
+        /** @description 批量查询中单个客编的候选资料或错误。 */
+        LcscBatchLookupResult: {
+            candidate?: null | components["schemas"]["LcscItemLookupResponse"];
+            error?: null | components["schemas"]["LcscBatchLookupError"];
+            product_code: string;
         };
         /** @description 可由用户确认后填写到新建物品草稿的立创候选资料。 */
         LcscItemLookupResponse: {
@@ -4287,6 +4359,57 @@ export interface operations {
             };
         };
     };
+    lookup_lcsc_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LcscBatchLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch normalized LCSC item candidates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LcscBatchLookupResponse"];
+                };
+            };
+            /** @description Invalid batch request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Item manage permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
     lookup_lcsc_item: {
         parameters: {
             query?: never;
@@ -4400,6 +4523,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemOptionPageResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Item read permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    lookup_item_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemOptionLookupRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch item option lookup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemOptionLookupResponse"];
                 };
             };
             /** @description Invalid request */

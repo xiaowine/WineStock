@@ -27,12 +27,13 @@ pub(crate) use types::{
     InboundOrderItemRecord, InboundOrderRecord, ItemAttributeInput, ItemAttributeRecord,
     ItemAttributeTemplateDetail, ItemCatalogCountsRecord, ItemCatalogCriteria,
     ItemCatalogFieldFilter, ItemCatalogPage, ItemCatalogRecord, ItemFilterValuesCriteria,
-    ItemInventoryRecord, ItemOptionCriteria, ItemOptionRecord, ListAuditEvents, ListInboundOrders,
-    ListOutboundOrders, OutboundOrderDetail, OutboundOrderItemRecord, OutboundOrderRecord, Page,
-    SlowMovingStockItemRecord, StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord,
-    StockLocationGroupRecord, StockLocationRecord, StockLocationTransferRecord,
-    StockSubstituteInput, StockSubstituteRecord, TemplateFieldInput, UpdateItemAttributeTemplate,
-    UpdateItemCategory, UpdateLocation, UpdateLocationGroup, UpdateStockItem,
+    ItemInventoryRecord, ItemOptionCriteria, ItemOptionLookupCriteria, ItemOptionRecord,
+    ListAuditEvents, ListInboundOrders, ListOutboundOrders, OutboundOrderDetail,
+    OutboundOrderItemRecord, OutboundOrderRecord, Page, SlowMovingStockItemRecord,
+    StockItemBatchRecord, StockItemListRecord, StockItemLocationRecord, StockLocationGroupRecord,
+    StockLocationRecord, StockLocationTransferRecord, StockSubstituteInput, StockSubstituteRecord,
+    TemplateFieldInput, UpdateItemAttributeTemplate, UpdateItemCategory, UpdateLocation,
+    UpdateLocationGroup, UpdateStockItem,
 };
 
 /// stock 仓储层封装库存领域持久化语义。

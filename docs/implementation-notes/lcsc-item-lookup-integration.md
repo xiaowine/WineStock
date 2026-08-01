@@ -279,7 +279,7 @@ struct LcedaSearchRequest<'a> {
 - connect timeout 为 3 秒；
 - 单次完整请求 timeout 为 8 秒；
 - 每主机空闲连接池上限为 2；
-- 响应体最大 1 MiB。
+- 不设置上游 JSON 响应体大小上限；仍受完整请求超时约束。
 
 Reqwest `Client` 是可克隆的连接池句柄，应构建一次并随 `CoreState` 共享，不能在 handler 内重复创建。Axum 0.8
 通过 `State` 注入共享依赖，handler 返回实现 `IntoResponse` 的具体领域错误。
@@ -304,14 +304,13 @@ Reqwest `Client` 是可克隆的连接池句柄，应构建一次并随 `CoreSta
 处理顺序固定：
 
 1. 检查 HTTP 状态，非 2xx 不读取并透传错误页；
-2. 检查 `Content-Length`，已知且超过 1 MiB 时立即拒绝；
-3. 逐 chunk 读取，并在累计超过 1 MiB 时终止；
-4. 反序列化到私有上游 DTO；
-5. 要求 `success == true` 且 `code == 0`；
-6. 稳定展开 `result.lists` 中的记录，优先处理 `lists.lcsc`，其它分组按名称稳定展开；
-7. 以顶层 `product_code` 为主、`attributes["Supplier Part"]` 为回退，查找与规范化请求值完全相同的唯一结果；
-8. 将已知字段投影到 WineStock DTO，描述优先使用顶层 `description`，再回退 `LCSC Part Name`；
-9. 过滤系统字段后生成附加参数列表。
+2. 逐 chunk 读取完整响应；
+3. 反序列化到私有上游 DTO；
+4. 要求 `success == true` 且 `code == 0`；
+5. 稳定展开 `result.lists` 中的记录，优先处理 `lists.lcsc`，其它分组按名称稳定展开；
+6. 以顶层 `product_code` 为主、`attributes["Supplier Part"]` 为回退，查找与规范化请求值完全相同的唯一结果；
+7. 将已知字段投影到 WineStock DTO，描述优先使用顶层 `description`，再回退 `LCSC Part Name`；
+8. 过滤系统字段后生成附加参数列表。
 
 上游结果包含多个不相关商品时不使用第一项；出现两个按上述规则命中同一客编的记录时视为无效响应，避免非确定性覆盖。
 

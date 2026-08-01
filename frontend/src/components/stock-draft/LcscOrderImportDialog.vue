@@ -9,13 +9,19 @@
     title="导入立创订单"
     description="选择立创商城「订单详情」导出的表格，命中物品将按订购数量与单价加入入库明细。"
     workspace
-    @close="emit('close')"
+    :busy="matching"
+    @close="requestClose"
   >
     <div class="lcsc-order-import">
       <div class="lcsc-order-import__file-row">
         <label class="secondary-button lcsc-order-import__file">
           {{ fileName ? "重新选择文件" : "选择订单表格" }}
-          <input type="file" accept=".xls,.xlsx" @change="handleFileChange" />
+          <input
+            type="file"
+            accept=".xls,.xlsx"
+            :disabled="matching || batchRunning"
+            @change="handleFileChange"
+          />
         </label>
         <span v-if="fileName" class="lcsc-order-import__file-name" :title="fileName">
           {{ fileName }}
@@ -24,6 +30,13 @@
 
       <p v-if="parseError" class="lcsc-order-import__error" role="alert">{{ parseError }}</p>
       <p v-else-if="parsing" class="lcsc-order-import__hint" role="status">正在解析表格…</p>
+      <p v-else-if="matching" class="lcsc-order-import__hint" role="status" aria-live="polite">
+        正在一次性匹配本地物品 {{ matchCompleted }}/{{ matchTotal }}…
+      </p>
+      <p v-if="matchError" class="lcsc-order-import__error" role="alert">
+        {{ matchError }}
+        <button class="text-button" type="button" @click="retryFailed">重试失败项</button>
+      </p>
 
       <template v-else-if="rows.length > 0">
         <p class="lcsc-order-import__summary" role="status">
@@ -86,6 +99,7 @@
                     </span>
                   </template>
                   <template v-else-if="row.status === 'matching'">匹配中…</template>
+                  <template v-else-if="row.status === 'lookup'">查询立创资料…</template>
                   <template v-else-if="row.status === 'creating'">创建中…</template>
                   <template v-else-if="row.status === 'missing'">
                     <span>库中没有该编号</span>
@@ -145,13 +159,15 @@
       >
         {{
           batchRunning
-            ? `正在创建 ${batch.progressLabel.value}…`
+            ? `${batch.progressLabel.value}…`
             : batch.metadataLoading.value
               ? "准备中…"
               : `创建选中的 ${selectedCreatableCount} 个物品`
         }}
       </button>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
+      <button class="secondary-button" type="button" :disabled="matching" @click="requestClose">
+        取消
+      </button>
       <button
         class="primary-button"
         type="button"
@@ -180,6 +196,24 @@
     @close="batchOptionsOpen = false"
     @confirm="startBatchCreate"
   />
+
+  <ModalDialog
+    :open="closeConfirmOpen"
+    title="停止批量创建？"
+    description="关闭后将停止尚未完成的创建；已经创建的物品会保留。"
+    compact
+    nested
+    @close="closeConfirmOpen = false"
+  >
+    <template #actions>
+      <button class="secondary-button" type="button" @click="closeConfirmOpen = false">
+        继续创建
+      </button>
+      <button class="danger-button" type="button" @click="confirmCloseWhileCreating">
+        停止并关闭
+      </button>
+    </template>
+  </ModalDialog>
 </template>
 
 <script lang="ts">
@@ -202,7 +236,7 @@ export interface LcscOrderImportPayload {
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { listItemOptions } from "../../api/items";
+import { lookupItemOptions } from "../../api/items";
 import { parseLcscOrderFile } from "../../lcsc/orderExportFile";
 import BatchLcscCreateOptionsDialog from "../items/BatchLcscCreateOptionsDialog.vue";
 import ItemCreateDialog from "../items/ItemCreateDialog.vue";
@@ -213,7 +247,14 @@ import {
 import ModalDialog from "../ModalDialog.vue";
 
 type PreviewStatus =
-  "matching" | "matched" | "missing" | "excluded" | "failed" | "creating" | "create-failed";
+  | "matching"
+  | "matched"
+  | "missing"
+  | "excluded"
+  | "failed"
+  | "lookup"
+  | "creating"
+  | "create-failed";
 
 interface PreviewRow {
   key: string;
@@ -250,9 +291,14 @@ const rows = ref<PreviewRow[]>([]);
 const applySource = ref(true);
 const createTargetKey = ref<string | null>(null);
 const batchOptionsOpen = ref(false);
+const closeConfirmOpen = ref(false);
 const batch = useBatchLcscItemCreation();
 const batchRunning = batch.running;
 let matchAbortController: AbortController | null = null;
+const matchTotal = ref(0);
+const matchCompleted = ref(0);
+const matchError = ref("");
+const fileRunId = ref(0);
 
 const matchedCount = computed(() => rows.value.filter((row) => row.status === "matched").length);
 const missingCount = computed(
@@ -306,6 +352,7 @@ watch(
 onBeforeUnmount(() => matchAbortController?.abort());
 
 function resetState(): void {
+  fileRunId.value += 1;
   matchAbortController?.abort();
   matchAbortController = null;
   batch.cancel();
@@ -317,6 +364,10 @@ function resetState(): void {
   applySource.value = true;
   createTargetKey.value = null;
   batchOptionsOpen.value = false;
+  closeConfirmOpen.value = false;
+  matchTotal.value = 0;
+  matchCompleted.value = 0;
+  matchError.value = "";
 }
 
 async function handleFileChange(event: Event): Promise<void> {
@@ -325,9 +376,11 @@ async function handleFileChange(event: Event): Promise<void> {
   input.value = "";
   if (!file) return;
   resetState();
+  const runId = fileRunId.value;
   fileName.value = file.name;
   parsing.value = true;
   const result = await parseLcscOrderFile(file);
+  if (runId !== fileRunId.value) return;
   parsing.value = false;
   if (!result.ok) {
     parseError.value = result.error;
@@ -365,51 +418,63 @@ async function handleFileChange(event: Event): Promise<void> {
     })),
   );
   rows.value = preview;
-  await matchPendingRows();
+  await matchPendingRows(runId);
 }
 
 function retryFailed(): void {
+  if (matching.value || batchRunning.value) return;
   for (const row of rows.value) {
     if (row.status === "failed") {
       row.status = "matching";
       row.reason = "";
     }
   }
-  void matchPendingRows();
+  matchError.value = "";
+  void matchPendingRows(fileRunId.value);
 }
 
-/** 按 C 号精确匹配库内物品；少量并发以兼顾速度与服务压力。 */
-async function matchPendingRows(): Promise<void> {
+/** 按 C 号批量精确匹配库内物品，响应完成后一次性提交全部行状态。 */
+async function matchPendingRows(runId: number): Promise<void> {
   matchAbortController?.abort();
   const controller = new AbortController();
   matchAbortController = controller;
-  const queue = rows.value.filter((row) => row.status === "matching");
-  const workers = Array.from({ length: Math.min(4, queue.length) }, async () => {
-    for (let row = queue.shift(); row; row = queue.shift()) {
-      await matchRow(row, controller.signal);
-    }
-  });
-  await Promise.all(workers);
-}
-
-async function matchRow(row: PreviewRow, signal: AbortSignal): Promise<void> {
-  const code = row.productCode;
-  if (!code) return;
+  const codes = [
+    ...new Set(
+      rows.value
+        .filter((row) => row.status === "matching" && row.productCode)
+        .map((row) => row.productCode as string),
+    ),
+  ];
+  matchTotal.value = codes.length;
+  matchCompleted.value = 0;
+  if (codes.length === 0) return;
   try {
-    const response = await listItemOptions(code, 1, 20, signal);
-    if (signal.aborted) return;
-    const item =
-      response.items.find((candidate) => candidate.sku.trim().toUpperCase() === code) ?? null;
-    if (item) {
-      row.item = item;
-      row.status = "matched";
-    } else {
-      row.status = "missing";
-    }
-  } catch {
-    if (signal.aborted) return;
-    row.status = "failed";
-    row.reason = "查询失败，可重试匹配";
+    const response = await lookupItemOptions(codes, controller.signal);
+    if (controller.signal.aborted || runId !== fileRunId.value) return;
+    const resultByCode = new Map(
+      response.results.map((result) => [result.product_code.trim().toUpperCase(), result]),
+    );
+    rows.value = rows.value.map((row) => {
+      if (row.status !== "matching" || !row.productCode) return row;
+      const result = resultByCode.get(row.productCode.trim().toUpperCase());
+      if (result?.item) return { ...row, item: result.item, status: "matched", reason: "" };
+      return {
+        ...row,
+        status: "missing",
+        reason: result?.error === "not_found" ? "库中没有该编号" : "",
+      };
+    });
+    matchCompleted.value = codes.length;
+    matchError.value = "";
+  } catch (error) {
+    if (controller.signal.aborted || runId !== fileRunId.value) return;
+    rows.value = rows.value.map((row) =>
+      row.status === "matching"
+        ? { ...row, status: "failed", reason: "查询失败，可重试匹配" }
+        : row,
+    );
+    matchError.value =
+      error instanceof Error ? `本地物品匹配失败：${error.message}` : "本地物品匹配失败，请重试。";
   }
 }
 
@@ -442,6 +507,12 @@ async function retryBatchCreate(row: PreviewRow): Promise<void> {
 async function runBatchCreate(codes: string[], options: BatchLcscCreationOptions): Promise<void> {
   if (codes.length === 0) return;
   await batch.run(codes, options, {
+    onItemLookupStarted: (code) => {
+      for (const row of rowsByCode(code)) {
+        row.status = "lookup";
+        row.reason = "";
+      }
+    },
     onItemStarted: (code) => {
       for (const row of rowsByCode(code)) {
         row.status = "creating";
@@ -464,18 +535,35 @@ async function runBatchCreate(codes: string[], options: BatchLcscCreationOptions
   });
   // 中止（关闭 Dialog 等）时把仍处于"创建中"的行放回未命中，避免状态卡死。
   for (const row of rows.value) {
-    if (row.status === "creating") {
+    if (row.status === "creating" || row.status === "lookup") {
       row.status = "missing";
       row.reason = "";
     }
   }
 }
 
+function requestClose(): void {
+  if (batchRunning.value) {
+    closeConfirmOpen.value = true;
+    return;
+  }
+  emit("close");
+}
+
+function confirmCloseWhileCreating(): void {
+  closeConfirmOpen.value = false;
+  batch.cancel();
+  emit("close");
+}
+
 function rowsByCode(code: string): PreviewRow[] {
   return rows.value.filter(
     (row) =>
       row.productCode === code &&
-      (row.status === "missing" || row.status === "create-failed" || row.status === "creating"),
+      (row.status === "missing" ||
+        row.status === "create-failed" ||
+        row.status === "creating" ||
+        row.status === "lookup"),
   );
 }
 

@@ -2,15 +2,19 @@
 //!
 //! 本模块不写数据库；第三方原始协议由 `external` 适配器拥有。
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
+use tokio::task::JoinSet;
 use url::Url;
 
 use crate::{
     external::{LcscLookupError, LcscProductRecord},
     state::CoreState,
-    stock::controller::{ItemLookupSource, LcscItemLookupResponse, LcscLookupParameterResponse},
+    stock::controller::{
+        ItemLookupSource, LcscBatchLookupError, LcscBatchLookupResponse, LcscBatchLookupResult,
+        LcscItemLookupResponse, LcscLookupParameterResponse,
+    },
 };
 
 use super::StockApiError;
@@ -54,6 +58,125 @@ pub(crate) async fn lookup_lcsc_item(
         .await
         .map_err(map_lookup_error)?;
     normalize_lookup_result(&product_code, records, default_price)
+}
+
+/// 批量查询立创候选资料：先用一次组合关键词查询，缺失客编再并发补查。
+pub(crate) async fn lookup_lcsc_items(
+    state: &CoreState,
+    product_codes: &[String],
+) -> Result<LcscBatchLookupResponse, StockApiError> {
+    let mut seen = HashSet::new();
+    let mut results = Vec::new();
+    let mut valid_codes = Vec::new();
+
+    for raw_code in product_codes {
+        let display_code = raw_code.trim().to_ascii_uppercase();
+        if !seen.insert(display_code.clone()) {
+            continue;
+        }
+        match normalize_product_code(raw_code) {
+            Ok(code) => {
+                valid_codes.push(code);
+                results.push(LcscBatchLookupResult {
+                    product_code: display_code,
+                    candidate: None,
+                    error: None,
+                });
+            }
+            Err(_) => results.push(error_result(
+                display_code,
+                LcscBatchLookupError::InvalidProductCode,
+            )),
+        }
+    }
+
+    if valid_codes.is_empty() {
+        return Ok(LcscBatchLookupResponse { results });
+    }
+
+    let (records, prices) = match state
+        .external_catalog()
+        .lcsc()
+        .lookup_batch_wait(&valid_codes)
+        .await
+    {
+        Ok(value) => value,
+        Err(error) => {
+            let error = batch_error(map_lookup_error(error));
+            for result in &mut results {
+                if result.error.is_none() {
+                    result.error = Some(error);
+                }
+            }
+            return Ok(LcscBatchLookupResponse { results });
+        }
+    };
+
+    let mut exact_records = HashMap::new();
+    for record in records {
+        if let Some(code) = record_product_code(&record) {
+            exact_records.insert(code.trim().to_ascii_uppercase(), record);
+        }
+    }
+
+    let mut fallback = JoinSet::new();
+    for (index, result) in results.iter_mut().enumerate() {
+        if result.error.is_some() {
+            continue;
+        }
+        let code = result.product_code.clone();
+        if let Some(record) = exact_records.remove(&code) {
+            match normalize_lookup_result(&code, vec![record], prices.get(&code).copied()) {
+                Ok(candidate) => result.candidate = Some(candidate),
+                Err(error) => result.error = Some(batch_error(error)),
+            }
+            continue;
+        }
+
+        let client = state.external_catalog().lcsc().clone();
+        fallback.spawn(async move {
+            let result = match client.lookup_wait(&code).await {
+                Ok((records, price)) => match normalize_lookup_result(&code, records, price) {
+                    Ok(candidate) => LcscBatchLookupResult {
+                        product_code: code,
+                        candidate: Some(candidate),
+                        error: None,
+                    },
+                    Err(error) => error_result(code, batch_error(error)),
+                },
+                Err(error) => error_result(code, batch_error(map_lookup_error(error))),
+            };
+            (index, result)
+        });
+    }
+
+    while let Some(joined) = fallback.join_next().await {
+        if let Ok((index, result)) = joined {
+            results[index] = result;
+        }
+    }
+
+    Ok(LcscBatchLookupResponse { results })
+}
+
+fn error_result(product_code: String, error: LcscBatchLookupError) -> LcscBatchLookupResult {
+    LcscBatchLookupResult {
+        product_code,
+        candidate: None,
+        error: Some(error),
+    }
+}
+
+fn batch_error(error: StockApiError) -> LcscBatchLookupError {
+    match error {
+        StockApiError::InvalidLcscProductCode => LcscBatchLookupError::InvalidProductCode,
+        StockApiError::LcscProductNotFound => LcscBatchLookupError::ProductNotFound,
+        StockApiError::LcscLookupBusy => LcscBatchLookupError::Busy,
+        StockApiError::LcscLookupTimeout => LcscBatchLookupError::Timeout,
+        StockApiError::LcscLookupFailed => LcscBatchLookupError::Failed,
+        StockApiError::LcscInvalidResponse => LcscBatchLookupError::InvalidResponse,
+        _ => LcscBatchLookupError::Failed,
+    }
 }
 
 fn normalize_product_code(product_code: &str) -> Result<String, StockApiError> {

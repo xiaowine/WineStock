@@ -150,6 +150,55 @@ async fn lookup_validates_permissions_input_and_upstream_errors() {
     assert_eq!(error_code(failed).await, "lcsc_lookup_failed");
 }
 
+#[tokio::test]
+async fn batch_lookup_returns_per_code_results_and_falls_back_for_missing_codes() {
+    let endpoint = spawn_mock_server(MockState::default(), StatusCode::OK, success_body()).await;
+    let app = empty_app_with_mock_lcsc(endpoint).await;
+    seed_admin(&app).await;
+    let login = login_request(&app, "admin", "password").await;
+
+    let response = authorized_post(
+        &app,
+        "/api/items/lookups/lcsc",
+        &login.body.access_token,
+        json!({ "product_codes": [" c2983288 ", "not-a-code", "C000"] }),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: Value = json_body(response).await;
+    let results = body["results"]
+        .as_array()
+        .expect("results should be an array");
+    assert_eq!(results.len(), 3);
+    assert_eq!(results[0]["product_code"], "C2983288");
+    assert_eq!(results[0]["candidate"]["product_code"], "C2983288");
+    assert!(results[0]["error"].is_null());
+    assert_eq!(results[1]["error"], "invalid_product_code");
+    assert!(results[1]["candidate"].is_null());
+    assert_eq!(results[2]["error"], "product_not_found");
+    assert!(results[2]["candidate"].is_null());
+}
+
+#[tokio::test]
+async fn batch_lookup_rejects_more_than_ten_codes() {
+    let endpoint = spawn_mock_server(MockState::default(), StatusCode::OK, success_body()).await;
+    let app = empty_app_with_mock_lcsc(endpoint).await;
+    seed_admin(&app).await;
+    let login = login_request(&app, "admin", "password").await;
+
+    let response = authorized_post(
+        &app,
+        "/api/items/lookups/lcsc",
+        &login.body.access_token,
+        json!({ "product_codes": [
+            "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11"
+        ] }),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(response).await, "invalid_request");
+}
+
 async fn spawn_mock_server(state: MockState, status: StatusCode, body: Value) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -184,7 +233,6 @@ async fn spawn_mock_server(state: MockState, status: StatusCode, body: Value) ->
 fn success_body() -> Value {
     json!({
         "code": 200,
-        "ok": true,
         "result": { "searchResult": { "productRecordList": [{
             "productVO": {
                 "productCode": "C2983288",
@@ -267,6 +315,27 @@ async fn authorized_get(
                 .uri(path)
                 .header("authorization", format!("Bearer {token}"))
                 .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete")
+}
+
+async fn authorized_post(
+    app: &crate::test_support::TestApp,
+    path: &str,
+    token: &str,
+    body: Value,
+) -> axum::response::Response {
+    app.router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(path)
+                .header("authorization", format!("Bearer {token}"))
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
                 .expect("request should build"),
         )
         .await

@@ -46,6 +46,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `implementation-notes/substitute-network-visualization.md`：替代关系星链网络的入口、力导向布局、交互、响应式、性能和分阶段实施方案。
 - `implementation-notes/runtime-tabs-consistency-remediation.md`：运行设置模式切换与全站 tab / 工作区导航 / 分段控件不一致的盘点与分阶段整改方案。
 - `implementation-notes/runtime-first-startup-funnel.md`：启动漏斗——Shell 发布 `initialized`，首次未初始化先进入设置，apply 成功后统一进 `/auth`。
+- `implementation-notes/import-dialog-loading-and-feedback-remediation.md`：订单/ERP 导入 Dialog 的一次性物品匹配、稳定滚动和异步状态反馈整改方案。
 
 ## UI 文档使用顺序
 

@@ -188,6 +188,13 @@ pub(crate) struct ItemOptionCriteria {
     pub attribute_template_id: Option<i64>,
 }
 
+/// 按 SKU 精确查询业务选择器使用的轻量物品。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ItemOptionLookupCriteria {
+    /// 已规范化的大写 SKU 集合。
+    pub skus: Vec<String>,
+}
+
 /// 创建物品分类的仓储输入。
 #[derive(Debug, Clone, PartialEq, Eq, garde::Validate)]
 pub(crate) struct CreateItemCategory {

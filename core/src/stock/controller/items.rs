@@ -473,6 +473,35 @@ pub(crate) struct ItemOptionPageResponse {
     pub total_pages: u64,
 }
 
+/// 按客编批量查询库内轻量物品的请求。
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
+)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ItemOptionLookupRequest {
+    /// 需要精确匹配的物品 SKU，最多 500 个。
+    #[garde(length(min = 1, max = 500))]
+    pub product_codes: Vec<String>,
+}
+
+/// 单个客编的本地物品匹配结果。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemOptionLookupResult {
+    /// 请求中的规范化客编。
+    pub product_code: String,
+    /// 命中的本地物品；未命中时为空。
+    pub item: Option<ItemOptionResponse>,
+    /// 结果级错误；未命中使用 `not_found`，正常命中为空。
+    pub error: Option<String>,
+}
+
+/// 批量本地物品匹配响应。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
+pub(crate) struct ItemOptionLookupResponse {
+    /// 按去重后的输入顺序返回的匹配结果。
+    pub results: Vec<ItemOptionLookupResult>,
+}
+
 /// 单个已有物品的库存详情响应。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate)]
 pub(crate) struct ItemInventoryResponse {
@@ -674,6 +703,27 @@ pub(crate) async fn list_item_options(
     ValidatedQuery(query): ValidatedQuery<ItemOptionQuery>,
 ) -> Result<Json<ItemOptionPageResponse>, StockApiError> {
     Ok(Json(service::list_item_options(&state, query).await?))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/items/options/lookup",
+    tag = "items",
+    request_body = ItemOptionLookupRequest,
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Batch item option lookup", body = ItemOptionLookupResponse),
+        (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Item read permission required", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 按客编批量精确查询业务选择器使用的轻量物品。
+pub(crate) async fn lookup_item_options(
+    State(state): State<CoreState>,
+    ValidatedJson(request): ValidatedJson<ItemOptionLookupRequest>,
+) -> Result<Json<ItemOptionLookupResponse>, StockApiError> {
+    Ok(Json(service::lookup_item_options(&state, request).await?))
 }
 
 #[utoipa::path(

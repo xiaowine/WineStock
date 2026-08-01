@@ -230,6 +230,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     );
     assert_operation_tag(&value, "/api/files/images", "post", "files");
     assert_operation_tag(&value, "/api/items", "post", "items");
+    assert_operation_tag(&value, "/api/items/lookups/lcsc", "post", "items");
     assert_operation_tag(&value, "/api/location-groups/tree", "get", "locations");
     assert_operation_tag(&value, "/api/inbound", "post", "inbound");
     assert_operation_tag(
