@@ -42,7 +42,8 @@
 ## 资源与配置
 
 - `res/`：全屏 WebView 布局、WebView 不兼容原生恢复页、按系统 day/night mode 区分的 Window/SplashScreen/恢复页颜色与系统栏图标布尔资源、放行明文流量的 network security config。
-- `AndroidManifest.xml`：声明 `INTERNET` 与扫码所需的可选 `CAMERA` 能力，唯一 Activity 原地处理 `uiMode`；文件选择走系统选择器。
+- `AndroidManifest.xml`：声明 `INTERNET` 与扫码所需的可选 `CAMERA` 能力，唯一 Activity 使用 `sensorPortrait`
+  锁定竖屏并原地处理 `uiMode`；文件选择走系统选择器。
 - `app/build/` 下的前端中间输出与 generated assets 由 Gradle 生成和清理。
 
 ## 启动流程
@@ -69,4 +70,6 @@ MainActivity.onCreate
 - 受信任 origin `https://winestock.internal` 仅由 `WebViewAssetLoader` 从本地 assets 提供，不经网络；Bridge 通道和起始脚本都限定该 origin。
 - 业务能力通过 HTTP 使用 core；桥只承载运行配置、服务生命周期、真实地址和具名平台事件。
 - `server-mode` 前台服务仍未实现并通过 capability 关闭。
-- 当前只构建/验收 ARM64 APK；API 33 三键导航真机已完成加载、HTTP、旋转、后台与 force-stop 恢复 smoke；首次未初始化延迟启服仍待真机复验，API 版本/手势导航/完整业务矩阵仍待覆盖。
+- 当前只构建/验收 ARM64 APK；API 33 三键导航真机已完成加载、HTTP、原有旋转、后台与 force-stop 恢复 smoke；
+  `MainActivity` 现通过 `sensorPortrait` 禁止横屏，竖屏锁定规则仍待真机复验；首次未初始化延迟启服仍待真机复验，
+  API 版本/手势导航/完整业务矩阵仍待覆盖。

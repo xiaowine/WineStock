@@ -232,8 +232,9 @@ starting the HTTP service or persisting configuration. Existing valid configurat
 automatically on later cold starts.
 Host, ARM64, and APK verification are complete. An API 33 ARM64 physical-device smoke has also
 verified packaged WebView loading, offline recovery, local/remote HTTP use, lifecycle recovery,
-rotation, and native-back interactions; the broader Android version, navigation-mode, and business
-regression matrix remains to be covered. The newer first-run uninitialized/stopped funnel has JVM
-and frontend coverage but still requires a physical-device smoke.
+the pre-existing rotation flow, and native-back interactions; the Activity is now locked to
+sensorPortrait and that new no-landscape rule still needs physical-device verification. The broader
+Android version, navigation-mode, and business regression matrix remains to be covered. The newer
+first-run uninitialized/stopped funnel has JVM and frontend coverage but still requires a physical-device smoke.
 
 The formal server shell exists under `server/` and starts the shared Axum service from JSON config.

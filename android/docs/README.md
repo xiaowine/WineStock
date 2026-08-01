@@ -32,7 +32,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 
 ## 本地 core 与当前边界
 
-- `WineStockApplication` 在进程级持有一个 `LocalCoreRuntimeManager`；Activity 旋转或页面 reload 不停止本地服务。
+- `WineStockApplication` 在进程级持有一个 `LocalCoreRuntimeManager`；Activity 重建或页面 reload 不停止本地服务。
 - `android/native` 通过 JNI JSON protocol v1 调用 `winestock-core` 统一运行句柄，业务能力仍全部走 WebView HTTP。
 - 权威配置校验来自 `winestock_shared`；Kotlin 只保留 native 无法加载时连接远端所需的最小降级校验。
 - 首次缺少 SharedPreferences 配置时只发布 `initialized=false` 和默认草稿，不创建配置、不启动本地
@@ -46,11 +46,12 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - native library 无法加载时前端与设置页仍可打开，并允许保存/使用远端配置。
 - 为连接局域网明文 HTTP 服务器，已放行 cleartext 与 WebView mixed-content，范围见 `network_security_config.xml` 与代码注释。
 - API 33、三键导航的 ARM64 真机已完成 Debug APK 覆盖安装、JNI 实际加载、`self-hosted` migration、
-  loopback `/api/health`、离线冷启动、远端/本机切换、旋转、后台恢复、force-stop 恢复和原生返回
+  loopback `/api/health`、离线冷启动、远端/本机切换、原有旋转、后台恢复、force-stop 恢复和原生返回
   浮层/路由 smoke；未发现 404、Uncaught 或 FATAL，连接明文 HTTP 远端时出现的 WebView
   mixed-content warning 属于当前安全策略下的预期提示。
-- 其它 API 版本、手势导航、异常注入和完整业务回归仍是剩余覆盖项；JVM、lint、assemble 和本次真机
-  smoke 都不能替代完整矩阵。首次未初始化不启服、选择模式后再 apply 的新漏斗尚未完成真机复验。
+- `MainActivity` 通过 Manifest 的 `sensorPortrait` 锁定竖屏，允许正反竖屏传感器切换但禁止进入横屏；该规则
+  尚需在代表设备上复验。其它 API 版本、手势导航、异常注入和完整业务回归仍是剩余覆盖项；JVM、lint、assemble
+  和本次真机 smoke 都不能替代完整矩阵。首次未初始化不启服、选择模式后再 apply 的新漏斗尚未完成真机复验。
 
 ## 品牌与平台图标
 
@@ -135,7 +136,7 @@ scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 pa
 均使用与前端 `--color-surface` 相同的基色和 70% alpha，保留内容透出且不依赖系统或厂商自动 contrast scrim 的不稳定色差。
 夜间系统资源使用深色 `web_background` 和浅色系统栏图标，使 SplashScreen、Window 与 WebView 空白期先与系统主题一致；前端首帧再接管可能与系统相反的手动偏好。
 应用主题的 `android:isLightTheme` 同样按 day/night 资源切换，使 WebView 的 `prefers-color-scheme` 与系统一致；WebView 算法着色关闭，避免覆盖前端自有的双主题 CSS。
-`MainActivity` 在 Manifest 中只接管 `uiMode` 配置变化，并原地刷新 Window/WebView 背景、系统栏与安全区；随后向保留的页面发送 `winestock:system-theme-refresh`，覆盖部分 WebView 只更新 media query 结果却不派发 `change` 的行为。系统深浅色切换不会销毁 WebView、重载前端或丢失当前路由，手动主题也不会被系统配置覆盖。旋转等其它配置变化仍使用 Android 默认重建行为。
+`MainActivity` 在 Manifest 中锁定 `sensorPortrait`，禁止 Activity 进入横屏；同时只接管 `uiMode` 配置变化，并原地刷新 Window/WebView 背景、系统栏与安全区；随后向保留的页面发送 `winestock:system-theme-refresh`，覆盖部分 WebView 只更新 media query 结果却不派发 `change` 的行为。系统深浅色切换不会销毁 WebView、重载前端或丢失当前路由，手动主题也不会被系统配置覆盖。反向竖屏仍由传感器处理，其它配置变化继续使用 Android 默认重建行为。
 主题联动已在 API 33 三键导航真机覆盖系统浅/深、手动浅/深、图片查看临时系统栏覆盖与关闭恢复，以及 Activity 后台恢复。系统 `uiMode` 双向切换期间 PID、ActivityRecord、WebView 调试 target、当前路由、Dialog 和未提交输入均保持，事件日志没有 Activity create/destroy；测试结束恢复设备原系统模式和应用“跟随系统”偏好。
 
 `MainActivity` 在膨胀静态 WebView 布局前执行 M111 + Shell Bridge 必需 capability 启动门禁，并负责系统入口与 Activity Result 注册；不兼容时使用不依赖 WebView 的原生全屏提示页，只提供手动复检，不从应用跳转商店或系统设置。门禁通过后的组装与业务接线在

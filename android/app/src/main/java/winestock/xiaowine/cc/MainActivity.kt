@@ -21,7 +21,8 @@ import winestock.xiaowine.cc.web.WebViewIncompatibilityReason
 /**
  * WineStock Android shell 的唯一 Activity 入口。
  *
- * 负责 WebView 启动门禁、系统生命周期回调与 [registerForActivityResult] 注册；
+ * Manifest 将 Activity 锁定为 sensorPortrait，禁止进入横屏；本类负责 WebView 启动门禁、
+ * 系统生命周期回调与 [registerForActivityResult] 注册；
  * WebView / Bridge / 安全区 / 文件选择等组装见 [MainShellCoordinator] 与 web、shell 包。
  */
 class MainActivity : ComponentActivity() {
