@@ -8,6 +8,7 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 
 ## Current notes
 
+- `desktop-tauri-shell.md`：正式 Desktop Tauri v2 基础壳、Shell Bridge、进程内 core 生命周期、配置持久化、安全边界与 Windows 最小验收记录（已实施，安装包 smoke 待执行）。
 - `json-config-and-db-auth-settings.md`：同时涉及 shared 配置边界与 core 数据库存储的历史方案。
 - `item-catalog-inventory-monitoring.md`：物品目录实时库存聚合、补货筛选、固定列表格、移动库存项目和多页物品 Dialog 的跨 core/frontend 完整实施方案。
 - `item-catalog-structured-filters.md`：物品目录分类、模板、单位、库位和可搜索模板属性的结构化筛选契约、前端面板与验收方案。

@@ -1,0 +1,24 @@
+[package]
+name = "winestock-desktop"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tauri = { workspace = true }
+tauri-plugin-prevent-default = { workspace = true }
+tauri-plugin-opener = { workspace = true }
+tauri-plugin-single-instance = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }
+rfd = { workspace = true }
+webview2-com = { workspace = true }
+windows = { workspace = true }
+winestock-core = { workspace = true }
+winestock-shared = { workspace = true }

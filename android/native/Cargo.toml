@@ -1,12 +1,12 @@
 [package]
-name = "winestock-android-native"
+name = "winestock-android"
 version.workspace = true
 edition.workspace = true
 publish = false
 
 [lib]
 # Android 只打包 cdylib；rlib 用于宿主机 contract/config 单元测试。
-name = "winestock_android_native"
+name = "winestock_android"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 

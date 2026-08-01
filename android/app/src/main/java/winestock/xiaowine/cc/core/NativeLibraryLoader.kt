@@ -47,6 +47,6 @@ class NativeLibraryLoader(
     }
 
     private companion object {
-        const val LIBRARY_NAME = "winestock_android_native"
+        const val LIBRARY_NAME = "winestock_android"
     }
 }

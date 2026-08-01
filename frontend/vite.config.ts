@@ -6,6 +6,7 @@ import { compression } from "vite-plugin-compression2";
 import packageJson from "./package.json" with { type: "json" };
 
 const ANDROID_MODE = "android";
+const DESKTOP_MODE = "desktop";
 const ANDROID_OUTPUT_ENV = "WINESTOCK_FRONTEND_OUT_DIR";
 
 // 前端发布阶段徽标文案来自 package.json `appStage`，发行时改字段即可；空串/缺省则不展示。
@@ -16,6 +17,41 @@ const sharedDefine = {
 };
 
 export default defineConfig(({ mode }) => {
+  if (mode === DESKTOP_MODE) {
+    const desktopHost = process.env.TAURI_DEV_HOST?.trim();
+    return {
+      base: "/",
+      envDir: false,
+      clearScreen: false,
+      define: {
+        ...sharedDefine,
+        "import.meta.env.VITE_CLIENT_KIND": JSON.stringify("desktop"),
+        "import.meta.env.VITE_DEVICE_NAME": JSON.stringify("WineStock Desktop"),
+        "import.meta.env.VITE_APP_VERSION": JSON.stringify(
+          process.env.TAURI_ENV_APP_VERSION?.trim() || "development",
+        ),
+      },
+      plugins: [vue()],
+      server: {
+        host: desktopHost || "127.0.0.1",
+        port: 1420,
+        strictPort: true,
+        hmr: desktopHost
+          ? {
+              protocol: "ws",
+              host: desktopHost,
+              port: 1421,
+            }
+          : undefined,
+      },
+      build: {
+        target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
+        minify: process.env.TAURI_ENV_DEBUG ? false : true,
+        sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
+      },
+    };
+  }
+
   if (mode !== ANDROID_MODE) {
     return {
       define: sharedDefine,

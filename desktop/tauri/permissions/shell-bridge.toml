@@ -1,0 +1,13 @@
+[[permission]]
+identifier = "allow-shell-bridge"
+description = "允许 WineStock 主窗口调用版本化运行配置与本地服务命令。"
+commands.allow = [
+  "shell_get_runtime_snapshot",
+  "shell_validate_runtime_config",
+  "shell_apply_runtime_config",
+  "shell_start_local_service",
+  "shell_stop_local_service",
+  "shell_restart_local_service",
+  "shell_frontend_ready",
+  "shell_open_external",
+]

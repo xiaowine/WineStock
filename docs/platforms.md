@@ -42,9 +42,16 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
 
 当前状态：
 
-- 正式 Tauri Shell 尚未实现；
-- `desktop/tauri` 尚不存在；
-- `desktop/` 下现有普通 Rust 脚手架不是正式桌面架构。
+- 正式 Tauri v2 Shell 位于 `desktop/tauri`，是 Cargo 工作区成员并优先交付 Windows；
+- 主窗口加载 Tauri 打包的 `frontend/dist`，通过具名 command/event 提供 Shell Bridge v1；
+- `DesktopRuntimeManager` 在 app data 目录管理配置、SQLite/文件路径与 `RunningLocalService`，首次无配置保持 stopped，
+  有效本地配置在后台恢复，local/remote 切换与退出均停止旧服务；
+- `tauri-plugin-single-instance` 保证桌面进程单实例；后续启动只聚焦首个主窗口，不向其转交参数、工作目录或 URL，
+  后续实例随后退出；`tauri-plugin-prevent-default` 仅在 Release 禁用 WebView2 默认快捷键，Debug 保留默认快捷键；
+- Windows Desktop 在显示主窗口前调用 WebView2 官方 Loader API 检查 Evergreen Runtime 主版本不低于 M111；不满足时不加载
+  前端、不启动本地服务，通过 `rfd` 原生错误对话框提示升级后退出；安装器同步使用 `minimumWebview2Version=111.0.0.0`。macOS/Linux
+  使用系统 WebKit，待接入对应原生版本 API 后再启用同一门禁。
+- `server-mode`、原生返回、托盘和跨平台安装包仍由 capability 禁用或留待后续设计；Windows 安装包 smoke 尚待执行。
 
 ## Android
 

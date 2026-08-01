@@ -32,7 +32,7 @@ APK 与 Server Release 二进制均未检出 `/swagger-ui`、`Swagger UI:`、
 
 | 内容                                           |       APK 中大小 | 占 APK |
 | ---------------------------------------------- | ---------------: | -----: |
-| `lib/arm64-v8a/libwinestock_android_native.so` | 10,634,528 bytes |  85.9% |
+| `lib/arm64-v8a/libwinestock_android.so` | 10,634,528 bytes |  85.9% |
 | `resources.arsc`                               |    671,288 bytes |   5.4% |
 | Dex（压缩后）                                  |    435,624 bytes |   3.5% |
 | 前端 69 个文件（压缩后）                       |    277,065 bytes |   2.2% |

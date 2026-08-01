@@ -6,8 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:desktop": "vite --mode desktop",
     "build": "vue-tsc -b && vite build",
     "build:android": "vue-tsc -b && vite build --mode android",
+    "build:desktop": "vue-tsc -b && vite build --mode desktop",
+    "desktop:dev": "cd /d ..\\desktop\\tauri && ..\\..\\frontend\\node_modules\\.bin\\tauri.cmd dev",
+    "desktop:build": "cd /d ..\\desktop\\tauri && ..\\..\\frontend\\node_modules\\.bin\\tauri.cmd build",
     "preview": "vite preview",
     "test:lan-access": "node --test tests/lanAccess.test.mjs",
     "test:native-back": "node --test tests/nativeBackCore.test.mjs",
@@ -27,21 +31,23 @@
   },
   "dependencies": {
     "@microsoft/clarity": "^1.0.2",
-    "vue": "^3.5.39",
-    "vue-router": "^5.1.0",
+    "@tauri-apps/api": "^2.11.1",
+    "vue": "^3.5.40",
+    "vue-router": "^5.2.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zxing-wasm": "^3.1.2"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^24.13.2",
-    "@vitejs/plugin-vue": "^6.0.7",
+    "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
     "openapi-typescript": "^7.13.0",
-    "prettier": "3.9.5",
+    "prettier": "3.9.6",
     "sass-embedded": "1.100.0",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1",
+    "vite": "^8.2.0",
     "vite-plugin-compression2": "^2.5.3",
-    "vue-tsc": "^3.3.5"
+    "vue-tsc": "^3.3.9"
   }
 }

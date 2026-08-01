@@ -2,7 +2,7 @@
 
 `android` 是 Android 原生 shell，拥有 Activity 生命周期、WebView、打包前端资源加载和 Shell Bridge 传输实现。
 它通过 HTTP 使用 core，通过 Shell Bridge 交换运行配置和服务状态，不拥有业务 API、不复制 core 业务实现，也不把业务 UI 托管给 Axum。
-当前实现范围是**打包前端 + Application 级本地 core + 远端降级**：默认可在进程内启动共享 Axum/core，权威配置校验来自 `android/native -> winestock_shared`；native library 不可用时仍能打开设置页并连接远端。
+当前实现范围是**打包前端 + Application 级本地 core + 远端降级**：默认可在进程内启动共享 Axum/core，权威配置校验来自 `winestock-android -> winestock_shared`；native library 不可用时仍能打开设置页并连接远端。
 逐文件职责以各源码文件注释为准；本地图记录模块所有权、边界和跨层流程。
 
 ## 工程与构建（`android/*.gradle.kts`、`buildSrc/`）

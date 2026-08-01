@@ -207,7 +207,7 @@
 
 ## 实际验收记录
 
-- Rust：`cargo test -p winestock-shared`、`cargo test -p winestock-android-native --lib` 通过。
+- Rust：`cargo test -p winestock-shared`、`cargo test -p winestock-android --lib` 通过。
 - Core：`cargo test -p winestock-core local_service` 通过，动态端口、端口冲突和关闭释放路径共 4 项测试通过。
 - Android JVM：`:app:testDebugUnitTest` 通过，当前覆盖首次未初始化不启服、apply 后自动分配、固定端口冲突回退、保存失败恢复、`server-mode` 不重试和运行地址不变量。
 - 前端：`pnpm run build`、`pnpm run test:lan-access`、`pnpm run test:native-back` 通过。

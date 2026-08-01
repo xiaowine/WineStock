@@ -22,7 +22,8 @@ Initial Rust crates:
 Current additional Rust crate:
 
 - package `winestock-server`, binary/library crate `winestock_server`
-- package `winestock-android-native`, library crate `winestock_android_native`
+- package `winestock-android`, library crate `winestock_android`
+- package `winestock-desktop`, binary/library crate `winestock_desktop`
 
 ## Naming Rules
 
@@ -107,7 +108,7 @@ members = [
 ]
 ```
 
-Add desktop Tauri Rust crates or other platform crates as workspace members only when those crates exist. The Android JNI bridge now exists as `android/native` and is a current member.
+`desktop/tauri` 已作为正式 Tauri v2 crate 加入 workspace；Android JNI bridge `android/native` 也是当前成员。
 
 Current workspace dependencies:
 
@@ -124,6 +125,11 @@ Current workspace dependencies:
 - `sha2`
 - `sqlx`
 - `tempfile`
+- `tauri`
+- `tauri-build`
+- `tauri-plugin-opener`
+- `tauri-plugin-prevent-default`
+- `tauri-plugin-single-instance`
 - `tokio`
 - `tower`
 - `utoipa`
@@ -216,7 +222,7 @@ Do not copy its build output into `core` or any shared Rust crate.
 The existing `frontend` scaffold currently uses Vue and Vite.
 This records the current files only; it does not make Vue a required product architecture choice.
 
-Any existing plain Rust project under `desktop/` is not a workspace member and is not the formal Tauri shell.
-Convert or replace it only when implementing `desktop/tauri`.
+`desktop/tauri` 是正式 Tauri shell，Cargo package 为 `winestock-desktop`；它负责窗口、前端资源打包、
+版本化 Shell Bridge、平台配置与本地 core 生命周期。顶层旧普通 Rust 脚手架已经移除，不作为正式架构保留。
 
 The `server/` directory is now the formal headless server shell crate.

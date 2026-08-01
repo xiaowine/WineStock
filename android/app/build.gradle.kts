@@ -179,7 +179,7 @@ androidComponents {
                 ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
                 cargoExecutable.set("cargo")
                 cargoNdkVersion.set("4.1.2")
-                cargoPackage.set("winestock-android-native")
+                cargoPackage.set("winestock-android")
                 targetAbi.set("arm64-v8a")
                 minApi.set(26)
                 release.set(variant.buildType == "release")
@@ -212,7 +212,7 @@ androidComponents {
                 inputDirectory.set(buildRustNativeLibraries.flatMap { it.outputDirectory })
                 ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
                 targetAbi.set("arm64-v8a")
-                libraryFileName.set("libwinestock_android_native.so")
+                libraryFileName.set("libwinestock_android.so")
                 buildProfile.set(if (variant.buildType == "release") "release" else "debug")
                 expectedJniSymbols.set(
                     listOf(
@@ -279,7 +279,7 @@ androidComponents {
                     },
                 )
                 targetAbi.set("arm64-v8a")
-                libraryFileName.set("libwinestock_android_native.so")
+                libraryFileName.set("libwinestock_android.so")
                 buildProfile.set(if (variant.buildType == "release") "release" else "debug")
                 reportFile.set(
                     layout.buildDirectory.file(

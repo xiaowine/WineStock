@@ -316,7 +316,7 @@ cargo +stable test --workspace --locked
 ### 平台交付
 
 ```text
-cargo ndk -t arm64-v8a -P 28 check -p winestock-android-native --locked
+cargo ndk -t arm64-v8a -P 28 check -p winestock-android --locked
 cd android
 gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --no-daemon
 ```
@@ -359,7 +359,7 @@ cargo +stable test --workspace --locked                          # 145 passed
 cargo +stable tree --workspace -d --locked --offline
 cargo +stable tree --workspace -e features --locked --offline
 cargo +stable build -p winestock-server --release --locked
-cargo ndk -t arm64-v8a -P 28 check -p winestock-android-native --locked
+cargo ndk -t arm64-v8a -P 28 check -p winestock-android --locked
 gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --no-daemon
 ```
 

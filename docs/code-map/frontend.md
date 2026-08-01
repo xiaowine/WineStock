@@ -7,7 +7,7 @@
 
 ## 工程入口与启动
 
-- `frontend/package.json`、`vite.config.ts`、`public/`：pnpm 脚本、Web/Android 双构建模式、Node test runner 纯逻辑测试入口及从根 `brand/` 母版派生的 favicon；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest，不固定 Node/pnpm 版本；package.json `appStage` 字段经 define 注入为品牌阶段徽标常量（Web/Android 双模式一致，空串时应用壳徽标隐藏）。
+- `frontend/package.json`、`vite.config.ts`、`public/`：pnpm 脚本、Web/Android/Desktop 三构建模式、Node test runner 纯逻辑测试入口及从根 `brand/` 母版派生的 favicon；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest；Desktop mode 只在 Tauri 开发/打包时选择其 IPC 适配且不影响普通 Web fallback；不固定 Node/pnpm 版本。package.json `appStage` 字段经 define 注入为品牌阶段徽标常量（各模式一致，空串时应用壳徽标隐藏）。
 - `frontend/src/main.ts` 与 `src/bootstrap/`：在任何异步启动工作前初始化主题，再初始化 Shell 运行快照和动态 API 地址；随后按需启动健康检查、会话恢复、跨标签页同步、浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
 - `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
 - `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。
@@ -19,7 +19,7 @@
 
 ## Shell 运行时与服务可用性
 
-- `frontend/src/shell/`：Shell Bridge v1 契约与运行时结构校验（不能只信任 TypeScript 静态类型）、平台桥/Web fallback 选择（不判断 User-Agent）、版本化 localStorage Web 配置、响应式运行快照编排和局域网地址派生；`systemChrome.ts` 独立协调主题系统栏基线与图片查看临时覆盖，不进入 Shell Bridge 业务契约。收到不兼容快照时保留设置页并进入可修复失败态。
+- `frontend/src/shell/`：Shell Bridge v1 契约与运行时结构校验（不能只信任 TypeScript 静态类型）、Android 注入桥、Tauri `invoke`/event 适配和 Web fallback 的明确传输选择（不判断 User-Agent）、版本化 localStorage Web 配置、响应式运行快照编排和局域网地址派生；`systemChrome.ts` 独立协调主题系统栏基线与图片查看临时覆盖，不进入 Shell Bridge 业务契约。收到不兼容快照时保留设置页并进入可修复失败态。
 - `frontend/src/service/availability.ts`：独立于登录状态的服务健康探测、断连/恢复节奏和窗口焦点补检；API 地址变化时取消旧探测。
 - `frontend/src/api/runtime-config.ts`：动态 API 根地址与登录客户端元数据；禁止把全接口监听地址作为访问地址。
 
@@ -95,6 +95,6 @@
 
 ## 平台边界
 
-- `desktop/` 当前不是正式 Tauri shell，也不属于 Cargo 工作区。
-- 正式 Desktop/Android shell 应在前端挂载前注入运行时 API 地址和客户端元数据。
-- 不要从当前脚手架推断最终平台包名、WebView 协议或资源目录。
+- `desktop/tauri` 是正式 Tauri shell 与 Cargo 工作区成员；前端仅通过其受限 Shell Bridge 请求运行配置和生命周期，不直接调用 Rust 业务方法。
+- Desktop/Android shell 在前端挂载前提供 Shell Bridge；前端按快照而非注入地址猜测 API 运行状态。
+- 不要从平台壳推断其它平台的包名、WebView 协议或资源目录。

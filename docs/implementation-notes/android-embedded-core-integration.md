@@ -23,7 +23,7 @@ Android 引入 `core` 的正确方式不是让 Kotlin 直接调用 Rust 业务�
 ```text
 Android Kotlin Shell
   -> 具名 JNI 生命周期接口
-  -> winestock-android-native（Android/Rust 适配层）
+  -> winestock-android（Android/Rust 适配层）
   -> winestock-core
   -> winestock-shared
 
@@ -207,16 +207,16 @@ android/native/
 
 ```toml
 [package]
-name = "winestock-android-native"
+name = "winestock-android"
 
 [lib]
-name = "winestock_android_native"
+name = "winestock_android"
 crate-type = ["cdylib", "rlib"]
 ```
 
 其中：
 
-- `cdylib` 产出 Android 加载的 `libwinestock_android_native.so`。
+- `cdylib` 产出 Android 加载的 `libwinestock_android.so`。
 - `rlib` 仅用于宿主机单元/集成测试；若最终测试结构不需要，可只保留 `cdylib`。
 - `engine.rs`、`contract.rs` 和配置映射尽量保持宿主机可测试。
 - 只有 `ffi.rs` 和 Android 日志初始化使用 `cfg(target_os = "android")`。
@@ -241,7 +241,7 @@ members = [
 - 具名 JNI 方法更容易限制能力并做包级验证。
 - `core` 与 `shared` 可以继续保持 `#![forbid(unsafe_code)]` 和平台无关。
 
-JNI/FFI 是 Android 平台边界，必须只存在于 `winestock-android-native`。该 crate 建议使用：
+JNI/FFI 是 Android 平台边界，必须只存在于 `winestock-android`。该 crate 建议使用：
 
 ```rust
 #![deny(unsafe_op_in_unsafe_fn)]
@@ -442,7 +442,7 @@ internal object NativeCoreBridge {
 - 不传递 Rust 对象、数据库连接、Java callback 或业务 DTO。
 - 每个方法只有一个明确职责。
 - `@Keep` 防止未来开启 R8 后类名或 native method 被改写。
-- `System.loadLibrary()` 使用名称 `winestock_android_native`，不包含 `lib` 和 `.so`。
+- `System.loadLibrary()` 使用名称 `winestock_android`，不包含 `lib` 和 `.so`。
 
 ### 7.4 native 协议版本
 
@@ -972,7 +972,7 @@ cargo ndk \
   -t arm64-v8a \
   -P 26 \
   -o <debug-generated-jniLibs> \
-  build -p winestock-android-native --locked --offline
+  build -p winestock-android --locked --offline
 ```
 
 Release：
@@ -982,14 +982,14 @@ cargo ndk \
   -t arm64-v8a \
   -P 26 \
   -o <release-generated-jniLibs> \
-  build -p winestock-android-native --release --locked --offline
+  build -p winestock-android --release --locked --offline
 ```
 
 输出：
 
 ```text
 <generated-jniLibs>/
-  arm64-v8a/libwinestock_android_native.so
+  arm64-v8a/libwinestock_android.so
 ```
 
 ### 14.4 Gradle 任务图
@@ -1050,7 +1050,7 @@ Android/Google Maven 依赖、Gradle distribution 和 NDK 同样应在可联网�
 
 ```text
 APK:
-  lib/arm64-v8a/libwinestock_android_native.so
+  lib/arm64-v8a/libwinestock_android.so
 ```
 
 Release 流水线还应保存与 APK 精确对应的 native symbols，供本地 tombstone 和崩溃日志解析使用。
@@ -1230,13 +1230,13 @@ cargo +stable check -p winestock-core
 cargo +stable test -p winestock-core
 cargo +stable check -p winestock-server
 cargo +stable test -p winestock-server
-cargo +stable test -p winestock-android-native
+cargo +stable test -p winestock-android
 ```
 
 跨 target：
 
 ```text
-cargo ndk -t arm64-v8a -P 26 check -p winestock-android-native --locked
+cargo ndk -t arm64-v8a -P 26 check -p winestock-android --locked
 ```
 
 由于新增 workspace member、公共 API 和依赖 features，最终还应执行一次 workspace 级完整检查。
@@ -1366,7 +1366,7 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-android-native --locked
 - `ShellBridgeHost` 已异步化并增加页面 generation 防护；原生返回 broker/fallback 保持原行为。
 - Gradle 已固定 NDK `30.0.14904198`、`cargo-ndk 4.1.2`、唯一 ABI `arm64-v8a`。
 - Debug 使用 Cargo debug profile；Release 明确使用 `cargo ndk ... --release`，因此
-  `winestock-android-native -> winestock-core -> winestock-shared` 整条依赖链均按 release profile 编译。
+  `winestock-android -> winestock-core -> winestock-shared` 整条依赖链均按 release profile 编译。
 - `utoipa-swagger-ui` 作为可选 feature 供 Debug 使用；Release core 不注册 UI 或 OpenAPI JSON 路由，
   最终 `.so` 与 APK 不编译、链接或打包 Swagger UI 静态资源。
 - 当前只存在 APK 包级验证，不存在自定义 AAB 校验或 bundle 挂钩。
@@ -1395,7 +1395,7 @@ gradlew.bat :app:assembleRelease                       # passed, profile=release
 两个 APK 均通过最终归档检查，目标路径为：
 
 ```text
-lib/arm64-v8a/libwinestock_android_native.so
+lib/arm64-v8a/libwinestock_android.so
 ```
 
 ### 22.3 已完成的 API 33 真机 smoke

@@ -120,7 +120,7 @@ abstract class RustNativeBuildTask @Inject constructor(
         }
         runCargo(arguments, repositoryRoot)
 
-        val library = outputRoot.resolve("${targetAbi.get()}/libwinestock_android_native.so")
+        val library = outputRoot.resolve("${targetAbi.get()}/libwinestock_android.so")
         if (!library.isFile || library.length() <= 0L) {
             throw GradleException("cargo-ndk 未生成 ${library.path}")
         }

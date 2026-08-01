@@ -82,7 +82,7 @@ cargo +stable test -p winestock-core --locked                         # 122 pass
 cargo +stable check --workspace --all-targets --locked
 cargo +stable test --workspace --locked                               # 146 passed
 cargo +stable build -p winestock-server --release --locked
-cargo ndk -t arm64-v8a -P 28 check -p winestock-android-native --locked
+cargo ndk -t arm64-v8a -P 28 check -p winestock-android --locked
 gradlew.bat :app:testDebugUnitTest :app:assembleDebug --no-daemon --no-parallel
 gradlew.bat :app:assembleRelease --no-daemon --no-parallel
 ```

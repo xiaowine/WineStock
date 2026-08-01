@@ -1,0 +1,52 @@
+# Desktop Tauri Shell 文档
+
+`desktop/tauri` 是 WineStock 正式的 Windows 优先 Tauri v2 桌面壳。它拥有窗口、打包前端资源、
+Shell Bridge 传输、运行配置的本地持久化以及 `winestock_core` 本地服务生命周期；不拥有原生设置 UI，
+也不代理任何业务 HTTP 请求。
+
+## 运行与构建
+
+在 `frontend/` 执行：
+
+```text
+pnpm desktop:dev
+pnpm desktop:build
+```
+
+Tauri 开发态使用 Vite 的 `desktop` mode；发布构建将同一份 `frontend/dist` 打包进应用，主窗口不会导航到
+Axum 或远端 API 地址。
+
+Windows `x86_64-pc-windows-msvc` 目标沿用默认 Rust 链接方式；`core` 和 desktop 壳不会以 DLL 形式交付。
+当前 Rustls/AWS-LC 版本链与 KeyWine 对齐，避免额外的 VC++ runtime 文件依赖。Tauri 仍使用 Windows
+已安装的 WebView2 Runtime，这是 WebView 宿主组件而不是 Rust 动态库。
+
+Windows 发布只生成 NSIS。NSIS 使用 Tauri 的 `downloadBootstrapper` WebView2 安装模式；目标机器缺少
+WebView2 Runtime 时，安装器会联网下载并执行 Microsoft WebView2 bootstrapper。安装器内置 English 和
+SimpChinese，默认按 Windows 系统语言自动选择；需要显示语言选择框时，把 `displayLanguageSelector` 改为
+`true`。离线安装需要另行切换为 `offlineInstaller` 或固定运行时并重新评估安装包体积。
+
+桌面壳使用 `tauri-plugin-single-instance` 保证只运行一个进程。再次启动时只恢复、取消最小化并聚焦
+首个实例的主窗口；第二个实例的参数、工作目录和 URL 均不会转交，插件会关闭第二个实例。默认 WebView
+快捷键由 `tauri-plugin-prevent-default` 控制：Debug 使用 `debug()` 保留调试快捷键，Release 使用 `init()`
+禁用 WebView2 默认快捷键。
+
+Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询实际 Evergreen Runtime 版本（复用 Tauri/Wry 的静态 Loader 绑定），
+最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。版本缺失或低于
+M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过跨平台 `rfd` 原生错误对话框提示升级后退出。
+安装器的 `minimumWebview2Version` 同样设置为 `111.0.0.0`，用于安装/更新阶段拦截不满足要求的运行时。
+
+本地运行配置保存于 Tauri 的 `app_data_dir/config.json`。配置、数据库和文件目录均由本壳管理，绝对路径
+不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际
+端口并由 `DesktopRuntimeManager` 持有 `RunningLocalService` 至停止、替换或退出。
+
+## 验证入口
+
+```text
+cargo test -p winestock-desktop
+cd frontend && pnpm run build:desktop
+cd frontend && pnpm run test:runtime-funnel
+cd frontend && pnpm run test:availability-policy
+```
+
+Windows 发布验证还应执行 `pnpm desktop:build`，安装生成的 NSIS 后检查 WebView2 缺失时的在线安装、离线资源加载、
+首次设置、local/remote 切换和退出释放端口。

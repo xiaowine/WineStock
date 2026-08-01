@@ -73,7 +73,9 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - 当前唯一 ABI 为 `arm64-v8a`，`minSdk/API` 为 28；不生成 32 位 ARM、x86 或 x86_64。
 - `build<Variant>RustNativeLibraries` 使用预先准备的 `cargo-ndk 4.1.2` 和 NDK `30.0.14904198`，
   以 `--locked --offline` 构建；Debug 使用 Cargo debug profile，Release 使用 `--release`，因此
-  `winestock-android-native -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
+  `winestock-android -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
+- Android 适配 crate 的 package/library 名称统一为 `winestock-android` / `winestock_android`，最终加载文件为
+  `libwinestock_android.so`；`android/native` 仍是该 JNI 适配层的源码目录。
 - 工作区 Release profile 启用 fat LTO，并显式关闭 Cargo strip；最终 Android `.so` 的符号处理仍由
   Android Gradle Plugin/NDK 打包流程负责。
 - Debug 构建启用 `debug-swagger-ui` feature 并使用 vendored Swagger UI 资源；Release 不启用该 feature，
