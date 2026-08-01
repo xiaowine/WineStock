@@ -53,18 +53,10 @@ fn main() {
         .setup(|app| {
             let webview = webview_compatibility::check();
             if !webview.supported {
-                let detected = webview.version.as_deref().unwrap_or("未检测到");
-                let required = webview_compatibility::MINIMUM_WEBVIEW2_VERSION
-                    .iter()
-                    .map(u32::to_string)
-                    .collect::<Vec<_>>()
-                    .join(".");
                 MessageDialog::new()
                     .set_level(MessageLevel::Error)
                     .set_title("WineStock 无法启动")
-                    .set_description(format!(
-                        "WebView2 版本不满足要求（当前：{detected}，要求：{required}）。请升级 WebView2 Runtime 后重试。"
-                    ))
+                    .set_description("WineStock 依赖损坏，请重新安装软件后重试。")
                     .set_buttons(MessageButtons::Ok)
                     .show();
                 std::process::exit(1);
@@ -84,19 +76,16 @@ fn main() {
             tauri::async_runtime::block_on(manager.initialize());
             let snapshot = tauri::async_runtime::block_on(manager.snapshot());
 
-            let _main_window = WebviewWindowBuilder::new(
-                app,
-                "main",
-                WebviewUrl::App("index.html".into()),
-            )
-            .title("WineStock")
-            .inner_size(1280.0, 800.0)
-            .min_inner_size(760.0, 560.0)
-            .resizable(true)
-            .center()
-            .visible(false)
-            .build()
-            .map_err(|error| format!("无法创建 WineStock 主窗口：{error}"))?;
+            let _main_window =
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                    .title("WineStock")
+                    .inner_size(1280.0, 800.0)
+                    .min_inner_size(760.0, 560.0)
+                    .resizable(true)
+                    .center()
+                    .visible(false)
+                    .build()
+                    .map_err(|error| format!("无法创建 WineStock 主窗口：{error}"))?;
             let _ = app.emit(RUNTIME_STATE_CHANGED_EVENT, snapshot);
             DesktopRuntimeManager::spawn_monitor(manager);
             let _ = APP_HANDLE.set(app.handle().clone());

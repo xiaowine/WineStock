@@ -32,7 +32,7 @@ SimpChinese，默认按 Windows 系统语言自动选择；需要显示语言选
 
 Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询实际 Evergreen Runtime 版本（复用 Tauri/Wry 的静态 Loader 绑定），
 最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。版本缺失或低于
-M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过跨平台 `rfd` 原生错误对话框提示升级后退出。
+M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过跨平台 `rfd` 原生错误对话框提示依赖损坏，要求重新安装软件后退出。
 安装器的 `minimumWebview2Version` 同样设置为 `111.0.0.0`，用于安装/更新阶段拦截不满足要求的运行时。
 
 本地运行配置保存于 Tauri 的 `app_data_dir/config.json`。配置、数据库和文件目录均由本壳管理，绝对路径

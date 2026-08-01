@@ -232,7 +232,7 @@ Tauri Windows release build and installed-app smoke
 - Linux Tauri 使用 WebKitGTK，版本为 WebKitGTK 库版本（例如 `2.x`），也不能直接换算为 Chromium M 版本。
 
 Windows 门禁在创建主窗口前调用 WebView2 官方 Loader API；低版本不创建 WebView、不加载前端、不启动 core，
-通过 `rfd` 显示跨平台原生错误对话框后退出。macOS/Linux 后续应分别接入 WKWebView/WebKitGTK 原生版本 API，
+通过 `rfd` 显示“依赖损坏，请重新安装软件”的跨平台原生错误对话框后退出。macOS/Linux 后续应分别接入 WKWebView/WebKitGTK 原生版本 API，
 再复用相同的 `supported` 判定边界。
 
 ## 12. 参考依据
