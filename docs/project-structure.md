@@ -108,7 +108,7 @@ members = [
 ]
 ```
 
-`desktop/tauri` 已作为正式 Tauri v2 crate 加入 workspace；Android JNI bridge `android/native` 也是当前成员。
+`desktop` 已作为正式 Tauri v2 crate 加入 workspace；Android JNI bridge `android/native` 也是当前成员。
 
 Current workspace dependencies:
 
@@ -182,7 +182,7 @@ Current `core` HTTP surface:
 `shared` owns the shared runtime configuration model, platform-neutral startup contracts, and primitive text validation helpers.
 It must not depend on `core`, Axum, Tauri, Android shell code, or frontend build output.
 
-`desktop/tauri` owns the Tauri v2 desktop shell.
+`desktop` owns the Tauri v2 desktop shell.
 It starts or connects to `core` based on config, packages desktop frontend assets through Tauri, and implements the desktop transport for the versioned Shell Bridge.
 It does not own a native settings UI; the shared frontend reads and applies runtime configuration through the bridge.
 
@@ -222,7 +222,7 @@ Do not copy its build output into `core` or any shared Rust crate.
 The existing `frontend` scaffold currently uses Vue and Vite.
 This records the current files only; it does not make Vue a required product architecture choice.
 
-`desktop/tauri` 是正式 Tauri shell，Cargo package 为 `winestock-desktop`；它负责窗口、前端资源打包、
+`desktop` 是正式 Tauri shell，Cargo package 为 `winestock-desktop`；它负责窗口、前端资源打包、
 版本化 Shell Bridge、平台配置与本地 core 生命周期。顶层旧普通 Rust 脚手架已经移除，不作为正式架构保留。
 
 The `server/` directory is now the formal headless server shell crate.

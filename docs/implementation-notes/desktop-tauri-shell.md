@@ -1,13 +1,13 @@
 # Desktop Tauri Shell 基础实施方案
 
 > 文档状态：已实施（Windows 安装包 smoke 待执行）  
-> 涉及组件：`desktop/tauri`、`frontend`、`core`、`shared`  
+> 涉及组件：`desktop`、`frontend`、`core`、`shared`
 > 编制日期：2026-07-31  
 > 实施范围：Windows 优先的 Tauri v2 基础桌面壳
 
 ## 1. 目标
 
-建立正式的 `desktop/tauri`，复用现有 Vue/Vite 前端、Shell Bridge v1 和
+建立正式的 `desktop`，复用现有 Vue/Vite 前端、Shell Bridge v1 和
 `winestock_core::start_local_service()`，完成以下基础能力：
 
 - 打包并加载 `frontend/dist`，不让 Axum 托管前端资源。
@@ -42,7 +42,7 @@ Tauri WebView
   -> 通过 @tauri-apps/api 调用 Shell Bridge command
   -> 通过 HTTP 调用本地或远端 Axum 业务 API
 
-desktop/tauri
+desktop
   -> 持久化运行配置
   -> 管理 RunningLocalService
   -> 发布 RuntimeSnapshot 事件
@@ -58,7 +58,7 @@ Desktop Shell 直接依赖 `core` 和 `shared`。`core` 不得依赖 Tauri，也
 正式目录使用：
 
 ```text
-desktop/tauri/
+desktop/
   Cargo.toml
   build.rs
   tauri.conf.json
@@ -178,7 +178,7 @@ Vite 增加明确的 desktop 构建模式来选择该适配层；普通浏览器
 
 ## 10. 实施顺序
 
-1. 创建 `desktop/tauri` crate、Tauri 配置、图标和最小窗口，接入 Cargo workspace。
+1. 创建 `desktop` crate、Tauri 配置、图标和最小窗口，接入 Cargo workspace。
 2. 接入 Vite 开发与生产构建，确认离线加载打包前端。
 3. 实现 Desktop runtime manager、配置读取和首次未初始化快照。
 4. 实现 Shell Bridge command、事件和前端 Tauri 适配层。

@@ -1,6 +1,6 @@
 //! Desktop 进程级运行状态、配置持久化与本地 Axum 生命周期。
 //!
-//! 本模块属于 `desktop/tauri` 壳，只通过 `winestock_core` 启动/停止共享服务，
+//! 本模块属于 `desktop` 壳，只通过 `winestock_core` 启动/停止共享服务，
 //! 不复制 core 的业务实现，也不直接代理 HTTP 请求。
 
 use std::{

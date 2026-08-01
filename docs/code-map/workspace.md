@@ -5,7 +5,7 @@
 ## 当前范围与根目录
 
 WineStock 的正式产品目标是多平台，当前 Rust 实现范围是 server/API 优先。
-Cargo 工作区成员：`android/native`、`core`、`desktop/tauri`、`server`、`shared`。
+Cargo 工作区成员：`android/native`、`core`、`desktop`、`server`、`shared`。
 
 - `AGENTS.md`：全项目 agent 操作入口，导航到跨组件规范、领域文档、代码地图和完成检查清单。
 - `Cargo.toml`/`Cargo.lock`：工作区成员、共享依赖版本、Release profile 和锁文件；Release profile
@@ -16,7 +16,7 @@ Cargo 工作区成员：`android/native`、`core`、`desktop/tauri`、`server`�
 - `core/`、`shared/`、`server/`：共享 Rust/Axum 服务库、平台无关配置 crate 和无头服务端 shell；各自的 `docs/` 拥有组件实现文档（core 业务 API 文档入口为 `core/docs/business-api.md`）。
 - `frontend/`：共享前端源码和 pnpm 工程，不由 Axum 服务；`frontend/docs/` 拥有前端规范与页面文档。
 - `android/`：正式原生 WebView shell；其中 `android/native` 是唯一 JNI Rust 适配 crate。
-- `desktop/tauri`：正式 Tauri v2 桌面 shell，负责 Windows 窗口、打包前端、受限 Shell Bridge 与本地 core 生命周期。
+- `desktop`：正式 Tauri v2 桌面 shell，负责 Windows 窗口、打包前端、受限 Shell Bridge 与本地 core 生命周期。
 
 ## 工作区依赖方向
 
@@ -27,8 +27,8 @@ server -> core -> shared
 server -> shared
 android/native -> core -> shared
 android app -> packaged frontend assets + android/native
-desktop/tauri -> core -> shared
-desktop/tauri -> packaged frontend assets
+desktop -> core -> shared
+desktop -> packaged frontend assets
 frontend -> HTTP API
 frontend/android/future shells -> brand vector masters (build-time derivation only)
 ```

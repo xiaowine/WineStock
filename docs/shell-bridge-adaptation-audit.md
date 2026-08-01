@@ -29,7 +29,7 @@ frontend/src/shell/contract.ts   v1 逻辑契约、快照校验、能力判断
         │
         ├── frontend/src/shell/transports/tauri.ts
         │      └── Tauri invoke/listen
-        │             └── desktop/tauri/src/commands.rs
+        │             └── desktop/src/commands.rs
         │                    └── DesktopRuntimeManager
         │
         ├── android/app/src/main/assets/shell/android-transport.js
@@ -76,8 +76,8 @@ Shell Bridge 只负责运行配置、服务生命周期、运行快照、平台�
 
 ### Desktop/Tauri 独立能力
 
-- `desktop/tauri/src/webview_compatibility.rs`：调用 WebView2 Loader 官方 API 做 M111 版本门禁。
-- `desktop/tauri/src/main.rs`：窗口创建、隐藏/显示、单实例聚焦、退出时等待 Core 关闭。
+- `desktop/src/webview_compatibility.rs`：调用 WebView2 Loader 官方 API 做 M111 版本门禁。
+- `desktop/src/main.rs`：窗口创建、隐藏/显示、单实例聚焦、退出时等待 Core 关闭。
 - `tauri-plugin-single-instance`：第二实例聚焦首实例并退出，不向桥转发参数或 URL。
 - `tauri-plugin-prevent-default`：Release 禁用 WebView2 默认快捷键，Debug 保留调试快捷键。
 - `tauri-plugin-opener`：外链的实际系统调用由 `shell_open_external` 触发，但插件本身不属于桥协议。
@@ -152,7 +152,7 @@ core 业务测试。
 Desktop 当前创建隐藏窗口，正常情况下由前端 `frontendReady` command 显示；这能避免 WebView 首屏闪烁，异常时
 由受控超时兜底显示。Android 已有 `onPageFinished + timeout` Splash 兜底。
 
-实现：Desktop 主窗口保持隐藏，`frontendReady` 正常路径显示；`desktop/tauri/src/main.rs` 增加 8 秒受控超时，
+实现：Desktop 主窗口保持隐藏，`frontendReady` 正常路径显示；`desktop/src/main.rs` 增加 8 秒受控超时，
 前端脚本或桥初始化异常时仍显示可恢复的设置/错误页。Android 原有 `onPageFinished + timeout` 逻辑保持不变。
 
 ### P2：统一客户端元数据的来源

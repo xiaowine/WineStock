@@ -1,16 +1,16 @@
 # Desktop 代码地图
 
-`desktop/tauri` 是 WineStock 正式的 Tauri v2 桌面壳，当前以 Windows 为优先交付目标。它依赖
+`desktop` 是 WineStock 正式的 Tauri v2 桌面壳，当前以 Windows 为优先交付目标。它依赖
 `core -> shared` 启动本地 Axum 并打包 `frontend/dist`；业务调用仍严格为前端到 HTTP API。
 
-- `desktop/tauri/src/`：Tauri 窗口装配、单实例/快捷键等桌面平台插件、受限 Shell Bridge command、版本化 DTO，
+- `desktop/src/`：Tauri 窗口装配、单实例/快捷键等桌面平台插件、受限 Shell Bridge command、版本化 DTO，
   以及进程级 `DesktopRuntimeManager`。它拥有配置文件/平台存储路径和 `RunningLocalService` 的启停、恢复、
   崩溃快照与退出清理；`webview_compatibility.rs` 在主窗口显示前通过 WebView2 官方 Loader binding 执行 M111
   启动门禁；不拥有业务路由、数据库 schema 或前端设置界面。
-- `desktop/tauri/capabilities/` 与 `permissions/`：只把主窗口绑定到具名 Shell Bridge command 和事件监听，
+- `desktop/capabilities/` 与 `permissions/`：只把主窗口绑定到具名 Shell Bridge command 和事件监听，
   不授予通用 shell 或文件系统能力。
-- `desktop/tauri/tauri.conf.json`、`build.rs`、`icons/`：Tauri 的 Vite 开发/生产资源打包、最小窗口与由
+- `desktop/tauri.conf.json`、`build.rs`、`icons/`：Tauri 的 Vite 开发/生产资源打包、最小窗口与由
   `brand/` 母版派生的应用图标；不会把前端产物移入 Axum crate。
-- `desktop/tauri/tests/`：不依赖 WebView 的 runtime manager 集成测试，覆盖首次未配置、local/remote 应用、
+- `desktop/tests/`：不依赖 WebView 的 runtime manager 集成测试，覆盖首次未配置、local/remote 应用、
   端口冲突重试、损坏配置与冷启动恢复。
-- `desktop/tauri/docs/README.md`：桌面壳的运行、构建和 Windows 验收入口。
+- `desktop/docs/README.md`：桌面壳的运行、构建和 Windows 验收入口。

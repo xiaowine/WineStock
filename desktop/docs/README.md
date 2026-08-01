@@ -1,6 +1,6 @@
 # Desktop Tauri Shell 文档
 
-`desktop/tauri` 是 WineStock 正式的 Windows 优先 Tauri v2 桌面壳。它拥有窗口、打包前端资源、
+`desktop` 是 WineStock 正式的 Windows 优先 Tauri v2 桌面壳。它拥有窗口、打包前端资源、
 Shell Bridge 传输、运行配置的本地持久化以及 `winestock_core` 本地服务生命周期；不拥有原生设置 UI，
 也不代理任何业务 HTTP 请求。
 
@@ -38,6 +38,11 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
 本地运行配置保存于 Tauri 的 `app_data_dir/config.json`。配置、数据库和文件目录均由本壳管理，绝对路径
 不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际
 端口并由 `DesktopRuntimeManager` 持有 `RunningLocalService` 至停止、替换或退出。
+
+## 实现文档
+
+- [`implementation-notes/desktop-server-mode.md`](implementation-notes/desktop-server-mode.md)：Desktop `server-mode`
+  的现状分析、复用边界、实施步骤、Shell Bridge 变化和验收矩阵。
 
 ## 验证入口
 

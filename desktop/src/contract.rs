@@ -1,6 +1,6 @@
 //! Desktop Shell 与 frontend 之间版本化 Shell Bridge DTO。
 //!
-//! 本模块属于 `desktop/tauri` 壳的传输边界，镜像
+//! 本模块属于 `desktop` 壳的传输边界，镜像
 //! `frontend/src/shell/contract.ts` 的字段语义，不启动 Axum、不读取业务数据。
 
 use std::collections::BTreeMap;

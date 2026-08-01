@@ -214,14 +214,14 @@ The root Cargo workspace currently contains:
 
 - `android/native` as package `winestock-android`, crate `winestock_android`
 - `core` as package `winestock-core`, crate `winestock_core`
-- `desktop/tauri` as package `winestock-desktop`, crate `winestock_desktop`
+- `desktop` as package `winestock-desktop`, crate `winestock_desktop`
 - `server` as package `winestock-server`
 - `shared` as package `winestock-shared`, crate `winestock_shared`
 
 `core` currently depends on Axum, Tokio, Utoipa, Utoipa Axum integration, Utoipa Swagger UI, Serde, Garde, SeaORM/SQLx SQLite bootstrap dependencies, and `shared`.
 `shared` contains the platform-neutral JSON startup config model, config parsing errors, and primitive text validation helpers.
 
-The formal Desktop Tauri shell now lives at `desktop/tauri`: it packages the shared frontend, implements
+The formal Desktop Tauri shell now lives at `desktop`: it packages the shared frontend, implements
 the constrained Shell Bridge v1 transport, persists desktop runtime configuration, owns the app-data
 storage paths, and manages `RunningLocalService` shutdown/restart in the Tauri process. Windows installer
 and installed-app smoke verification remain pending. The repository Android shell now includes packaged frontend loading, Shell Bridge transport, edge-to-edge WindowInsets publication, an

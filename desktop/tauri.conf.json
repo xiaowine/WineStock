@@ -7,7 +7,7 @@
     "beforeDevCommand": "pnpm --dir D:/Project/WineStock/frontend run dev:desktop",
     "devUrl": "http://127.0.0.1:1420",
     "beforeBuildCommand": "pnpm --dir D:/Project/WineStock/frontend run build:desktop",
-    "frontendDist": "../../frontend/dist"
+    "frontendDist": "../frontend/dist"
   },
   "app": {
     "security": {

@@ -45,7 +45,7 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
 
 当前状态：
 
-- 正式 Tauri v2 Shell 位于 `desktop/tauri`，是 Cargo 工作区成员并优先交付 Windows；
+- 正式 Tauri v2 Shell 位于 `desktop`，是 Cargo 工作区成员并优先交付 Windows；
 - 主窗口加载 Tauri 打包的 `frontend/dist`，通过具名 command/event 提供 Shell Bridge v1；
 - `DesktopRuntimeManager` 在 app data 目录管理配置、SQLite/文件路径与 `RunningLocalService`，首次无配置保持 stopped，
   有效本地配置在主窗口显示前恢复，local/remote 切换与退出均停止旧服务；

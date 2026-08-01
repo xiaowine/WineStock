@@ -95,6 +95,6 @@
 
 ## 平台边界
 
-- `desktop/tauri` 是正式 Tauri shell 与 Cargo 工作区成员；前端仅通过其受限 Shell Bridge 请求运行配置和生命周期，不直接调用 Rust 业务方法。
+- `desktop` 是正式 Tauri shell 与 Cargo 工作区成员；前端仅通过其受限 Shell Bridge 请求运行配置和生命周期，不直接调用 Rust 业务方法。
 - Desktop/Android shell 在前端挂载前提供 Shell Bridge；前端按快照而非注入地址猜测 API 运行状态。
 - 不要从平台壳推断其它平台的包名、WebView 协议或资源目录。
