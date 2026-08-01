@@ -19,8 +19,11 @@
 
 启动时，桌面 Shell 必须先注册 Shell Bridge，再加载 Tauri 打包的前端资源；即使配置或 API 服务不可用，前端仍应能打开。
 运行设置和服务状态只由前端呈现。Shell 根据前端请求读取、校验、持久化并应用共享配置。
-已有 initialized 本地配置时，应用启动会在后台启动共享 Axum 服务，不把该行为暴露为可关闭的普通 UI 选项；
+已有 initialized 本地配置时，应用启动会先恢复共享 Axum 服务，再创建并显示主窗口，避免前端把短暂的
+`configured + stopped` 快照误判为需要进入运行设置；该行为不作为可关闭的普通 UI 选项；
 首次缺少配置时等待前端 apply，`client-only` 不启动 Axum。
+主窗口创建后保持隐藏，正常情况下收到前端 `frontendReady` 首帧信号后才显示，避免 WebView 加载过程闪烁；
+8 秒未收到信号时由 Desktop Shell 受控显示窗口，避免桥或前端异常导致窗口永久隐藏。
 
 WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地址之一：
 
@@ -45,7 +48,7 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
 - 正式 Tauri v2 Shell 位于 `desktop/tauri`，是 Cargo 工作区成员并优先交付 Windows；
 - 主窗口加载 Tauri 打包的 `frontend/dist`，通过具名 command/event 提供 Shell Bridge v1；
 - `DesktopRuntimeManager` 在 app data 目录管理配置、SQLite/文件路径与 `RunningLocalService`，首次无配置保持 stopped，
-  有效本地配置在后台恢复，local/remote 切换与退出均停止旧服务；
+  有效本地配置在主窗口显示前恢复，local/remote 切换与退出均停止旧服务；
 - `tauri-plugin-single-instance` 保证桌面进程单实例；后续启动只聚焦首个主窗口，不向其转交参数、工作目录或 URL，
   后续实例随后退出；`tauri-plugin-prevent-default` 仅在 Release 禁用 WebView2 默认快捷键，Debug 保留默认快捷键；
 - Windows Desktop 在显示主窗口前调用 WebView2 官方 Loader API 检查 Evergreen Runtime 主版本不低于 M111；不满足时不加载

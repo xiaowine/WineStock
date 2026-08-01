@@ -65,6 +65,9 @@ async fn initial_state_is_unconfigured_and_writes_nothing() {
     assert_eq!(snapshot.config_status, "unconfigured");
     assert!(!snapshot.initialized);
     assert_eq!(snapshot.service.phase, "stopped");
+    assert!(!snapshot.capabilities.start_local_service);
+    assert!(!snapshot.capabilities.stop_local_service);
+    assert!(!snapshot.capabilities.restart_local_service);
     assert!(!dir.path().join("config.json").exists());
 }
 
@@ -75,6 +78,9 @@ async fn self_hosted_apply_starts_core_and_publishes_loopback_url() {
     assert!(result.applied, "apply 应成功: {:?}", result.error);
     assert_eq!(result.snapshot.service.phase, "running");
     assert_eq!(result.snapshot.service.ownership, "local");
+    assert!(result.snapshot.capabilities.start_local_service);
+    assert!(result.snapshot.capabilities.stop_local_service);
+    assert!(result.snapshot.capabilities.restart_local_service);
     let api_base_url = result.snapshot.service.api_base_url.expect("api base url");
     assert!(api_base_url.starts_with("http://127.0.0.1:"));
     assert!(
@@ -120,6 +126,9 @@ async fn remote_apply_persists_without_starting_local_service() {
         result.snapshot.service.api_base_url.as_deref(),
         Some("http://127.0.0.1:18000")
     );
+    assert!(!result.snapshot.capabilities.start_local_service);
+    assert!(!result.snapshot.capabilities.stop_local_service);
+    assert!(!result.snapshot.capabilities.restart_local_service);
     assert!(dir.path().join("config.json").exists());
 }
 

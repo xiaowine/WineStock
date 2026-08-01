@@ -358,6 +358,81 @@ export function assertCompatibleRuntimeSnapshot(value: unknown): asserts value i
       "Shell Bridge 返回的运行快照结构无效",
     );
   }
+  assertRuntimeSnapshotSemantics(value as unknown as RuntimeSnapshot);
+}
+
+/** 校验跨平台传输都必须遵守的快照组合约束。 */
+function assertRuntimeSnapshotSemantics(snapshot: RuntimeSnapshot): void {
+  const { configStatus, initialized, service, capabilities } = snapshot;
+  if (initialized && configStatus !== "configured") {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 运行快照的 initialized 与 configStatus 不一致",
+    );
+  }
+  if (service.apiBaseUrl !== undefined && !isSafeApiBaseUrl(service.apiBaseUrl)) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 返回了不安全的 API 地址",
+    );
+  }
+  if (
+    configStatus === "configured" &&
+    initialized &&
+    service.ownership === "remote" &&
+    !service.apiBaseUrl
+  ) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "已初始化的远端快照缺少 API 地址",
+    );
+  }
+  if (service.phase === "running" && !service.apiBaseUrl) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "running 快照缺少 API 地址",
+    );
+  }
+  if (
+    service.localAuthExchangeToken !== undefined &&
+    (service.ownership !== "local" || service.phase !== "running")
+  ) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "本地会话换取凭据只能出现在 local+running 快照",
+    );
+  }
+  if (
+    (capabilities.startLocalService ||
+      capabilities.stopLocalService ||
+      capabilities.restartLocalService) &&
+    (!initialized || configStatus !== "configured" || service.ownership !== "local")
+  ) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 开放了不适用于当前快照的本地服务能力",
+    );
+  }
+}
+
+function isSafeApiBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.port !== "0" &&
+      url.hostname !== "0.0.0.0" &&
+      url.hostname !== "::" &&
+      url.hostname !== "[::]"
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isEditableRuntimeConfig(value: unknown): value is EditableRuntimeConfig {

@@ -180,12 +180,13 @@ pub struct ApplyRuntimeConfigResult {
     pub error: Option<ShellRuntimeError>,
 }
 
-/// Desktop 基础版能力：本地生命周期可用，原生返回和 server-mode 关闭，外链经 opener 插件。
-pub fn desktop_capabilities() -> RuntimeCapabilities {
+/// Desktop 基础版能力：按当前快照的本地归属动态开放生命周期，原生返回和 server-mode 关闭。
+pub fn desktop_capabilities(initialized: bool, ownership: &str) -> RuntimeCapabilities {
+    let local_lifecycle_available = initialized && ownership == "local";
     RuntimeCapabilities {
-        start_local_service: true,
-        stop_local_service: true,
-        restart_local_service: true,
+        start_local_service: local_lifecycle_available,
+        stop_local_service: local_lifecycle_available,
+        restart_local_service: local_lifecycle_available,
         native_back: false,
         open_external: true,
         server_mode: false,

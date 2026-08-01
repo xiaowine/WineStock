@@ -830,7 +830,7 @@ fn unconfigured_snapshot(config: EditableRuntimeConfig) -> RuntimeSnapshot {
         config,
         initialized: false,
         service: stopped_service(),
-        capabilities: desktop_capabilities(),
+        capabilities: desktop_capabilities(false, "local"),
     }
 }
 
@@ -848,6 +848,7 @@ fn configured_snapshot(
     config: EditableRuntimeConfig,
     service: RuntimeServiceSnapshot,
 ) -> RuntimeSnapshot {
+    let ownership = service.ownership.clone();
     RuntimeSnapshot {
         protocol_version: contract::SHELL_BRIDGE_PROTOCOL_VERSION,
         platform: "desktop".to_owned(),
@@ -855,7 +856,7 @@ fn configured_snapshot(
         config,
         initialized: true,
         service,
-        capabilities: desktop_capabilities(),
+        capabilities: desktop_capabilities(true, &ownership),
     }
 }
 
@@ -869,6 +870,7 @@ fn remote_snapshot(config: EditableRuntimeConfig, _initialized: bool) -> Runtime
         local_auth_exchange_token: None,
         error: None,
     };
+    snapshot.capabilities = desktop_capabilities(true, &snapshot.service.ownership);
     snapshot
 }
 

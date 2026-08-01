@@ -194,7 +194,7 @@ function createWebCapabilities(): RuntimeSnapshot["capabilities"] {
     restartLocalService: false,
     nativeBack: false,
     openExternal: true,
-    serverMode: true,
+    serverMode: false,
   };
 }
 

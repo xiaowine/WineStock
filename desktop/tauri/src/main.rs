@@ -69,7 +69,22 @@ fn main() {
                     .show();
                 std::process::exit(1);
             }
-            let main_window = WebviewWindowBuilder::new(
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("无法解析应用数据目录：{error}"))?;
+            let manager = Arc::new(DesktopRuntimeManager::new(
+                Some(app.handle().clone()),
+                app_data_dir,
+            ));
+            app.manage(manager.clone());
+            // 已初始化配置必须在首个前端快照前完成恢复，否则前端会把短暂的
+            // configured+stopped 误判为需要进入运行设置。首次未配置、远端配置
+            // 或启动失败均会快速返回，并由最终快照驱动对应的前端页面。
+            tauri::async_runtime::block_on(manager.initialize());
+            let snapshot = tauri::async_runtime::block_on(manager.snapshot());
+
+            let _main_window = WebviewWindowBuilder::new(
                 app,
                 "main",
                 WebviewUrl::App("index.html".into()),
@@ -82,26 +97,20 @@ fn main() {
             .visible(false)
             .build()
             .map_err(|error| format!("无法创建 WineStock 主窗口：{error}"))?;
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("无法解析应用数据目录：{error}"))?;
-            let manager = Arc::new(DesktopRuntimeManager::new(
-                Some(app.handle().clone()),
-                app_data_dir,
-            ));
-            app.manage(manager.clone());
-            let snapshot = tauri::async_runtime::block_on(manager.snapshot());
             let _ = app.emit(RUNTIME_STATE_CHANGED_EVENT, snapshot);
-            // 前端资源和首次设置漏斗不能等待数据库/bootstrap；已有本地配置在后台恢复，
-            // 后续 starting/running/failed 快照均通过 Shell Bridge 事件发布。
-            tauri::async_runtime::spawn({
-                let manager = manager.clone();
-                async move { manager.initialize().await }
-            });
             DesktopRuntimeManager::spawn_monitor(manager);
             let _ = APP_HANDLE.set(app.handle().clone());
-            show_main_window(&main_window);
+            let fallback_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // 正常路径由 frontendReady 控制显示；异常页面或桥初始化失败时，
+                // 受控超时仍显示前端设置/错误页，避免窗口永久隐藏。
+                tokio::time::sleep(Duration::from_secs(8)).await;
+                if !winestock_desktop::commands::is_frontend_ready() {
+                    if let Some(window) = fallback_handle.get_webview_window("main") {
+                        show_main_window(&window);
+                    }
+                }
+            });
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -1,10 +1,13 @@
 //! Tauri command 层：把 Shell Bridge v1 方法映射到 DesktopRuntimeManager。
 //!
-//! 本模块只做参数校验、状态查询与错误序列化，不包含业务逻辑。
+//! 本模块只做参数校验、状态查询、首屏就绪窗口协作与错误序列化，不包含业务逻辑。
 
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
@@ -14,6 +17,13 @@ use crate::{
 };
 
 type CommandResult<T> = Result<T, String>;
+
+static FRONTEND_READY: AtomicBool = AtomicBool::new(false);
+
+/// 返回当前进程是否已收到前端首帧就绪信号；仅供 Desktop 窗口显示兜底使用。
+pub fn is_frontend_ready() -> bool {
+    FRONTEND_READY.load(Ordering::Acquire)
+}
 
 fn command_error(code: &str, message: &str) -> String {
     serde_json::json!({ "code": code, "message": message }).to_string()
@@ -73,8 +83,14 @@ pub async fn shell_restart_local_service(
 }
 
 #[tauri::command]
-pub async fn shell_frontend_ready() -> CommandResult<()> {
-    // 前端首帧渲染完成信号；桌面壳当前无需额外动作，保留命令以保证契约稳定。
+pub async fn shell_frontend_ready(app: AppHandle) -> CommandResult<()> {
+    // 只有前端完成首帧渲染后才显示主窗口，避免 WebView 加载期间出现白屏或闪烁。
+    FRONTEND_READY.store(true, Ordering::Release);
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
     Ok(())
 }
 
