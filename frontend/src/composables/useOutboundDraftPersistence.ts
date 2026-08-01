@@ -1,5 +1,5 @@
-// 本文件拥有出库草稿的版本化 localStorage 保存与离开提示；不保存图片或调用业务 API。
-import { onBeforeUnmount, onMounted, watch, type ComputedRef, type Ref } from "vue";
+// 本文件拥有出库草稿的版本化 localStorage 保存与恢复；不保存图片、调用业务 API 或处理页面离开确认。
+import { watch, type ComputedRef, type Ref } from "vue";
 import type { OutboundDraftLine } from "../pages/outbound-draft/model";
 
 const storageKey = "winestock.outbound-draft.v1";
@@ -21,8 +21,6 @@ export function useOutboundDraftPersistence(
 ) {
   let suspended = true;
   watch([destination, notes, notesOpen, lines], save, { deep: true });
-  onMounted(() => window.addEventListener("beforeunload", beforeUnload));
-  onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
   function save() {
     if (suspended) return;
     if (!hasDraft.value) return remove();
@@ -59,11 +57,6 @@ export function useOutboundDraftPersistence(
       remove();
       return false;
     }
-  }
-  function beforeUnload(event: BeforeUnloadEvent) {
-    if (!hasDraft.value) return;
-    event.preventDefault();
-    event.returnValue = "";
   }
   return {
     restoreDraft: restore,

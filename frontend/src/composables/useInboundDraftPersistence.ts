@@ -1,5 +1,5 @@
-// 本文件拥有入库草稿的 localStorage 序列化、恢复和浏览器离开提示；它不提交业务 API。
-import { onBeforeUnmount, onMounted, watch, type ComputedRef, type Ref } from "vue";
+// 本文件拥有入库草稿的 localStorage 序列化与恢复；它不提交业务 API 或处理页面离开确认。
+import { watch, type ComputedRef, type Ref } from "vue";
 import type { ItemOptionResponse } from "../api/items";
 import { createLineId, type InboundDraftLine } from "../pages/inbound-draft/model";
 import { clearInboundDraftImages } from "../storage/inboundDraftImageStore";
@@ -38,8 +38,6 @@ export function useInboundDraftPersistence(
 ) {
   let suspended = true;
   watch([source, notes, notesOpen, lines], save, { deep: true });
-  onMounted(() => window.addEventListener("beforeunload", handleBeforeUnload));
-  onBeforeUnmount(() => window.removeEventListener("beforeunload", handleBeforeUnload));
 
   function resume(): void {
     suspended = false;
@@ -102,12 +100,6 @@ export function useInboundDraftPersistence(
     } catch {
       /* 配额失败不阻断当前录入。 */
     }
-  }
-
-  function handleBeforeUnload(event: BeforeUnloadEvent): void {
-    if (!hasDraft.value) return;
-    event.preventDefault();
-    event.returnValue = "";
   }
 
   return { restoreDraft: restore, resumeDraftSaving: resume, removePersistedDraft: remove };

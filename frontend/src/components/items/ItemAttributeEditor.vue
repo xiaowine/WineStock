@@ -62,7 +62,7 @@
       :name="`attribute_type_${attribute.key}`"
       :disabled="!attribute.custom"
       @focus="rememberType"
-      @change="resetValue"
+      @change="requestTypeReset"
     >
       <option value="text">文本</option>
       <option value="number">数字</option>
@@ -190,6 +190,22 @@
       @close="unitDialogOpen = false"
       @save="applyUnitSettings"
     />
+    <ModalDialog
+      :open="typeResetDialogOpen"
+      title="清空属性值？"
+      description="修改属性类型会清空当前属性值及单位设置。"
+      compact
+      nested
+      @close="cancelTypeReset"
+    >
+      <p>确认后无法恢复当前属性值。</p>
+      <template #actions>
+        <button class="secondary-button" type="button" @click="cancelTypeReset">
+          保留当前类型
+        </button>
+        <button class="danger-button" type="button" @click="confirmTypeReset">确认清空</button>
+      </template>
+    </ModalDialog>
   </div>
 </template>
 
@@ -201,6 +217,7 @@ import type { ImageDraftValue } from "../attributes/imageDraft";
 import type { ItemAttributeDraft } from "../../pages/items/model";
 import { discardTemporaryAttributeFile } from "../../pages/items/fileCleanup";
 import { notice } from "../../notices/notice";
+import ModalDialog from "../ModalDialog.vue";
 import ItemUnitSettingsDialog from "./ItemUnitSettingsDialog.vue";
 import type { ItemAttributeUnitMode } from "../../api/itemAttributeTemplates";
 import FormField from "../forms/FormField.vue";
@@ -241,6 +258,7 @@ const unitOptions = computed(
   () => props.templateField?.unit.options ?? props.attribute.unitOptions,
 );
 const unitDialogOpen = ref(false);
+const typeResetDialogOpen = ref(false);
 const unitSummary = computed(() => {
   if (props.attribute.unitMode === "fixed")
     return `指定单位 · ${props.attribute.fixedUnit || "未设置"}`;
@@ -295,15 +313,26 @@ async function removeAttribute(): Promise<void> {
   emit("remove");
 }
 
-async function resetValue(): Promise<void> {
-  if (
-    props.attribute.value !== "" &&
-    props.attribute.value !== undefined &&
-    !window.confirm("修改类型会清空当前属性值，是否继续？")
-  ) {
-    props.attribute.fieldType = previousType;
+/** 选择器已更新类型；存在值时先等待前端确认，取消后恢复修改前的类型。 */
+function requestTypeReset(): void {
+  if (props.attribute.value !== "" && props.attribute.value !== undefined) {
+    typeResetDialogOpen.value = true;
     return;
   }
+  void resetValue();
+}
+
+function cancelTypeReset(): void {
+  typeResetDialogOpen.value = false;
+  props.attribute.fieldType = previousType;
+}
+
+async function confirmTypeReset(): Promise<void> {
+  typeResetDialogOpen.value = false;
+  await resetValue();
+}
+
+async function resetValue(): Promise<void> {
   await discardTemporaryFile();
   props.attribute.value = props.attribute.fieldType === "boolean" ? undefined : "";
   props.attribute.unit = "";
