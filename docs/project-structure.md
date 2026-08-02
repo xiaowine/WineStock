@@ -77,7 +77,11 @@ WineStock/
       lib.rs
       text_validation.rs
   desktop/
-    tauri/
+    Cargo.toml
+    src/
+    capabilities/
+    permissions/
+    icons/
   android/
     app/
     native/                        # current JNI Rust adapter crate
@@ -137,6 +141,7 @@ Current workspace dependencies:
 - `utoipa-swagger-ui`（可选 Debug Swagger UI feature）
 - `winestock-core`
 - `winestock-shared`
+- `windows-sys`（Desktop Windows IP Helper 网卡发现）
 
 `tokio` is used by core service startup and the server shell.
 

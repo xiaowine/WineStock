@@ -135,6 +135,10 @@ http://127.0.0.1:<port>
 如果绑定全部接口，应提示其它设备使用当前主机真实局域网 IP，并由平台 Shell 处理防火墙与权限。
 这是纯 Server Shell 的主要访问模式。
 
+带 UI 的 Desktop Shell 应使用跨平台高层接口枚举真实网卡地址，不应按 Windows、macOS、Linux 分别解析系统命令
+输出。防火墙仍是平台独立能力：Windows 可由 Desktop provider 自动管理；其它系统必须报告手动配置或不支持，
+不能因为服务已经 bind 就宣称其它设备一定可达。
+
 ### 应用访问其它设备
 
 使用 `client-only` 或 `connect-to-remote`，设置 `remote_base_url`，不启动本地服务。

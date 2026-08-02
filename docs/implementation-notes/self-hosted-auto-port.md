@@ -121,12 +121,15 @@
 
 ### 5. Desktop Shell
 
-桌面 Shell 尚未实现正式版本，实施时直接沿用 Android 的事务语义：
+正式 Desktop Shell 已沿用 Android 的事务语义，并由 `desktop/src/runtime.rs` 管理：
 
 - 本机模式由 Shell 生成和持久化实际端口；
 - 服务器模式使用用户固定端口；
 - Bridge 返回的 `config.port`、`boundAddress` 和 `apiBaseUrl` 必须满足相同不变量；
 - 端口分配不得由前端或 Tauri WebView 直接完成。
+
+Desktop 的 server-mode 还会发布真实 `lanAccessUrls`；Windows 具体地址发现和跨设备验收见
+`desktop/docs/implementation-notes/desktop-server-mode.md`。
 
 ### 6. frontend
 
@@ -160,7 +163,7 @@
 - 已有 server-mode 配置：端口字段和冲突行为不变。
 - 已有损坏配置：按现有 invalid 流程进入运行设置，不自动覆盖用户配置。
 - 首次安装没有配置：保持 stopped；用户确认 self-hosted 后使用 `port = 0` 作为启动候选，成功后只持久化实际端口。
-- Web fallback 无法真正管理本地 core：保留兼容默认端口和现有环境地址行为，不伪造动态端口；自动端口验收以 Android Shell 和未来 Desktop Shell 为准。
+- Web fallback 无法真正管理本地 core：保留兼容默认端口和现有环境地址行为，不伪造动态端口；自动端口验收以 Android Shell 和 Desktop Shell 为准。
 - 不修改数据库结构，不影响 core HTTP API 和业务数据文件。
 
 ## 验收与测试矩阵
@@ -202,7 +205,8 @@
 1. **契约与 core 基础（已完成）**：shared 条件校验、core/native 动态端口测试和实际地址返回。
 2. **Android Shell 事务（已完成）**：绑定成功后回写实际端口、持久化、冲突重试和恢复逻辑。
 3. **前端界面（已完成）**：按模式隐藏端口、删除 `port=0` 伪预览、同步文档和状态文案。
-4. **Desktop 对齐（后续平台任务）**：正式 Desktop Shell 实现相同分配和快照不变量。
+4. **Desktop 对齐（代码已完成）**：正式 Desktop Shell 已实现相同分配和快照不变量；Windows 安装包、
+   防火墙和跨设备 HTTP smoke 仍需单独验收。
 5. **设备验收（需补充新首次漏斗）**：既有动态分配、冲突换端口、进程重启复用端口和 loopback 健康检查已完成；首次未初始化不启服仍需真机复验。
 
 ## 实际验收记录

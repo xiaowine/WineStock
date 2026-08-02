@@ -7,14 +7,14 @@ use std::{
     collections::BTreeMap,
     fs,
     io::ErrorKind,
-    net::IpAddr,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
 };
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex as AsyncMutex;
 use url::Url;
 use winestock_core::{
@@ -29,6 +29,7 @@ use crate::contract::{
     ERROR_PORT_IN_USE, ERROR_SERVICE_CRASHED, ERROR_SERVICE_START_FAILED,
     ERROR_STORAGE_UNAVAILABLE, ERROR_UNSUPPORTED_RUNTIME_MODE,
 };
+use crate::lan_access::discover_lan_access_urls;
 
 /// 事件名与 frontend `src/shell/transports/tauri.ts` 保持一致。
 pub const RUNTIME_STATE_CHANGED_EVENT: &str = "winestock-runtime-state-changed";
@@ -154,7 +155,7 @@ impl StoragePaths {
     }
 }
 
-/// Desktop 平台策略：self-hosted 只允许 loopback；server-mode 尚未实现。
+/// Desktop 平台策略：self-hosted 只允许 loopback；server-mode 允许有效 IP 监听。
 fn prepare_config(
     request: &EditableRuntimeConfig,
     storage_paths: &StoragePaths,
@@ -168,15 +169,6 @@ fn prepare_config(
             return Err(validation_result(field_errors, Some(request.clone())));
         }
     };
-
-    if mode == RuntimeMode::ServerMode {
-        push_error(
-            &mut field_errors,
-            "mode",
-            "当前 Desktop 版本尚未支持 server-mode",
-        );
-        return Err(validation_result(field_errors, Some(request.clone())));
-    }
 
     let bind_host = request.bind_host.trim().to_owned();
     if mode == RuntimeMode::SelfHosted && !is_loopback_host(&bind_host) {
@@ -364,6 +356,7 @@ struct LocalServiceDetails {
     bound_address: String,
     api_base_url: String,
     local_auth_exchange_token: Option<String>,
+    lan_access_urls: Vec<String>,
 }
 
 /// Desktop 进程级运行管理器：所有配置与服务变更在同一个 async mutex 内串行执行。
@@ -647,6 +640,7 @@ impl DesktopRuntimeManager {
             api_base_url: None,
             bound_address: None,
             local_auth_exchange_token: None,
+            lan_access_urls: None,
             error: None,
         };
         inner.snapshot = starting.clone();
@@ -661,15 +655,20 @@ impl DesktopRuntimeManager {
                 // RunningLocalService 必须由 manager 独占持有；否则离开本函数即发送 shutdown，
                 // 造成快照显示 running 而端口已释放。
                 inner.service = Some(service);
-                self.store
-                    .save(&effective)
-                    .map_err(|error| ApplyRuntimeConfigResult {
+                if let Err(error) = self.store.save(&effective) {
+                    // 配置落盘失败时不能留下仍在监听的服务句柄，否则恢复旧快照后会出现
+                    // “显示未运行但端口仍被占用”的状态；先停止新服务，再把错误交给调用方恢复。
+                    if let Some(service) = inner.service.take() {
+                        let _ = service.shutdown().await;
+                    }
+                    return Err(ApplyRuntimeConfigResult {
                         valid: true,
                         field_errors: BTreeMap::new(),
                         applied: false,
                         snapshot: inner.snapshot.clone(),
                         error: Some(error),
-                    })?;
+                    });
+                }
                 inner.initialized = true;
                 inner.config_status = "configured".to_owned();
                 let snapshot = local_running_snapshot(effective, &details, true);
@@ -694,7 +693,7 @@ impl DesktopRuntimeManager {
         }
     }
 
-    /// 启动本地 Axum；端口占用时按策略自动改用动态端口重试一次。
+    /// 启动本地 Axum；仅 self-hosted 的端口占用允许改用动态端口重试一次。
     async fn start_service(
         &self,
         app_config: &AppConfig,
@@ -708,10 +707,10 @@ impl DesktopRuntimeManager {
                 && config.server.port != 0
             {
                 config.server.port = 0;
-                return map_start_result(start_local_service(&config).await);
+                return map_start_result(start_local_service(&config).await, false);
             }
         }
-        map_start_result(first)
+        map_start_result(first, config.server.mode == SharedRuntimeMode::ServerMode)
     }
 
     /// 等待本地服务退出并停止；供应用退出流程使用。
@@ -723,6 +722,29 @@ impl DesktopRuntimeManager {
         let mut snapshot = inner.snapshot.clone();
         snapshot.service = stopped_service();
         inner.snapshot = snapshot.clone();
+        drop(inner);
+        self.emit(&snapshot);
+    }
+
+    /// 重新读取 server-mode 的真实网卡地址并发布最新快照。
+    ///
+    /// Desktop 获得焦点时调用此方法，以覆盖 Wi-Fi、VPN 或网卡启停造成的地址变化；
+    /// 服务句柄和本机 API 地址保持不变，地址发现失败只表现为空列表，不影响服务运行。
+    pub async fn refresh_network_state(&self) {
+        let mut inner = self.inner.lock().await;
+        if inner.snapshot.service.ownership != "local"
+            || inner.snapshot.service.phase != "running"
+            || parse_mode(&inner.snapshot.config.mode) != Some(RuntimeMode::ServerMode)
+        {
+            return;
+        }
+
+        let Some(service) = inner.service.as_ref() else {
+            return;
+        };
+        let urls = discover_lan_access_urls(service.info().bound_addr);
+        inner.snapshot.service.lan_access_urls = Some(urls);
+        let snapshot = inner.snapshot.clone();
         drop(inner);
         self.emit(&snapshot);
     }
@@ -753,6 +775,7 @@ impl DesktopRuntimeManager {
                             api_base_url: None,
                             bound_address: None,
                             local_auth_exchange_token: None,
+                            lan_access_urls: None,
                             error: Some(ShellRuntimeError::new(
                                 ERROR_SERVICE_CRASHED,
                                 "本地服务意外退出",
@@ -819,7 +842,12 @@ impl DesktopRuntimeManager {
 
 /// 发布 app-resumed 事件；由窗口焦点事件调用。
 pub fn emit_app_resumed(app: &AppHandle) {
-    let _ = app.emit(APP_RESUMED_EVENT, ());
+    let manager = app.state::<Arc<DesktopRuntimeManager>>().inner().clone();
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        manager.refresh_network_state().await;
+        let _ = app.emit(APP_RESUMED_EVENT, ());
+    });
 }
 
 fn unconfigured_snapshot(config: EditableRuntimeConfig) -> RuntimeSnapshot {
@@ -868,6 +896,7 @@ fn remote_snapshot(config: EditableRuntimeConfig, _initialized: bool) -> Runtime
         api_base_url: Some(config.remote_base_url.clone()),
         bound_address: None,
         local_auth_exchange_token: None,
+        lan_access_urls: None,
         error: None,
     };
     snapshot.capabilities = desktop_capabilities(true, &snapshot.service.ownership);
@@ -886,6 +915,11 @@ fn local_running_snapshot(
         api_base_url: Some(details.api_base_url.clone()),
         bound_address: Some(details.bound_address.clone()),
         local_auth_exchange_token: details.local_auth_exchange_token.clone(),
+        lan_access_urls: if parse_mode(&config.mode) == Some(RuntimeMode::ServerMode) {
+            Some(details.lan_access_urls.clone())
+        } else {
+            None
+        },
         error: None,
     };
     snapshot
@@ -903,6 +937,7 @@ fn failed_snapshot(
         api_base_url: None,
         bound_address: None,
         local_auth_exchange_token: None,
+        lan_access_urls: None,
         error: Some(error),
     };
     snapshot
@@ -937,25 +972,43 @@ fn config_draft_from_raw(raw: &str) -> EditableRuntimeConfig {
 
 fn map_start_result(
     result: Result<RunningLocalService, LocalServiceRuntimeError>,
+    server_mode: bool,
 ) -> Result<(RunningLocalService, LocalServiceDetails), ShellRuntimeError> {
     match result {
         Ok(service) => {
             let info = service.info().clone();
-            let port = info.bound_addr.port();
             Ok((
                 service,
                 LocalServiceDetails {
                     bound_address: info.bound_addr.to_string(),
-                    api_base_url: format!("http://127.0.0.1:{port}"),
+                    api_base_url: local_api_base_url(info.bound_addr),
                     local_auth_exchange_token: info
                         .local_session_token
                         .as_ref()
                         .map(|token| token.expose().to_owned()),
+                    lan_access_urls: if server_mode {
+                        discover_lan_access_urls(info.bound_addr)
+                    } else {
+                        Vec::new()
+                    },
                 },
             ))
         }
         Err(error) => Err(map_service_error(&error)),
     }
+}
+
+/// 生成 Desktop WebView 使用的本机 API 地址。
+///
+/// wildcard 监听仍优先走 loopback；具体监听地址则必须使用实际绑定的 IP，否则 WebView
+/// 无法访问只绑定在某个网卡上的服务。
+fn local_api_base_url(bound_addr: SocketAddr) -> String {
+    let ip = match bound_addr.ip() {
+        IpAddr::V4(address) if address.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+        IpAddr::V6(address) if address.is_unspecified() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+        address => address,
+    };
+    format!("http://{}", SocketAddr::new(ip, bound_addr.port()))
 }
 
 fn map_service_error(error: &LocalServiceRuntimeError) -> ShellRuntimeError {
@@ -977,5 +1030,31 @@ fn map_service_error(error: &LocalServiceRuntimeError) -> ShellRuntimeError {
         LocalServiceRuntimeError::Task(_) => {
             ShellRuntimeError::new(ERROR_SERVICE_CRASHED, "本地服务意外退出")
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::local_api_base_url;
+    use std::net::SocketAddr;
+
+    #[test]
+    fn local_api_url_uses_loopback_for_wildcard_and_bound_ip_for_specific_address() {
+        assert_eq!(
+            local_api_base_url("0.0.0.0:17890".parse::<SocketAddr>().unwrap()),
+            "http://127.0.0.1:17890"
+        );
+        assert_eq!(
+            local_api_base_url("192.168.1.20:17890".parse::<SocketAddr>().unwrap()),
+            "http://192.168.1.20:17890"
+        );
+        assert_eq!(
+            local_api_base_url("[::]:17890".parse::<SocketAddr>().unwrap()),
+            "http://[::1]:17890"
+        );
+        assert_eq!(
+            local_api_base_url("[fd00::20]:17890".parse::<SocketAddr>().unwrap()),
+            "http://[fd00::20]:17890"
+        );
     }
 }

@@ -26,8 +26,12 @@ const { normalizeShellBridgeTransportError, ShellBridgeTransportError } = await 
 );
 
 function snapshot(overrides = {}) {
-  const { config: configOverride, service: serviceOverride, capabilities: capabilityOverride, ...rest } =
-    overrides;
+  const {
+    config: configOverride,
+    service: serviceOverride,
+    capabilities: capabilityOverride,
+    ...rest
+  } = overrides;
   return {
     protocolVersion: 1,
     platform: "desktop",
@@ -61,6 +65,21 @@ function snapshot(overrides = {}) {
 
 test("accepts a valid local running snapshot", () => {
   assert.doesNotThrow(() => assertCompatibleRuntimeSnapshot(snapshot()));
+});
+
+test("accepts a Desktop server-mode snapshot with real LAN URLs", () => {
+  assert.doesNotThrow(() =>
+    assertCompatibleRuntimeSnapshot(
+      snapshot({
+        config: { mode: "server-mode", bindHost: "0.0.0.0" },
+        service: {
+          boundAddress: "0.0.0.0:17890",
+          lanAccessUrls: ["http://192.168.1.23:17890"],
+        },
+        capabilities: { serverMode: true },
+      }),
+    ),
+  );
 });
 
 test("accepts the Web and Android capability projections", () => {
@@ -115,7 +134,8 @@ test("rejects unsafe API addresses and invalid state combinations", () => {
   ]) {
     assert.throws(
       () => assertCompatibleRuntimeSnapshot(candidate),
-      (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
+      (error) =>
+        error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
     );
   }
 });

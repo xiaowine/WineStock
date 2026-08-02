@@ -48,12 +48,20 @@
 - 当前服务区只展示 Shell 发布的生命周期状态和 `/api/health` 结果，不提供手动启动、停止或重启 core 的操作；本机服务由应用 Shell 管理。
 - 当前生效服务满足 `server-mode + local + running + serverMode capability` 且 Shell 返回真实
   `lanAccessUrls` 时，当前服务区显示“本机局域网地址”主入口；已登录应用壳的头像 Popover 同时提供快捷入口。
+- 同样的运行条件但 Shell 没有返回可用地址时，当前服务区显示网络适配器/操作系统防火墙提示；不生成占位 URL，
+  也不显示无法打开的地址入口。
 - 两个入口复用同一个“本机局域网地址” Dialog。地址逐项使用线性复制图标按钮并通过全局 Notice 反馈，
   Dialog 复用通用遮罩、焦点、Escape、关闭动画和原生返回处理。
 - 前端只规范化、过滤和去重 Shell 地址；wildcard、loopback、占位符、带凭据、路径、查询或片段的值不得展示。
   快照不再满足展示条件时，入口隐藏并关闭已经打开的 Dialog。
 - 服务器模式端口必须是 `1..65535` 的整数；本机模式的临时 `port = 0` 不能生成伪访问地址，绑定成功后只展示 Shell 返回的真实地址。
 - 远端 HTTP 连接仅在非 loopback 地址上提示明文通信风险；`localhost`、`127.0.0.1` 和 `::1` 不提示远端网络风险。
+- Windows Desktop 的 server-mode 保存确认必须说明会请求 Windows 防火墙允许当前端口的局域网连接；这不是
+  WineStock 管理员密码，且只对 Domain/Private 配置文件和本地子网生效，不自动开放 Public 网络。
+- server-mode 的服务状态必须把 core 生命周期和 Windows 防火墙状态分开呈现：`ready`、`requires-elevation`、
+  `blocked-by-policy`、`profile-unsupported`、`disabled` 和 `error` 不得都显示为“服务启动失败”或“请检查防火墙”。
+- 没有 LAN URL 与防火墙未放行是两类不同问题：前者提示网络适配器/绑定地址，后者提示规则授权或系统策略；
+  不能只用一条混合错误文案。
 - 远端“测试连接”只验证当前可达性；暂时不可连接不阻止保存格式有效的地址。
 - API 地址变化、运行方式变化或开启局域网监听时必须先确认。API 地址变化后清理旧服务的内存会话并重新执行健康检查和会话初始化。
 - 本地服务激活失败时保留草稿和 Shell 稳定错误，不用原生对话框替代页面反馈。

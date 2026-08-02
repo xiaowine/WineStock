@@ -18,7 +18,7 @@ pub enum RuntimeMode {
     ClientOnly,
     /// 本机自托管，启动本地 Axum 供本机 UI 使用。
     SelfHosted,
-    /// 启动本地 Axum 作为可被其它设备访问的服务端；Desktop 基础版不支持。
+    /// 启动本地 Axum 作为可被其它设备访问的服务端。
     ServerMode,
     /// 连接远端服务；语义上保留给需要明确远端连接的客户端壳。
     ConnectToRemote,
@@ -113,6 +113,9 @@ pub struct RuntimeServiceSnapshot {
     /// self-hosted 本机静默会话换取凭据；仅 local+running 快照携带，不得写入日志。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_auth_exchange_token: Option<String>,
+    /// server-mode 由 Shell 根据真实网卡地址发布的局域网访问地址。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lan_access_urls: Option<Vec<String>>,
     /// 最近一次配置或生命周期错误。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<ShellRuntimeError>,
@@ -180,7 +183,7 @@ pub struct ApplyRuntimeConfigResult {
     pub error: Option<ShellRuntimeError>,
 }
 
-/// Desktop 基础版能力：按当前快照的本地归属动态开放生命周期，原生返回和 server-mode 关闭。
+/// Desktop 能力：按当前快照的本地归属动态开放生命周期；server-mode 可由前端配置。
 pub fn desktop_capabilities(initialized: bool, ownership: &str) -> RuntimeCapabilities {
     let local_lifecycle_available = initialized && ownership == "local";
     RuntimeCapabilities {
@@ -189,7 +192,7 @@ pub fn desktop_capabilities(initialized: bool, ownership: &str) -> RuntimeCapabi
         restart_local_service: local_lifecycle_available,
         native_back: false,
         open_external: true,
-        server_mode: false,
+        server_mode: true,
     }
 }
 
@@ -201,6 +204,7 @@ pub fn stopped_service() -> RuntimeServiceSnapshot {
         api_base_url: None,
         bound_address: None,
         local_auth_exchange_token: None,
+        lan_access_urls: None,
         error: None,
     }
 }

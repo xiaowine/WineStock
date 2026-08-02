@@ -43,6 +43,8 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
 
 - [`implementation-notes/desktop-server-mode.md`](implementation-notes/desktop-server-mode.md)：Desktop `server-mode`
   的现状分析、复用边界、实施步骤、Shell Bridge 变化和验收矩阵。
+- [`implementation-notes/desktop-firewall-access.md`](implementation-notes/desktop-firewall-access.md)：Desktop
+  server-mode 的跨平台 LAN 地址发现、Windows 防火墙规则、UAC 提权、其它系统策略和验收方案。
 
 ## 验证入口
 

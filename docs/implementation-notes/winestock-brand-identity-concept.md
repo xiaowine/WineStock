@@ -43,4 +43,4 @@
 
 仓库级 `brand/` 保存平台无关母版。前端通过可复用 `BrandMark` 替换应用壳、认证页、初始化向导和运行设置中的文字占位，并使用同一图形生成 favicon。Android 从母版派生 adaptive foreground、background、monochrome、SplashScreen 和原生兼容页 VectorDrawable。
 
-正式 Desktop Shell 尚未实现，因此只保留母版与导出规则，不提前创建无归属脚手架或未消费的 ICO/ICNS/PNG。
+正式 Desktop Shell 已实现；本方案仍只保留母版与导出规则，不在 Desktop 目录重复维护 ICO/ICNS/PNG 母版。

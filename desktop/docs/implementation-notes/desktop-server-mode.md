@@ -2,28 +2,57 @@
 
 ## 结论
 
-当前 Desktop 已经具备启动本地 `core` 的能力，但只实现了 `self-hosted`：服务只允许绑定 loopback，前端通过
+整改前 Desktop 已经具备启动本地 `core` 的能力，但只实现了 `self-hosted`：服务只允许绑定 loopback，前端通过
 `http://127.0.0.1:<port>` 使用它。目标中的 `server-mode` 不是无头 server，而是“Desktop UI + 本地 Axum 服务 +
-其它设备 HTTP 客户端”的局域网主机模式。该模式在协议、共享配置模型和前端页面中已经预留，Desktop 壳却在配置
-校验阶段明确拒绝它，并把 `capabilities.serverMode` 固定为 `false`。
+其它设备 HTTP 客户端”的局域网主机模式。该模式在协议、共享配置模型和前端页面中已经预留；整改前 Desktop 壳在
+配置校验阶段明确拒绝它，并把 `capabilities.serverMode` 固定为 `false`。
 
-因此本功能不需要新增服务实现，也不应把 Desktop 改造成 `server/` 的无头 shell。实现目标是扩展现有
+因此本功能不需要新增服务实现，也不应把 Desktop 改造成 `server/` 的无头 shell。实现方式是扩展现有
 `DesktopRuntimeManager`，使它在 `server-mode` 下启动同一个 `winestock_core::start_local_service()`，绑定可被
 其它设备访问的地址；Desktop 自身继续加载并显示打包的共享前端，发布真实的局域网访问 URL，并继续由共享前端
 呈现配置、状态和错误。
 
 ## 当前现状
 
-| 部分           | 当前状态                                                                                    | 对 server-mode 的影响                                    |
+| 部分           | 整改前状态                                                                                    | 当前实现                                    |
 |--------------|-----------------------------------------------------------------------------------------|------------------------------------------------------|
 | `shared`     | 已有 `RuntimeMode::ServerMode`；服务模式被视为本地服务；server-mode 端口要求 `1..65535`                    | 不需要改变配置枚举和基本端口规则                                     |
 | `core`       | `start_local_service()` 统一完成 bind、bootstrap、serve、shutdown；绑定地址由配置决定                    | 直接复用，不增加 Desktop 专用 API                              |
 | `server`     | 独立的无头 shell 已能读取配置并启动本地服务                                                               | 作为另一种部署入口，不定义 Desktop `server-mode`，不被 Desktop 调用或复制 |
-| Desktop 配置校验 | `prepare_config()` 拒绝 `server-mode`；`self-hosted` 只允许 loopback                          | 必须放开 server-mode 并区分两种本地模式的 bind/端口规则                |
-| Desktop 能力   | `desktop_capabilities()` 固定 `serverMode: false`                                         | 应按 Desktop 平台能力返回 `true`，生命周期能力仍按本地服务归属计算            |
-| Desktop 快照   | Rust `RuntimeServiceSnapshot` 没有实际填充 `lanAccessUrls`                                    | 必须补齐桥 DTO，并在 running/failed/stopped 状态清理或更新地址        |
+| Desktop 配置校验 | `prepare_config()` 拒绝 `server-mode`；`self-hosted` 只允许 loopback                          | 已接受有效 IP；server-mode 固定端口，self-hosted 规则保持不变                |
+| Desktop 能力   | `desktop_capabilities()` 固定 `serverMode: false`                                         | Desktop `serverMode: true`，本地生命周期仍按归属动态开放            |
+| Desktop 快照   | Rust `RuntimeServiceSnapshot` 没有实际填充 `lanAccessUrls`                                    | 已发布真实 LAN 地址，并在状态切换时清理/刷新        |
 | 前端协议         | `RuntimeSnapshot.service.lanAccessUrls`、`getUsableLanAccessUrls()`、地址 Dialog 和设置页入口已经存在 | 主要是接收真实数据、补测试，不重建 UI                                 |
 | Android      | 当前明确禁用 server-mode                                                                      | 本方案不改变 Android 策略                                    |
+
+## 当前实现
+
+本方案已在 Desktop 壳完成首版实现：
+
+- `prepare_config()` 接受 `server-mode`，允许有效 IP 监听；`self-hosted` 仍只允许 loopback。
+- Desktop 复用 `winestock_core::start_local_service()`；WebView 对 wildcard 监听使用 loopback，具体监听地址使用实际绑定 IP。
+- server-mode 使用固定端口，端口占用返回 `port_in_use`；只有 self-hosted 保留动态端口重试。
+- Rust Shell Bridge 快照已发布 `lanAccessUrls`；当前 Windows 通过 IP Helper 读取运行中的 IPv4 网卡，只返回 RFC1918 私网地址，
+  非 Windows 暂为空列表；后续迁移到 `if-addrs` 后统一覆盖 Windows/macOS/Linux。
+- 停止、启动中、失败、崩溃和切换远端时不保留旧 LAN 地址；没有合格网卡时服务仍保持 running、地址列表为空。
+- `capabilities.serverMode` 已对 Desktop 开放；前端既有运行设置页和地址 Dialog 直接消费真实快照，不新增第二套 UI。
+
+首版明确不发布 IPv6、VPN/公网 IPv4，也不自动写入 Windows 防火墙规则；LAN 地址发现当前仍是 Windows-only，
+后续应按跨平台方案迁移；防火墙集成的独立方案见
+[`desktop-firewall-access.md`](desktop-firewall-access.md)。这不改变 Android `server-mode` 策略。
+
+## 已执行验证
+
+已完成：
+
+- `cargo test -p winestock-desktop`：Desktop 单元与 runtime manager 集成测试通过，覆盖 server-mode 启动、冷启动、固定端口冲突、IP/端口校验、焦点刷新和切换远端清理地址。
+- `cargo check -p winestock-desktop` 与 `cargo fmt --all -- --check`。
+- `frontend` 的 `test:lan-access`、`test:shell-bridge-contract` 和生产构建。
+- `pnpm desktop:build`：Windows x64 Tauri release 与 NSIS 安装包构建成功，产物为
+  `target/release/bundle/nsis/WineStock_0.1.0_x64-setup.exe`。
+- `git diff --check`。
+
+仍需安装包安装和至少一台同网设备的跨设备 HTTP smoke；当前测试没有把防火墙、路由器隔离或外部设备可达性伪装成已验证。
 
 ## 范围与非目标
 
@@ -44,6 +73,10 @@
 - 自动修改 Windows 防火墙规则。首版只检测并提示防火墙可能阻止访问，是否自动放行应另立安全设计。
 - TLS 证书、反向代理、互联网暴露或公网部署。Desktop server-mode 首版只定义 HTTP 局域网访问。
 
+Windows 防火墙不是本首版 server-mode 实现的一部分。当前实现只发布 LAN URL 并在无地址时提示用户检查
+防火墙；规则写入、UAC 和 Public/组策略处理按 [`desktop-firewall-access.md`](desktop-firewall-access.md)
+单独实施。
+
 ## 目标架构
 
 ```text
@@ -57,7 +90,7 @@ Tauri main process
 
 frontend WebView
   -> packaged frontend/dist
-  -> HTTP http://127.0.0.1:<actual-port>       # Desktop 自己使用
+  -> HTTP 本机 API 地址                         # wildcard 用 loopback，具体绑定地址用实际 IP
 
 其它设备
   -> HTTP http://<real-lan-ip>:<actual-port>   # 连接 Desktop 提供的同一 core 服务
@@ -67,7 +100,7 @@ frontend WebView
 
 - `core` 只负责服务和业务，不知道自己由 Tauri `server-mode`、Tauri `self-hosted` 还是无头 `server` shell 启动。
 - `DesktopRuntimeManager` 负责配置和进程级服务句柄，但不代理业务 HTTP。
-- Desktop 本机前端继续通过 loopback 使用服务；其它设备直接通过局域网 HTTP 使用同一个服务，不加载 Desktop 的
+- Desktop 本机前端通过 Shell 返回的本机 API 地址使用服务；其它设备直接通过局域网 HTTP 使用同一个服务，不加载 Desktop 的
   WebView 页面，也不经过 Shell Bridge。
 - Desktop 前端只消费 Shell Bridge 的 `apiBaseUrl`、`boundAddress` 和 `lanAccessUrls`，不枚举网卡，也不从
   `bindHost` 拼接访问地址。
@@ -111,26 +144,26 @@ Tauri v2 的实现依据是：应用状态通过 `Builder::manage` 注册、comm
 
 - `bindHost`：Axum 实际监听地址，例如 `0.0.0.0`。
 - `service.boundAddress`：实际绑定的 socket，例如 `0.0.0.0:17890`，只用于状态诊断。
-- `service.apiBaseUrl`：Desktop WebView 自己使用的地址，server-mode 下固定派生为
-  `http://127.0.0.1:<actual-port>`，不能返回 `0.0.0.0`。
+- `service.apiBaseUrl`：Desktop WebView 自己使用的地址；wildcard 监听时使用 loopback，具体监听地址时使用
+  实际绑定 IP，不能返回 `0.0.0.0` 或 `::`。
 - `service.lanAccessUrls`：Shell 根据真实网卡地址返回的其它设备可用地址，例如
   `http://192.168.1.23:17890`。
 
-当绑定具体地址而非 wildcard 时，仍应把其它设备地址从真实网卡状态计算出来；不能简单把 `bindHost` 当成可分享
-地址，因为 `127.0.0.1`、IPv6 loopback 和 wildcard 都不能被其它设备使用。
+当绑定具体 IPv4 地址而非 wildcard 时，只发布该实际绑定地址；wildcard 才从真实网卡状态计算全部可用地址。
+不能简单把 `bindHost` 当成可分享地址，因为 `127.0.0.1`、IPv6 loopback 和 wildcard 都不能被其它设备使用。
 
 ### 局域网地址计算
 
-新增 desktop 内部的地址提供模块，建议放在 `desktop/src/lan_access.rs`，职责仅限于读取当前机器的
+新增 desktop 内部的地址提供模块，已放在 `desktop/src/lan_access.rs`，职责仅限于读取当前机器的
 网络接口并格式化 URL：
 
 1. 在服务已经成功 bind、拿到实际端口后读取接口地址。
-2. Windows 使用系统网络接口 API（优先复用现有 `windows` crate，扩展所需 feature）；不调用外部
-   `ipconfig.exe`，不依赖命令输出语言或用户 PATH。
+2. 迁移目标使用跨平台高层 `if-addrs` 接口；不调用外部 `ipconfig.exe`、`ifconfig` 或其它命令，也不依赖
+   命令输出语言或用户 PATH。Windows Firewall 的高层 `windows` crate 与地址发现保持职责分离。
 3. 过滤 down 接口、未指定地址、loopback、multicast、广播地址和重复地址。
 4. 首版优先发布可直接输入的 IPv4 私有地址；如支持 IPv6，只发布可脱离 scope 的 ULA 地址，链路本地地址
    需要处理 zone/scope，未完成前不发布，避免生成用户无法使用的 URL。
-5. 按稳定顺序去重：接口顺序由系统返回，地址顺序在同一接口内保持；不得返回 `0.0.0.0`、`::`、`127.*`、
+5. 具体 IPv4 监听只发布该地址；wildcard 按稳定顺序去重，接口顺序由系统返回，地址顺序在同一接口内保持；不得返回 `0.0.0.0`、`::`、`127.*`、
    `[::1]`、占位文本、路径、查询参数、凭据或业务路径。
 6. 对每个地址使用当前真实端口生成根 URL，格式统一为 `http://host:port/` 的 origin 形式；传给前端前
    去掉末尾 `/` 或由前端规范化，但两侧测试必须统一。
@@ -259,7 +292,7 @@ core 服务启动条件。
 - `server-mode` 拒绝 loopback 不是必须条件，但拒绝非法 IP、空 host、域名和端口 `0`。
 - Desktop capability 在 `server-mode` 可用时返回 `serverMode=true`。
 - server-mode 使用固定端口，端口占用返回 `port_in_use`，不自动动态端口重试。
-- server-mode 成功启动后 `apiBaseUrl` 是 loopback，`boundAddress` 是真实监听地址，LAN URL 不包含 wildcard。
+- server-mode 成功启动后 `apiBaseUrl` 对 wildcard 使用 loopback、对具体监听使用实际 IP；`boundAddress` 是真实监听地址，LAN URL 不包含 wildcard。
 - 切换到 remote 会停止本地服务；应用退出释放端口。
 - 配置保存失败或新服务启动失败时，旧运行服务和旧配置尽力恢复。
 - 服务异常退出发布 failed 快照且不保留陈旧 LAN 地址。

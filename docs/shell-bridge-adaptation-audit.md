@@ -63,9 +63,9 @@ Shell Bridge 只负责运行配置、服务生命周期、运行快照、平台�
 
 ### 当前刻意关闭或未投影的字段
 
-- `service.lanAccessUrls`：Desktop 和 Android 当前都禁用 `server-mode`，因此没有真实局域网地址可发布；不能用
-  `0.0.0.0` 或伪造地址填充该字段。
-- `capabilities.serverMode`：Desktop、Android 和 Web fallback 均为 `false`；纯 Web 页面仍保留远端连接配置入口。
+- `service.lanAccessUrls`：Desktop 仅在真实 `server-mode` 本地服务运行时发布真实 IPv4 私网地址；Android 和 Web
+  fallback 不生成地址，不能用 `0.0.0.0` 或伪造地址填充该字段。
+- `capabilities.serverMode`：Desktop 为 `true`；Android 和 Web fallback 为 `false`。纯 Web 页面仍保留远端连接配置入口。
 - `capabilities.nativeBack`：只有 Android 在桥安装成功后开放；Desktop 不应通过 Tauri 自行模拟 Android 返回协议。
 - `normalizedConfig`：Rust/Kotlin 内部校验结果可以携带规范化配置，但当前前端 v1 只依赖 `valid` 和 `fieldErrors`；
   若要把规范化结果纳入公开契约，应先同步 TypeScript、Tauri、Android 和 Web 三侧，而不是单边增加字段。
@@ -182,7 +182,8 @@ Android 使用运行时注入的 `__WINESTOCK_RUNTIME_CONFIG__`，Desktop 使用
 1. 已完成 Tauri 错误码解析、Desktop/Web capability 收敛、共享快照语义测试和 Desktop 首屏超时兜底。
 2. 下一步补 Android WebMessage 与真实 Tauri 安装包 smoke，验证传输层生命周期和错误投影。
 3. 若确有运行时版本/设备名更新需求，再设计 v2 客户端元数据能力。
-4. 最后再考虑 `server-mode`、Desktop 原生返回或其它新 capability；每项都必须先扩展协议、权限和测试矩阵。
+4. Desktop `server-mode` 代码已完成；剩余安装包和真实网络 smoke 后，再考虑 Desktop 原生返回或其它新
+   capability；每项都必须先扩展协议、权限和测试矩阵。
 
 ## 验证入口
 

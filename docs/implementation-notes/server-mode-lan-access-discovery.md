@@ -1,13 +1,13 @@
 # Server mode 本机局域网地址实施方案
 
-> 文档状态：阶段 A 已实施；API 33 Android 远端 smoke 已完成，正式平台地址提供待后续<br>
+> 文档状态：阶段 A/B 已实施；API 33 Android 远端 smoke 已完成，正式平台真实网络验收待后续<br>
 > 涉及组件：`frontend`、Desktop/Android Shell、根项目文档<br>
 > 编制日期：2026-07-23<br>
-> 当前边界：前端展示与契约消费已完成；Android 当前 `serverMode = false` 的隐藏行为已上机验证，
-> 正式 Desktop Shell 地址发现和 Android server mode 的真实 LAN 地址仍待实现
+> 当前边界：前端展示与契约消费、Desktop Shell 地址发现代码已完成；Android 当前 `serverMode = false` 的隐藏行为已上机验证，
+> Android server mode 的真实 LAN 地址仍待实现
 
 > 实施记录：纯地址选择器、自动化测试、本机运行设置主入口、头像快捷入口、共用 Dialog、复制反馈、
-> 地址失效关闭和 Web fallback 占位值清理均已完成。正式 Shell 仍需按本文提供真实 `lanAccessUrls`。
+> 地址失效关闭、Web fallback 占位值清理和 Desktop Shell 的真实 `lanAccessUrls` 发布代码均已完成。
 
 ## 1. 结论
 
@@ -84,7 +84,7 @@ snapshot.config.mode === "server-mode" &&
 - 当前只是草稿选择了 server mode，但尚未应用；
 - 当前连接的是远端服务；
 - 本地服务正在启动、停止、失败或已停止；
-- 平台尚未实现 server mode；
+- 当前平台 capability 关闭或 Shell 尚未返回真实地址；
 - Shell 没有返回任何真实可连接地址。
 
 Dialog 打开后若新快照不再满足条件，应关闭 Dialog；不得继续展示旧地址。
@@ -101,7 +101,8 @@ Dialog 打开后若新快照不再满足条件，应关闭 Dialog；不得继续
 6. 使用 URL origin 形成稳定展示值，去掉无意义的尾部 `/`。
 7. 按规范化结果去重，并保留 Shell 返回的顺序；接口优先级由 Shell 决定，前端不猜测 Wi-Fi、以太网或 VPN 的优先级。
 
-第一版允许 Shell 返回 IPv4、IPv6 或可解析的局域网主机名，不仅限 RFC1918 IPv4；企业网络、IPv6 ULA 和平台路由策略仍由 Shell 判断。
+Shell 可以在后续平台实现中选择 IPv4、IPv6 或可解析的局域网主机名；当前 Desktop 首版只返回 Windows
+IP Helper 发现的 RFC1918 IPv4，具体 IPv6 与其它地址类型暂不伪造。
 
 ## 6. UI 与交互
 
@@ -138,13 +139,13 @@ Dialog 打开后若新快照不再满足条件，应关闭 Dialog；不得继续
 - 删除 Web fallback 的占位 LAN URL。
 - 更新本机运行设置文档、Shell Bridge 规则和前端代码地图。
 
-### 阶段 B：正式 Desktop Shell
+### 阶段 B：正式 Desktop Shell（代码已实施）
 
 - Tauri shell 启动本地服务后枚举当前有效接口。
 - 基于实际端口生成 URL，并在接口、网络和服务状态变化时刷新快照。
-- 明确防火墙授权或失败提示，不把系统权限处理交给前端。
-
-正式 `desktop` 当前尚未实现，因此阶段 A 只能完成消费端，不能宣称 Desktop 真实地址发现已通过。
+- wildcard 监听时通过 Windows IP Helper 枚举运行中的 RFC1918 IPv4；具体 IPv4 监听只发布实际绑定地址。
+- 绑定成功后写入 `lanAccessUrls`，应用恢复焦点时重新发现并发布，服务停止/失败/切远端时清空。
+- 不自动修改 Windows 防火墙；安装包、防火墙和跨设备 HTTP smoke 仍需真实环境验收。
 
 ### 阶段 C：Android server mode
 
@@ -193,7 +194,7 @@ Dialog 打开后若新快照不再满足条件，应关闭 Dialog；不得继续
 
 ## 9. 剩余覆盖项
 
-- 正式 Desktop Shell 尚不存在，仍需在实现后用真实 Shell 快照验证网卡发现、网络变化和防火墙场景。
+- Desktop Shell 代码已实现，仍需用真实安装包和同网设备验证网卡发现、网络变化、防火墙和具体绑定地址场景。
 
 - Android server mode 尚未启用；完成 Foreground Service、通知与网络策略后，仍需补充真实 LAN URL、
   复制、旋转、前后台切换和原生返回验收。当前 API 33 设备结果只证明 capability 关闭时入口正确隐藏，

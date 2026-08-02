@@ -20,5 +20,6 @@ url = { workspace = true }
 rfd = { workspace = true }
 webview2-com = { workspace = true }
 windows = { workspace = true }
+windows-sys = { workspace = true }
 winestock-core = { workspace = true }
 winestock-shared = { workspace = true }

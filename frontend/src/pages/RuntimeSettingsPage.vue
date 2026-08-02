@@ -191,6 +191,9 @@
           >
             查看局域网访问地址
           </button>
+          <div v-if="lanAccessUnavailable" class="form-warning" role="status">
+            当前设备没有可用的局域网地址，请检查网络适配器和操作系统防火墙。
+          </div>
           <div v-if="pageError" class="form-error" role="alert">{{ pageError }}</div>
         </section>
 
@@ -370,6 +373,14 @@ const displayAddress = computed(() =>
 );
 const previewAddress = computed(() => previewApiBaseUrl(draft.value));
 const lanAccessUrls = computed(() => getUsableLanAccessUrls(snapshot.value));
+const lanAccessUnavailable = computed(
+  () =>
+    snapshot.value?.config.mode === "server-mode" &&
+    snapshot.value.service.ownership === "local" &&
+    snapshot.value.service.phase === "running" &&
+    snapshot.value.capabilities.serverMode &&
+    lanAccessUrls.value.length === 0,
+);
 const dirty = computed(
   () =>
     !snapshot.value ||

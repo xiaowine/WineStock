@@ -28,11 +28,12 @@
 
 - `winestock-server` sidecar 或第二套服务实现。
 - 原生设置窗口、原生错误对话框或业务 API 代理。
-- `server-mode`、局域网地址发现和防火墙配置。
+- Android `server-mode`、防火墙配置和公网部署；Desktop LAN `server-mode` 由独立实现文档补充。
 - 系统托盘、开机启动、自动更新、多窗口和文件关联。
 - macOS、Linux 安装包验收。
 
-对应 capability 中 `serverMode` 和 `nativeBack` 返回 `false`。后续功能根据真实需求单独设计。
+Desktop capability 中 `serverMode=true`、`nativeBack=false`；Android 和 Web fallback 仍按各自壳能力关闭
+`serverMode`。Desktop LAN server-mode 的地址发现和验收见独立实现文档。
 
 ## 3. 所有权与数据流
 

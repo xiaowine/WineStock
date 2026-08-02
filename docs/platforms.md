@@ -49,12 +49,16 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
 - 主窗口加载 Tauri 打包的 `frontend/dist`，通过具名 command/event 提供 Shell Bridge v1；
 - `DesktopRuntimeManager` 在 app data 目录管理配置、SQLite/文件路径与 `RunningLocalService`，首次无配置保持 stopped，
   有效本地配置在主窗口显示前恢复，local/remote 切换与退出均停止旧服务；
+- Desktop 的 LAN 地址发现应使用跨平台高层接口，防火墙由各平台独立 provider 管理；Windows 采用高层
+  `windows` crate 的 Firewall COM，macOS 可使用 PF、Linux 可使用 firewalld/nftables，但必须分别验证权限、
+  规则所有权和回滚，不得假设三者防火墙策略一致；
 - `tauri-plugin-single-instance` 保证桌面进程单实例；后续启动只聚焦首个主窗口，不向其转交参数、工作目录或 URL，
   后续实例随后退出；`tauri-plugin-prevent-default` 仅在 Release 禁用 WebView2 默认快捷键，Debug 保留默认快捷键；
 - Windows Desktop 在显示主窗口前调用 WebView2 官方 Loader API 检查 Evergreen Runtime 主版本不低于 M111；不满足时不加载
   前端、不启动本地服务，通过 `rfd` 原生错误对话框提示依赖损坏并要求重新安装软件后退出；安装器同步使用 `minimumWebview2Version=111.0.0.0`。macOS/Linux
   使用系统 WebKit，待接入对应原生版本 API 后再启用同一门禁。
-- `server-mode`、原生返回、托盘和跨平台安装包仍由 capability 禁用或留待后续设计；Windows 安装包 smoke 尚待执行。
+- Windows Desktop 已开放 `server-mode`；macOS/Linux 是否开放由 capability 和防火墙 provider 能力决定，不能把
+  `serverMode=true` 解释为自动放行；Windows 安装包 smoke 尚待执行。
 
 ## Android
 

@@ -133,13 +133,96 @@ async fn remote_apply_persists_without_starting_local_service() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn server_mode_is_rejected() {
+async fn server_mode_starts_core_with_lan_capability() {
     let (_dir, manager) = temp_manager();
-    let mut config = self_hosted(17890);
+    let listener = TcpListener::bind("0.0.0.0:0").expect("选择测试端口");
+    let port = i64::from(listener.local_addr().expect("address").port());
+    drop(listener);
+    let mut config = self_hosted(port);
     config.mode = "server-mode".to_owned();
+    config.bind_host = "0.0.0.0".to_owned();
     let result = manager.apply(config).await;
-    assert!(!result.valid);
-    assert!(result.field_errors.contains_key("mode"));
+    assert!(result.applied, "server-mode 应成功: {:?}", result.error);
+    assert_eq!(result.snapshot.service.phase, "running");
+    assert!(result.snapshot.capabilities.server_mode);
+    assert_eq!(result.snapshot.config.bind_host, "0.0.0.0");
+    assert!(result
+        .snapshot
+        .service
+        .bound_address
+        .as_deref()
+        .is_some_and(|address| address.starts_with("0.0.0.0:")));
+    assert!(result
+        .snapshot
+        .service
+        .api_base_url
+        .as_deref()
+        .is_some_and(|url| url.starts_with("http://127.0.0.1:")));
+    assert!(result
+        .snapshot
+        .service
+        .lan_access_urls
+        .as_ref()
+        .is_some_and(|urls| urls.iter().all(|url| {
+            url.starts_with("http://") && !url.contains("0.0.0.0") && !url.contains("127.0.0.1")
+        })));
+    manager.refresh_network_state().await;
+    let refreshed = manager.snapshot().await;
+    assert_eq!(refreshed.service.phase, "running");
+    assert_eq!(
+        refreshed.service.api_base_url,
+        result.snapshot.service.api_base_url
+    );
+    manager.shutdown_local_service(Duration::from_secs(5)).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn server_mode_validates_fixed_port_and_ip_rules() {
+    let (_dir, manager) = temp_manager();
+
+    for bind_host in ["0.0.0.0", "192.168.1.20", "::", "2001:db8::20"] {
+        let mut valid = self_hosted(17890);
+        valid.mode = "server-mode".to_owned();
+        valid.bind_host = bind_host.to_owned();
+        let validation = manager.validate(valid).await;
+        assert!(validation.valid, "server-mode 应接受有效地址 {bind_host}");
+    }
+
+    let mut invalid_port = self_hosted(0);
+    invalid_port.mode = "server-mode".to_owned();
+    invalid_port.bind_host = "0.0.0.0".to_owned();
+    let validation = manager.validate(invalid_port).await;
+    assert!(!validation.valid);
+    assert!(validation.field_errors.contains_key("port"));
+
+    for bind_host in ["", "wine-host.local", "999.1.1.1", "2001:db8::gg"] {
+        let mut invalid_host = self_hosted(17890);
+        invalid_host.mode = "server-mode".to_owned();
+        invalid_host.bind_host = bind_host.to_owned();
+        let validation = manager.validate(invalid_host).await;
+        assert!(!validation.valid, "server-mode 不应接受地址 {bind_host:?}");
+        assert!(validation.field_errors.contains_key("bindHost"));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn server_mode_keeps_fixed_port_when_occupied() {
+    let (_dir, manager) = temp_manager();
+    let occupied = TcpListener::bind("0.0.0.0:0").expect("占用测试端口");
+    let occupied_port = occupied.local_addr().expect("address").port();
+
+    let mut config = self_hosted(i64::from(occupied_port));
+    config.mode = "server-mode".to_owned();
+    config.bind_host = "0.0.0.0".to_owned();
+    let result = manager.apply(config).await;
+    assert!(!result.applied);
+    assert_eq!(
+        result.error.as_ref().map(|error| error.code.as_str()),
+        Some("port_in_use")
+    );
+    // 首次 apply 没有可恢复的旧配置，manager 按既有事务语义返回 stopped 快照；
+    // 端口错误仍通过 apply.error 保留给前端。
+    assert_eq!(result.snapshot.service.phase, "stopped");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -173,6 +256,47 @@ async fn loaded_config_auto_starts_on_initialize() {
     manager2
         .shutdown_local_service(Duration::from_secs(5))
         .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn loaded_server_mode_auto_starts_on_initialize() {
+    let (dir, manager) = temp_manager();
+    let listener = TcpListener::bind("0.0.0.0:0").expect("选择测试端口");
+    let port = i64::from(listener.local_addr().expect("address").port());
+    drop(listener);
+    let mut config = self_hosted(port);
+    config.mode = "server-mode".to_owned();
+    config.bind_host = "0.0.0.0".to_owned();
+    assert!(manager.apply(config).await.applied);
+    manager.shutdown_local_service(Duration::from_secs(5)).await;
+
+    let manager2 = DesktopRuntimeManager::new(None, dir.path().to_path_buf());
+    manager2.initialize().await;
+    let snapshot = manager2.snapshot().await;
+    assert_eq!(snapshot.config.mode, "server-mode");
+    assert_eq!(snapshot.service.phase, "running");
+    assert_eq!(snapshot.config.port, port);
+    assert!(snapshot.service.lan_access_urls.is_some());
+    manager2
+        .shutdown_local_service(Duration::from_secs(5))
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn switching_server_mode_to_remote_clears_lan_addresses() {
+    let (_dir, manager) = temp_manager();
+    let listener = TcpListener::bind("0.0.0.0:0").expect("选择测试端口");
+    let port = i64::from(listener.local_addr().expect("address").port());
+    drop(listener);
+    let mut server = self_hosted(port);
+    server.mode = "server-mode".to_owned();
+    server.bind_host = "0.0.0.0".to_owned();
+    assert!(manager.apply(server).await.applied);
+
+    let remote_result = manager.apply(remote()).await;
+    assert!(remote_result.applied);
+    assert_eq!(remote_result.snapshot.service.ownership, "remote");
+    assert_eq!(remote_result.snapshot.service.lan_access_urls, None);
 }
 
 #[tokio::test(flavor = "multi_thread")]
