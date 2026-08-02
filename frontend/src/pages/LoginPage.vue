@@ -56,10 +56,6 @@
           />
         </FormField>
 
-        <div v-if="errorMessage" class="form-error" role="alert">
-          {{ errorMessage }}
-        </div>
-
         <button class="primary-button primary-button--full" type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? "正在登录…" : "登录" }}
         </button>
@@ -128,6 +124,9 @@ async function submitLogin(): Promise<void> {
   errorMessage.value = "";
   fieldErrors.value = validateLoginInput(username.value, password.value);
   if (Object.keys(fieldErrors.value).length > 0) {
+    notice.warning("请检查登录信息", {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? "请检查用户名和密码",
+    });
     return;
   }
 
@@ -181,9 +180,11 @@ function applyLoginError(error: unknown): void {
     }
 
     fieldErrors.value = error.fieldErrors;
-    errorMessage.value =
-      Object.keys(error.fieldErrors).length > 0 ? "请检查输入内容" : error.message;
-    notice.error(errorMessage.value);
+    const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
+    errorMessage.value = hasFieldErrors ? "请检查输入内容" : error.message;
+    notice.error(errorMessage.value, {
+      detail: hasFieldErrors ? Object.values(error.fieldErrors)[0]?.[0] : undefined,
+    });
     return;
   }
   if (error instanceof ApiConfigurationError) {

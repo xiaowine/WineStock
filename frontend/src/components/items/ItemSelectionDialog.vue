@@ -38,15 +38,7 @@
       </header>
 
       <div
-        v-if="itemError && items.length === 0"
-        class="item-selection-dialog__state item-selection-dialog__state--error"
-        role="alert"
-      >
-        <p>{{ itemError }}</p>
-        <button class="text-button" type="button" @click="emit('reset-items')">重试</button>
-      </div>
-      <div
-        v-else-if="loadingItems && items.length === 0"
+        v-if="loadingItems && items.length === 0"
         class="item-selection-dialog__state"
         role="status"
       >
@@ -109,16 +101,6 @@
           正在加载更多物品…
         </div>
         <div
-          v-else-if="itemError"
-          class="item-selection-dialog__state item-selection-dialog__state--error item-selection-dialog__state--tail"
-          role="alert"
-        >
-          <p>{{ itemError }}</p>
-          <button class="text-button" type="button" @click="emit('load-next-items')">
-            重试本页
-          </button>
-        </div>
-        <div
           v-else-if="itemsExhausted"
           class="item-selection-dialog__state item-selection-dialog__state--tail"
         >
@@ -130,12 +112,14 @@
 </template>
 
 <script setup lang="ts">
+import { watch } from "vue";
 import type { ItemOptionResponse } from "../../api/items";
 import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 import ModalDialog from "../ModalDialog.vue";
 import SearchField from "../SearchField.vue";
+import { notice } from "../../notices/notice";
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     open: boolean;
     title: string;
@@ -164,6 +148,21 @@ const emit = defineEmits<{
   "select-item": [item: ItemOptionResponse];
   "create-item": [];
 }>();
+
+watch(
+  () => props.itemError,
+  (error) => {
+    if (error) {
+      notice.error("加载物品失败", {
+        detail: error,
+        onClick: () => {
+          if (props.items.length === 0) emit("reset-items");
+          else emit("load-next-items");
+        },
+      });
+    }
+  },
+);
 
 function captureList(element: unknown): void {
   emit("list-element", element instanceof HTMLElement ? element : null);

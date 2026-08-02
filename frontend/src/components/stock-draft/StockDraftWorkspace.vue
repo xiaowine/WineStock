@@ -91,6 +91,14 @@
                   'inbound-control--error':
                     flow.validationAttempted.value && !flow.source.value.trim(),
                 }"
+                :aria-invalid="
+                  flow.validationAttempted.value && !flow.source.value.trim() ? true : undefined
+                "
+                :aria-describedby="
+                  flow.validationAttempted.value && !flow.source.value.trim()
+                    ? 'stock-draft-source-error'
+                    : undefined
+                "
                 :title="
                   flow.validationAttempted.value && !flow.source.value.trim()
                     ? `请填写${texts.sourceLabel}`
@@ -101,6 +109,13 @@
                 maxlength="128"
                 :placeholder="texts.sourcePlaceholder"
               />
+              <span
+                v-if="flow.validationAttempted.value && !flow.source.value.trim()"
+                id="stock-draft-source-error"
+                class="visually-hidden"
+                role="alert"
+                >请填写{{ texts.sourceLabel }}</span
+              >
             </label>
             <button
               class="icon-button inbound-order-meta__notes-toggle"

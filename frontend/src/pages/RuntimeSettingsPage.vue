@@ -47,8 +47,6 @@
         </div>
       </header>
 
-      <div v-if="shellRuntimeError" class="form-error" role="alert">{{ shellRuntimeError }}</div>
-
       <section
         class="runtime-next-status"
         :class="`runtime-next-status--${statusTone}`"
@@ -194,7 +192,6 @@
           <div v-if="lanAccessUnavailable" class="form-warning" role="status">
             当前设备没有可用的局域网地址，请检查网络适配器或监听地址。
           </div>
-          <div v-if="pageError" class="form-error" role="alert">{{ pageError }}</div>
         </section>
 
         <footer class="auth-page-actions runtime-next__actions">
@@ -290,7 +287,6 @@
         :disabled="gateSubmitting"
         required
       />
-      <p v-if="gateError" class="form-error" role="alert">{{ gateError }}</p>
       <template #actions>
         <button
           class="secondary-button"
@@ -361,7 +357,6 @@ const router = useRouter();
 const route = useRoute();
 const draft = ref<EditableRuntimeConfig>(cloneRuntimeConfig(defaultRuntimeConfig));
 const fieldErrors = ref<Partial<Record<RuntimeConfigField, readonly string[]>>>({});
-const pageError = ref("");
 const applying = ref(false);
 const testingRemote = ref(false);
 const remoteTestMessage = ref("");
@@ -373,7 +368,6 @@ const passwordGateOpen = ref(false);
 const gatePassword = ref("");
 const gatePasswordConfirm = ref("");
 const gateSubmitting = ref(false);
-const gateError = ref("");
 const gateFieldError = ref("");
 const gateConfirmError = ref("");
 useFormValidation(fieldErrors);
@@ -598,6 +592,9 @@ watch(
   () => draft.value.remoteBaseUrl,
   () => (remoteTestMessage.value = ""),
 );
+watch(shellRuntimeError, (error) => {
+  if (error) notice.error("运行环境初始化失败", { detail: error });
+});
 void initializeShellRuntime()
   .then((initial) => {
     if (isFirewallRecoveryStatus(initial.service.firewall?.status)) {
@@ -613,7 +610,6 @@ function fieldError(field: RuntimeConfigField): string {
 function changeMode(mode: RuntimeMode): void {
   draft.value = applyRuntimeModeDefaults(draft.value, mode);
   fieldErrors.value = {};
-  pageError.value = "";
   remoteTestMessage.value = "";
 }
 
@@ -631,10 +627,14 @@ function coerceDraftForPlatform(config: EditableRuntimeConfig): EditableRuntimeC
 }
 
 async function requestApply(): Promise<void> {
-  pageError.value = "";
   const validation = await validateRuntimeConfig(draft.value);
   fieldErrors.value = validation.fieldErrors;
-  if (!validation.valid) return;
+  if (!validation.valid) {
+    notice.warning("请检查运行设置", {
+      detail: Object.values(validation.fieldErrors)[0]?.[0] ?? "请检查输入内容",
+    });
+    return;
+  }
   const gate = await resolveLocalAdminPasswordGate();
   if (gate === "blocked") return;
   if (gate === "required") {
@@ -664,8 +664,7 @@ async function resolveLocalAdminPasswordGate(): Promise<"pass" | "required" | "b
   try {
     return (await getLocalSessionStatus()).password_placeholder ? "required" : "pass";
   } catch {
-    pageError.value = "无法确认本机管理员密码状态，请稍后重试";
-    notice.error("设置保存失败", { detail: pageError.value });
+    notice.error("无法确认管理员密码状态", { detail: "请稍后重试。" });
     return "blocked";
   }
 }
@@ -673,7 +672,6 @@ async function resolveLocalAdminPasswordGate(): Promise<"pass" | "required" | "b
 function openPasswordGate(): void {
   gatePassword.value = "";
   gatePasswordConfirm.value = "";
-  gateError.value = "";
   gateFieldError.value = "";
   gateConfirmError.value = "";
   passwordGateOpen.value = true;
@@ -689,17 +687,23 @@ async function submitPasswordGate(): Promise<void> {
   gateFieldError.value = gatePassword.value.length < 8 ? "密码至少需要 8 个字符" : "";
   gateConfirmError.value =
     gatePassword.value === gatePasswordConfirm.value ? "" : "两次输入的密码不一致";
-  if (gateFieldError.value || gateConfirmError.value) return;
+  if (gateFieldError.value || gateConfirmError.value) {
+    notice.warning("请检查管理员密码", {
+      detail: gateFieldError.value || gateConfirmError.value,
+    });
+    return;
+  }
 
   gateSubmitting.value = true;
-  gateError.value = "";
   try {
     await changeOwnPassword({ current_password: "", new_password: gatePassword.value });
     passwordGateOpen.value = false;
     notice.success("管理员密码已设置");
     confirmationOpen.value = true;
   } catch (error) {
-    gateError.value = error instanceof Error ? error.message : "密码设置失败，请重试";
+    notice.error("设置管理员密码失败", {
+      detail: error instanceof Error ? error.message : "请重试。",
+    });
   } finally {
     gateSubmitting.value = false;
   }
@@ -712,14 +716,17 @@ async function applyConfirmed(): Promise<void> {
 
 async function executeApply(): Promise<void> {
   applying.value = true;
-  pageError.value = "";
   const wasSetupFinished = setupFinished.value;
   try {
     const result = await applyRuntimeConfig(draft.value);
     fieldErrors.value = result.fieldErrors;
     if (!result.applied) {
-      pageError.value = result.error?.message ?? "设置没有保存，请检查后重试";
-      notice.error("设置保存失败", { detail: pageError.value });
+      notice.error("设置保存失败", {
+        detail:
+          result.error?.message ??
+          Object.values(result.fieldErrors)[0]?.[0] ??
+          "设置没有保存，请检查后重试",
+      });
       return;
     }
     draft.value = cloneRuntimeConfig(result.snapshot.config);
@@ -740,8 +747,9 @@ async function executeApply(): Promise<void> {
       await navigateAfterSetup(true);
     }
   } catch (error) {
-    pageError.value = error instanceof Error ? error.message : "设置保存失败";
-    notice.error("设置保存失败", { detail: pageError.value });
+    notice.error("设置保存失败", {
+      detail: error instanceof Error ? error.message : "请稍后重试。",
+    });
   } finally {
     applying.value = false;
   }
@@ -750,7 +758,13 @@ async function executeApply(): Promise<void> {
 async function testRemoteConnection(): Promise<void> {
   const validation = await validateRuntimeConfig(draft.value);
   fieldErrors.value = validation.fieldErrors;
-  if (!validation.valid || !remoteMode.value) return;
+  if (!validation.valid) {
+    notice.warning("请检查远程连接设置", {
+      detail: Object.values(validation.fieldErrors)[0]?.[0] ?? "请检查服务器地址",
+    });
+    return;
+  }
+  if (!remoteMode.value) return;
   testingRemote.value = true;
   remoteTestMessage.value = "";
   const controller = new AbortController();
@@ -784,7 +798,6 @@ async function repairFirewall(): Promise<void> {
   if (!canRepairFirewall.value) return;
   const previousFirewallStatus = firewallStatus.value;
   firewallRepairing.value = true;
-  pageError.value = "";
   try {
     await repairFirewallShell();
     firewallRecoveryOpen.value = false;
@@ -792,8 +805,9 @@ async function repairFirewall(): Promise<void> {
       previousFirewallStatus === "cleanup-pending" ? "防火墙规则已清理" : "防火墙设置已完成",
     );
   } catch (error) {
-    pageError.value = error instanceof Error ? error.message : "防火墙操作失败，请重试";
-    notice.error("防火墙操作失败", { detail: pageError.value });
+    notice.error("防火墙操作失败", {
+      detail: error instanceof Error ? error.message : "请重试。",
+    });
   } finally {
     firewallRepairing.value = false;
   }
@@ -809,7 +823,7 @@ function isFirewallRecoveryStatus(status: string | undefined): boolean {
  */
 async function leaveRuntimeSettings(): Promise<void> {
   if (authStatus.value !== "authenticated" && !setupFinished.value) {
-    pageError.value = "请先保存运行设置，再继续。";
+    notice.warning("请先保存运行设置，再继续。", { detail: "保存成功后才能离开此页面。" });
     return;
   }
   await navigateAfterSetup();

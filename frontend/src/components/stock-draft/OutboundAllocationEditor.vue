@@ -15,8 +15,21 @@
         min="0.01"
         step="0.01"
         :class="{ error: validation && !quantityValid }"
+        :aria-invalid="validation && !quantityValid ? true : undefined"
+        :aria-describedby="
+          validation && !quantityValid
+            ? `outbound-allocation-quantity-error-${line.lineId}`
+            : undefined
+        "
         :aria-label="`${line.item.name} 出库数量`"
       />
+      <span
+        v-if="validation && !quantityValid"
+        :id="`outbound-allocation-quantity-error-${line.lineId}`"
+        class="visually-hidden"
+        role="alert"
+        >请输入大于 0 的出库数量</span
+      >
     </label>
   </section>
   <section class="outbound-allocation-section">
@@ -46,7 +59,6 @@
           {{ location.name }}
         </option>
       </SelectControl>
-      <small v-if="locationError">{{ locationError }}，仍可按全部库位 FIFO 分配。</small>
     </label>
   </section>
   <section v-else class="outbound-allocation-section">
@@ -70,11 +82,7 @@
           </span>
         </label>
       </div>
-      <p v-if="batchError">
-        {{ batchError }}
-        <button class="text-button" type="button" @click="$emit('retry-batches')">重试</button>
-      </p>
-      <p v-else-if="batchPending">正在加载批次…</p>
+      <p v-if="batchPending">正在加载批次…</p>
       <p v-else-if="batchMore">继续向下滚动加载</p>
       <p v-else>已加载全部批次</p>
     </div>
@@ -83,7 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import type { ItemBatchStockResponse } from "../../api/items";
 import type { LocationResponse } from "../../api/locations";
 import SelectControl from "../forms/SelectControl.vue";
@@ -92,6 +100,7 @@ import type {
   OutboundAllocationDraft,
   OutboundDraftLine,
 } from "../../pages/stock-draft/useOutboundDraft";
+import { notice } from "../../notices/notice";
 
 const props = defineProps<{
   line: OutboundDraftLine;
@@ -110,6 +119,27 @@ const emit = defineEmits<{
   "retry-batches": [];
   "load-more-batches": [];
 }>();
+
+watch(
+  () => props.batchError,
+  (error) => {
+    if (error)
+      notice.error("加载批次失败", {
+        detail: error,
+        onClick: () => emit("retry-batches"),
+      });
+  },
+);
+
+watch(
+  () => props.locationError,
+  (error) => {
+    if (error)
+      notice.error("加载库位失败", {
+        detail: `${error}，仍可按全部库位 FIFO 分配。`,
+      });
+  },
+);
 
 const quantityValid = computed(() => {
   const quantity = Number(props.draft.quantity);

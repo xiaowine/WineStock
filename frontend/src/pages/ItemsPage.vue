@@ -338,9 +338,7 @@
       :categories="categories"
       :templates="templates"
       :loading="filterValuesLoading"
-      :error="filterValuesError"
       @close="filterDialogOpen = false"
-      @retry="loadFilterValues"
       @apply="requestApplyCatalogFilters"
     />
 
@@ -477,7 +475,6 @@ const appliedCatalogFilters = ref<ItemCatalogFilters>(emptyItemCatalogFilters())
 const filterFields = ref<ItemFilterFieldResponse[]>([]);
 const filterDialogOpen = ref(false);
 const filterValuesLoading = ref(false);
-const filterValuesError = ref("");
 const total = ref(0);
 const page = ref(1);
 const totalPages = ref(0);
@@ -701,7 +698,6 @@ async function loadFilterValues(): Promise<void> {
   const controller = new AbortController();
   filterValuesAbortController = controller;
   filterValuesLoading.value = true;
-  filterValuesError.value = "";
   try {
     const response = await getItemFilterValues(
       activeSearch.value,
@@ -712,7 +708,11 @@ async function loadFilterValues(): Promise<void> {
     filterFields.value = response.fields;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") return;
-    filterValuesError.value = errorMessage(error);
+    const message = errorMessage(error);
+    notice.error("加载高级筛选失败", {
+      detail: message,
+      onClick: () => void loadFilterValues(),
+    });
   } finally {
     if (filterValuesAbortController === controller) {
       filterValuesAbortController = null;

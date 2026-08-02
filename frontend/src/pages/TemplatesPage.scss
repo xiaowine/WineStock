@@ -224,6 +224,10 @@
     grid-template-columns: var(--template-columns);
   }
 
+  &__field {
+    display: contents;
+  }
+
   &__head {
     min-height: 38px;
     align-items: center;

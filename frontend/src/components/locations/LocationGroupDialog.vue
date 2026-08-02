@@ -50,8 +50,6 @@
         step="1"
         :disabled="submitting"
       />
-
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </form>
 
     <template #actions>

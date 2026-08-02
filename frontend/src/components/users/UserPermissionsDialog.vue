@@ -24,12 +24,8 @@
     </template>
 
     <div v-if="loading" class="dialog-state" role="status">正在加载权限…</div>
-    <div v-else-if="loadError" class="dialog-state dialog-state--error" role="alert">
-      <p>{{ loadError }}</p>
-      <button class="secondary-button" type="button" @click="emit('retry')">重试</button>
-    </div>
     <form
-      v-else
+      v-else-if="!loadError"
       id="user-permissions-form"
       class="permission-picker"
       novalidate
@@ -102,8 +98,6 @@
               </span>
             </label>
           </div>
-
-          <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
         </section>
       </Transition>
     </form>

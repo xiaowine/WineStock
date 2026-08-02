@@ -774,7 +774,7 @@ function handleActionError(error: unknown, fallback: string): void {
     actionFieldErrors.value.name =
       error.code === "category_name_taken" ? "分类名称已存在" : "模板名称已存在";
   }
-  notice.error(actionError.value);
+  notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   if (error instanceof ApiError && error.status === 404) void loadDomain(activeDomain.value);
 }
 

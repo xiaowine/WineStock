@@ -32,7 +32,6 @@ export function useStockItemCatalog(errorMessage: (error: unknown) => string) {
     controller?.abort();
     controller = null;
     loadingItems.value = false;
-    items.value = [];
     currentPage.value = 0;
     totalPages.value = 0;
     totalItems.value = 0;
@@ -56,9 +55,13 @@ export function useStockItemCatalog(errorMessage: (error: unknown) => string) {
         request.signal,
       );
       if (generation !== requestGeneration) return;
-      const merged = new Map(items.value.map((item) => [item.id, item]));
-      response.items.forEach((item) => merged.set(item.id, item));
-      items.value = Array.from(merged.values());
+      if (nextPage === 1) {
+        items.value = response.items;
+      } else {
+        const merged = new Map(items.value.map((item) => [item.id, item]));
+        response.items.forEach((item) => merged.set(item.id, item));
+        items.value = Array.from(merged.values());
+      }
       totalItems.value = response.total;
       currentPage.value = response.page;
       totalPages.value = response.total_pages;

@@ -20,7 +20,12 @@
       </div>
     </template>
 
-    <form id="item-catalog-attribute-form" class="catalog-attribute-dialog" @submit.prevent="save">
+    <form
+      id="item-catalog-attribute-form"
+      class="catalog-attribute-dialog"
+      novalidate
+      @submit.prevent="save"
+    >
       <label class="catalog-attribute-dialog__template">
         <span>物品属性模板</span>
         <SelectControl

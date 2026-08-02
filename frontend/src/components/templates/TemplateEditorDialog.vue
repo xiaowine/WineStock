@@ -51,9 +51,6 @@
             添加字段
           </button>
         </header>
-        <p v-if="errors.fields || errors.catalog_visible" class="form-error" role="alert">
-          {{ errors.fields || errors.catalog_visible }}
-        </p>
 
         <article
           v-for="(field, index) in draft.fields"
@@ -261,10 +258,6 @@
           </div>
         </article>
       </section>
-
-      <p v-if="errorMessage" class="form-error template-editor__request-error" role="alert">
-        {{ errorMessage }}
-      </p>
     </form>
 
     <div v-else class="template-detail">

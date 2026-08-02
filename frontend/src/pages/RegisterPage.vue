@@ -72,10 +72,6 @@
           />
         </FormField>
 
-        <div v-if="errorMessage" class="form-error" role="alert">
-          {{ errorMessage }}
-        </div>
-
         <button class="primary-button primary-button--full" type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? "正在创建…" : "创建并进入 WineStock" }}
         </button>
@@ -145,6 +141,9 @@ async function submitRegistration(): Promise<void> {
     passwordConfirmation.value,
   );
   if (Object.keys(fieldErrors.value).length > 0) {
+    notice.warning("请检查注册信息", {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? "请检查注册信息",
+    });
     return;
   }
 
@@ -227,10 +226,12 @@ async function applyRegistrationError(
     } else if (error.code === "username_taken") {
       errorMessage.value = "该用户名已存在，请更换用户名或返回登录";
     } else {
-      errorMessage.value =
-        Object.keys(error.fieldErrors).length > 0 ? "请检查输入内容" : error.message;
+      const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
+      errorMessage.value = hasFieldErrors ? "请检查输入内容" : error.message;
     }
-    notice.error(errorMessage.value);
+    notice.error(errorMessage.value, {
+      detail: Object.values(error.fieldErrors)[0]?.[0],
+    });
     return;
   }
   if (error instanceof ApiConfigurationError) {

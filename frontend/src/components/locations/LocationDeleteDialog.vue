@@ -24,7 +24,6 @@
             : "只有没有当前库存批次引用的库位才能删除，历史单据不会被移除。"
         }}
       </p>
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </div>
 
     <template #actions>

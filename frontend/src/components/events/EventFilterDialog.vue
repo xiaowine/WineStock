@@ -15,6 +15,7 @@
         step="1"
         placeholder="例如 42"
         :error="errors.entityId"
+        validation-key="entityId"
       />
       <FormInput
         v-model="userId"
@@ -24,9 +25,20 @@
         step="1"
         placeholder="例如 1"
         :error="errors.userId"
+        validation-key="userId"
       />
-      <DateTimeField v-model="dateFrom" label="开始时间" :error="errors.dateRange" />
-      <DateTimeField v-model="dateTo" label="结束时间" :error="errors.dateRange" />
+      <DateTimeField
+        v-model="dateFrom"
+        label="开始时间"
+        validation-key="dateRange"
+        :error="errors.dateRange"
+      />
+      <DateTimeField
+        v-model="dateTo"
+        label="结束时间"
+        validation-key="dateRange"
+        :error="errors.dateRange"
+      />
       <FormInput
         v-model="customEntityType"
         label="实体类型原始值"
@@ -34,6 +46,7 @@
         placeholder="可选，例如 custom_event"
         hint="填写后覆盖工具栏中的实体类型"
         :error="errors.customEntityType"
+        validation-key="customEntityType"
       />
       <FormInput
         v-model="customAction"
@@ -42,6 +55,7 @@
         placeholder="可选，例如 archived"
         hint="填写后覆盖工具栏中的动作"
         :error="errors.customAction"
+        validation-key="customAction"
       />
       <label class="event-filter-form__page-size">
         <span>每页数量</span>
@@ -65,11 +79,13 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import DateTimeField from "../forms/DateTimeField.vue";
 import FormInput from "../forms/FormInput.vue";
 import SelectControl from "../forms/SelectControl.vue";
 import ModalDialog from "../ModalDialog.vue";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
 
 export interface EventAdvancedFilterValue {
   entityId: number | null;
@@ -98,13 +114,8 @@ const customAction = ref("");
 const dateFrom = ref("");
 const dateTo = ref("");
 const pageSize = ref(50);
-const errors = reactive({
-  entityId: "",
-  userId: "",
-  customEntityType: "",
-  customAction: "",
-  dateRange: "",
-});
+const errors = ref<Record<string, string>>({});
+const { clearErrors } = useFormValidation(errors);
 
 watch(
   () => props.open,
@@ -134,20 +145,25 @@ function reset(): void {
 }
 
 function submit(): void {
-  clearErrors();
-  if (!validPositiveInteger(entityId.value)) errors.entityId = "实体 ID 必须是正整数";
-  if (!validPositiveInteger(userId.value)) errors.userId = "用户 ID 必须是正整数";
+  const nextErrors: Record<string, string> = {};
+  if (!validPositiveInteger(entityId.value)) nextErrors.entityId = "实体 ID 必须是正整数";
+  if (!validPositiveInteger(userId.value)) nextErrors.userId = "用户 ID 必须是正整数";
   if (customEntityType.value && !customEntityType.value.trim())
-    errors.customEntityType = "实体类型不能只包含空格";
-  if (customAction.value && !customAction.value.trim()) errors.customAction = "动作不能只包含空格";
+    nextErrors.customEntityType = "实体类型不能只包含空格";
+  if (customAction.value && !customAction.value.trim())
+    nextErrors.customAction = "动作不能只包含空格";
   if (
     dateFrom.value &&
     dateTo.value &&
     new Date(dateFrom.value).getTime() > new Date(dateTo.value).getTime()
   ) {
-    errors.dateRange = "开始时间不能晚于结束时间";
+    nextErrors.dateRange = "开始时间不能晚于结束时间";
   }
-  if (Object.values(errors).some(Boolean)) return;
+  errors.value = nextErrors;
+  if (Object.keys(nextErrors).length > 0) {
+    notice.warning("请检查筛选条件", { detail: Object.values(nextErrors)[0] });
+    return;
+  }
   emit("apply", {
     entityId: entityId.value,
     userId: userId.value,
@@ -161,14 +177,6 @@ function submit(): void {
 
 function validPositiveInteger(value: number | null): boolean {
   return value === null || (Number.isInteger(value) && value > 0);
-}
-
-function clearErrors(): void {
-  errors.entityId = "";
-  errors.userId = "";
-  errors.customEntityType = "";
-  errors.customAction = "";
-  errors.dateRange = "";
 }
 </script>
 

@@ -823,7 +823,7 @@ function applyActionError(error: unknown, fallback: string): void {
   const result = locationManagementError(error, fallback);
   actionError.value = result.message;
   actionFieldErrors.value = result.fieldErrors;
-  notice.error(result.message);
+  notice.error(result.message, { detail: Object.values(result.fieldErrors)[0] });
 }
 
 function findGroup(nodes: LocationGroupTreeNode[], groupId: number): LocationGroupTreeNode | null {

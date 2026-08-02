@@ -58,10 +58,6 @@
                 placeholder="http://192.168.1.10:17890"
                 :disabled="testingConnection"
               />
-              <!-- FormField 的错误仅供读屏器；这里补可见文案，aria-hidden 避免重复播报。 -->
-              <div v-if="serverUrlError" class="form-error" aria-hidden="true">
-                {{ serverUrlError }}
-              </div>
               <div class="setup-wizard__test-row">
                 <button
                   class="secondary-button"
@@ -131,7 +127,6 @@
               <p>加载中…</p>
             </div>
             <div v-else class="setup-wizard__apply-error">
-              <div class="form-error" role="alert">{{ applyError }}</div>
               <div class="auth-page-actions">
                 <button class="secondary-button" type="button" @click="restartWizard">
                   返回修改
@@ -177,6 +172,7 @@ import FormInput from "../components/forms/FormInput.vue";
 import ThemePreferenceSelector from "../components/preferences/ThemePreferenceSelector.vue";
 import { startTelemetryIfConsented } from "../telemetry/clarity";
 import { TELEMETRY_POLICY_URL, saveTelemetryConsent } from "../telemetry/consent";
+import { notice } from "../notices/notice";
 import type { EditableRuntimeConfig } from "../shell/contract";
 import {
   applyRuntimeConfig,
@@ -271,10 +267,12 @@ async function advanceFromServerStep(): Promise<void> {
   const fieldError = validation.fieldErrors.remoteBaseUrl?.[0];
   if (!validation.valid && fieldError) {
     serverUrlError.value = fieldError;
+    notice.warning("请检查服务器地址", { detail: fieldError });
     return;
   }
   if (!validation.valid) {
     serverUrlError.value = "服务器地址无效，请检查后重试";
+    notice.warning("请检查服务器地址", { detail: serverUrlError.value });
     return;
   }
   step.value = "consent";
@@ -332,8 +330,16 @@ async function applyConfiguration(): Promise<void> {
       result.error?.message ??
       Object.values(result.fieldErrors)[0]?.[0] ??
       "无法应用当前配置，请返回修改后重试";
+    notice.error("应用运行配置失败", {
+      detail: applyError.value,
+      onClick: () => void applyConfiguration(),
+    });
   } catch (error) {
     applyError.value = error instanceof Error ? error.message : "无法应用当前配置，请稍后重试";
+    notice.error("应用运行配置失败", {
+      detail: applyError.value,
+      onClick: () => void applyConfiguration(),
+    });
   } finally {
     applying.value = false;
   }

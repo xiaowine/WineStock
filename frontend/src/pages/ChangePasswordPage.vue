@@ -98,10 +98,6 @@
           />
         </FormField>
 
-        <div v-if="errorMessage" class="form-error" role="alert">
-          {{ errorMessage }}
-        </div>
-
         <button class="primary-button primary-button--full" type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? "正在修改…" : "修改密码" }}
         </button>
@@ -177,6 +173,9 @@ async function submitPasswordChange(): Promise<void> {
     newPasswordConfirmation.value,
   );
   if (Object.keys(fieldErrors.value).length > 0) {
+    notice.warning("请检查密码信息", {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? "请检查密码信息",
+    });
     return;
   }
 
@@ -208,7 +207,6 @@ async function handleLogout(): Promise<void> {
       error instanceof AuthPersistenceError
         ? "无法清除本地登录状态，请检查浏览器存储权限后重试"
         : "退出失败，请稍后重试";
-    notice.error(errorMessage.value);
     return;
   }
 
@@ -250,13 +248,16 @@ function validatePasswordChange(
 function applyPasswordChangeError(error: unknown): void {
   if (error instanceof ApiError) {
     fieldErrors.value = error.fieldErrors;
+    const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
     errorMessage.value =
       error.code === "invalid_credentials"
         ? "当前密码错误"
-        : Object.keys(error.fieldErrors).length > 0
+        : hasFieldErrors
           ? "请检查输入内容"
           : error.message;
-    notice.error(errorMessage.value);
+    notice.error(errorMessage.value, {
+      detail: hasFieldErrors ? Object.values(error.fieldErrors)[0]?.[0] : undefined,
+    });
     return;
   }
   if (error instanceof ApiConfigurationError) {

@@ -33,7 +33,6 @@
         </p>
         <p v-else>当前没有有效物品使用此{{ target.kind === "category" ? "分类" : "模板" }}。</p>
       </section>
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </div>
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">

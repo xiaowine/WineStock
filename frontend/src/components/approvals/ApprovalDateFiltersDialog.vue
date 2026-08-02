@@ -4,7 +4,6 @@
     <div class="approval-filter-fields">
       <DateTimeField v-model="draft.dateFrom" name="approval_date_from" label="创建时间起点" />
       <DateTimeField v-model="draft.dateTo" name="approval_date_to" label="创建时间终点" />
-      <p v-if="error" class="form-warning" role="alert">{{ error }}</p>
     </div>
     <template #actions>
       <button class="text-button" type="button" @click="reset">重置</button>
@@ -18,6 +17,7 @@
 import { reactive, ref, watch } from "vue";
 import ModalDialog from "../ModalDialog.vue";
 import DateTimeField from "../forms/DateTimeField.vue";
+import { notice } from "../../notices/notice";
 
 /** 审批队列创建时间筛选值。 */
 export interface ApprovalDateFilterValue {
@@ -51,6 +51,7 @@ function reset(): void {
 function apply(): void {
   if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
     error.value = "创建时间起点不能晚于终点";
+    notice.warning("请检查审批筛选条件", { detail: error.value });
     return;
   }
   emit("apply", { ...draft });

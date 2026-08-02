@@ -24,7 +24,6 @@
             : "启用后，该用户可以重新登录。"
         }}
       </p>
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </div>
 
     <template #actions>

@@ -13,14 +13,13 @@
         v-model="name"
         label="新模板名称"
         validation-key="name"
-        :error="nameError"
+        :error="errors.name"
         maxlength="128"
         autocomplete="off"
         autofocus
         required
         :disabled="submitting"
       />
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </form>
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
@@ -35,6 +34,8 @@
 
 <script setup lang="ts">
 import { ref, useId, watch } from "vue";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
 import ModalDialog from "../ModalDialog.vue";
 import FormInput from "../forms/FormInput.vue";
 
@@ -57,31 +58,37 @@ const emit = defineEmits<{
 
 const formId = `template-copy-form-${useId()}`;
 const name = ref("");
-const nameError = ref("");
+const errors = ref<Record<string, string>>({});
+useFormValidation(errors);
 
 watch(
   () => props.target,
   (target) => {
     if (!target) return;
     name.value = `${target.name} 副本`;
-    nameError.value = props.fieldError;
+    errors.value = props.fieldError ? { name: props.fieldError } : {};
   },
 );
 
 watch(
   () => props.fieldError,
   (value) => {
-    nameError.value = value;
+    errors.value = value ? { name: value } : {};
   },
 );
 
 function submit(): void {
   const normalized = name.value.trim();
-  nameError.value = !normalized
+  const error = !normalized
     ? "请输入新模板名称"
     : normalized.length > 128
       ? "模板名称不能超过 128 个字符"
       : "";
-  if (!nameError.value) emit("submit", normalized);
+  errors.value = error ? { name: error } : {};
+  if (error) {
+    notice.warning("请检查模板名称", { detail: error });
+    return;
+  }
+  emit("submit", normalized);
 }
 </script>

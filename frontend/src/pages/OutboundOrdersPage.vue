@@ -62,15 +62,13 @@
         </div>
       </div>
       <div ref="root" class="inbound-orders-results" :aria-busy="pending">
-        <section v-if="error && !loaded" class="inbound-orders-state inbound-orders-state--error">
-          <strong>无法加载出库单</strong><span>{{ error }}</span
-          ><button class="secondary-button" @click="loadFirst">重试</button>
-        </section>
-        <section v-else-if="!orders.length && loaded" class="inbound-orders-state">
+        <section v-if="!orders.length && loaded" class="inbound-orders-state">
           <strong>{{ hasFilters ? "没有符合筛选条件的出库单" : "暂无出库单" }}</strong
-          ><button v-if="hasFilters" class="text-button" @click="clear">清除筛选</button>
+          ><button v-if="hasFilters" class="text-button" type="button" @click="clear">
+            清除筛选
+          </button>
         </section>
-        <template v-else
+        <template v-else-if="!error || loaded"
           ><div class="inbound-orders-table" role="table">
             <div class="inbound-orders-table__head" role="row">
               <span>单据与去向</span><span>出库物品</span><span>状态与操作</span>
@@ -196,7 +194,8 @@
           <span>{{ label(selected.status) }}</span
           ><strong>{{ selected.destination }}</strong>
         </div></template
-      ><template v-if="selected"
+      >
+      <template v-if="selected"
         ><dl class="inbound-detail-summary">
           <div>
             <dt>创建时间</dt>
@@ -249,7 +248,7 @@
           </article>
         </section></template
       ><template #actions
-        ><button class="secondary-button" @click="selected = null">关闭</button
+        ><button class="secondary-button" type="button" @click="selected = null">关闭</button
         ><button
           v-if="canApprove && selected?.status === 'pending'"
           class="primary-button"
@@ -278,6 +277,7 @@ import OutboundOrderFiltersDialog, {
   type OutboundOrderFilterValue,
 } from "../components/outbound/OutboundOrderFiltersDialog.vue";
 import SearchField from "../components/SearchField.vue";
+import { notice } from "../notices/notice";
 import "../components/inbound/InboundOrderList.scss";
 import "./InboundOrdersPage.scss";
 const route = useRoute(),
@@ -291,6 +291,7 @@ const route = useRoute(),
   error = ref(""),
   moreError = ref(""),
   selected = ref<OutboundOrderResponse | null>(null),
+  detailError = ref(""),
   searchInput = ref(""),
   from = ref(""),
   to = ref(""),
@@ -376,8 +377,17 @@ async function load(p = 1, append = false) {
     state.page = r.page;
     loaded.value = true;
   } catch (e) {
-    if (!(e instanceof DOMException && e.name === "AbortError"))
-      append ? (moreError.value = "加载更多失败") : (error.value = "请检查服务连接后重试");
+    if (!(e instanceof DOMException && e.name === "AbortError")) {
+      if (append) {
+        moreError.value = "加载更多失败";
+      } else {
+        error.value = "请检查服务连接后重试";
+        notice.error(loaded.value ? "刷新出库单失败" : "加载出库单失败", {
+          detail: error.value,
+          onClick: () => void loadFirst(),
+        });
+      }
+    }
   } finally {
     if (ctrl === c) {
       ctrl = null;
@@ -424,9 +434,22 @@ function clear() {
 }
 async function open(o: OutboundOrderResponse) {
   selected.value = o;
+  detailError.value = "";
   try {
     selected.value = await getOutboundOrder(o.id);
-  } catch {}
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === "AbortError")) {
+      detailError.value = "无法加载出库单详情，请重试。";
+      notice.error("加载出库单详情失败", {
+        detail: detailError.value,
+        onClick: retrySelected,
+      });
+    }
+  }
+}
+function retrySelected(): void {
+  const order = selected.value;
+  if (order) void open(order);
 }
 function isStatus(v: unknown): v is OutboundOrderStatus {
   return v === "pending" || v === "approved" || v === "rejected";

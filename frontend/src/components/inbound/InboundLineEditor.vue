@@ -12,6 +12,12 @@
           :class="{
             'inbound-control--error': validationAttempted && !validQuantity(line.quantity),
           }"
+          :aria-invalid="validationAttempted && !validQuantity(line.quantity) ? true : undefined"
+          :aria-describedby="
+            validationAttempted && !validQuantity(line.quantity)
+              ? `inbound-${line.lineId}-quantity-error`
+              : undefined
+          "
           type="number"
           min="0.01"
           step="0.01"
@@ -19,6 +25,13 @@
           :aria-label="line.item.name + ' 入库数量'"
           autofocus
         />
+        <span
+          v-if="validationAttempted && !validQuantity(line.quantity)"
+          :id="`inbound-${line.lineId}-quantity-error`"
+          class="visually-hidden"
+          role="alert"
+          >请输入大于 0 的入库数量</span
+        >
       </label>
       <label>
         <span>单价 *</span>
@@ -30,12 +43,25 @@
           :class="{
             'inbound-control--error': validationAttempted && !validUnitPrice(line.unitPrice),
           }"
+          :aria-invalid="validationAttempted && !validUnitPrice(line.unitPrice) ? true : undefined"
+          :aria-describedby="
+            validationAttempted && !validUnitPrice(line.unitPrice)
+              ? `inbound-${line.lineId}-unit-price-error`
+              : undefined
+          "
           type="number"
           min="0"
           step="0.01"
           inputmode="decimal"
           :aria-label="line.item.name + ' 入库单价'"
         />
+        <span
+          v-if="validationAttempted && !validUnitPrice(line.unitPrice)"
+          :id="`inbound-${line.lineId}-unit-price-error`"
+          class="visually-hidden"
+          role="alert"
+          >请输入不小于 0 的入库单价</span
+        >
       </label>
       <label>
         <span>入库库位 *</span>
@@ -58,11 +84,6 @@
       </label>
     </section>
 
-    <div v-if="locationError" class="inbound-location-error" role="alert">
-      {{ locationError }}
-      <button class="text-button" type="button" @click="$emit('retry-locations')">重试</button>
-    </div>
-
     <div class="inbound-line-editor__base-fields">
       <label>
         <span>批次号</span>
@@ -83,7 +104,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import type { LocationResponse } from "../../api/locations";
 import {
   validQuantity,
@@ -91,6 +112,7 @@ import {
   type InboundDraftLine,
 } from "../../pages/inbound-draft/model";
 import SelectControl from "../forms/SelectControl.vue";
+import { notice } from "../../notices/notice";
 
 const props = defineProps<{
   line: InboundDraftLine;
@@ -99,9 +121,20 @@ const props = defineProps<{
   validationAttempted: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   "retry-locations": [];
 }>();
+
+watch(
+  () => props.locationError,
+  (error) => {
+    if (error)
+      notice.error("加载库位失败", {
+        detail: error,
+        onClick: () => emit("retry-locations"),
+      });
+  },
+);
 
 const locationGroups = computed(() => {
   const groups = new Map<string, LocationResponse[]>();

@@ -16,7 +16,6 @@
         删除后，该账号会立即退出所有设备，并且无法再登录或出现在用户列表中。
       </p>
       <p class="form-warning">此操作无法撤销，用户名也不能重新注册使用。历史业务记录仍会保留。</p>
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </div>
 
     <template #actions>

@@ -12,14 +12,24 @@
       novalidate
       @submit.prevent="submit"
     >
-      <FormSelect v-model="status" label="处理状态">
+      <FormSelect v-model="status" label="处理状态" validation-key="status">
         <option value="">全部状态</option>
         <option value="pending">待审批</option>
         <option value="approved">已入库</option>
         <option value="rejected">已拒绝</option>
       </FormSelect>
-      <DateTimeField v-model="dateFrom" label="开始时间" :error="dateRangeError" />
-      <DateTimeField v-model="dateTo" label="结束时间" :error="dateRangeError" />
+      <DateTimeField
+        v-model="dateFrom"
+        label="开始时间"
+        validation-key="dateRange"
+        :error="errors.dateRange"
+      />
+      <DateTimeField
+        v-model="dateTo"
+        label="结束时间"
+        validation-key="dateRange"
+        :error="errors.dateRange"
+      />
     </form>
     <template #actions
       ><button class="text-button inbound-order-filter-form__reset" type="button" @click="reset">
@@ -38,6 +48,8 @@ import type { InboundOrderStatus } from "../../api/inboundOrders";
 import DateTimeField from "../forms/DateTimeField.vue";
 import FormSelect from "../forms/FormSelect.vue";
 import ModalDialog from "../ModalDialog.vue";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
 
 export interface InboundOrderFilterValue {
   status: InboundOrderStatus | "";
@@ -49,7 +61,8 @@ const emit = defineEmits<{ close: []; apply: [value: InboundOrderFilterValue] }>
 const status = ref<InboundOrderStatus | "">("");
 const dateFrom = ref("");
 const dateTo = ref("");
-const dateRangeError = ref("");
+const errors = ref<Record<string, string>>({});
+const { clearErrors } = useFormValidation(errors);
 watch(
   () => props.open,
   (open) => {
@@ -57,7 +70,7 @@ watch(
     status.value = props.value.status;
     dateFrom.value = props.value.dateFrom;
     dateTo.value = props.value.dateTo;
-    dateRangeError.value = "";
+    clearErrors();
   },
   { immediate: true },
 );
@@ -65,14 +78,19 @@ function reset(): void {
   status.value = "";
   dateFrom.value = "";
   dateTo.value = "";
-  dateRangeError.value = "";
+  clearErrors();
 }
 function submit(): void {
-  dateRangeError.value =
+  const dateRangeError =
     dateFrom.value && dateTo.value && dateFrom.value > dateTo.value
       ? "开始日期不能晚于结束日期"
       : "";
-  if (!dateRangeError.value)
+  errors.value = dateRangeError ? { dateRange: dateRangeError } : {};
+  if (dateRangeError) {
+    notice.warning("请检查筛选条件", { detail: dateRangeError });
+    return;
+  }
+  if (!dateRangeError)
     emit("apply", { status: status.value, dateFrom: dateFrom.value, dateTo: dateTo.value });
 }
 </script>

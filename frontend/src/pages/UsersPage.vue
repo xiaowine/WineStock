@@ -200,6 +200,7 @@
       :open="createDialogOpen"
       :submitting="actionSubmitting"
       :error-message="actionError"
+      :server-field-errors="actionFieldErrors"
       @close="closeDialogs"
       @submit="createUser"
     />
@@ -219,6 +220,7 @@
       :user="passwordUser"
       :submitting="actionSubmitting"
       :error-message="actionError"
+      :server-field-errors="actionFieldErrors"
       @close="closeDialogs"
       @submit="saveTemporaryPassword"
     />
@@ -306,6 +308,7 @@ const actionsUser = ref<UserAdminResponse | null>(null);
 const nextStatus = ref<UserStatus>("disabled");
 const actionSubmitting = ref(false);
 const actionError = ref("");
+const actionFieldErrors = ref<Record<string, string>>({});
 const permissionDefinitions = ref<PermissionResponse[]>([]);
 const permissionsLoading = ref(false);
 const permissionsLoadError = ref("");
@@ -541,12 +544,14 @@ function closeDialogs(): void {
   deleteUserTarget.value = null;
   actionsUser.value = null;
   actionError.value = "";
+  actionFieldErrors.value = {};
 }
 
 /** 使用当前用户的注册权限创建后续账号；成功后回到未筛选第一页展示结果。 */
 async function createUser(request: { username: string; password: string }): Promise<void> {
   actionSubmitting.value = true;
   actionError.value = "";
+  actionFieldErrors.value = {};
   try {
     await registerUser(request);
     createDialogOpen.value = false;
@@ -560,7 +565,8 @@ async function createUser(request: { username: string; password: string }): Prom
     await resetAndLoadUsers();
   } catch (error) {
     actionError.value = userManagementErrorMessage(error, "创建用户失败");
-    notice.error(actionError.value);
+    actionFieldErrors.value = userManagementFieldErrors(error);
+    notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   } finally {
     actionSubmitting.value = false;
   }
@@ -580,7 +586,7 @@ async function loadPermissionDefinitions(): Promise<void> {
       return;
     }
     permissionsLoadError.value = userManagementErrorMessage(error, "加载权限定义失败");
-    notice.error(permissionsLoadError.value);
+    notice.error(permissionsLoadError.value, { onClick: () => void loadPermissionDefinitions() });
   } finally {
     if (permissionsAbortController === controller) {
       permissionsAbortController = null;
@@ -626,6 +632,7 @@ async function saveTemporaryPassword(password: string): Promise<void> {
   }
   actionSubmitting.value = true;
   actionError.value = "";
+  actionFieldErrors.value = {};
   try {
     await resetUserPassword(target.id, { password });
     replaceUser({ ...target, password_change_required: true });
@@ -635,7 +642,8 @@ async function saveTemporaryPassword(password: string): Promise<void> {
     });
   } catch (error) {
     actionError.value = userManagementErrorMessage(error, "设置临时密码失败");
-    notice.error(actionError.value);
+    actionFieldErrors.value = userManagementFieldErrors(error);
+    notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   } finally {
     actionSubmitting.value = false;
   }
@@ -765,6 +773,25 @@ function userManagementErrorMessage(error: unknown, fallback: string): string {
     return "服务响应格式无效，请检查前后端版本";
   }
   return fallback;
+}
+
+function userManagementFieldErrors(error: unknown): Record<string, string> {
+  if (!(error instanceof ApiError)) return {};
+  const mapped: Record<string, string> = {};
+  for (const [path, messages] of Object.entries(error.fieldErrors)) {
+    const key = path.replace(/^data\./, "");
+    const field =
+      key === "password_confirmation" || key === "temporary_password_confirmation"
+        ? "confirmation"
+        : key === "password" || key === "temporary_password"
+          ? "password"
+          : key === "username"
+            ? "username"
+            : "";
+    if (field && messages[0]) mapped[field] = messages[0];
+  }
+  if (error.code === "username_taken") mapped.username ??= "用户名已存在";
+  return mapped;
 }
 </script>
 

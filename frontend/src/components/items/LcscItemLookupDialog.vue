@@ -25,17 +25,12 @@
         autofocus
         placeholder="例如 C2983288"
         :disabled="request.pending.value"
-        :error="inputError"
-        :title="inputError || undefined"
-        @update:model-value="inputError = ''"
+        validation-key="productCode"
+        :error="errors.productCode"
       />
 
       <div v-if="request.pending.value" class="lcsc-lookup__status" role="status">
         正在查询立创资料…
-      </div>
-      <div v-else-if="request.error.value" class="lcsc-lookup__error" role="alert">
-        <strong>查询失败</strong>
-        <span>{{ request.error.value }}</span>
       </div>
     </form>
 
@@ -78,6 +73,8 @@ import { nextTick, ref, useId, watch } from "vue";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import type { LcscItemLookupResponse } from "../../api/items";
 import { defaultAttributeTemplate } from "../../pages/items/model";
+import { useFormValidation } from "../../composables/useFormValidation";
+import { notice } from "../../notices/notice";
 import FormInput from "../forms/FormInput.vue";
 import ModalDialog from "../ModalDialog.vue";
 import LcscCandidateConfirmPanel from "./LcscCandidateConfirmPanel.vue";
@@ -99,7 +96,8 @@ const emit = defineEmits<{
 
 const formId = `lcsc-lookup-${useId()}`;
 const productCode = ref("");
-const inputError = ref("");
+const errors = ref<Record<string, string>>({});
+const { clearErrors } = useFormValidation(errors);
 const selectedTemplateId = ref<number | null>(null);
 const request = useLcscLookupRequest();
 
@@ -109,7 +107,7 @@ watch(
     request.reset();
     if (!open) return;
     productCode.value = normalizeCode(props.initialCode);
-    inputError.value = "";
+    clearErrors();
     selectedTemplateId.value = preferredTemplateId();
     await nextTick();
     focusCodeInput();
@@ -118,6 +116,15 @@ watch(
 
 watch(request.candidate, (candidate) => {
   if (candidate) selectedTemplateId.value = preferredTemplateId();
+});
+
+watch(request.error, (error) => {
+  if (error) {
+    notice.error("查询立创资料失败", {
+      detail: error,
+      onClick: () => void submitLookup(),
+    });
+  }
 });
 
 /** 模板预选：全站默认优先，未设置时退回列表第一项。 */
@@ -129,8 +136,9 @@ async function submitLookup(): Promise<void> {
   const normalized = normalizeCode(productCode.value);
   productCode.value = normalized;
   if (!/^C[0-9]+$/.test(normalized)) {
-    inputError.value = "商品编号必须以 C 开头，后续全部为数字。";
-    focusCodeInput();
+    const error = "商品编号必须以 C 开头，后续全部为数字。";
+    errors.value = { productCode: error };
+    notice.warning("请检查商品编号", { detail: error });
     return;
   }
   await request.lookup(normalized);

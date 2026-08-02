@@ -3,6 +3,7 @@
   <FormField
     :label="label"
     :control-id="triggerId"
+    :validation-key="validationKey"
     :error="error"
     :hint="hint"
     v-slot="{ describedBy, invalid }"
@@ -147,6 +148,7 @@ const props = withDefaults(
   defineProps<{
     modelValue?: string;
     label: string;
+    validationKey?: string;
     error?: string;
     hint?: string;
     disabled?: boolean;
@@ -154,6 +156,7 @@ const props = withDefaults(
   }>(),
   {
     modelValue: "",
+    validationKey: "",
     error: "",
     hint: "",
     disabled: false,

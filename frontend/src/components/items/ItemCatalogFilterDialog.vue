@@ -7,7 +7,12 @@
     compact
     @close="emit('close')"
   >
-    <form id="item-catalog-filter-form" class="item-catalog-filter" @submit.prevent="apply">
+    <form
+      id="item-catalog-filter-form"
+      class="item-catalog-filter"
+      novalidate
+      @submit.prevent="apply"
+    >
       <div class="item-catalog-filter__fixed-fields">
         <label>
           <span>分类</span>
@@ -30,14 +35,6 @@
       </div>
 
       <div v-if="loading" class="item-catalog-filter__state" role="status">正在加载筛选值…</div>
-      <div
-        v-else-if="error"
-        class="item-catalog-filter__state item-catalog-filter__state--error"
-        role="alert"
-      >
-        <span>{{ error }}</span>
-        <button class="text-button" type="button" @click="emit('retry')">重试</button>
-      </div>
       <div v-else-if="visibleFields.length" class="item-catalog-filter__groups">
         <section v-for="field in visibleFields" :key="field.key" class="item-catalog-filter__group">
           <header>
@@ -127,11 +124,9 @@ const props = defineProps<{
   categories: ItemCategoryResponse[];
   templates: ItemAttributeTemplateResponse[];
   loading: boolean;
-  error: string;
 }>();
 const emit = defineEmits<{
   close: [];
-  retry: [];
   apply: [filters: ItemCatalogFilters];
 }>();
 
@@ -311,9 +306,6 @@ function apply(): void {
   color: var(--color-muted);
   font-size: 12px;
   text-align: center;
-}
-.item-catalog-filter__state--error {
-  color: var(--color-danger);
 }
 .item-catalog-filter__clear {
   margin-right: auto;

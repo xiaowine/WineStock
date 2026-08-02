@@ -6,14 +6,24 @@
     </legend>
     <div v-for="(_option, index) in model" :key="index" class="template-option-editor__row">
       <span class="template-option-editor__number">{{ index + 1 }}</span>
-      <input
-        v-model="model[index]"
-        type="text"
-        :maxlength="maxLength"
-        :aria-label="`${label} ${index + 1}`"
-        :aria-invalid="Boolean(errors[`${errorPrefix}.${index}`]) || undefined"
-        autocomplete="off"
-      />
+      <FormField
+        class="template-option-editor__field"
+        :control-id="`${errorPrefix}-${index}`"
+        :validation-key="`${errorPrefix}.${index}`"
+        :error="errors[`${errorPrefix}.${index}`]"
+        v-slot="{ describedBy, invalid }"
+      >
+        <input
+          :id="`${errorPrefix}-${index}`"
+          v-model="model[index]"
+          type="text"
+          :maxlength="maxLength"
+          :aria-label="`${label} ${index + 1}`"
+          :aria-invalid="invalid || undefined"
+          :aria-describedby="describedBy"
+          autocomplete="off"
+        />
+      </FormField>
       <button
         class="icon-button"
         type="button"
@@ -41,11 +51,7 @@
       >
         ×
       </button>
-      <span v-if="errors[`${errorPrefix}.${index}`]" class="template-option-editor__error">{{
-        errors[`${errorPrefix}.${index}`]
-      }}</span>
     </div>
-    <p v-if="errors[errorPrefix]" class="form-error">{{ errors[errorPrefix] }}</p>
     <button
       class="text-button"
       type="button"
@@ -59,6 +65,7 @@
 
 <script setup lang="ts">
 import { nextTick } from "vue";
+import FormField from "../forms/FormField.vue";
 
 const props = defineProps<{
   label: string;

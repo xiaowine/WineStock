@@ -63,8 +63,6 @@
           :aria-describedby="describedBy"
         />
       </FormField>
-
-      <p v-if="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
     </form>
 
     <template #actions>
@@ -91,6 +89,7 @@ const props = defineProps<{
   open: boolean;
   submitting: boolean;
   errorMessage: string;
+  serverFieldErrors?: Readonly<Record<string, string>>;
 }>();
 
 const emit = defineEmits<{
@@ -114,6 +113,14 @@ watch(
       fieldErrors.value = {};
     }
   },
+);
+
+watch(
+  () => props.serverFieldErrors,
+  (errors) => {
+    if (props.open) fieldErrors.value = { ...errors };
+  },
+  { deep: true },
 );
 
 function submit(): void {
