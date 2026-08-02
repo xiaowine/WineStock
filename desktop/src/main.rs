@@ -5,30 +5,21 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, OnceLock,
-};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use rfd::{MessageButtons, MessageDialog, MessageLevel};
-use tauri::{
-    Emitter, Manager, RunEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
-};
+use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use winestock_desktop::runtime::{
     emit_app_resumed, DesktopRuntimeManager, RUNTIME_STATE_CHANGED_EVENT,
 };
-use winestock_desktop::{webview_compatibility, webview_debug, webview_privacy};
+use winestock_desktop::{
+    lifecycle::{self, AppLifecycleState},
+    preferences::{CloseBehavior, DesktopPreferencesState},
+    tray, webview_compatibility, webview_debug, webview_privacy,
+};
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
-static EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
-
-/// 恢复并聚焦唯一的主窗口；第二个实例的参数和工作目录不会转交给首个实例。
-fn show_main_window(window: &WebviewWindow) {
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-}
 
 fn main() {
     if let Some(exit_code) = winestock_desktop::firewall::run_helper_if_requested() {
@@ -44,9 +35,14 @@ fn main() {
     let prevent_default_plugin = tauri_plugin_prevent_default::init();
 
     tauri::Builder::default()
+        .manage(AppLifecycleState::default())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![lifecycle::AUTOSTART_LAUNCH_ARGUMENT]),
+        ))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
-                show_main_window(&window);
+                winestock_desktop::window::show_main_window(&window);
             }
         }))
         .plugin(prevent_default_plugin)
@@ -66,6 +62,13 @@ fn main() {
                 .path()
                 .app_data_dir()
                 .map_err(|error| format!("无法解析应用数据目录：{error}"))?;
+            app.manage(DesktopPreferencesState::load(
+                app_data_dir.join("desktop-preferences.json"),
+            ));
+            let desktop_preferences = app.state::<DesktopPreferencesState>().get();
+            app.state::<AppLifecycleState>().set_startup_silent(
+                lifecycle::is_autostart_launch() && desktop_preferences.autostart_silent,
+            );
             let manager = Arc::new(DesktopRuntimeManager::new(
                 Some(app.handle().clone()),
                 app_data_dir,
@@ -93,6 +96,9 @@ fn main() {
             let _ = app.emit(RUNTIME_STATE_CHANGED_EVENT, snapshot);
             DesktopRuntimeManager::spawn_monitor(manager);
             let _ = APP_HANDLE.set(app.handle().clone());
+            if let Err(error) = tray::setup(app) {
+                eprintln!("WineStock 系统托盘初始化失败：{error}");
+            }
             let fallback_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 // 正常路径由 frontendReady 控制显示；异常页面或桥初始化失败时，
@@ -100,17 +106,33 @@ fn main() {
                 tokio::time::sleep(Duration::from_secs(8)).await;
                 if !winestock_desktop::commands::is_frontend_ready() {
                     if let Some(window) = fallback_handle.get_webview_window("main") {
-                        show_main_window(&window);
+                        winestock_desktop::window::show_main_window(&window);
                     }
                 }
             });
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let WindowEvent::Focused(true) = event {
-                if window.label() == "main" {
+            if window.label() != "main" {
+                return;
+            }
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    let app_handle = window.app_handle();
+                    let lifecycle = app_handle.state::<AppLifecycleState>();
+                    let preferences = app_handle.state::<DesktopPreferencesState>();
+                    if preferences.get().close_behavior == CloseBehavior::MinimizeToTray
+                        && lifecycle.tray_available()
+                        && !lifecycle.close_allowed()
+                    {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+                WindowEvent::Focused(true) => {
                     emit_app_resumed(window.app_handle());
                 }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -121,6 +143,8 @@ fn main() {
             winestock_desktop::commands::shell_stop_local_service,
             winestock_desktop::commands::shell_restart_local_service,
             winestock_desktop::commands::shell_repair_firewall,
+            winestock_desktop::commands::shell_get_desktop_preferences,
+            winestock_desktop::commands::shell_set_desktop_preferences,
             winestock_desktop::commands::shell_frontend_ready,
             winestock_desktop::commands::shell_open_external,
         ])
@@ -130,14 +154,14 @@ fn main() {
             if let RunEvent::ExitRequested { api, .. } = event {
                 // 第一次请求：阻止立即退出，等待本地 Axum 优雅停止后显式退出。
                 // 显式 exit 会再次触发 ExitRequested，此时必须放行，否则形成退出循环。
-                if EXIT_REQUESTED.swap(true, Ordering::SeqCst) {
-                    return;
-                }
-                api.prevent_exit();
                 let handle = APP_HANDLE
                     .get()
                     .expect("setup 完成后 AppHandle 必须已记录")
                     .clone();
+                if !handle.state::<AppLifecycleState>().begin_exit() {
+                    return;
+                }
+                api.prevent_exit();
                 let manager = handle.state::<Arc<DesktopRuntimeManager>>().inner().clone();
                 tauri::async_runtime::spawn(async move {
                     manager.shutdown_local_service(Duration::from_secs(5)).await;

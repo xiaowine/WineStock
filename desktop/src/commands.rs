@@ -8,11 +8,13 @@ use std::sync::{
 };
 
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
 use crate::{
     contract::{ApplyRuntimeConfigResult, EditableRuntimeConfig, RuntimeConfigValidationResult},
+    preferences::{DesktopPreferences, DesktopPreferencesState},
     runtime::DesktopRuntimeManager,
 };
 
@@ -93,13 +95,82 @@ pub async fn shell_repair_firewall(
 }
 
 #[tauri::command]
+pub fn shell_get_desktop_preferences(
+    app: AppHandle,
+    preferences: State<'_, DesktopPreferencesState>,
+) -> CommandResult<DesktopPreferences> {
+    let mut value = preferences.get();
+    value.autostart_enabled = app
+        .autolaunch()
+        .is_enabled()
+        .map_err(|error| command_error("desktop_autostart_unavailable", &error.to_string()))?;
+    Ok(value)
+}
+
+#[tauri::command]
+pub fn shell_set_desktop_preferences(
+    app: AppHandle,
+    preferences: DesktopPreferences,
+    state: State<'_, DesktopPreferencesState>,
+) -> CommandResult<DesktopPreferences> {
+    let autostart = app.autolaunch();
+    let previous_autostart = autostart
+        .is_enabled()
+        .map_err(|error| command_error("desktop_autostart_unavailable", &error.to_string()))?;
+    let autostart_changed = previous_autostart != preferences.autostart_enabled;
+
+    if autostart_changed {
+        let result = if preferences.autostart_enabled {
+            autostart.enable()
+        } else {
+            autostart.disable()
+        };
+        if let Err(error) = result {
+            return Err(command_error(
+                "desktop_autostart_unavailable",
+                &format!("无法更新开机自启设置：{error}"),
+            ));
+        }
+    }
+
+    let saved = match state.set(preferences) {
+        Ok(value) => value,
+        Err(error) => {
+            if autostart_changed {
+                let rollback = if previous_autostart {
+                    autostart.enable()
+                } else {
+                    autostart.disable()
+                };
+                if let Err(rollback_error) = rollback {
+                    eprintln!("WineStock 开机自启状态回滚失败：{rollback_error}");
+                }
+            }
+            return Err(command_error("desktop_preferences_unavailable", &error));
+        }
+    };
+
+    let mut result = saved;
+    result.autostart_enabled = autostart
+        .is_enabled()
+        .map_err(|error| command_error("desktop_autostart_unavailable", &error.to_string()))?;
+    Ok(result)
+}
+
+#[tauri::command]
 pub async fn shell_frontend_ready(app: AppHandle) -> CommandResult<()> {
     // 只有前端完成首帧渲染后才显示主窗口，避免 WebView 加载期间出现白屏或闪烁。
     FRONTEND_READY.store(true, Ordering::Release);
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
+    if !app
+        .state::<crate::lifecycle::AppLifecycleState>()
+        .startup_silent()
+        || !app
+            .state::<crate::lifecycle::AppLifecycleState>()
+            .tray_available()
+    {
+        if let Some(window) = app.get_webview_window("main") {
+            crate::window::show_main_window(&window);
+        }
     }
     Ok(())
 }

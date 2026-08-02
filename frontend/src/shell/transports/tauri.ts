@@ -2,8 +2,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { normalizeShellBridgeTransportError } from "./bridgeError";
+import { assertDesktopPreferences } from "../contract";
 import type {
   ApplyRuntimeConfigResult,
+  DesktopPreferences,
   EditableRuntimeConfig,
   RuntimeConfigValidationResult,
   RuntimeSnapshot,
@@ -44,6 +46,18 @@ export function createTauriShellBridge(): ShellBridge {
     },
     openExternal(url) {
       return invokeShell<void>("shell_open_external", { url });
+    },
+    async getDesktopPreferences() {
+      const preferences = await invokeShell<DesktopPreferences>("shell_get_desktop_preferences");
+      assertDesktopPreferences(preferences);
+      return preferences;
+    },
+    async setDesktopPreferences(preferences) {
+      const next = await invokeShell<DesktopPreferences>("shell_set_desktop_preferences", {
+        preferences,
+      });
+      assertDesktopPreferences(next);
+      return next;
     },
     async onRuntimeStateChanged(listener) {
       return listen<RuntimeSnapshot>(RUNTIME_STATE_EVENT, (event) => listener(event.payload));

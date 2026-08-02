@@ -192,6 +192,8 @@ interface ShellBridge {
   restartLocalService(): Promise<RuntimeSnapshot>;
   frontendReady(): Promise<void>;
   openExternal(url: string): Promise<void>;
+  getDesktopPreferences?(): Promise<DesktopPreferences>;
+  setDesktopPreferences?(preferences: DesktopPreferences): Promise<DesktopPreferences>;
   onRuntimeStateChanged(
     listener: (snapshot: RuntimeSnapshot) => void,
   ): Promise<() => void>;
@@ -204,6 +206,25 @@ interface ShellBridge {
   ): Promise<{ accepted: boolean }>;
 }
 ```
+
+Desktop 可选扩展只承载当前设备的窗口和自启动偏好，不属于运行配置或业务 API：
+
+```ts
+type DesktopCloseBehavior = "minimize-to-tray" | "exit-application";
+
+interface DesktopPreferences {
+  version: 1;
+  closeBehavior: DesktopCloseBehavior;
+  autostartEnabled: boolean;
+  autostartSilent: boolean;
+}
+```
+
+只有 `platform = "desktop"` 的 Tauri bridge 提供这两个方法；Web/Android 不需要实现，前端在未提供扩展时隐藏对应偏好项。
+Desktop shell 将偏好保存在自己的 app data 文件并缓存到进程状态。`autostartEnabled` 返回系统启动项的实际状态，
+由 Tauri autostart 插件的 `is_enabled()` 校准；`autostartSilent` 是本机持久化偏好。`CloseRequested` 只读取缓存，
+不在窗口事件中查询磁盘或等待 WebView IPC。自启动进程通过内部 `--winestock-autostart` 参数与普通手动启动区分，
+静默启动只对带该参数且托盘可用的进程生效。
 
 `nativeBack` 是 v1 内 capability-gated 的可选扩展，不要求普通 Web fallback 或旧平台桥实现：
 
@@ -395,11 +416,17 @@ shell_start_local_service
 shell_stop_local_service
 shell_restart_local_service
 shell_repair_firewall
+shell_get_desktop_preferences
+shell_set_desktop_preferences
 shell_frontend_ready
 ```
 
 capabilities 只允许主窗口调用必要命令，不能为方便启用宽泛 shell 执行权限。
-窗口关闭时应先阻止立即退出，等待本地 Axum 优雅停止后再结束进程。
+Desktop 窗口关闭行为由本机偏好决定：选择最小化到托盘时拦截关闭并隐藏窗口，选择退出应用时进入同一套
+`ExitRequested` 清理流程。托盘明确退出和系统退出都必须等待本地 Axum 优雅停止后再结束进程。
+Desktop 偏好还支持由官方 Tauri autostart 插件管理的开机自启和自启动静默；插件状态由 Shell command
+封装，前端不得直接调用 autostart 插件 API。自启动注册失败使用稳定的 Desktop 偏好错误返回，不能让前端显示
+未生效的成功状态。
 
 ## 前端资源与 API 地址
 

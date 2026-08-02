@@ -9,6 +9,8 @@ commands.allow = [
   "shell_stop_local_service",
   "shell_restart_local_service",
   "shell_repair_firewall",
+  "shell_get_desktop_preferences",
+  "shell_set_desktop_preferences",
   "shell_frontend_ready",
   "shell_open_external",
 ]

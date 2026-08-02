@@ -3,6 +3,24 @@
 /** shared 当前支持的运行模式。 */
 export type RuntimeMode = "self-hosted" | "client-only" | "connect-to-remote" | "server-mode";
 
+/** Desktop 主窗口收到系统关闭请求时的本机行为。 */
+export type DesktopCloseBehavior = "minimize-to-tray" | "exit-application";
+
+/** Desktop shell 专属偏好，不进入共享运行配置或业务 API。 */
+export interface DesktopPreferences {
+  version: 1;
+  closeBehavior: DesktopCloseBehavior;
+  autostartEnabled: boolean;
+  autostartSilent: boolean;
+}
+
+export const defaultDesktopPreferences: DesktopPreferences = {
+  version: 1,
+  closeBehavior: "minimize-to-tray",
+  autostartEnabled: false,
+  autostartSilent: true,
+};
+
 /** 当前前端实现支持的 Shell Bridge 协议版本。 */
 export const SHELL_BRIDGE_PROTOCOL_VERSION = 1 as const;
 
@@ -201,6 +219,12 @@ export interface NativeBackShellBridgeExtension {
   resolveNativeBack(resolution: NativeBackResolution): Promise<NativeBackResolutionAck>;
 }
 
+/** Desktop 专属偏好扩展；Web/Android 可以不提供。 */
+export interface DesktopPreferencesShellBridgeExtension {
+  getDesktopPreferences(): Promise<DesktopPreferences>;
+  setDesktopPreferences(preferences: DesktopPreferences): Promise<DesktopPreferences>;
+}
+
 /** 前端依赖的统一 Shell Bridge；平台适配层不得扩展为任意 native invoke。 */
 export interface ShellBridge {
   /** 读取当前运行配置和服务状态。 */
@@ -221,6 +245,10 @@ export interface ShellBridge {
   frontendReady(): Promise<void>;
   /** 通过平台安全能力打开经过校验的外部链接。 */
   openExternal(url: string): Promise<void>;
+  /** Desktop 读取本机偏好；非 Desktop 平台可以不提供。 */
+  getDesktopPreferences?: DesktopPreferencesShellBridgeExtension["getDesktopPreferences"];
+  /** Desktop 更新本机偏好；非 Desktop 平台可以不提供。 */
+  setDesktopPreferences?: DesktopPreferencesShellBridgeExtension["setDesktopPreferences"];
   /** 订阅配置和服务生命周期快照。 */
   onRuntimeStateChanged(
     listener: (snapshot: RuntimeSnapshot) => void,
@@ -231,6 +259,22 @@ export interface ShellBridge {
   onNativeBackRequested?: NativeBackShellBridgeExtension["onNativeBackRequested"];
   /** capability-gated 的 Android 原生返回应答。 */
   resolveNativeBack?: NativeBackShellBridgeExtension["resolveNativeBack"];
+}
+
+/** 校验 Desktop 偏好扩展的返回值。 */
+export function assertDesktopPreferences(value: unknown): asserts value is DesktopPreferences {
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    !["minimize-to-tray", "exit-application"].includes(String(value.closeBehavior)) ||
+    typeof value.autostartEnabled !== "boolean" ||
+    typeof value.autostartSilent !== "boolean"
+  ) {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Shell Bridge 返回了无效的 Desktop 偏好",
+    );
+  }
 }
 
 /** 初始快照版本通过后，确认注入桥完整实现 v1 所有具名方法。 */
@@ -331,9 +375,7 @@ export function cloneRuntimeSnapshot(snapshot: RuntimeSnapshot): RuntimeSnapshot
       lanAccessUrls: snapshot.service.lanAccessUrls
         ? [...snapshot.service.lanAccessUrls]
         : undefined,
-      firewall: snapshot.service.firewall
-        ? { ...snapshot.service.firewall }
-        : undefined,
+      firewall: snapshot.service.firewall ? { ...snapshot.service.firewall } : undefined,
       error: snapshot.service.error ? { ...snapshot.service.error } : undefined,
     },
     capabilities: { ...snapshot.capabilities },
@@ -408,16 +450,10 @@ function assertRuntimeSnapshotSemantics(snapshot: RuntimeSnapshot): void {
     service.ownership === "remote" &&
     !service.apiBaseUrl
   ) {
-    throw new ShellBridgeContractError(
-      "invalid_bridge_payload",
-      "已初始化的远端快照缺少 API 地址",
-    );
+    throw new ShellBridgeContractError("invalid_bridge_payload", "已初始化的远端快照缺少 API 地址");
   }
   if (service.phase === "running" && !service.apiBaseUrl) {
-    throw new ShellBridgeContractError(
-      "invalid_bridge_payload",
-      "running 快照缺少 API 地址",
-    );
+    throw new ShellBridgeContractError("invalid_bridge_payload", "running 快照缺少 API 地址");
   }
   if (
     service.localAuthExchangeToken !== undefined &&

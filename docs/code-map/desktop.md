@@ -6,6 +6,10 @@
 - `desktop/src/`：Tauri 窗口装配、单实例/快捷键等桌面平台插件、受限 Shell Bridge command、版本化 DTO，
   以及进程级 `DesktopRuntimeManager`。`runtime_config.rs` 负责配置校验/持久化，`runtime_snapshot.rs`
   负责状态构造和 core 错误映射；manager 拥有 `RunningLocalService` 的启停、恢复、崩溃快照与退出清理。
+  `preferences.rs` 负责 desktop 专属窗口/自启动偏好及原子持久化，`lifecycle.rs` 区分窗口隐藏、托盘退出、
+  自启动静默上下文和
+  进程退出清理，`tray.rs` 负责系统托盘菜单与恢复入口，`window.rs` 负责统一主窗口恢复操作；这些模块
+  不拥有业务 API、共享运行配置或前端设置 UI。
   `lan_access.rs` 通过 `if-addrs` 发布 Windows/macOS/Linux 的真实 IPv4 私网访问地址；`firewall.rs` 只在
   Windows 使用高层 `windows` crate 的 Firewall COM 和受限 UAC helper 管理自有规则；
   `webview_compatibility.rs` 在主窗口显示前通过 WebView2 官方 Loader binding 执行 M111

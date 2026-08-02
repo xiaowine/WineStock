@@ -12,6 +12,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tauri = { workspace = true }
+tauri-plugin-autostart = { workspace = true }
 tauri-plugin-prevent-default = { workspace = true }
 tauri-plugin-opener = { workspace = true }
 tauri-plugin-single-instance = { workspace = true }

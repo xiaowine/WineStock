@@ -54,6 +54,12 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
   规则所有权和回滚，不得假设三者防火墙策略一致；
 - `tauri-plugin-single-instance` 保证桌面进程单实例；后续启动只聚焦首个主窗口，不向其转交参数、工作目录或 URL，
   后续实例随后退出；`tauri-plugin-prevent-default` 仅在 Release 禁用 WebView2 默认快捷键，Debug 保留默认快捷键；
+- Desktop 主窗口支持在偏好设置中选择“最小化到系统托盘”或“退出应用”；默认最小化到托盘。托盘隐藏只隐藏窗口，
+  不停止本地 core；托盘“退出”以及选择直接退出后的窗口关闭，统一等待本地 Axum 优雅停止。托盘不可用时采用直接退出的安全降级，
+  不把窗口隐藏到无法恢复的状态；
+- Desktop 偏好支持由 `tauri-plugin-autostart` 管理的“开机自启”和“静默启动”。系统启动项状态由 Shell 查询，
+  前端只通过 Shell Bridge 读写；静默启动仅对带内部自启动标记的进程生效，手动启动和单实例恢复仍显示窗口，
+  托盘不可用时按显示窗口的 fail-safe 处理；
 - Windows Desktop 在显示主窗口前调用 WebView2 官方 Loader API 检查 Evergreen Runtime 主版本不低于 M111；不满足时不加载
   前端、不启动本地服务，通过 `rfd` 原生错误对话框提示依赖损坏并要求重新安装软件后退出；安装器同步使用 `minimumWebview2Version=111.0.0.0`。macOS/Linux
   使用系统 WebKit，待接入对应原生版本 API 后再启用同一门禁。

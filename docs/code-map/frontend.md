@@ -53,7 +53,7 @@
 ## 布局与通用组件
 
 - `frontend/src/layouts/AppShell.*`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
-- `frontend/src/components/` 顶层：从根品牌母版派生并供应用壳/认证/设置复用的 `BrandMark`、账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件；`components/preferences/` 的主题三态控件由初始化向导和偏好 Dialog 共用。
+- `frontend/src/components/` 顶层：从根品牌母版派生并供应用壳/认证/设置复用的 `BrandMark`、账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件；`components/preferences/` 的主题三态控件由初始化向导和偏好 Dialog 共用，Desktop 窗口行为偏好通过可选 Shell Bridge 扩展读写。
 - `frontend/src/components/forms/`：FormField 族、Teleport listbox 的 `SelectControl` 和不依赖浏览器原生弹层的日期时间字段；不包含业务校验规则。
 - `frontend/src/components/attributes/`：物品侧的单张图片属性控件、无依赖 HSV 颜色选择器、鉴权图片加载和图片草稿/纯色生成/提交阶段批量上传模型。
 - `frontend/src/composables/`：表单校验定位、原生返回注册、稳定 pending 指示、目录搜索分页、草稿持久化等页面无关组合逻辑。

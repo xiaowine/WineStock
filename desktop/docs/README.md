@@ -35,6 +35,10 @@ Windows WebView2 的 CDP 远程调试仅由 Debug 构建启用：默认监听 `1
 不接受外部注入调试参数。连接方式、安全边界和 MCP 调试步骤见
 [`implementation-notes/webview2-remote-debugging.md`](implementation-notes/webview2-remote-debugging.md)。
 
+Desktop 偏好支持由 `tauri-plugin-autostart` 管理的“开机自启”和“静默启动”。自启动进程带有内部启动标记；
+只有该标记与静默偏好同时满足且托盘可用时，主窗口才会在前端首帧后继续隐藏。手动启动、单实例恢复和托盘恢复
+仍显示主窗口。实现边界和验收项见 [`implementation-notes/desktop-autostart.md`](implementation-notes/desktop-autostart.md)。
+
 Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询实际 Evergreen Runtime 版本（复用 Tauri/Wry 的静态 Loader 绑定），
 最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。版本缺失或低于
 M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过跨平台 `rfd` 原生错误对话框提示依赖损坏，要求重新安装软件后退出。
@@ -52,6 +56,10 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
   server-mode 的跨平台 LAN 地址发现、Windows 防火墙规则、UAC 提权、其它系统策略和验收方案。
 - [`implementation-notes/webview2-remote-debugging.md`](implementation-notes/webview2-remote-debugging.md)：Windows
   WebView2 Debug/CDP 远程调试策略、MCP 连接方式和 Release 安全边界。
+- [`implementation-notes/desktop-background-tray.md`](implementation-notes/desktop-background-tray.md)：Desktop
+  关闭窗口转后台、系统托盘恢复主窗口和明确退出的生命周期方案。
+- [`implementation-notes/desktop-autostart.md`](implementation-notes/desktop-autostart.md)：Desktop
+  开机自启、静默启动、Tauri autostart 插件接入、Shell Bridge 偏好和跨平台验收方案。
 
 ## 验证入口
 

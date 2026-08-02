@@ -17,11 +17,13 @@ import {
   assertCompleteShellBridge,
   assertApplyRuntimeConfigResult,
   assertCompatibleRuntimeSnapshot,
+  assertDesktopPreferences,
   assertNativeBackRequest,
   assertNativeBackResolutionAck,
   assertNativeBackShellBridgeExtension,
   cloneRuntimeSnapshot,
   type ApplyRuntimeConfigResult,
+  type DesktopPreferences,
   type EditableRuntimeConfig,
   type RuntimeConfigValidationResult,
   type RuntimeSnapshot,
@@ -192,6 +194,32 @@ export async function openExternal(url: string): Promise<void> {
     throw new Error("当前平台不支持打开外部链接");
   }
   await requireBridge().openExternal(url);
+}
+
+/** 读取 Desktop 窗口行为偏好；Web/Android 或旧桥不提供时返回 null。 */
+export async function getDesktopPreferences(): Promise<DesktopPreferences | null> {
+  const snapshot = await initializeShellRuntime();
+  const getter = requireBridge().getDesktopPreferences;
+  if (snapshot.platform !== "desktop" || typeof getter !== "function") {
+    return null;
+  }
+  const preferences = await getter();
+  assertDesktopPreferences(preferences);
+  return preferences;
+}
+
+/** 更新 Desktop 窗口行为偏好；偏好写入失败时保留原值并向调用方抛出错误。 */
+export async function setDesktopPreferences(
+  preferences: DesktopPreferences,
+): Promise<DesktopPreferences | null> {
+  const snapshot = await initializeShellRuntime();
+  const setter = requireBridge().setDesktopPreferences;
+  if (snapshot.platform !== "desktop" || typeof setter !== "function") {
+    return null;
+  }
+  const next = await setter(preferences);
+  assertDesktopPreferences(next);
+  return next;
 }
 
 async function performInitialization(): Promise<RuntimeSnapshot> {

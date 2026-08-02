@@ -18,9 +18,12 @@ async function loadModule(relativePath) {
   return import(moduleUrl);
 }
 
-const { assertCompatibleRuntimeSnapshot, ShellBridgeContractError } = await loadModule(
-  "../src/shell/contract.ts",
-);
+const {
+  assertCompatibleRuntimeSnapshot,
+  assertDesktopPreferences,
+  defaultDesktopPreferences,
+  ShellBridgeContractError,
+} = await loadModule("../src/shell/contract.ts");
 const { normalizeShellBridgeTransportError, ShellBridgeTransportError } = await loadModule(
   "../src/shell/transports/bridgeError.ts",
 );
@@ -159,4 +162,45 @@ test("normalizes malformed transport errors without leaking an unstructured reje
   const normalized = normalizeShellBridgeTransportError(new Error("invoke failed"));
   assert.equal(normalized.code, "invalid_bridge_payload");
   assert.equal(normalized.message, "invoke failed");
+});
+
+test("accepts and rejects Desktop close behavior preferences by contract", () => {
+  assert.equal(defaultDesktopPreferences.autostartEnabled, false);
+  assert.equal(defaultDesktopPreferences.autostartSilent, true);
+  assert.doesNotThrow(() =>
+    assertDesktopPreferences({
+      version: 1,
+      closeBehavior: "minimize-to-tray",
+      autostartEnabled: false,
+      autostartSilent: false,
+    }),
+  );
+  assert.doesNotThrow(() =>
+    assertDesktopPreferences({
+      version: 1,
+      closeBehavior: "exit-application",
+      autostartEnabled: true,
+      autostartSilent: true,
+    }),
+  );
+  assert.throws(
+    () =>
+      assertDesktopPreferences({
+        version: 2,
+        closeBehavior: "minimize-to-tray",
+        autostartEnabled: false,
+        autostartSilent: false,
+      }),
+    (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
+  );
+  assert.throws(
+    () =>
+      assertDesktopPreferences({
+        version: 1,
+        closeBehavior: "minimize-to-tray",
+        autostartEnabled: "true",
+        autostartSilent: false,
+      }),
+    (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
+  );
 });
