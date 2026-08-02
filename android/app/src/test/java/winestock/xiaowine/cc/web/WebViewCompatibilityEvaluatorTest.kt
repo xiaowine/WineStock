@@ -1,6 +1,7 @@
 package winestock.xiaowine.cc.web
 
 import androidx.webkit.WebViewFeature
+import winestock.xiaowine.cc.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,6 +58,33 @@ class WebViewCompatibilityEvaluatorTest {
         assertEquals(116, WebViewCompatibilityEvaluator.parseMajorVersion(" 116.0.5845.92 beta "))
         assertEquals(null, WebViewCompatibilityEvaluator.parseMajorVersion(null))
         assertEquals(null, WebViewCompatibilityEvaluator.parseMajorVersion(""))
+    }
+
+    @Test
+    fun `each incompatibility reason has its own presentation mapping`() {
+        val reasons = WebViewIncompatibilityReason.values()
+
+        reasons.forEach { reason ->
+            assertTrue(WebViewCompatibilityPresentation.title(reason) != 0)
+            assertTrue(WebViewCompatibilityPresentation.message(reason) != 0)
+            assertTrue(WebViewCompatibilityPresentation.resultLabel(reason) != 0)
+        }
+    }
+
+    @Test
+    fun `only bridge failure replaces the WebView requirement with failure stage`() {
+        assertEquals(
+            R.string.webview_compatibility_requirement_label,
+            WebViewCompatibilityPresentation.requirementLabel(
+                WebViewIncompatibilityReason.VERSION_TOO_OLD,
+            ),
+        )
+        assertEquals(
+            R.string.webview_compatibility_failure_stage_label,
+            WebViewCompatibilityPresentation.requirementLabel(
+                WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE,
+            ),
+        )
     }
 
     private fun evaluate(

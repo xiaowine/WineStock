@@ -1,16 +1,28 @@
 <resources>
     <string name="app_name">WineStock</string>
-    <string name="webview_compatibility_title">需要更新系统 WebView</string>
-    <string name="webview_compatibility_message_provider_unavailable">系统没有提供可用的 WebView。请在系统侧启用或更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
-    <string name="webview_compatibility_message_version_unreadable">无法确认当前 WebView 版本。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
-    <string name="webview_compatibility_message_version_too_old">当前 WebView 版本过低，无法可靠运行 WineStock。更新后即可继续，应用数据不会受到影响。</string>
-    <string name="webview_compatibility_message_features_missing">当前 WebView 缺少 WineStock 所需的安全通信能力。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
-    <string name="webview_compatibility_message_shell_bridge_unavailable">加载异常，请更新后重试。</string>
+    <string name="webview_compatibility_title">WineStock 无法启动</string>
+    <string name="webview_compatibility_title_provider_unavailable">无法使用系统 WebView</string>
+    <string name="webview_compatibility_title_version_unreadable">无法确认 WebView 状态</string>
+    <string name="webview_compatibility_title_version_too_old">系统 WebView 版本过低</string>
+    <string name="webview_compatibility_title_features_missing">WebView 能力不兼容</string>
+    <string name="webview_compatibility_title_shell_bridge_unavailable">WineStock 加载失败</string>
+    <string name="webview_compatibility_message_provider_unavailable">系统未提供可用的 WebView，可能是系统组件被停用或设备环境异常。请确认 Android System WebView 或 Chrome 已启用后重试。</string>
+    <string name="webview_compatibility_message_version_unreadable">WineStock 无法读取系统 WebView 的版本信息，可能是系统组件异常或当前设备实现差异。请重新检测；若持续失败，请反馈诊断信息。</string>
+    <string name="webview_compatibility_message_version_too_old">当前 WebView 版本低于 WineStock 的最低要求。请更新 Android System WebView 或 Chrome 后重试。</string>
+    <string name="webview_compatibility_message_features_missing">当前 WebView 缺少 WineStock 需要的安全通信接口，可能与 WebView 版本、系统实现或应用兼容性有关。请先更新后重试；若仍失败，请反馈诊断信息。</string>
+    <string name="webview_compatibility_message_shell_bridge_unavailable">WineStock 与系统 WebView 的桥接未能启动，可能是应用资源、应用版本或系统兼容性问题。请重新打开应用；若仍失败，请更新应用或反馈诊断信息。</string>
+    <string name="webview_compatibility_result_provider_unavailable">检测结果：未检测到系统 WebView</string>
+    <string name="webview_compatibility_result_version_unreadable">检测结果：无法读取 WebView 信息</string>
+    <string name="webview_compatibility_result_version_too_old">检测结果：系统 WebView 版本过低</string>
+    <string name="webview_compatibility_result_features_missing">检测结果：WebView 能力不兼容</string>
+    <string name="webview_compatibility_result_shell_bridge_unavailable">检测结果：WineStock 桥接启动失败</string>
     <string name="webview_compatibility_current_provider_label">当前 WebView</string>
     <string name="webview_compatibility_current_provider_value">%1$s\n%2$s</string>
     <string name="webview_compatibility_provider_unavailable">未检测到 WebView provider</string>
     <string name="webview_compatibility_unknown">未知版本</string>
-    <string name="webview_compatibility_requirement_label">最低要求</string>
+    <string name="webview_compatibility_requirement_label">系统组件要求</string>
     <string name="webview_compatibility_requirement_value">Chromium/WebView 111 或更高版本，并支持必要的 WebView 接口</string>
+    <string name="webview_compatibility_failure_stage_label">失败阶段</string>
+    <string name="webview_compatibility_failure_stage_value">WineStock Shell Bridge 未能完成初始化，未能进入前端页面</string>
     <string name="webview_compatibility_retry">重新检测</string>
 </resources>

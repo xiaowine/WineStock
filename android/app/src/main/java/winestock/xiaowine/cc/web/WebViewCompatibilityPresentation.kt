@@ -1,0 +1,66 @@
+package winestock.xiaowine.cc.web
+
+import winestock.xiaowine.cc.R
+
+/**
+ * Android WebView 启动阻断页的原因到资源映射。
+ *
+ * 只拥有用户可见的标题、正文和诊断标签，不执行 WebView 探测，也不决定恢复动作。
+ */
+internal object WebViewCompatibilityPresentation {
+    fun title(reason: WebViewIncompatibilityReason): Int =
+        when (reason) {
+            WebViewIncompatibilityReason.PROVIDER_UNAVAILABLE ->
+                R.string.webview_compatibility_title_provider_unavailable
+            WebViewIncompatibilityReason.VERSION_UNREADABLE ->
+                R.string.webview_compatibility_title_version_unreadable
+            WebViewIncompatibilityReason.VERSION_TOO_OLD ->
+                R.string.webview_compatibility_title_version_too_old
+            WebViewIncompatibilityReason.REQUIRED_FEATURES_MISSING ->
+                R.string.webview_compatibility_title_features_missing
+            WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE ->
+                R.string.webview_compatibility_title_shell_bridge_unavailable
+        }
+
+    fun message(reason: WebViewIncompatibilityReason): Int =
+        when (reason) {
+            WebViewIncompatibilityReason.PROVIDER_UNAVAILABLE ->
+                R.string.webview_compatibility_message_provider_unavailable
+            WebViewIncompatibilityReason.VERSION_UNREADABLE ->
+                R.string.webview_compatibility_message_version_unreadable
+            WebViewIncompatibilityReason.VERSION_TOO_OLD ->
+                R.string.webview_compatibility_message_version_too_old
+            WebViewIncompatibilityReason.REQUIRED_FEATURES_MISSING ->
+                R.string.webview_compatibility_message_features_missing
+            WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE ->
+                R.string.webview_compatibility_message_shell_bridge_unavailable
+        }
+
+    fun resultLabel(reason: WebViewIncompatibilityReason): Int =
+        when (reason) {
+            WebViewIncompatibilityReason.PROVIDER_UNAVAILABLE ->
+                R.string.webview_compatibility_result_provider_unavailable
+            WebViewIncompatibilityReason.VERSION_UNREADABLE ->
+                R.string.webview_compatibility_result_version_unreadable
+            WebViewIncompatibilityReason.VERSION_TOO_OLD ->
+                R.string.webview_compatibility_result_version_too_old
+            WebViewIncompatibilityReason.REQUIRED_FEATURES_MISSING ->
+                R.string.webview_compatibility_result_features_missing
+            WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE ->
+                R.string.webview_compatibility_result_shell_bridge_unavailable
+        }
+
+    fun requirementLabel(reason: WebViewIncompatibilityReason): Int =
+        if (reason == WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE) {
+            R.string.webview_compatibility_failure_stage_label
+        } else {
+            R.string.webview_compatibility_requirement_label
+        }
+
+    fun requirementValue(reason: WebViewIncompatibilityReason): Int =
+        if (reason == WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE) {
+            R.string.webview_compatibility_failure_stage_value
+        } else {
+            R.string.webview_compatibility_requirement_value
+        }
+}

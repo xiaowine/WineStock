@@ -25,7 +25,17 @@ internal class WebViewCompatibilityScreen(
 
     fun show(result: WebViewCompatibilityResult.Unsupported) {
         val provider = result.provider
-        binding.compatibilityMessage.setText(messageFor(result.reason))
+        binding.compatibilityTitle.setText(WebViewCompatibilityPresentation.title(result.reason))
+        binding.compatibilityResultLabel.setText(
+            WebViewCompatibilityPresentation.resultLabel(result.reason),
+        )
+        binding.compatibilityMessage.setText(WebViewCompatibilityPresentation.message(result.reason))
+        binding.requirementLabel.setText(
+            WebViewCompatibilityPresentation.requirementLabel(result.reason),
+        )
+        binding.requirementValue.setText(
+            WebViewCompatibilityPresentation.requirementValue(result.reason),
+        )
         binding.currentProviderValue.text =
             provider?.let {
                 activity.getString(
@@ -42,6 +52,7 @@ internal class WebViewCompatibilityScreen(
         val secondaryText = ContextCompat.getColor(activity, R.color.compatibility_text_secondary)
         listOf(
             binding.compatibilityTitle,
+            binding.compatibilityResultLabel,
             binding.currentProviderValue,
             binding.requirementValue,
         ).forEach { it.setTextColor(primaryText) }
@@ -97,17 +108,4 @@ internal class WebViewCompatibilityScreen(
         onConfigurationChanged(activity.resources.configuration)
     }
 
-    private fun messageFor(reason: WebViewIncompatibilityReason): Int =
-        when (reason) {
-            WebViewIncompatibilityReason.PROVIDER_UNAVAILABLE ->
-                R.string.webview_compatibility_message_provider_unavailable
-            WebViewIncompatibilityReason.VERSION_UNREADABLE ->
-                R.string.webview_compatibility_message_version_unreadable
-            WebViewIncompatibilityReason.VERSION_TOO_OLD ->
-                R.string.webview_compatibility_message_version_too_old
-            WebViewIncompatibilityReason.REQUIRED_FEATURES_MISSING ->
-                R.string.webview_compatibility_message_features_missing
-            WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE ->
-                R.string.webview_compatibility_message_shell_bridge_unavailable
-        }
 }

@@ -40,6 +40,15 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/compatibilityResultLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/compatibility_text_secondary"
+                android:textSize="13sp"
+                tools:text="检测结果：系统 WebView 版本过低" />
+
+            <TextView
                 android:id="@+id/compatibilityMessage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
