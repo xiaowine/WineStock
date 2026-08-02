@@ -130,6 +130,19 @@ where
             .await
     }
 
+    /// 判断用户名是否被除指定用户外的账号占用。
+    pub(crate) async fn username_exists_for_other(
+        &self,
+        username: &str,
+        user_id: i64,
+    ) -> Result<bool, DbErr> {
+        user::Entity::find()
+            .filter(user::Column::Username.eq(username))
+            .filter(user::Column::Id.ne(user_id))
+            .exists(self.database)
+            .await
+    }
+
     /// 分页查询用户，只返回账号基础记录。
     pub(crate) async fn list_users(&self, input: ListUsers) -> Result<UserPage, DbErr> {
         let limit = input.page_size as i64;
@@ -210,6 +223,36 @@ where
         let mut active: user::ActiveModel = user.into();
         active.password_hash = Set(password_hash);
         active.password_change_required = Set(password_change_required);
+        active.updated_at = Set(now);
+        active.update(self.database).await
+    }
+
+    /// 在同一用户记录中更新用户名、密码哈希和强制改密状态。
+    pub(crate) async fn update_credentials(
+        &self,
+        user: user::Model,
+        username: String,
+        password_hash: String,
+        password_change_required: bool,
+    ) -> Result<user::Model, DbErr> {
+        let now = sqlite_now(self.database).await?;
+        let mut active: user::ActiveModel = user.into();
+        active.username = Set(username);
+        active.password_hash = Set(password_hash);
+        active.password_change_required = Set(password_change_required);
+        active.updated_at = Set(now);
+        active.update(self.database).await
+    }
+
+    /// 更新用户登录用户名，并刷新更新时间。
+    pub(crate) async fn update_username(
+        &self,
+        user: user::Model,
+        username: String,
+    ) -> Result<user::Model, DbErr> {
+        let now = sqlite_now(self.database).await?;
+        let mut active: user::ActiveModel = user.into();
+        active.username = Set(username);
         active.updated_at = Set(now);
         active.update(self.database).await
     }

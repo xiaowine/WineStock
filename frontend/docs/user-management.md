@@ -19,6 +19,7 @@ POST  /api/auth/register
 GET   /api/users
 DELETE /api/users/{id}
 PATCH /api/users/{id}/status
+PATCH /api/users/{id}/username
 PUT   /api/users/{id}/permissions
 POST  /api/users/{id}/password
 GET   /api/permissions
@@ -34,6 +35,7 @@ GET   /api/permissions
 - 软删除其他用户，并在确认界面说明会话吊销、用户名保留和不可撤销影响。
 - 整体替换用户权限。
 - 为其他用户设置临时密码。
+- 修改用户登录用户名；用户名修改不影响用户 ID、权限和现有会话。
 - 加载、空数据、取消旧请求、服务错误和操作结果提示。
 
 ## 操作权限
@@ -47,12 +49,15 @@ GET   /api/permissions
 | 查看权限定义   | `user.permission.read`                             |
 | 修改用户权限   | `user.permissions.update` + `user.permission.read` |
 | 设置临时密码   | `user.password.reset`                              |
+| 修改用户名     | `user.username.update`                             |
 
-当前页面不提供停用自己、删除自己或为自己设置临时密码的入口。当前用户应使用独立修改密码页修改自己的密码。
+当前页面不提供停用自己、删除自己或为自己设置临时密码的入口；用户名修改可以作用于当前用户。当前用户应使用独立修改密码页修改自己的密码。
 
 前端隐藏入口不是安全边界。后端已经强制禁止停用或删除自己，也禁止为自己设置临时密码，具体错误契约见 `core/docs/user-management-api.md`。
 
 修改当前用户权限成功后，`auth/session.ts` 会同步内存中的权限快照，使导航和页面操作立即收敛。后续 HTTP 请求仍以服务端实时授权结果为准。
+
+修改当前用户用户名成功后，页面重新请求 `/api/auth/me` 同步会话快照；不会清除 token 或要求重新登录。
 
 ## 密码和账号安全
 
@@ -68,7 +73,7 @@ GET   /api/permissions
 - `frontend/src/auth/permissions.ts`：稳定权限代码和前端只读判断。
 - 权限编辑器不硬编码可选权限；后端 `GET /api/permissions` 返回 `user.delete` 后会自动显示并允许分配。
 - `frontend/src/pages/UsersPage.vue`：列表、筛选、分页和操作编排。
-- `frontend/src/components/users/`：创建、权限、临时密码和启停对话框。
+- `frontend/src/components/users/`：创建、用户名、权限、临时密码和启停对话框。
 - `frontend/src/components/ModalDialog.vue`：通用模态结构和关闭行为。
 - `frontend/src/notices/notice.ts` 与 `frontend/src/components/NoticeViewport.vue`：统一显示用户管理操作的成功和失败反馈。
 
@@ -79,6 +84,8 @@ GET   /api/permissions
 - 状态筛选和用户名搜索使用真实 API 结果。
 - 用户列表使用独立工具栏组件：搜索控件清空后立即恢复未搜索的列表；状态使用与物品目录一致的选择框并通过“全部”恢复；结果数量、刷新图标和创建入口组成列表级操作区，页面标题区不承载操作按钮。搜索、状态筛选和手动刷新保留当前列表，并使用统一的延迟显示与最短展示刷新过渡；顶部和底部数量变化使用短促文字过渡，零条结果隐藏表格并仅保留已加载 `0` 个用户的底部提示。
 - 权限编辑提交完整权限集合。
+- 有 `user.username.update` 权限时，桌面行操作和移动端管理操作均显示修改用户名入口；无权限时两端均隐藏，后端仍执行最终授权。
+- 用户名修改成功后列表与当前用户会话显示新用户名，旧用户名登录失败，新用户名登录成功。
 - 临时密码登录后必须进入修改密码页面。
 - 停用用户后其原有会话失效。
 - 删除用户后保留当前筛选并刷新列表；删除末页最后一项时自动回退一页。

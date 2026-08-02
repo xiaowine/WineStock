@@ -23,3 +23,6 @@ pub(crate) const READ_USER_PERMISSION_DEFINITION_PERMISSION: &str = "user.permis
 
 /// 管理员设置其他用户临时密码的权限代码。
 pub(crate) const RESET_USER_PASSWORD_PERMISSION: &str = "user.password.reset";
+
+/// 修改其它用户登录用户名的权限代码。
+pub(crate) const UPDATE_USER_USERNAME_PERMISSION: &str = "user.username.update";

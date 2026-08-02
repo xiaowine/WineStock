@@ -75,7 +75,7 @@
 - 模板：`TemplatesPage` 分类/物品属性模板双资源工作区，`components/templates/` 字段编辑、复制与两类差异化删除确认。
 - 库位：`LocationsPage` 与 `components/locations/` 最多十层分组树、库位 CRUD、删除确认与全局默认库位星标（`is_default`，仅用于入库明细预填）。
 - 替代料：`SubstitutesPage` 全局分组治理与确定性星链网络视图（力导向布局 composable），`components/substitutes/` 关系组、共享编辑 Dialog 与 SVG 画布。
-- 用户：`UsersPage` 与 `components/users/` 管理表单族；编辑当前账号时锁定权限管理关键权限。
+- 用户：`UsersPage` 与 `components/users/` 管理表单族，包含独立用户名修改 Dialog；编辑当前账号时锁定权限管理关键权限，改名后同步当前会话用户快照。
 - 操作日志：`EventsPage` 与 `components/events/` 读取后端审计事件，提供高级筛选、只读详情和历史 JSON 差异兼容。
 - 运行设置：`RuntimeSettingsPage` 无 API 和鉴权依赖；self-hosted 端口由 Shell 自动分配，server-mode 编辑固定端口与监听地址。
 

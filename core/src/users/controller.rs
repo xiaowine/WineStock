@@ -132,6 +132,10 @@ pub(crate) struct UserPasswordResetRequest {
 )]
 #[serde(deny_unknown_fields)]
 pub(crate) struct UserPasswordChangeRequest {
+    /// 修改后的登录用户名；所有前端调用方都必须传入，普通改密时传入当前用户名。
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
+    pub username: String,
+
     /// 当前明文密码，用于确认操作者仍掌握原凭据；
     /// 仅本机免登录标记用户处于占位密码状态时允许留空。
     #[garde(length(max = 256))]
@@ -140,6 +144,17 @@ pub(crate) struct UserPasswordChangeRequest {
     /// 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。
     #[garde(length(min = 8, max = 128), custom(validate_not_blank))]
     pub new_password: String,
+}
+
+/// 用户管理修改登录用户名请求。
+#[derive(
+    Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema, garde::Validate,
+)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct UserUsernameUpdateRequest {
+    /// 修改后的登录用户名。
+    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
+    pub username: String,
 }
 
 /// 权限响应。
@@ -313,6 +328,34 @@ pub(crate) async fn update_user_status(
 ) -> Result<Json<UserAdminResponse>, AuthApiError> {
     Ok(Json(
         service::update_user_status(&state, &current_user, id, request).await?,
+    ))
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/users/{id}/username",
+    tag = "users",
+    params(("id" = i64, Path, description = "User ID")),
+    request_body = UserUsernameUpdateRequest,
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "User username updated", body = UserAdminResponse),
+        (status = 400, description = "Invalid request", body = crate::http::ApiErrorResponse),
+        (status = 401, description = "Invalid access token", body = crate::http::ApiErrorResponse),
+        (status = 403, description = "Username update permission required", body = crate::http::ApiErrorResponse),
+        (status = 404, description = "User not found", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Username already exists", body = crate::http::ApiErrorResponse)
+    )
+)]
+/// 修改目标用户登录用户名；用户 ID、权限和现有会话保持不变。
+pub(crate) async fn update_user_username(
+    State(state): State<CoreState>,
+    Extension(current_user): Extension<CurrentUser>,
+    ValidatedPath(id): ValidatedPath<i64>,
+    ValidatedJson(request): ValidatedJson<UserUsernameUpdateRequest>,
+) -> Result<Json<UserAdminResponse>, AuthApiError> {
+    Ok(Json(
+        service::update_user_username(&state, &current_user, id, request).await?,
     ))
 }
 

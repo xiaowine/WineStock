@@ -16,12 +16,13 @@ use crate::{
     users::controller::{
         PermissionResponse, UserAdminResponse, UserPasswordChangeRequest, UserPasswordResetRequest,
         UserPermissionsUpdateRequest, UserStatus, UserStatusUpdateRequest,
+        UserUsernameUpdateRequest,
     },
     users::service::PaginatedResponse,
     users::{
         DELETE_USER_PERMISSION, READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
         RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
-        UPDATE_USER_STATUS_PERMISSION,
+        UPDATE_USER_STATUS_PERMISSION, UPDATE_USER_USERNAME_PERMISSION,
     },
 };
 
@@ -258,6 +259,7 @@ async fn user_management_writes_use_specific_permissions() {
     seed_plain_user(app.state.database(), "managed", "password").await;
     seed_plain_user(app.state.database(), "status-updater", "password").await;
     seed_plain_user(app.state.database(), "permissions-updater", "password").await;
+    seed_plain_user(app.state.database(), "username-updater", "password").await;
     let managed_id = user_id(&app, "managed").await;
     assign_single_permission(
         app.state.database(),
@@ -271,6 +273,13 @@ async fn user_management_writes_use_specific_permissions() {
         "permissions-updater",
         "permissions-updater-only",
         UPDATE_USER_PERMISSIONS_PERMISSION,
+    )
+    .await;
+    assign_single_permission(
+        app.state.database(),
+        "username-updater",
+        "username-updater-only",
+        UPDATE_USER_USERNAME_PERMISSION,
     )
     .await;
 
@@ -321,6 +330,199 @@ async fn user_management_writes_use_specific_permissions() {
     )
     .await;
     assert_eq!(permissions.status(), StatusCode::OK);
+
+    let username_login = login_request(&app, "username-updater", "password").await;
+    let forbidden_username = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/username"),
+        &status_login.body.access_token,
+        &UserUsernameUpdateRequest {
+            username: "renamed-managed".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(forbidden_username.status(), StatusCode::FORBIDDEN);
+
+    let renamed = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/username"),
+        &username_login.body.access_token,
+        &UserUsernameUpdateRequest {
+            username: "renamed-managed".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(renamed.status(), StatusCode::OK);
+    let renamed: UserAdminResponse = json_body(renamed).await;
+    assert_eq!(renamed.username, "renamed-managed");
+    assert!(audit_details(&app, managed_id)
+        .await
+        .contains("renamed-managed"));
+}
+
+#[tokio::test]
+async fn user_username_update_keeps_existing_sessions_and_user_id_links() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "managed", "password").await;
+    let managed_id = user_id(&app, "managed").await;
+    let managed_login = login_request(&app, "managed", "password").await;
+    let admin_login = login_request(&app, "admin", "password").await;
+
+    let renamed = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/username"),
+        &admin_login.body.access_token,
+        &UserUsernameUpdateRequest {
+            username: "renamed-managed".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(renamed.status(), StatusCode::OK);
+
+    let old_access_me = authorized_empty_request(
+        &app,
+        "GET",
+        "/api/auth/me",
+        &managed_login.body.access_token,
+    )
+    .await;
+    assert_eq!(old_access_me.status(), StatusCode::OK);
+    let current: crate::auth::AuthUserResponse = json_body(old_access_me).await;
+    assert_eq!(current.id, managed_id.to_string());
+    assert_eq!(current.username, "renamed-managed");
+
+    let refresh = raw_refresh_request(&app, &managed_login.body.refresh_token).await;
+    assert_eq!(refresh.status(), StatusCode::OK);
+    let old_login = raw_login_request(&app, "managed", "password").await;
+    assert_eq!(old_login.status(), StatusCode::UNAUTHORIZED);
+    let new_login = login_request(&app, "renamed-managed", "password").await;
+    assert_eq!(new_login.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn user_username_update_rejects_duplicate_deleted_and_invalid_names() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "managed", "password").await;
+    seed_plain_user(app.state.database(), "taken-user", "password").await;
+    seed_plain_user(app.state.database(), "deleted-user", "password").await;
+    let managed_id = user_id(&app, "managed").await;
+    let deleted_id = user_id(&app, "deleted-user").await;
+    let admin_login = login_request(&app, "admin", "password").await;
+
+    let duplicate = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/username"),
+        &admin_login.body.access_token,
+        &UserUsernameUpdateRequest {
+            username: "taken-user".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(duplicate.status(), StatusCode::CONFLICT);
+    assert_eq!(error_code(duplicate).await, "username_taken");
+
+    let deleted = authorized_empty_request(
+        &app,
+        "DELETE",
+        &format!("/api/users/{deleted_id}"),
+        &admin_login.body.access_token,
+    )
+    .await;
+    assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
+
+    let deleted_name = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/username"),
+        &admin_login.body.access_token,
+        &UserUsernameUpdateRequest {
+            username: "deleted-user".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(deleted_name.status(), StatusCode::CONFLICT);
+    assert_eq!(error_code(deleted_name).await, "username_taken");
+
+    let invalid = authorized_json_request(
+        &app,
+        "PATCH",
+        &format!("/api/users/{managed_id}/username"),
+        &admin_login.body.access_token,
+        &UserUsernameUpdateRequest {
+            username: "   ".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(invalid).await, "invalid_request");
+
+    let managed = authorized_empty_request(
+        &app,
+        "GET",
+        &format!("/api/users/{managed_id}"),
+        &admin_login.body.access_token,
+    )
+    .await;
+    let managed: UserAdminResponse = json_body(managed).await;
+    assert_eq!(managed.username, "managed");
+}
+
+#[tokio::test]
+async fn self_password_change_updates_username_and_is_atomic_on_duplicate() {
+    let app = seeded_app().await;
+    seed_plain_user(app.state.database(), "self-user", "old-password").await;
+    seed_plain_user(app.state.database(), "taken-user", "taken-password").await;
+    let login = login_request(&app, "self-user", "old-password").await;
+
+    let duplicate = authorized_json_request(
+        &app,
+        "POST",
+        "/api/auth/me/password",
+        &login.body.access_token,
+        &UserPasswordChangeRequest {
+            username: "taken-user".to_owned(),
+            current_password: "old-password".to_owned(),
+            new_password: "new-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(duplicate.status(), StatusCode::CONFLICT);
+    assert_eq!(error_code(duplicate).await, "username_taken");
+
+    let old_login = login_request(&app, "self-user", "old-password").await;
+    assert_eq!(old_login.status, StatusCode::OK);
+    let new_login = raw_login_request(&app, "self-user", "new-password").await;
+    assert_eq!(new_login.status(), StatusCode::UNAUTHORIZED);
+
+    let changed = authorized_json_request(
+        &app,
+        "POST",
+        "/api/auth/me/password",
+        &login.body.access_token,
+        &UserPasswordChangeRequest {
+            username: "renamed-self".to_owned(),
+            current_password: "old-password".to_owned(),
+            new_password: "new-password".to_owned(),
+        },
+    )
+    .await;
+    assert_eq!(changed.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        raw_login_request(&app, "self-user", "old-password")
+            .await
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        login_request(&app, "renamed-self", "new-password")
+            .await
+            .status,
+        StatusCode::OK
+    );
 }
 
 #[tokio::test]
@@ -452,6 +654,7 @@ async fn user_password_reset_requires_reset_permission() {
         "/api/auth/me/password",
         &temporary_login.body.access_token,
         &UserPasswordChangeRequest {
+            username: "managed".to_owned(),
             current_password: "new-password".to_owned(),
             new_password: "final-password".to_owned(),
         },
@@ -482,6 +685,7 @@ async fn current_user_changes_only_own_password_with_current_password() {
         "/api/auth/me/password",
         &login.body.access_token,
         &UserPasswordChangeRequest {
+            username: "self-user".to_owned(),
             current_password: "wrong-password".to_owned(),
             new_password: "new-password".to_owned(),
         },
@@ -496,6 +700,7 @@ async fn current_user_changes_only_own_password_with_current_password() {
         "/api/auth/me/password",
         &login.body.access_token,
         &UserPasswordChangeRequest {
+            username: "self-user".to_owned(),
             current_password: "old-password".to_owned(),
             new_password: "new-password".to_owned(),
         },
@@ -788,6 +993,21 @@ async fn audit_action(app: &crate::test_support::TestApp, user_id: i64) -> Strin
         .expect("audit action row should exist")
         .try_get("", "action")
         .expect("audit action should decode")
+}
+
+async fn audit_details(app: &crate::test_support::TestApp, user_id: i64) -> String {
+    app.state
+        .database()
+        .query_one_raw(Statement::from_sql_and_values(
+            DatabaseBackend::Sqlite,
+            "SELECT details_json FROM audit_events WHERE entity_type = 'user' AND entity_id = ? ORDER BY id DESC LIMIT 1",
+            [user_id.into()],
+        ))
+        .await
+        .expect("audit details should query")
+        .expect("audit details row should exist")
+        .try_get("", "details_json")
+        .expect("audit details should decode")
 }
 
 async fn authorized_empty_request(

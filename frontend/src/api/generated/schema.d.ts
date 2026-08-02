@@ -939,6 +939,23 @@ export interface paths {
         patch: operations["update_user_status"];
         trace?: never;
     };
+    "/api/users/{id}/username": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 修改目标用户登录用户名；用户 ID、权限和现有会话保持不变。 */
+        patch: operations["update_user_username"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2867,6 +2884,8 @@ export interface components {
             current_password: string;
             /** @description 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。 */
             new_password: string;
+            /** @description 修改后的登录用户名；所有前端调用方都必须传入，普通改密时传入当前用户名。 */
+            username: string;
         };
         /** @description 管理员设置临时密码请求。 */
         UserPasswordResetRequest: {
@@ -2887,6 +2906,11 @@ export interface components {
         UserStatusUpdateRequest: {
             /** @description 新用户状态。 */
             status: components["schemas"]["UserStatus"];
+        };
+        /** @description 用户管理修改登录用户名请求。 */
+        UserUsernameUpdateRequest: {
+            /** @description 修改后的登录用户名。 */
+            username: string;
         };
     };
     responses: never;
@@ -6603,6 +6627,78 @@ export interface operations {
                 };
             };
             /** @description Last active permission manager cannot be disabled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+        };
+    };
+    update_user_username: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUsernameUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description User username updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Username update permission required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Username already exists */
             409: {
                 headers: {
                     [name: string]: unknown;

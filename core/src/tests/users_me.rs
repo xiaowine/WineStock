@@ -8,7 +8,7 @@ use tower::ServiceExt;
 
 use crate::{
     auth::AuthUserResponse,
-    test_support::{json_body, login_request, seeded_app},
+    test_support::{error_code, json_body, login_request, seeded_app},
 };
 
 #[tokio::test]
@@ -77,7 +77,35 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
             "user.permissions.update",
             "user.read",
             "user.register",
-            "user.status.update"
+            "user.status.update",
+            "user.username.update"
         ]
     );
+}
+
+#[tokio::test]
+async fn password_change_requires_username_field() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/me/password")
+                .header(
+                    "authorization",
+                    format!("Bearer {}", login.body.access_token),
+                )
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"current_password":"password","new_password":"new-password"}"#,
+                ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(error_code(response).await, "invalid_request");
 }

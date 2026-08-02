@@ -17,6 +17,16 @@ pub(super) fn normalize_username(username: &str) -> Result<String, AuthApiError>
     }
 }
 
+/// 归一化用户管理修改用的用户名；HTTP 注册和其它已存在用户操作统一要求有效业务文本。
+pub(super) fn normalize_existing_username(username: &str) -> Result<String, AuthApiError> {
+    let username = username.trim();
+    if username.is_empty() {
+        Err(AuthApiError::InvalidRequest)
+    } else {
+        Ok(username.to_owned())
+    }
+}
+
 /// 归一化可选搜索文本；存在时仍必须是有效业务文本。
 pub(super) fn normalize_optional_text(
     value: Option<String>,

@@ -63,6 +63,7 @@ Current implemented surface:
 - `GET /api/users/{id}`
 - `DELETE /api/users/{id}`
 - `PATCH /api/users/{id}/status`
+- `PATCH /api/users/{id}/username`
 - `PUT /api/users/{id}/permissions`
 - `POST /api/users/{id}/password`
 - `GET /api/permissions`

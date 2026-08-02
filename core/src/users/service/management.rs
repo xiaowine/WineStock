@@ -24,7 +24,10 @@ use crate::{
 use super::{
     pagination::{total_pages, PaginatedResponse, DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE},
     response::{load_admin_user_response, permission_response},
-    validation::{normalize_optional_status, normalize_optional_text, normalize_permission_codes},
+    validation::{
+        normalize_existing_username, normalize_optional_status, normalize_optional_text,
+        normalize_permission_codes,
+    },
 };
 
 /// 分页查询用户管理列表。
@@ -114,6 +117,51 @@ pub(crate) async fn update_user_status(
     let response = load_admin_user_response(&rbac, &updated).await?;
     transaction.commit().await?;
 
+    Ok(response)
+}
+
+/// 修改目标用户登录用户名；不吊销会话，用户 ID 仍是所有鉴权和业务关联的稳定身份。
+pub(crate) async fn update_user_username(
+    state: &CoreState,
+    current_user: &CurrentUser,
+    id: i64,
+    request: controller::UserUsernameUpdateRequest,
+) -> Result<controller::UserAdminResponse, AuthApiError> {
+    let username = normalize_existing_username(&request.username)?;
+    let transaction = state.database().begin().await?;
+    let users = UserRepository::new(&transaction);
+    let audit = AuditRepository::new(&transaction);
+    let rbac = RbacRepository::new(&transaction);
+    let user = users
+        .find_by_id(id)
+        .await?
+        .ok_or(AuthApiError::UserNotFound)?;
+    if users.username_exists_for_other(&username, user.id).await? {
+        return Err(AuthApiError::UsernameTaken);
+    }
+
+    let previous_username = user.username.clone();
+    let updated = if previous_username == username {
+        user
+    } else {
+        let updated = users.update_username(user, username).await?;
+        audit
+            .record(RecordAuditEvent {
+                user_id: Some(current_user.user_id),
+                entity_type: "user".to_owned(),
+                entity_id: Some(updated.id),
+                action: "updated".to_owned(),
+                details: Some(json!({
+                    "field": "username",
+                    "previous_username": previous_username,
+                    "new_username": updated.username
+                })),
+            })
+            .await?;
+        updated
+    };
+    let response = load_admin_user_response(&rbac, &updated).await?;
+    transaction.commit().await?;
     Ok(response)
 }
 

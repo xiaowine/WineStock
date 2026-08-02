@@ -154,7 +154,7 @@ const errorMessage = ref("");
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({});
 useFormValidation(fieldErrors);
 
-const username = computed(() => authSession.value?.user.username ?? "当前用户");
+const username = computed(() => authSession.value?.user.username ?? "");
 const passwordChangeRequired = computed(
   () => authSession.value?.user.password_change_required === true,
 );
@@ -167,6 +167,10 @@ const newPasswordConfirmationError = computed(
 /** 校验并修改当前用户密码；成功后解除强制改密状态并恢复原内部目标。 */
 async function submitPasswordChange(): Promise<void> {
   errorMessage.value = "";
+  if (!username.value.trim()) {
+    notice.error("无法确认当前用户名", { detail: "请重新登录后再试。" });
+    return;
+  }
   fieldErrors.value = validatePasswordChange(
     currentPassword.value,
     newPassword.value,
@@ -182,6 +186,7 @@ async function submitPasswordChange(): Promise<void> {
   isSubmitting.value = true;
   try {
     await changeOwnPassword({
+      username: username.value,
       current_password: currentPassword.value,
       new_password: newPassword.value,
     });

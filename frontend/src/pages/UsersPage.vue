@@ -93,6 +93,14 @@
                 <div class="users-table__fixed-end" role="cell">
                   <div class="row-actions">
                     <button
+                      v-if="canUpdateUsername"
+                      class="text-button"
+                      type="button"
+                      @click="openUsernameDialog(user)"
+                    >
+                      用户名
+                    </button>
+                    <button
                       v-if="canEditPermissions"
                       class="text-button"
                       type="button"
@@ -216,6 +224,14 @@
       @retry="loadPermissionDefinitions"
       @submit="savePermissions"
     />
+    <UserUsernameDialog
+      :user="usernameUser"
+      :submitting="actionSubmitting"
+      :error-message="actionError"
+      :server-field-errors="actionFieldErrors"
+      @close="closeDialogs"
+      @submit="saveUsername"
+    />
     <UserPasswordResetDialog
       :user="passwordUser"
       :submitting="actionSubmitting"
@@ -241,11 +257,13 @@
     />
     <UserActionsDialog
       :user="actionsUser"
+      :can-update-username="canUpdateUsername"
       :can-edit-permissions="canEditPermissions"
       :can-reset-password="Boolean(actionsUser && canResetPassword && !isCurrentUser(actionsUser))"
       :can-update-status="Boolean(actionsUser && canUpdateStatus && !isCurrentUser(actionsUser))"
       :can-delete="Boolean(actionsUser && canDelete && !isCurrentUser(actionsUser))"
       @close="closeDialogs"
+      @username="selectUsernameAction"
       @permissions="selectPermissionsAction"
       @password="selectPasswordAction"
       @status="selectStatusAction"
@@ -257,12 +275,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { getCurrentUser } from "../api/auth";
 import {
   deleteUser,
   listPermissions,
   listUsers,
   registerUser,
   resetUserPassword,
+  updateUserUsername,
   updateUserPermissions,
   updateUserStatus,
   type PermissionResponse,
@@ -271,7 +291,11 @@ import {
 } from "../api/users";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import { hasPermission, userPermissions } from "../auth/permissions";
-import { authSession, replaceCurrentSessionPermissions } from "../auth/session";
+import {
+  authSession,
+  replaceCurrentSessionPermissions,
+  replaceCurrentSessionUser,
+} from "../auth/session";
 import UserActionsDialog from "../components/users/UserActionsDialog.vue";
 import UserCreateDialog from "../components/users/UserCreateDialog.vue";
 import UserDeleteDialog from "../components/users/UserDeleteDialog.vue";
@@ -279,6 +303,7 @@ import UserListToolbar from "../components/users/UserListToolbar.vue";
 import UserPasswordResetDialog from "../components/users/UserPasswordResetDialog.vue";
 import UserPermissionsDialog from "../components/users/UserPermissionsDialog.vue";
 import UserStatusDialog from "../components/users/UserStatusDialog.vue";
+import UserUsernameDialog from "../components/users/UserUsernameDialog.vue";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
 import { notice } from "../notices/notice";
 
@@ -301,6 +326,7 @@ const loadMoreError = ref("");
 const loadMoreSentinel = ref<HTMLElement | null>(null);
 const createDialogOpen = ref(false);
 const permissionsUser = ref<UserAdminResponse | null>(null);
+const usernameUser = ref<UserAdminResponse | null>(null);
 const passwordUser = ref<UserAdminResponse | null>(null);
 const statusUser = ref<UserAdminResponse | null>(null);
 const deleteUserTarget = ref<UserAdminResponse | null>(null);
@@ -327,6 +353,9 @@ const canUpdateStatus = computed(() =>
 const canDelete = computed(() => hasPermission(currentPermissions.value, userPermissions.delete));
 const canResetPassword = computed(() =>
   hasPermission(currentPermissions.value, userPermissions.resetPassword),
+);
+const canUpdateUsername = computed(() =>
+  hasPermission(currentPermissions.value, userPermissions.updateUsername),
 );
 const canEditPermissions = computed(
   () =>
@@ -484,6 +513,11 @@ function openPermissionsDialog(user: UserAdminResponse): void {
   }
 }
 
+function openUsernameDialog(user: UserAdminResponse): void {
+  closeDialogs();
+  usernameUser.value = user;
+}
+
 function openPasswordDialog(user: UserAdminResponse): void {
   closeDialogs();
   passwordUser.value = user;
@@ -509,6 +543,13 @@ function selectPermissionsAction(): void {
   const target = actionsUser.value;
   if (target) {
     openPermissionsDialog(target);
+  }
+}
+
+function selectUsernameAction(): void {
+  const target = actionsUser.value;
+  if (target) {
+    openUsernameDialog(target);
   }
 }
 
@@ -539,12 +580,39 @@ function closeDialogs(): void {
   }
   createDialogOpen.value = false;
   permissionsUser.value = null;
+  usernameUser.value = null;
   passwordUser.value = null;
   statusUser.value = null;
   deleteUserTarget.value = null;
   actionsUser.value = null;
   actionError.value = "";
   actionFieldErrors.value = {};
+}
+
+/** 修改登录用户名；用户 ID、权限、密码和现有会话不因用户名变化而改变。 */
+async function saveUsername(username: string): Promise<void> {
+  const target = usernameUser.value;
+  if (!target) {
+    return;
+  }
+  actionSubmitting.value = true;
+  actionError.value = "";
+  actionFieldErrors.value = {};
+  try {
+    const updated = await updateUserUsername(target.id, { username });
+    replaceUser(updated);
+    if (isCurrentUser(updated)) {
+      replaceCurrentSessionUser(await getCurrentUser());
+    }
+    usernameUser.value = null;
+    notice.success("用户名已更新", { detail: `当前登录用户名为 ${updated.username}。` });
+  } catch (error) {
+    actionError.value = userManagementErrorMessage(error, "修改用户名失败");
+    actionFieldErrors.value = userManagementFieldErrors(error);
+    notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
+  } finally {
+    actionSubmitting.value = false;
+  }
 }
 
 /** 使用当前用户的注册权限创建后续账号；成功后回到未筛选第一页展示结果。 */
@@ -714,6 +782,7 @@ function isCurrentUser(user: UserAdminResponse): boolean {
 
 function hasAvailableAction(user: UserAdminResponse): boolean {
   return (
+    canUpdateUsername.value ||
     canEditPermissions.value ||
     (!isCurrentUser(user) && (canResetPassword.value || canUpdateStatus.value || canDelete.value))
   );

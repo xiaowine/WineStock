@@ -123,6 +123,19 @@ export function replaceCurrentSessionPermissions(
   };
 }
 
+/** 当前用户身份信息变化后同步用户名、权限和强制改密状态；用户 ID 必须保持不变。 */
+export function replaceCurrentSessionUser(user: AuthUserResponse): void {
+  const current = mutableAuthSession.value;
+  if (!current || current.user.id !== user.id) {
+    return;
+  }
+
+  mutableAuthSession.value = {
+    ...current,
+    user,
+  };
+}
+
 /** 启动同源标签页间的持久会话清理同步；重复调用不会注册多个监听器。 */
 export function startAuthSessionSynchronization(): void {
   if (stopPersistedSessionSynchronization) {

@@ -47,6 +47,7 @@
 - `user.permissions.update`：整体替换用户权限。
 - `user.permission.read`：查看权限定义。
 - `user.password.reset`：直接重置用户密码。
+- `user.username.update`：修改用户登录用户名。
 - `stock.read`：历史兼容的库存只读权限；具体查询接口使用细分权限。
 - `stock.write`：创建或修改库存数据。
 - `stock.item.manage`：创建、修改和软删除库存物品。

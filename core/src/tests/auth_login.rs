@@ -110,6 +110,7 @@ async fn login_returns_tokens_and_current_permissions() {
                 "user.read".to_owned(),
                 "user.register".to_owned(),
                 "user.status.update".to_owned(),
+                "user.username.update".to_owned(),
             ],
             password_change_required: false,
         }

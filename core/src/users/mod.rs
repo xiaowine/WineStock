@@ -20,7 +20,7 @@ pub(crate) mod service;
 pub(crate) use permissions::{
     DELETE_USER_PERMISSION, READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
     REGISTER_USER_PERMISSION, RESET_USER_PASSWORD_PERMISSION, UPDATE_USER_PERMISSIONS_PERMISSION,
-    UPDATE_USER_STATUS_PERMISSION,
+    UPDATE_USER_STATUS_PERMISSION, UPDATE_USER_USERNAME_PERMISSION,
 };
 
 /// 注册用户业务 HTTP 路由集合。
@@ -60,6 +60,11 @@ pub(crate) fn router(state: CoreState) -> Router<CoreState> {
             "/api/users/{id}/status",
             patch(controller::update_user_status)
                 .require_permission(state.clone(), UPDATE_USER_STATUS_PERMISSION),
+        )
+        .route(
+            "/api/users/{id}/username",
+            patch(controller::update_user_username)
+                .require_permission(state.clone(), UPDATE_USER_USERNAME_PERMISSION),
         )
         .route(
             "/api/users/{id}/permissions",

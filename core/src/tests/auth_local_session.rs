@@ -11,8 +11,8 @@ use crate::{
     persistence::repository::{AuthRepository, RbacRepository, UserRepository},
     rbac::builtin_permission_codes,
     test_support::{
-        empty_app, error_code, json_body, json_request, login_request, seeded_app, server_mode_app,
-        TestApp,
+        empty_app, error_code, json_body, json_request, login_request, seed_plain_user, seeded_app,
+        server_mode_app, TestApp,
     },
 };
 
@@ -179,6 +179,7 @@ async fn placeholder_allows_password_set_without_current_and_clears_flag() {
                 "POST",
                 "/api/auth/me/password",
                 &serde_json::json!({
+                    "username": "admin",
                     "current_password": "",
                     "new_password": "real-password-123"
                 }),
@@ -212,6 +213,7 @@ async fn placeholder_allows_password_set_without_current_and_clears_flag() {
                 "POST",
                 "/api/auth/me/password",
                 &serde_json::json!({
+                    "username": "admin",
                     "current_password": "",
                     "new_password": "another-password-123"
                 }),
@@ -227,6 +229,111 @@ async fn placeholder_allows_password_set_without_current_and_clears_flag() {
         .await
         .expect("request should complete");
     assert_eq!(denied.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn placeholder_username_validation_is_atomic_with_password_change() {
+    let app = empty_app().await;
+    let session: AuthTokenResponse =
+        json_body(raw_exchange(&app, &exchange_request(&app)).await).await;
+    seed_plain_user(app.state.database(), "taken-user", "taken-password").await;
+
+    for username in ["", &"x".repeat(65)] {
+        let response = app
+            .router
+            .clone()
+            .oneshot({
+                let mut request = json_request(
+                    "POST",
+                    "/api/auth/me/password",
+                    &serde_json::json!({
+                        "username": username,
+                        "current_password": "",
+                        "new_password": "new-password-123"
+                    }),
+                );
+                request.headers_mut().insert(
+                    "authorization",
+                    format!("Bearer {}", session.access_token)
+                        .parse()
+                        .expect("header should parse"),
+                );
+                request
+            })
+            .await
+            .expect("request should complete");
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(error_code(response).await, "invalid_request");
+        assert_eq!(
+            setting(&app, PLACEHOLDER_SETTING).await.as_deref(),
+            Some("true")
+        );
+    }
+
+    let duplicate = app
+        .router
+        .clone()
+        .oneshot({
+            let mut request = json_request(
+                "POST",
+                "/api/auth/me/password",
+                &serde_json::json!({
+                    "username": "taken-user",
+                    "current_password": "",
+                    "new_password": "new-password-123"
+                }),
+            );
+            request.headers_mut().insert(
+                "authorization",
+                format!("Bearer {}", session.access_token)
+                    .parse()
+                    .expect("header should parse"),
+            );
+            request
+        })
+        .await
+        .expect("request should complete");
+    assert_eq!(duplicate.status(), StatusCode::CONFLICT);
+    assert_eq!(error_code(duplicate).await, "username_taken");
+    assert_eq!(
+        setting(&app, PLACEHOLDER_SETTING).await.as_deref(),
+        Some("true")
+    );
+
+    let changed = app
+        .router
+        .clone()
+        .oneshot({
+            let mut request = json_request(
+                "POST",
+                "/api/auth/me/password",
+                &serde_json::json!({
+                    "username": "admin",
+                    "current_password": "",
+                    "new_password": "real-password-123"
+                }),
+            );
+            request.headers_mut().insert(
+                "authorization",
+                format!("Bearer {}", session.access_token)
+                    .parse()
+                    .expect("header should parse"),
+            );
+            request
+        })
+        .await
+        .expect("request should complete");
+    assert_eq!(changed.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        setting(&app, PLACEHOLDER_SETTING).await.as_deref(),
+        Some("false")
+    );
+    assert_eq!(
+        login_request(&app, "admin", "real-password-123")
+            .await
+            .status,
+        StatusCode::OK
+    );
 }
 
 #[tokio::test]

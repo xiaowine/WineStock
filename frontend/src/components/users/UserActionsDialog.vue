@@ -13,6 +13,18 @@
 
     <div v-if="user" class="user-actions-menu">
       <button
+        v-if="canUpdateUsername"
+        class="user-action-option"
+        type="button"
+        @click="emit('username')"
+      >
+        <span>
+          <strong>修改用户名</strong>
+          <small>修改该账号的登录用户名</small>
+        </span>
+        <span aria-hidden="true">›</span>
+      </button>
+      <button
         v-if="canEditPermissions"
         class="user-action-option"
         type="button"
@@ -72,6 +84,7 @@ import ModalDialog from "../ModalDialog.vue";
 
 defineProps<{
   user: UserAdminResponse | null;
+  canUpdateUsername: boolean;
   canEditPermissions: boolean;
   canResetPassword: boolean;
   canUpdateStatus: boolean;
@@ -80,6 +93,7 @@ defineProps<{
 
 const emit = defineEmits<{
   close: [];
+  username: [];
   permissions: [];
   password: [];
   status: [];

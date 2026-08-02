@@ -22,6 +22,7 @@ use crate::{
         DELETE_USER_PERMISSION, READ_USER_PERMISSION, READ_USER_PERMISSION_DEFINITION_PERMISSION,
         REGISTER_USER_PERMISSION, RESET_USER_PASSWORD_PERMISSION,
         UPDATE_USER_PERMISSIONS_PERMISSION, UPDATE_USER_STATUS_PERMISSION,
+        UPDATE_USER_USERNAME_PERMISSION,
     },
 };
 
@@ -155,6 +156,10 @@ const BUILTIN_PERMISSIONS: &[BuiltinPermission] = &[
     BuiltinPermission {
         code: UPDATE_USER_STATUS_PERMISSION,
         description: "启用或停用用户账号。",
+    },
+    BuiltinPermission {
+        code: UPDATE_USER_USERNAME_PERMISSION,
+        description: "修改用户登录用户名。",
     },
 ];
 

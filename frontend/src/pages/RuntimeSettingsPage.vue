@@ -258,15 +258,27 @@
 
     <ModalDialog
       :open="passwordGateOpen"
-      title="先设置管理员密码"
-      description="开放给其他设备连接前，需要为本机管理员 admin 设置一个真实密码；其他设备将用它登录。"
+      title="先设置当前用户密码"
+      description="开放给其他设备连接前，需要为当前用户设置登录用户名和真实密码；其他设备将用它登录。"
       :busy="gateSubmitting"
       compact
       @close="closePasswordGate"
     >
       <FormInput
+        v-model="gateUsername"
+        label="当前用户名"
+        validation-key="gateUsername"
+        :error="gateUsernameError"
+        name="runtime_next_gate_username"
+        type="text"
+        autocomplete="off"
+        maxlength="64"
+        :disabled="gateSubmitting"
+        required
+      />
+      <FormInput
         v-model="gatePassword"
-        label="管理员密码"
+        label="当前用户密码"
         validation-key="gatePassword"
         :error="gateFieldError"
         hint="至少 8 个字符。"
@@ -312,8 +324,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { changeOwnPassword, getLocalSessionStatus } from "../api/auth";
-import { authSession, authStatus, localSilentAuthActive } from "../auth/session";
+import { changeOwnPassword, getCurrentUser, getLocalSessionStatus } from "../api/auth";
+import {
+  authSession,
+  authStatus,
+  localSilentAuthActive,
+  replaceCurrentSessionUser,
+} from "../auth/session";
 import BrandMark from "../components/BrandMark.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import ModalDialog from "../components/ModalDialog.vue";
@@ -365,9 +382,11 @@ const confirmationOpen = ref(false);
 const firewallRecoveryOpen = ref(false);
 const firewallRepairing = ref(false);
 const passwordGateOpen = ref(false);
+const gateUsername = ref("");
 const gatePassword = ref("");
 const gatePasswordConfirm = ref("");
 const gateSubmitting = ref(false);
+const gateUsernameError = ref("");
 const gateFieldError = ref("");
 const gateConfirmError = ref("");
 useFormValidation(fieldErrors);
@@ -635,7 +654,7 @@ async function requestApply(): Promise<void> {
     });
     return;
   }
-  const gate = await resolveLocalAdminPasswordGate();
+  const gate = await resolveLocalUserPasswordGate();
   if (gate === "blocked") return;
   if (gate === "required") {
     openPasswordGate();
@@ -650,10 +669,10 @@ async function requestApply(): Promise<void> {
 
 /**
  * 本机静默免登录切到 server-mode 前的强制设密门：
- * 管理员密码仍为自动开通的随机占位值时，先设真实密码，否则局域网端无人能登录。
+ * 当前用户密码仍为自动开通的随机占位值时，先设真实密码，否则局域网端无人能登录。
  * 状态查询失败时阻止提交并提示，避免带着占位密码开放局域网。
  */
-async function resolveLocalAdminPasswordGate(): Promise<"pass" | "required" | "blocked"> {
+async function resolveLocalUserPasswordGate(): Promise<"pass" | "required" | "blocked"> {
   if (
     draft.value.mode !== "server-mode" ||
     !localSilentAuthActive.value ||
@@ -664,14 +683,16 @@ async function resolveLocalAdminPasswordGate(): Promise<"pass" | "required" | "b
   try {
     return (await getLocalSessionStatus()).password_placeholder ? "required" : "pass";
   } catch {
-    notice.error("无法确认管理员密码状态", { detail: "请稍后重试。" });
+    notice.error("无法确认当前用户密码状态", { detail: "请稍后重试。" });
     return "blocked";
   }
 }
 
 function openPasswordGate(): void {
+  gateUsername.value = authSession.value?.user.username ?? "";
   gatePassword.value = "";
   gatePasswordConfirm.value = "";
+  gateUsernameError.value = "";
   gateFieldError.value = "";
   gateConfirmError.value = "";
   passwordGateOpen.value = true;
@@ -684,24 +705,35 @@ function closePasswordGate(): void {
 
 /** 占位态免旧密码设置真实密码；成功后回到正常的确认与保存流程。 */
 async function submitPasswordGate(): Promise<void> {
+  const normalizedUsername = gateUsername.value.trim();
+  gateUsernameError.value = !normalizedUsername
+    ? "请输入当前用户名"
+    : normalizedUsername.length > 64
+      ? "用户名不能超过 64 个字符"
+      : "";
   gateFieldError.value = gatePassword.value.length < 8 ? "密码至少需要 8 个字符" : "";
   gateConfirmError.value =
     gatePassword.value === gatePasswordConfirm.value ? "" : "两次输入的密码不一致";
-  if (gateFieldError.value || gateConfirmError.value) {
-    notice.warning("请检查管理员密码", {
-      detail: gateFieldError.value || gateConfirmError.value,
+  if (gateUsernameError.value || gateFieldError.value || gateConfirmError.value) {
+    notice.warning("请检查当前用户账号", {
+      detail: gateUsernameError.value || gateFieldError.value || gateConfirmError.value,
     });
     return;
   }
 
   gateSubmitting.value = true;
   try {
-    await changeOwnPassword({ current_password: "", new_password: gatePassword.value });
+    await changeOwnPassword({
+      username: normalizedUsername,
+      current_password: "",
+      new_password: gatePassword.value,
+    });
+    replaceCurrentSessionUser(await getCurrentUser());
     passwordGateOpen.value = false;
-    notice.success("管理员密码已设置");
+    notice.success("当前用户账号已设置");
     confirmationOpen.value = true;
   } catch (error) {
-    notice.error("设置管理员密码失败", {
+    notice.error("设置当前用户密码失败", {
       detail: error instanceof Error ? error.message : "请重试。",
     });
   } finally {

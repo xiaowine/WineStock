@@ -93,6 +93,11 @@ export function login(request: AuthLoginRequest): Promise<AuthTokenResponse> {
   });
 }
 
+/** 查询当前会话用户的最新身份和权限快照。 */
+export function getCurrentUser(): Promise<AuthUserResponse> {
+  return apiClient.request<AuthUserResponse>("/api/auth/me");
+}
+
 /** 未携带 access token 调用注册接口，只用于初始化空服务的首个用户。 */
 export function registerInitialUser(request: AuthRegisterRequest): Promise<AuthUserResponse> {
   return apiClient.request<AuthUserResponse>("/api/auth/register", {

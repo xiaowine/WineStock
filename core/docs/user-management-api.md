@@ -7,7 +7,7 @@
 - 业务授权判断权限代码，不判断角色代码。
 - 用户直接拥有权限，响应体不返回角色列表。
 - 管理接口会在 route layer 重新读取数据库当前权限，撤销权限后旧 access token 不能继续绕过授权。
-- 当前用户修改自己密码只要求已登录并校验当前密码。
+- 当前用户修改自己密码只要求已登录并校验当前密码；请求中的 `username` 为必填，普通改密时传入当前用户名。
 - 管理员设置临时密码后，目标用户登录响应会返回 `password_change_required = true`；该用户只能访问 `/api/auth/me` 和 `/api/auth/me/password`，改密成功后恢复正常访问。
 
 ## 用户域权限
@@ -21,6 +21,7 @@
 | `user.permissions.update` | 整体替换用户权限       |
 | `user.permission.read`    | 查看权限定义           |
 | `user.password.reset`     | 设置其他用户临时密码   |
+| `user.username.update`    | 修改用户登录用户名     |
 
 ## DTO
 
@@ -135,6 +136,23 @@
   - `404 user_not_found` 或 `permission_not_found`
   - `409 last_permission_manager_required`
 
+### `PATCH /api/users/{id}/username`
+
+修改用户登录用户名。
+
+- 权限：`user.username.update`
+- 请求：
+
+```json
+{
+  "username": "new-name"
+}
+```
+
+- 响应：`200` + `UserAdminResponse`
+- 行为：用户 ID、权限、业务关联、JWT、refresh token 和现有会话保持不变；旧用户名立即不能登录，新用户名立即生效。
+- 失败：`400 invalid_request`、`401 invalid_access_token`、`403 permission_denied`、`404 user_not_found`、`409 username_taken`
+
 ### `POST /api/users/{id}/password`
 
 管理员为其他用户设置临时密码。
@@ -169,6 +187,7 @@
 
 ```json
 {
+  "username": "current-name",
   "current_password": "old-password",
   "new_password": "new-password"
 }
@@ -176,6 +195,8 @@
 
 - 响应：`204`
 - 行为：
+  - `username` 是必填字段；普通改密时传入当前用户名，self-hosted 占位密码首次设置时可同时修改用户名。
+  - 用户名、密码哈希和强制改密状态在同一事务中更新；用户名冲突或密码校验失败时两者均不写入。
   - 唯一例外：本机免登录标记用户的密码仍为自动开通的随机占位值时（`local_auto_login_password_placeholder = true`），
     允许 `current_password` 留空直接设置新密码；成功后清除占位标记。
   - 针对标记用户的任何改密（本人改密或管理员重置临时密码）都会清除占位标记。
@@ -227,5 +248,6 @@ self-hosted 本机静默会话换取与占位密码状态查询。
 - 用户软删除：`entity_type = "user"`，`action = "deleted"`，详情记录软删除模式和删除前状态。
 - 用户权限替换：`entity_type = "user"`，`action = "updated"`，详情记录旧权限和新权限。
 - 当前用户修改自己密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名和 `self_change` 模式。
+- 用户名修改：`entity_type = "user"`，`action = "updated"`，详情记录 `previous_username` 和 `new_username`。
 - 管理员设置临时密码：`entity_type = "user"`，`action = "updated"`，详情只记录字段名、`admin_temporary_password` 模式和强制改密标记。
 - 审计详情不得包含明文密码、token 或密码哈希。

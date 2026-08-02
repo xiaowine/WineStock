@@ -31,7 +31,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `routes.md`：当前路由、history 策略、嵌套 Shell 边界和鉴权元数据状态。
 - `api-client.md`：运行时 API 地址、统一请求、错误契约、内存会话和当前注册/登录接入状态。
 - `auth-logout-and-route-guards.md`：已实现的真正登出、会话初始化、路由守卫、多标签页退出和验收记录。
-- `user-management.md`：用户列表、创建、启停、权限、临时密码和前后端授权边界。
+- `user-management.md`：用户列表、创建、启停、用户名、权限、临时密码和前后端授权边界。
 - `visual-style.md`：当前视觉风格方向、颜色/圆角/阴影/密度规则和避免事项。
 - `theme-dark-mode.md`：浅色/深色主题的三态偏好、SCSS token、首屏防闪、平台联动和验收设计。
 - `ui-design-guidelines.md`：后续业务页面必须遵守的页面骨架、三段式列表、工具栏、表单、浮层、响应式和例外规则。

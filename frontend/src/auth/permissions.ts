@@ -9,6 +9,7 @@ export const userPermissions = {
   updatePermissions: "user.permissions.update",
   readPermissionDefinitions: "user.permission.read",
   resetPassword: "user.password.reset",
+  updateUsername: "user.username.update",
 } as const;
 
 /** 库存业务页面使用的稳定权限代码。 */

@@ -14,7 +14,7 @@ mod validation;
 pub(crate) use local_admin::{password_placeholder_active, resolve_local_auto_login_user};
 pub(crate) use management::{
     delete_user, get_user, list_permissions, list_users, reset_user_password,
-    update_user_permissions, update_user_status,
+    update_user_permissions, update_user_status, update_user_username,
 };
 pub(crate) use me::{change_own_password, current_user};
 pub(crate) use pagination::PaginatedResponse;

@@ -16,9 +16,10 @@
 本机静默免登录会话（`localSilentAuthActive`）下把运行方式切到「局域网服务器」提交时：
 
 - 先经已鉴权接口 `GET /api/auth/local-session/status` 查询占位密码标记；
-- 仍为占位（自动开通的随机密码，无人可输）时弹出「先设置管理员密码」Dialog，
-  经免旧密码通道 `POST /api/auth/me/password`（`current_password` 留空）设置真实密码后
+- 仍为占位（自动开通的随机密码，无人可输）时弹出「先设置当前用户密码」Dialog，同时填写当前用户名和新密码，
+  经免旧密码通道 `POST /api/auth/me/password`（`current_password` 留空）设置真实凭据后
   才回到正常的确认与保存流程；取消 Dialog 则本次不保存。
+- `username` 是该接口的必填请求字段；成功后重新请求 `/api/auth/me` 同步当前会话用户名。
 - 状态查询失败时阻止提交并提示，避免带着占位密码开放局域网（届时局域网端无人能登录）。
 - 设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
 
@@ -56,7 +57,7 @@
 - 服务器模式端口必须是 `1..65535` 的整数；本机模式的临时 `port = 0` 不能生成伪访问地址，绑定成功后只展示 Shell 返回的真实地址。
 - 远端 HTTP 连接仅在非 loopback 地址上提示明文通信风险；`localhost`、`127.0.0.1` 和 `::1` 不提示远端网络风险。
 - Windows Desktop 的 server-mode 保存确认必须说明会请求 Windows 防火墙允许当前端口的局域网连接；这不是
-  WineStock 管理员密码，且只对 Domain/Private 配置文件和本地子网生效，不自动开放 Public 网络。
+  WineStock 当前用户密码，且只对 Domain/Private 配置文件和本地子网生效，不自动开放 Public 网络。
 - Windows Desktop 在保存 server-mode、切换端口或切换运行方式时显式处理防火墙；UAC 取消后配置和服务仍可继续，
   页面提示局域网可能不可达，并提供“继续使用/重试”。软件启动只读检查规则，不自动触发 UAC；不符合条件时打开
   同一恢复 Dialog。重试调用独立的 `shell_repair_firewall`，不重启 core。系统策略阻止、Public 网络配置文件和

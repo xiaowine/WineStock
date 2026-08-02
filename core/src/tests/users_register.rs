@@ -51,7 +51,8 @@ async fn first_registration_requires_no_token_and_becomes_admin() {
             "user.permissions.update",
             "user.read",
             "user.register",
-            "user.status.update"
+            "user.status.update",
+            "user.username.update"
         ]
     );
 

@@ -53,42 +53,43 @@ auth_users
 
 库存和审计权限：
 
-| 权限代码                      | 含义                       |
-|---------------------------|--------------------------|
-| `stock.read`              | 历史兼容的库存只读权限；具体查询接口使用细分权限 |
-| `stock.write`             | 创建或修改库存数据                |
-| `stock.item.manage`       | 创建、修改和软删除库存物品            |
-| `stock.item.read`         | 查看库存物品列表、详情和物品筛选值        |
-| `stock.location.manage`   | 管理库位分组、库位和整批次移库          |
-| `stock.location.read`     | 查看库位分组树和库位列表              |
-| `stock.template.manage`   | 管理物品分类和两类属性模板          |
-| `stock.template.read`     | 查看物品分类和两类属性模板          |
-| `stock.inbound.create`    | 创建入库单                    |
-| `stock.inbound.read`      | 查看入库单列表、详情和入库历史筛选值       |
-| `stock.inbound.approve`   | 审批或拒绝入库单                 |
-| `stock.outbound.create`   | 创建出库单                    |
-| `stock.outbound.read`     | 查看出库单列表、详情和出库历史筛选值       |
-| `stock.outbound.approve`  | 审批或拒绝出库单                 |
+| 权限代码                 | 含义                                             |
+| ------------------------ | ------------------------------------------------ |
+| `stock.read`             | 历史兼容的库存只读权限；具体查询接口使用细分权限 |
+| `stock.write`            | 创建或修改库存数据                               |
+| `stock.item.manage`      | 创建、修改和软删除库存物品                       |
+| `stock.item.read`        | 查看库存物品列表、详情和物品筛选值               |
+| `stock.location.manage`  | 管理库位分组、库位和整批次移库                   |
+| `stock.location.read`    | 查看库位分组树和库位列表                         |
+| `stock.template.manage`  | 管理物品分类和两类属性模板                       |
+| `stock.template.read`    | 查看物品分类和两类属性模板                       |
+| `stock.inbound.create`   | 创建入库单                                       |
+| `stock.inbound.read`     | 查看入库单列表、详情和入库历史筛选值             |
+| `stock.inbound.approve`  | 审批或拒绝入库单                                 |
+| `stock.outbound.create`  | 创建出库单                                       |
+| `stock.outbound.read`    | 查看出库单列表、详情和出库历史筛选值             |
+| `stock.outbound.approve` | 审批或拒绝出库单                                 |
 
 `stock.outbound.create` 还可读取 `GET /api/items/options` 与
 `GET /api/items/{id}/batches` 的最小候选数据，以完成新建出库选品和指定批次。
 它不授予物品详情、库存总览或物品筛选值读取能力；这些接口仍要求 `stock.item.read`。
-| `stock.substitute.manage` | 整体替换或删除替代料关系             |
-| `stock.substitute.read`   | 查看替代料关系                  |
-| `stock.dashboard.read`    | 查看库存看板总览和趋势              |
-| `audit.read`              | 查询审计事件日志                 |
+| `stock.substitute.manage` | 整体替换或删除替代料关系 |
+| `stock.substitute.read` | 查看替代料关系 |
+| `stock.dashboard.read` | 查看库存看板总览和趋势 |
+| `audit.read` | 查询审计事件日志 |
 
 用户管理权限：
 
-| 权限代码                      | 含义          |
-|---------------------------|-------------|
-| `user.register`           | 注册新用户       |
+| 权限代码                  | 含义                   |
+| ------------------------- | ---------------------- |
+| `user.register`           | 注册新用户             |
 | `user.read`               | 查看用户列表和用户详情 |
-| `user.status.update`      | 启用或停用用户账号   |
-| `user.delete`             | 软删除其他用户账号   |
-| `user.permissions.update` | 整体替换用户权限    |
-| `user.permission.read`    | 查看权限定义      |
-| `user.password.reset`     | 设置其他用户临时密码  |
+| `user.status.update`      | 启用或停用用户账号     |
+| `user.delete`             | 软删除其他用户账号     |
+| `user.permissions.update` | 整体替换用户权限       |
+| `user.permission.read`    | 查看权限定义           |
+| `user.password.reset`     | 设置其他用户临时密码   |
+| `user.username.update`    | 修改用户登录用户名     |
 
 ## 首个用户
 
@@ -112,12 +113,13 @@ JWT 不包含角色列表。
 
 ## 用户管理接口
 
-| 接口                                | 权限                        |
-|-----------------------------------|---------------------------|
+| 接口                              | 权限                      |
+| --------------------------------- | ------------------------- |
 | `GET /api/users`                  | `user.read`               |
 | `GET /api/users/{id}`             | `user.read`               |
 | `DELETE /api/users/{id}`          | `user.delete`             |
 | `PATCH /api/users/{id}/status`    | `user.status.update`      |
+| `PATCH /api/users/{id}/username`  | `user.username.update`    |
 | `PUT /api/users/{id}/permissions` | `user.permissions.update` |
 | `POST /api/users/{id}/password`   | `user.password.reset`     |
 | `GET /api/permissions`            | `user.permission.read`    |

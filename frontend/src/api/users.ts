@@ -29,6 +29,9 @@ export type PermissionResponse = ApiResponse<ApiSchema<"PermissionResponse">>;
 /** 用户状态更新请求。 */
 export type UserStatusUpdateRequest = ApiSchema<"UserStatusUpdateRequest">;
 
+/** 修改用户登录用户名请求。 */
+export type UserUsernameUpdateRequest = ApiSchema<"UserUsernameUpdateRequest">;
+
 /** 用户权限整体替换请求。 */
 export type UserPermissionsUpdateRequest = ApiSchema<"UserPermissionsUpdateRequest">;
 
@@ -60,6 +63,17 @@ export function updateUserStatus(
   request: UserStatusUpdateRequest,
 ): Promise<UserAdminResponse> {
   return apiClient.request<UserAdminResponse>(`/api/users/${userId}/status`, {
+    method: "PATCH",
+    json: request,
+  });
+}
+
+/** 修改目标用户登录用户名；用户 ID、权限和现有会话保持不变。 */
+export function updateUserUsername(
+  userId: number,
+  request: UserUsernameUpdateRequest,
+): Promise<UserAdminResponse> {
+  return apiClient.request<UserAdminResponse>(`/api/users/${userId}/username`, {
     method: "PATCH",
     json: request,
   });

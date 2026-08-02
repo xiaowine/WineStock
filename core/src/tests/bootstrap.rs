@@ -105,6 +105,7 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
             "user.read",
             "user.register",
             "user.status.update",
+            "user.username.update",
         ]
     );
     assert_eq!(
@@ -289,7 +290,7 @@ async fn builtin_rbac_bootstrap_is_idempotent_and_preserves_existing_permission_
             "count",
         )
         .await,
-        25
+        26
     );
     assert_eq!(
         query_string_vec(
