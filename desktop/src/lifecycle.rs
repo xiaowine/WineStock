@@ -5,6 +5,42 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub const AUTOSTART_LAUNCH_ARGUMENT: &str = "--winestock-autostart";
+pub const FORCE_WEBVIEW_BLOCK_ARGUMENT: &str = "--winestock-force-webview-block";
+pub const FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT: &str = "--winestock-force-shell-bridge-block";
+pub const FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT: &str =
+    "--winestock-force-shell-bridge-handshake-block";
+
+/// Debug 启动故障注入开关；Release 构建永远忽略这些参数。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DebugStartupOverrides {
+    pub force_webview_block: bool,
+    pub force_shell_bridge_block: bool,
+    pub force_shell_bridge_handshake_block: bool,
+}
+
+pub fn debug_startup_overrides() -> DebugStartupOverrides {
+    debug_startup_overrides_from(std::env::args())
+}
+
+fn debug_startup_overrides_from<I, S>(args: I) -> DebugStartupOverrides
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut overrides = DebugStartupOverrides::default();
+    #[cfg(debug_assertions)]
+    for argument in args.into_iter().map(|value| value.as_ref().to_owned()) {
+        match argument.as_str() {
+            FORCE_WEBVIEW_BLOCK_ARGUMENT => overrides.force_webview_block = true,
+            FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT => overrides.force_shell_bridge_block = true,
+            FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT => {
+                overrides.force_shell_bridge_handshake_block = true
+            }
+            _ => {}
+        }
+    }
+    overrides
+}
 
 /// 判断当前进程是否由 Tauri autostart 注册项拉起。
 pub fn is_autostart_launch() -> bool {
@@ -52,6 +88,20 @@ impl AppLifecycleState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn parses_debug_startup_overrides() {
+        let overrides = debug_startup_overrides_from([
+            "winestock",
+            FORCE_WEBVIEW_BLOCK_ARGUMENT,
+            FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT,
+            FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT,
+        ]);
+        assert!(overrides.force_webview_block);
+        assert!(overrides.force_shell_bridge_block);
+        assert!(overrides.force_shell_bridge_handshake_block);
+    }
 
     #[test]
     fn exit_can_start_only_once() {

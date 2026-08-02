@@ -26,6 +26,8 @@ fn main() {
         std::process::exit(exit_code);
     }
 
+    let debug_startup_overrides = lifecycle::debug_startup_overrides();
+
     webview_debug::configure();
 
     #[cfg(debug_assertions)]
@@ -47,9 +49,9 @@ fn main() {
         }))
         .plugin(prevent_default_plugin)
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
+        .setup(move |app| {
             let webview = webview_compatibility::check();
-            if !webview.supported {
+            if debug_startup_overrides.force_webview_block || !webview.supported {
                 MessageDialog::new()
                     .set_level(MessageLevel::Error)
                     .set_title("WineStock 无法启动")
@@ -62,6 +64,7 @@ fn main() {
                 .path()
                 .app_data_dir()
                 .map_err(|error| format!("无法解析应用数据目录：{error}"))?;
+            app.manage(debug_startup_overrides);
             app.manage(DesktopPreferencesState::load(
                 app_data_dir.join("desktop-preferences.json"),
             ));

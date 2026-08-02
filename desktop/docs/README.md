@@ -45,6 +45,10 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
 安装器的 `minimumWebview2Version` 同样设置为 `111.0.0.0`，用于安装/更新阶段拦截不满足要求的运行时。
 前端 Shell Bridge 在初始化、原生扩展订阅或首屏握手阶段失败时，不继续显示 WebView；由 `shell_frontend_failed`
 隐藏窗口、使用 `rfd` 显示“加载异常，请更新后重试。”并退出进程。
+Debug 构建支持以下启动参数用于故障注入：`--winestock-force-webview-block` 强制 WebView2 门禁失败，
+`--winestock-force-shell-bridge-block` 强制初始 Shell Bridge 调用失败，
+`--winestock-force-shell-bridge-handshake-block` 强制首屏就绪握手失败。使用 Tauri CLI 时，参数放在第二个 `--` 后；
+Release 构建忽略这些参数。
 
 本地运行配置保存于 Tauri 的 `app_data_dir/config.json`。配置、数据库和文件目录均由本壳管理，绝对路径
 不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际

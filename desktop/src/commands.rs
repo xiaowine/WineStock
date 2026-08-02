@@ -34,7 +34,14 @@ fn command_error(code: &str, message: &str) -> String {
 #[tauri::command]
 pub async fn shell_get_runtime_snapshot(
     manager: State<'_, Arc<DesktopRuntimeManager>>,
+    debug: State<'_, crate::lifecycle::DebugStartupOverrides>,
 ) -> CommandResult<crate::contract::RuntimeSnapshot> {
+    if debug.force_shell_bridge_block {
+        return Err(command_error(
+            "invalid_bridge_payload",
+            "测试：Shell Bridge 初始化失败",
+        ));
+    }
     Ok(manager.snapshot().await)
 }
 
@@ -158,7 +165,16 @@ pub fn shell_set_desktop_preferences(
 }
 
 #[tauri::command]
-pub async fn shell_frontend_ready(app: AppHandle) -> CommandResult<()> {
+pub async fn shell_frontend_ready(
+    app: AppHandle,
+    debug: State<'_, crate::lifecycle::DebugStartupOverrides>,
+) -> CommandResult<()> {
+    if debug.force_shell_bridge_handshake_block {
+        return Err(command_error(
+            "invalid_bridge_payload",
+            "测试：Shell Bridge 首屏握手失败",
+        ));
+    }
     // 只有前端完成首帧渲染后才显示主窗口，避免 WebView 加载期间出现白屏或闪烁。
     FRONTEND_READY.store(true, Ordering::Release);
     if !app
