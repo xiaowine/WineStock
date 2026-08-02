@@ -4,6 +4,7 @@
 
 pub mod commands;
 pub mod contract;
+pub mod firewall;
 pub(crate) mod lan_access;
 pub mod runtime;
 pub mod webview_compatibility;

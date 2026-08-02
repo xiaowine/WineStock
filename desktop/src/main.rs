@@ -31,6 +31,10 @@ fn show_main_window(window: &WebviewWindow) {
 }
 
 fn main() {
+    if let Some(exit_code) = winestock_desktop::firewall::run_helper_if_requested() {
+        std::process::exit(exit_code);
+    }
+
     #[cfg(not(debug_assertions))]
     unsafe {
         std::env::remove_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
@@ -116,6 +120,7 @@ fn main() {
             winestock_desktop::commands::shell_start_local_service,
             winestock_desktop::commands::shell_stop_local_service,
             winestock_desktop::commands::shell_restart_local_service,
+            winestock_desktop::commands::shell_repair_firewall,
             winestock_desktop::commands::shell_frontend_ready,
             winestock_desktop::commands::shell_open_external,
         ])

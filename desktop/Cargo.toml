@@ -18,8 +18,8 @@ tauri-plugin-single-instance = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
 rfd = { workspace = true }
+if-addrs = { workspace = true }
 webview2-com = { workspace = true }
 windows = { workspace = true }
-windows-sys = { workspace = true }
 winestock-core = { workspace = true }
 winestock-shared = { workspace = true }

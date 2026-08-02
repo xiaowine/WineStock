@@ -145,29 +145,37 @@
           </template>
 
           <template v-else>
-            <FormInput
-              v-if="serverMode"
-              v-model="draft.port"
-              label="服务端口"
-              validation-key="port"
-              :error="fieldError('port')"
-              hint="一般无需修改。"
-              name="runtime_next_port"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              max="65535"
-              :disabled="applying"
-              required
-            />
             <p v-if="!serverMode" class="runtime-next__note">
               打开应用时，本机服务会自动启动并选择可用端口。
             </p>
-            <div v-else class="form-warning" role="status">
-              同一网络中的其他设备将能够连接此服务。
+            <div v-if="firewallStatusMessage" class="form-warning" role="status">
+              {{ firewallStatusMessage }}
             </div>
+            <button
+              v-if="canRepairFirewall"
+              class="secondary-button runtime-next__firewall-action"
+              type="button"
+              :disabled="applying"
+              @click="repairFirewall"
+            >
+              {{ firewallRepairButtonLabel }}
+            </button>
             <details v-if="serverMode" class="runtime-next__advanced">
               <summary>高级设置</summary>
+              <FormInput
+                v-model="draft.port"
+                label="服务端口"
+                validation-key="port"
+                :error="fieldError('port')"
+                hint="一般无需修改。"
+                name="runtime_next_port"
+                type="number"
+                inputmode="numeric"
+                min="1"
+                max="65535"
+                :disabled="applying"
+                required
+              />
               <FormInput
                 v-model="draft.bindHost"
                 label="监听地址"
@@ -183,29 +191,14 @@
             </details>
           </template>
 
-          <button
-            v-if="lanAccessUrls.length"
-            class="secondary-button runtime-next__lan-action"
-            type="button"
-            @click="lanAccessDialogOpen = true"
-          >
-            查看局域网访问地址
-          </button>
           <div v-if="lanAccessUnavailable" class="form-warning" role="status">
-            当前设备没有可用的局域网地址，请检查网络适配器和操作系统防火墙。
+            当前设备没有可用的局域网地址，请检查网络适配器或监听地址。
           </div>
           <div v-if="pageError" class="form-error" role="alert">{{ pageError }}</div>
         </section>
 
         <footer class="auth-page-actions runtime-next__actions">
-          <button
-            class="secondary-button"
-            type="button"
-            :disabled="applying || !dirty"
-            @click="restoreDraft"
-          >
-            取消
-          </button>
+          <button class="secondary-button" type="button" @click="leaveRuntimeSettings">取消</button>
           <button class="primary-button" type="submit" :disabled="applying || !canSave">
             {{ applying ? "正在保存…" : remoteMode ? "连接服务器" : "保存设置" }}
           </button>
@@ -233,6 +226,35 @@
         </button>
         <button class="primary-button" type="button" :disabled="applying" @click="applyConfirmed">
           {{ applying ? "正在保存…" : "确认" }}
+        </button>
+      </template>
+    </ModalDialog>
+
+    <ModalDialog
+      :open="firewallRecoveryOpen"
+      :title="firewallRecoveryTitle"
+      :description="firewallRecoveryDescription"
+      :busy="firewallRepairing"
+      compact
+      @close="firewallRecoveryOpen = false"
+    >
+      <p class="runtime-next__confirmation">{{ firewallRecoveryDetail }}</p>
+      <template #actions>
+        <button
+          class="secondary-button"
+          type="button"
+          :disabled="firewallRepairing"
+          @click="firewallRecoveryOpen = false"
+        >
+          继续使用
+        </button>
+        <button
+          class="primary-button"
+          type="button"
+          :disabled="firewallRepairing"
+          @click="repairFirewall"
+        >
+          {{ firewallRepairing ? "正在重试…" : firewallRepairActionLabel }}
         </button>
       </template>
     </ModalDialog>
@@ -288,12 +310,6 @@
         </button>
       </template>
     </ModalDialog>
-
-    <LanAccessDialog
-      :open="lanAccessDialogOpen"
-      :urls="lanAccessUrls"
-      @close="lanAccessDialogOpen = false"
-    />
   </main>
 </template>
 
@@ -304,7 +320,6 @@ import { changeOwnPassword, getLocalSessionStatus } from "../api/auth";
 import { authSession, authStatus, localSilentAuthActive } from "../auth/session";
 import BrandMark from "../components/BrandMark.vue";
 import FormInput from "../components/forms/FormInput.vue";
-import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import ModalDialog from "../components/ModalDialog.vue";
 import { useFormValidation } from "../composables/useFormValidation";
 import { notice } from "../notices/notice";
@@ -313,6 +328,7 @@ import {
   applyRuntimeConfig,
   initializeShellRuntime,
   isRuntimeSetupFinished,
+  repairFirewall as repairFirewallShell,
   runtimeSnapshot,
   shellRuntimeError,
   validateRuntimeConfig,
@@ -351,7 +367,8 @@ const testingRemote = ref(false);
 const remoteTestMessage = ref("");
 const remoteTestTone = ref<TestTone>("warning");
 const confirmationOpen = ref(false);
-const lanAccessDialogOpen = ref(false);
+const firewallRecoveryOpen = ref(false);
+const firewallRepairing = ref(false);
 const passwordGateOpen = ref(false);
 const gatePassword = ref("");
 const gatePasswordConfirm = ref("");
@@ -381,6 +398,59 @@ const lanAccessUnavailable = computed(
     snapshot.value.capabilities.serverMode &&
     lanAccessUrls.value.length === 0,
 );
+const firewallStatus = computed(() => snapshot.value?.service.firewall?.status);
+const firewallProviderName = computed(() =>
+  snapshot.value?.platform === "desktop" && snapshot.value.capabilities.serverMode
+    ? "Windows 防火墙"
+    : "系统防火墙",
+);
+const firewallStatusMessage = computed(() => {
+  switch (firewallStatus.value) {
+    case "ready":
+      return "当前端口已允许局域网访问。";
+    case "requires-elevation":
+      return `尚未完成${firewallProviderName.value}授权，其他设备可能无法连接。`;
+    case "blocked-by-policy":
+      return `系统策略阻止配置${firewallProviderName.value}，其他设备可能无法连接。`;
+    case "profile-unsupported":
+      return "当前网络属于公用网络，未自动开放局域网端口。";
+    case "disabled":
+      return `${firewallProviderName.value}未运行，无法确认局域网访问状态。`;
+    case "cleanup-pending":
+      return "旧的 Windows 防火墙规则尚未清理完成，可能仍保留局域网访问。";
+    case "error":
+      return `${firewallProviderName.value}状态无法确认，请重试或检查系统设置。`;
+    case "not-required":
+      return "当前平台不需要自动配置防火墙。";
+    default:
+      return "";
+  }
+});
+const canRepairFirewall = computed(() =>
+  ["requires-elevation", "error", "cleanup-pending"].includes(firewallStatus.value ?? ""),
+);
+const firewallRecoveryRequired = computed(() => canRepairFirewall.value);
+const firewallRecoveryTitle = computed(() =>
+  firewallStatus.value === "cleanup-pending"
+    ? "防火墙规则清理未完成"
+    : `${firewallProviderName.value}未完成配置`,
+);
+const firewallRecoveryDescription = computed(() =>
+  firewallStatus.value === "cleanup-pending"
+    ? "当前运行方式已经切换，但旧的局域网放行规则还没有删除。"
+    : "局域网设备可能无法连接当前服务。",
+);
+const firewallRecoveryDetail = computed(() =>
+  firewallStatus.value === "cleanup-pending"
+    ? `可以继续使用当前运行方式，也可以再次确认${firewallProviderName.value}系统权限并重试清理。`
+    : `可以继续使用当前服务，也可以再次确认${firewallProviderName.value}系统权限并重试配置。`,
+);
+const firewallRepairActionLabel = computed(() =>
+  firewallStatus.value === "cleanup-pending" ? "重试清理" : "重试授权",
+);
+const firewallRepairButtonLabel = computed(() =>
+  firewallStatus.value === "cleanup-pending" ? "重试清理" : "重试防火墙设置",
+);
 const dirty = computed(
   () =>
     !snapshot.value ||
@@ -394,6 +464,16 @@ const modeChanging = computed(
   () =>
     snapshot.value?.configStatus === "configured" &&
     snapshot.value.config.mode !== draft.value.mode,
+);
+const serverPortChanging = computed(
+  () =>
+    snapshot.value?.configStatus === "configured" &&
+    snapshot.value.config.mode === "server-mode" &&
+    draft.value.mode === "server-mode" &&
+    snapshot.value.config.port !== draft.value.port,
+);
+const runtimeChangeClearsSession = computed(
+  () => (endpointChanging.value || modeChanging.value) && !serverPortChanging.value,
 );
 const enablingLanAccess = computed(
   () =>
@@ -423,7 +503,7 @@ const serverModeDisabledReason = computed(() => {
   if (snapshot.value?.platform === "android") {
     return "Android 当前只支持本机 127.0.0.1，自身不能作为局域网服务器。";
   }
-  return "当前平台暂不支持持续提供局域网服务。";
+  return "当前平台暂不支持自动配置防火墙，请手动配置。";
 });
 const usesInsecureRemoteHttp = computed(() => {
   if (!remoteMode.value) return false;
@@ -464,6 +544,12 @@ const modeOptions = computed(() => [
   },
 ]);
 const statusTone = computed<StatusTone>(() => {
+  if (["blocked-by-policy", "error", "cleanup-pending"].includes(firewallStatus.value ?? ""))
+    return "danger";
+  if (
+    ["requires-elevation", "profile-unsupported", "disabled"].includes(firewallStatus.value ?? "")
+  )
+    return "warning";
   if (
     snapshot.value?.service.phase === "failed" ||
     serviceAvailabilityStatus.value === "unavailable"
@@ -475,6 +561,12 @@ const statusTone = computed<StatusTone>(() => {
 });
 const statusTitle = computed(() => {
   const phase = snapshot.value?.service.phase;
+  if (firewallStatus.value === "requires-elevation") return "需要防火墙授权";
+  if (firewallStatus.value === "blocked-by-policy") return "防火墙规则被系统策略阻止";
+  if (firewallStatus.value === "profile-unsupported") return "当前网络配置文件不支持自动放行";
+  if (firewallStatus.value === "disabled") return "防火墙未启用，局域网保护状态未知";
+  if (firewallStatus.value === "cleanup-pending") return "旧防火墙规则尚未清理";
+  if (firewallStatus.value === "error") return "防火墙规则更新失败";
   if (phase === "starting") return "正在启动";
   if (phase === "stopping") return "正在停止";
   if (phase === "failed") return "本机服务启动失败";
@@ -483,13 +575,13 @@ const statusTitle = computed(() => {
   if (serviceAvailabilityStatus.value === "unavailable") return "暂时无法连接服务";
   return "正在检查连接";
 });
-const confirmationDescription = computed(() =>
-  enablingLanAccess.value
-    ? "保存后，同一网络中的设备可以连接 WineStock。"
-    : "保存后，应用会改用新的服务地址。",
-);
+const confirmationDescription = computed(() => {
+  if (serverPortChanging.value) return "保存后，应用会使用新的服务端口。";
+  if (!enablingLanAccess.value) return "保存后，应用会改用新的服务地址。";
+  return "保存后，同一网络中的设备可以连接 WineStock。";
+});
 const confirmationDetail = computed(() =>
-  endpointChanging.value || modeChanging.value
+  runtimeChangeClearsSession.value
     ? "切换服务后，当前登录状态会被清除，可能需要重新登录。"
     : "请确认继续保存这项设置。",
 );
@@ -506,10 +598,13 @@ watch(
   () => draft.value.remoteBaseUrl,
   () => (remoteTestMessage.value = ""),
 );
-watch(lanAccessUrls, (urls) => {
-  if (!urls.length) lanAccessDialogOpen.value = false;
-});
-void initializeShellRuntime().catch(() => undefined);
+void initializeShellRuntime()
+  .then((initial) => {
+    if (isFirewallRecoveryStatus(initial.service.firewall?.status)) {
+      firewallRecoveryOpen.value = true;
+    }
+  })
+  .catch(() => undefined);
 
 function fieldError(field: RuntimeConfigField): string {
   return fieldErrors.value[field]?.[0] ?? "";
@@ -520,13 +615,6 @@ function changeMode(mode: RuntimeMode): void {
   fieldErrors.value = {};
   pageError.value = "";
   remoteTestMessage.value = "";
-}
-
-function restoreDraft(): void {
-  if (!snapshot.value) return;
-  draft.value = coerceDraftForPlatform(cloneRuntimeConfig(snapshot.value.config));
-  fieldErrors.value = {};
-  pageError.value = "";
 }
 
 /** 纯网页端把本机类草稿纠正为远端；平台 shell 内原样返回。 */
@@ -635,7 +723,14 @@ async function executeApply(): Promise<void> {
       return;
     }
     draft.value = cloneRuntimeConfig(result.snapshot.config);
-    notice.success("运行设置已保存");
+    if (firewallRecoveryRequired.value) {
+      firewallRecoveryOpen.value = true;
+      notice.warning("运行设置已保存，但防火墙未完成", {
+        detail: "可以继续使用，或在此重试防火墙操作。",
+      });
+    } else {
+      notice.success("运行设置已保存");
+    }
     // 设置从「未完成」变为「已确认」且仍匿名时，自动进入认证入口。
     if (
       !wasSetupFinished &&
@@ -683,6 +778,29 @@ async function testRemoteConnection(): Promise<void> {
 
 async function retryActiveService(): Promise<void> {
   await checkServiceAvailability();
+}
+
+async function repairFirewall(): Promise<void> {
+  if (!canRepairFirewall.value) return;
+  const previousFirewallStatus = firewallStatus.value;
+  firewallRepairing.value = true;
+  pageError.value = "";
+  try {
+    await repairFirewallShell();
+    firewallRecoveryOpen.value = false;
+    notice.success(
+      previousFirewallStatus === "cleanup-pending" ? "防火墙规则已清理" : "防火墙设置已完成",
+    );
+  } catch (error) {
+    pageError.value = error instanceof Error ? error.message : "防火墙操作失败，请重试";
+    notice.error("防火墙操作失败", { detail: pageError.value });
+  } finally {
+    firewallRepairing.value = false;
+  }
+}
+
+function isFirewallRecoveryStatus(status: string | undefined): boolean {
+  return ["requires-elevation", "error", "cleanup-pending"].includes(status ?? "");
 }
 
 /**

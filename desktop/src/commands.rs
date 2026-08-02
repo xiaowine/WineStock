@@ -83,6 +83,16 @@ pub async fn shell_restart_local_service(
 }
 
 #[tauri::command]
+pub async fn shell_repair_firewall(
+    manager: State<'_, Arc<DesktopRuntimeManager>>,
+) -> CommandResult<crate::contract::RuntimeSnapshot> {
+    manager
+        .repair_firewall()
+        .await
+        .map_err(|error| command_error(&error.code, &error.message))
+}
+
+#[tauri::command]
 pub async fn shell_frontend_ready(app: AppHandle) -> CommandResult<()> {
     // 只有前端完成首帧渲染后才显示主窗口，避免 WebView 加载期间出现白屏或闪烁。
     FRONTEND_READY.store(true, Ordering::Release);

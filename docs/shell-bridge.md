@@ -302,17 +302,20 @@ failed                  -> 精确运行错误，保留修改和重试入口
 
 ## API client 重配置
 
-当前生效 `apiBaseUrl` 发生变化时，前端必须按顺序：
+当前生效 `apiBaseUrl` 发生变化时，前端必须按顺序；但 Desktop 本地 `server-mode` 仅切换端口时，
+服务身份没有变化，不清理当前登录会话：
 
 1. 暂停健康检查和自动刷新。
 2. 取消仍在进行的旧服务请求。
-3. 清理内存 access token 和旧服务会话状态。
+3. 远端切换或运行服务切换时清理内存 access token 和旧服务会话状态；同一 Desktop 本地 server-mode 端口变化保留它们。
 4. 使用新的 `apiBaseUrl` 重配置 API client。
 5. 恢复 `/api/health` 检查。
-6. 对新地址重新初始化鉴权会话。
+6. 对新地址重新初始化鉴权会话；同一 Desktop 本地 server-mode 端口变化继续使用当前会话。
 7. 根据结果进入登录页、原业务路由或运行设置页。
 
-refresh token 必须继续绑定 API 根地址，切换服务时不得把旧服务 token 发送到新服务。
+refresh token 必须继续绑定 API 根地址，切换服务时不得把旧服务 token 发送到新服务。Desktop 本地
+server-mode 仅端口变化时，Shell 确认新旧快照均为同一 local server-mode 后，前端可以把 refresh token
+的绑定地址从旧本机端口迁移到新本机端口；不得对远端服务切换复用该例外。
 API client 应支持显式的 `unconfigured` 状态，不能因为缺少地址就在模块导入阶段阻止整个 Vue 应用挂载。
 
 ## Shell 运行职责
@@ -391,6 +394,7 @@ shell_apply_runtime_config
 shell_start_local_service
 shell_stop_local_service
 shell_restart_local_service
+shell_repair_firewall
 shell_frontend_ready
 ```
 

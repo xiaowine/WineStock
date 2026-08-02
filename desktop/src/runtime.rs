@@ -1,362 +1,59 @@
 //! Desktop 进程级运行状态、配置持久化与本地 Axum 生命周期。
 //!
-//! 本模块属于 `desktop` 壳，只通过 `winestock_core` 启动/停止共享服务，
-//! 不复制 core 的业务实现，也不直接代理 HTTP 请求。
+//! 本模块只保留 DesktopRuntimeManager 的生命周期编排；配置、快照和错误映射分别位于同级子模块。
 
-use std::{
-    collections::BTreeMap,
-    fs,
-    io::ErrorKind,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::Duration,
+use crate::contract::{
+    self, stopped_service, ApplyRuntimeConfigResult, EditableRuntimeConfig,
+    RuntimeConfigValidationResult, RuntimeMode, RuntimeServiceSnapshot, RuntimeSnapshot,
+    ShellRuntimeError, ERROR_SERVICE_CRASHED, ERROR_SERVICE_START_FAILED,
+    ERROR_UNSUPPORTED_RUNTIME_MODE,
 };
-
-use serde::{Deserialize, Serialize};
+use crate::firewall;
+use crate::lan_access::discover_lan_access_urls;
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc, time::Duration};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex as AsyncMutex;
-use url::Url;
 use winestock_core::{
     start_local_service, LocalServiceRuntimeError, RunningLocalService, ServerStartError,
 };
-use winestock_shared::{AppConfig, RuntimeMode as SharedRuntimeMode, ServerConfig, StorageConfig};
-
-use crate::contract::{
-    self, desktop_capabilities, stopped_service, ApplyRuntimeConfigResult, EditableRuntimeConfig,
-    RuntimeConfigValidationResult, RuntimeMode, RuntimeServiceSnapshot, RuntimeSnapshot,
-    ShellRuntimeError, ERROR_CONFIG_INVALID, ERROR_CONFIG_UNAVAILABLE, ERROR_DATABASE_OPEN_FAILED,
-    ERROR_PORT_IN_USE, ERROR_SERVICE_CRASHED, ERROR_SERVICE_START_FAILED,
-    ERROR_STORAGE_UNAVAILABLE, ERROR_UNSUPPORTED_RUNTIME_MODE,
+use winestock_shared::{AppConfig, RuntimeMode as SharedRuntimeMode};
+#[path = "runtime_config.rs"]
+mod config;
+#[path = "runtime_snapshot.rs"]
+mod snapshot;
+use config::{
+    config_draft_from_raw, parse_mode, prepare_config, ConfigStore, LoadedConfig, StoragePaths,
 };
-use crate::lan_access::discover_lan_access_urls;
+#[allow(unused_imports)]
+pub(crate) use snapshot::local_api_base_url;
+use snapshot::{
+    apply_cleanup_status, configured_snapshot, effective_config, failed_snapshot,
+    firewall_snapshot_for_error, invalid_snapshot, local_running_snapshot, map_start_result,
+    remote_snapshot, unconfigured_snapshot, LocalServiceDetails,
+};
 
-/// 事件名与 frontend `src/shell/transports/tauri.ts` 保持一致。
 pub const RUNTIME_STATE_CHANGED_EVENT: &str = "winestock-runtime-state-changed";
 pub const APP_RESUMED_EVENT: &str = "winestock-app-resumed";
-
 const CONFIG_FILE_NAME: &str = "config.json";
-const DATABASE_FILE_NAME: &str = "winestock.sqlite";
-const FILES_DIR_NAME: &str = "files";
 
-/// 配置文件的稳定 JSON 结构；只持久化前端可编辑字段，存储路径由平台派生。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct PersistedRuntimeConfig {
-    mode: String,
-    bind_host: String,
-    port: i64,
-    remote_base_url: String,
-}
-
-impl From<&EditableRuntimeConfig> for PersistedRuntimeConfig {
-    fn from(value: &EditableRuntimeConfig) -> Self {
-        Self {
-            mode: value.mode.clone(),
-            bind_host: value.bind_host.clone(),
-            port: value.port,
-            remote_base_url: value.remote_base_url.clone(),
-        }
-    }
-}
-
-impl From<PersistedRuntimeConfig> for EditableRuntimeConfig {
-    fn from(value: PersistedRuntimeConfig) -> Self {
-        Self {
-            mode: value.mode,
-            bind_host: value.bind_host,
-            port: value.port,
-            remote_base_url: value.remote_base_url,
-        }
-    }
-}
-
-/// 配置加载结果。
-enum LoadedConfig {
-    /// 文件不存在；首次启动保持未初始化。
-    Missing,
-    /// 文件存在但解析失败；保留原始内容作为可修复草稿。
-    Invalid { raw: String },
-    /// 文件存在且解析成功。
-    Valid(EditableRuntimeConfig),
-}
-
-/// 配置文件的原子读写。
-#[derive(Debug, Clone)]
-struct ConfigStore {
-    config_path: PathBuf,
-}
-
-impl ConfigStore {
-    fn new(config_path: PathBuf) -> Self {
-        Self { config_path }
-    }
-
-    fn load(&self) -> LoadedConfig {
-        match fs::read_to_string(&self.config_path) {
-            Ok(raw) => match serde_json::from_str::<PersistedRuntimeConfig>(&raw) {
-                Ok(persisted) => LoadedConfig::Valid(persisted.into()),
-                Err(_) => LoadedConfig::Invalid { raw },
-            },
-            Err(error) if error.kind() == ErrorKind::NotFound => LoadedConfig::Missing,
-            Err(_) => LoadedConfig::Invalid { raw: String::new() },
-        }
-    }
-
-    fn save(&self, config: &EditableRuntimeConfig) -> Result<(), ShellRuntimeError> {
-        if let Some(parent) = self.config_path.parent() {
-            fs::create_dir_all(parent).map_err(|_| {
-                ShellRuntimeError::new(ERROR_STORAGE_UNAVAILABLE, "无法创建应用数据目录")
-            })?;
-        }
-        let content = serde_json::to_vec_pretty(&PersistedRuntimeConfig::from(config))
-            .map_err(|_| ShellRuntimeError::new(ERROR_CONFIG_UNAVAILABLE, "运行配置序列化失败"))?;
-        let parent = self.config_path.parent().unwrap_or_else(|| Path::new("."));
-        let temp = tempfile::NamedTempFile::new_in(parent).map_err(|_| {
-            ShellRuntimeError::new(ERROR_STORAGE_UNAVAILABLE, "无法写入临时配置文件")
-        })?;
-        fs::write(temp.path(), &content)
-            .map_err(|_| ShellRuntimeError::new(ERROR_STORAGE_UNAVAILABLE, "无法写入运行配置"))?;
-        temp.persist(&self.config_path)
-            .map_err(|_| ShellRuntimeError::new(ERROR_STORAGE_UNAVAILABLE, "无法保存运行配置"))?;
-        Ok(())
-    }
-}
-
-/// 校验通过后可供引擎启动 core 的完整配置。
-struct PreparedConfig {
-    app_config: AppConfig,
-    normalized: EditableRuntimeConfig,
-}
-
-/// 本地存储路径，由应用数据目录派生。
-#[derive(Debug, Clone)]
-pub struct StoragePaths {
-    pub app_data_dir: PathBuf,
-    pub database_path: PathBuf,
-    pub files_dir: PathBuf,
-}
-
-impl StoragePaths {
-    pub fn new(app_data_dir: PathBuf) -> Self {
-        let database_path = app_data_dir.join(DATABASE_FILE_NAME);
-        let files_dir = app_data_dir.join(FILES_DIR_NAME);
-        Self {
-            app_data_dir,
-            database_path,
-            files_dir,
-        }
-    }
-
-    pub fn ensure_created(&self) -> Result<(), ShellRuntimeError> {
-        fs::create_dir_all(&self.app_data_dir)
-            .and_then(|_| fs::create_dir_all(&self.files_dir))
-            .map_err(|_| ShellRuntimeError::new(ERROR_STORAGE_UNAVAILABLE, "无法创建本地存储目录"))
-    }
-}
-
-/// Desktop 平台策略：self-hosted 只允许 loopback；server-mode 允许有效 IP 监听。
-fn prepare_config(
-    request: &EditableRuntimeConfig,
-    storage_paths: &StoragePaths,
-) -> Result<PreparedConfig, RuntimeConfigValidationResult> {
-    let mut field_errors = BTreeMap::<String, Vec<String>>::new();
-
-    let mode = match parse_mode(&request.mode) {
-        Some(mode) => mode,
-        None => {
-            push_error(&mut field_errors, "mode", "运行模式无效");
-            return Err(validation_result(field_errors, Some(request.clone())));
-        }
-    };
-
-    let bind_host = request.bind_host.trim().to_owned();
-    if mode == RuntimeMode::SelfHosted && !is_loopback_host(&bind_host) {
-        push_error(
-            &mut field_errors,
-            "bindHost",
-            "本机模式只允许使用 127.0.0.1 或 ::1 作为监听地址",
-        );
-    }
-
-    let port = validate_port(request.port, mode, &mut field_errors);
-    let remote_base_url = if mode.is_remote() {
-        match normalize_remote_url(&request.remote_base_url) {
-            Ok(value) => value,
-            Err(message) => {
-                push_error(&mut field_errors, "remoteBaseUrl", &message);
-                request.remote_base_url.trim().to_owned()
-            }
-        }
-    } else {
-        request.remote_base_url.trim().to_owned()
-    };
-
-    if !field_errors.is_empty() {
-        return Err(validation_result(field_errors, Some(request.clone())));
-    }
-
-    let port = port.expect("无字段错误时 port 必须已通过范围校验");
-    let normalized = EditableRuntimeConfig {
-        mode: mode_string(mode),
-        bind_host: bind_host.clone(),
-        port: i64::from(port),
-        remote_base_url: remote_base_url.clone(),
-    };
-    let mut app_config = shared_config(mode, bind_host, port, remote_base_url);
-    app_config.storage = StorageConfig {
-        database_path: storage_paths.database_path.to_string_lossy().into_owned(),
-        files_dir: storage_paths.files_dir.to_string_lossy().into_owned(),
-        auto_migrate: true,
-    };
-
-    for issue in app_config.validation_issues() {
-        let (field, message) = match issue.path.as_str() {
-            "server.bind_host" => ("bindHost", "监听地址必须是有效的 IP 地址"),
-            "server.port" => ("port", "端口必须是 1 到 65535 之间的整数"),
-            "server.remote_base_url" => ("remoteBaseUrl", "远端服务地址必须使用 http 或 https"),
-            _ => {
-                return Err(validation_result(
-                    BTreeMap::from([("mode".to_owned(), vec!["运行配置校验失败".to_owned()])]),
-                    Some(request.clone()),
-                ));
-            }
-        };
-        push_error(&mut field_errors, field, message);
-    }
-
-    if !field_errors.is_empty() {
-        return Err(validation_result(field_errors, Some(request.clone())));
-    }
-
-    Ok(PreparedConfig {
-        app_config,
-        normalized,
-    })
-}
-
-fn shared_config(
-    mode: RuntimeMode,
-    bind_host: String,
-    port: u16,
-    remote_base_url: String,
-) -> AppConfig {
-    use winestock_shared::RuntimeMode as SharedMode;
-    let shared_mode = match mode {
-        RuntimeMode::ClientOnly => SharedMode::ClientOnly,
-        RuntimeMode::SelfHosted => SharedMode::SelfHosted,
-        RuntimeMode::ServerMode => SharedMode::ServerMode,
-        RuntimeMode::ConnectToRemote => SharedMode::ConnectToRemote,
-    };
-    AppConfig {
-        server: ServerConfig {
-            mode: shared_mode,
-            bind_host,
-            port,
-            auto_start_server: true,
-            remote_base_url,
-        },
-        storage: StorageConfig {
-            database_path: String::new(),
-            files_dir: String::new(),
-            auto_migrate: true,
-        },
-    }
-}
-
-fn validation_result(
-    field_errors: BTreeMap<String, Vec<String>>,
-    normalized_config: Option<EditableRuntimeConfig>,
-) -> RuntimeConfigValidationResult {
-    RuntimeConfigValidationResult {
-        valid: field_errors.is_empty(),
-        field_errors,
-        normalized_config,
-    }
-}
-
-fn push_error(errors: &mut BTreeMap<String, Vec<String>>, field: &str, message: &str) {
-    errors
-        .entry(field.to_owned())
-        .or_default()
-        .push(message.to_owned());
-}
-
-fn parse_mode(value: &str) -> Option<RuntimeMode> {
-    match value {
-        "client-only" => Some(RuntimeMode::ClientOnly),
-        "self-hosted" => Some(RuntimeMode::SelfHosted),
-        "server-mode" => Some(RuntimeMode::ServerMode),
-        "connect-to-remote" => Some(RuntimeMode::ConnectToRemote),
-        _ => None,
-    }
-}
-
-fn mode_string(mode: RuntimeMode) -> String {
-    match mode {
-        RuntimeMode::ClientOnly => "client-only",
-        RuntimeMode::SelfHosted => "self-hosted",
-        RuntimeMode::ServerMode => "server-mode",
-        RuntimeMode::ConnectToRemote => "connect-to-remote",
-    }
-    .to_owned()
-}
-
-fn validate_port(
-    port: i64,
-    mode: RuntimeMode,
-    errors: &mut BTreeMap<String, Vec<String>>,
-) -> Option<u16> {
-    if port == 0 && mode != RuntimeMode::SelfHosted {
-        push_error(errors, "port", "该模式必须使用 1 到 65535 之间的端口");
-        return None;
-    }
-    if !(1..=65535).contains(&port) && port != 0 {
-        push_error(errors, "port", "端口必须是 1 到 65535 之间的整数");
-        return None;
-    }
-    u16::try_from(port).ok()
-}
-
-fn is_loopback_host(host: &str) -> bool {
+fn is_firewall_error(error: &ShellRuntimeError) -> bool {
     matches!(
-        host.parse::<IpAddr>().ok(),
-        Some(IpAddr::V4(address)) if address.is_loopback()
-    ) || matches!(
-        host.parse::<IpAddr>().ok(),
-        Some(IpAddr::V6(address)) if address.is_loopback()
+        error.code.as_str(),
+        contract::ERROR_FIREWALL_AUTHORIZATION_REQUIRED
+            | contract::ERROR_FIREWALL_POLICY_BLOCKED
+            | contract::ERROR_FIREWALL_PROFILE_UNSUPPORTED
+            | contract::ERROR_FIREWALL_SERVICE_UNAVAILABLE
+            | contract::ERROR_FIREWALL_RULE_UPDATE_FAILED
+            | contract::ERROR_FIREWALL_CLEANUP_PENDING
     )
 }
 
-/// 校验并规范化远端 URL：http/https、无凭据、无查询/hash。
-fn normalize_remote_url(value: &str) -> Result<String, String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Err("远端服务地址不能为空".to_owned());
+fn firewall_cleanup_snapshot(port: u16) -> crate::contract::RuntimeFirewallSnapshot {
+    crate::contract::RuntimeFirewallSnapshot {
+        status: "cleanup-pending".to_owned(),
+        port: Some(port),
+        scope: Some("local-subnet".to_owned()),
     }
-    let url = Url::parse(trimmed).map_err(|_| "远端服务地址必须是合法 URL".to_owned())?;
-    if !matches!(url.scheme(), "http" | "https") {
-        return Err("远端服务地址必须使用 http 或 https".to_owned());
-    }
-    if !url.username().is_empty() || url.password().is_some() {
-        return Err("远端服务地址不能包含用户凭据".to_owned());
-    }
-    if url.query().is_some() || url.fragment().is_some() {
-        return Err("远端服务地址不能包含查询参数或片段".to_owned());
-    }
-    let trimmed_path = url.path().trim_end_matches('/').to_owned();
-    let mut normalized = url;
-    normalized.set_path(&trimmed_path);
-    Ok(normalized.to_string().trim_end_matches('/').to_owned())
-}
-
-/// 本地服务启动成功后的只读信息；只包含可安全返回给前端的字段。
-#[derive(Debug, Clone)]
-struct LocalServiceDetails {
-    bound_address: String,
-    api_base_url: String,
-    local_auth_exchange_token: Option<String>,
-    lan_access_urls: Vec<String>,
 }
 
 /// Desktop 进程级运行管理器：所有配置与服务变更在同一个 async mutex 内串行执行。
@@ -380,7 +77,7 @@ impl DesktopRuntimeManager {
         let storage_paths = StoragePaths::new(app_data_dir.clone());
         let _ = storage_paths.ensure_created();
         let store = ConfigStore::new(app_data_dir.join(CONFIG_FILE_NAME));
-        let (snapshot, initialized, config_status) = match store.load() {
+        let (mut snapshot, initialized, config_status) = match store.load() {
             LoadedConfig::Missing => (
                 unconfigured_snapshot(EditableRuntimeConfig::default_draft()),
                 false,
@@ -400,6 +97,9 @@ impl DesktopRuntimeManager {
                 Err(_) => (invalid_snapshot(config), false, "invalid".to_owned()),
             },
         };
+        if let Some(port) = store.load_firewall_cleanup() {
+            apply_cleanup_status(&mut snapshot, Some(firewall_cleanup_snapshot(port)));
+        }
         Self {
             app,
             store,
@@ -422,7 +122,7 @@ impl DesktopRuntimeManager {
         if config_status != "configured" {
             return;
         }
-        let _ = self.start_or_apply(candidate).await;
+        let _ = self.start_or_apply(candidate, false).await;
     }
 
     /// 返回当前权威快照。
@@ -474,13 +174,13 @@ impl DesktopRuntimeManager {
             candidate.port = 0;
         }
         let previous = self.snapshot().await;
-        match self.start_or_apply(candidate.clone()).await {
+        match self.start_or_apply(candidate.clone(), true).await {
             Ok(snapshot) => ApplyRuntimeConfigResult {
                 valid: true,
                 field_errors: BTreeMap::new(),
                 applied: true,
+                error: snapshot.service.error.clone(),
                 snapshot,
-                error: None,
             },
             Err(result) => {
                 let restored = self.restore_from_previous(previous).await;
@@ -504,7 +204,7 @@ impl DesktopRuntimeManager {
                 "当前运行模式不提供本地服务",
             ));
         }
-        match self.start_or_apply(current.config.clone()).await {
+        match self.start_or_apply(current.config.clone(), true).await {
             Ok(snapshot) => Ok(snapshot),
             Err(result) => Err(result.error.unwrap_or_else(|| {
                 ShellRuntimeError::new(ERROR_SERVICE_START_FAILED, "本地服务启动失败")
@@ -521,13 +221,17 @@ impl DesktopRuntimeManager {
                 "当前运行模式不提供本地服务",
             ));
         }
-        if let Some(service) = inner.service.take() {
-            service.shutdown().await.map_err(|_| {
-                ShellRuntimeError::new(ERROR_SERVICE_START_FAILED, "本地服务停止失败")
-            })?;
-        }
+        let (shutdown_error, cleanup) = self.stop_owned_service(&mut inner, false).await;
         let mut snapshot = inner.snapshot.clone();
         snapshot.service = stopped_service();
+        apply_cleanup_status(&mut snapshot, cleanup);
+        if let Some(error) = shutdown_error {
+            snapshot.service.error = Some(error.clone());
+            inner.snapshot = snapshot.clone();
+            drop(inner);
+            self.emit(&snapshot);
+            return Err(error);
+        }
         inner.snapshot = snapshot.clone();
         let result = snapshot.clone();
         drop(inner);
@@ -545,7 +249,7 @@ impl DesktopRuntimeManager {
             ));
         }
         self.stop_local_service().await?;
-        self.start_or_apply(current.config.clone())
+        self.start_or_apply(current.config.clone(), true)
             .await
             .map_err(|result| {
                 result.error.unwrap_or_else(|| {
@@ -558,6 +262,7 @@ impl DesktopRuntimeManager {
     async fn start_or_apply(
         &self,
         config: EditableRuntimeConfig,
+        configure_firewall: bool,
     ) -> Result<RuntimeSnapshot, ApplyRuntimeConfigResult> {
         let prepared = match prepare_config(&config, &self.storage_paths) {
             Ok(prepared) => prepared,
@@ -578,26 +283,35 @@ impl DesktopRuntimeManager {
         let mut inner = self.inner.lock().await;
 
         if mode.is_remote() {
-            if inner.snapshot.service.ownership == "local"
-                && inner.snapshot.service.phase == "running"
-            {
-                if let Some(service) = inner.service.take() {
-                    service
-                        .shutdown()
-                        .await
-                        .map_err(|_| ApplyRuntimeConfigResult {
-                            valid: true,
-                            field_errors: BTreeMap::new(),
-                            applied: false,
-                            snapshot: inner.snapshot.clone(),
-                            error: Some(ShellRuntimeError::new(
-                                ERROR_SERVICE_START_FAILED,
-                                "本地服务停止失败",
-                            )),
-                        })?;
+            let pending_cleanup = inner
+                .snapshot
+                .service
+                .firewall
+                .as_ref()
+                .filter(|firewall| firewall.status == "cleanup-pending")
+                .cloned();
+            let previous_mode = inner.snapshot.config.mode.clone();
+            let mut cleanup = pending_cleanup.clone();
+            if inner.snapshot.service.ownership == "local" {
+                let (shutdown_error, removed) = self.stop_owned_service(&mut inner, true).await;
+                if let Some(error) = shutdown_error {
+                    return Err(ApplyRuntimeConfigResult {
+                        valid: true,
+                        field_errors: BTreeMap::new(),
+                        applied: false,
+                        snapshot: inner.snapshot.clone(),
+                        error: Some(error),
+                    });
                 }
+                cleanup = if previous_mode == "server-mode" {
+                    removed
+                } else {
+                    pending_cleanup
+                };
             }
-            let snapshot = remote_snapshot(prepared.normalized.clone(), true);
+            let mut snapshot = remote_snapshot(prepared.normalized.clone(), true);
+            apply_cleanup_status(&mut snapshot, cleanup);
+
             inner.initialized = true;
             inner.config_status = "configured".to_owned();
             inner.snapshot = snapshot.clone();
@@ -615,21 +329,21 @@ impl DesktopRuntimeManager {
             return Ok(snapshot);
         }
 
-        // 本地模式：替换正在运行的旧服务，避免端口/配置残留。
-        if let Some(service) = inner.service.take() {
-            service
-                .shutdown()
-                .await
-                .map_err(|_| ApplyRuntimeConfigResult {
-                    valid: true,
-                    field_errors: BTreeMap::new(),
-                    applied: false,
-                    snapshot: inner.snapshot.clone(),
-                    error: Some(ShellRuntimeError::new(
-                        ERROR_SERVICE_START_FAILED,
-                        "旧本地服务停止失败",
-                    )),
-                })?;
+        // 本地模式：替换正在运行的旧服务，避免端口/配置残留。只有离开 server-mode
+        // 才撤销持久化的防火墙规则；server-mode 内部重启由新的 ensure 收敛端口规则。
+        let remove_firewall_rule = inner.snapshot.config.mode == "server-mode"
+            && prepared.normalized.mode != "server-mode";
+        let (shutdown_error, cleanup) = self
+            .stop_owned_service(&mut inner, remove_firewall_rule)
+            .await;
+        if let Some(error) = shutdown_error {
+            return Err(ApplyRuntimeConfigResult {
+                valid: true,
+                field_errors: BTreeMap::new(),
+                applied: false,
+                snapshot: inner.snapshot.clone(),
+                error: Some(error),
+            });
         }
 
         let mut starting = inner.snapshot.clone();
@@ -641,13 +355,20 @@ impl DesktopRuntimeManager {
             bound_address: None,
             local_auth_exchange_token: None,
             lan_access_urls: None,
+            firewall: None,
             error: None,
         };
         inner.snapshot = starting.clone();
         drop(inner);
         self.emit(&starting);
 
-        let started = self.start_service(&prepared.app_config).await;
+        let started = self
+            .start_service(
+                &prepared.app_config,
+                &prepared.normalized,
+                configure_firewall,
+            )
+            .await;
         let mut inner = self.inner.lock().await;
         match started {
             Ok((service, details)) => {
@@ -671,14 +392,16 @@ impl DesktopRuntimeManager {
                 }
                 inner.initialized = true;
                 inner.config_status = "configured".to_owned();
-                let snapshot = local_running_snapshot(effective, &details, true);
+                let mut snapshot = local_running_snapshot(effective, &details, true);
+                apply_cleanup_status(&mut snapshot, cleanup.clone());
                 inner.snapshot = snapshot.clone();
                 drop(inner);
                 self.emit(&snapshot);
                 Ok(snapshot)
             }
             Err(error) => {
-                let failed = failed_snapshot(prepared.normalized.clone(), error.clone(), true);
+                let mut failed = failed_snapshot(prepared.normalized.clone(), error.clone(), true);
+                apply_cleanup_status(&mut failed, cleanup);
                 inner.snapshot = failed.clone();
                 drop(inner);
                 self.emit(&failed);
@@ -697,6 +420,8 @@ impl DesktopRuntimeManager {
     async fn start_service(
         &self,
         app_config: &AppConfig,
+        runtime_config: &EditableRuntimeConfig,
+        configure_firewall: bool,
     ) -> Result<(RunningLocalService, LocalServiceDetails), ShellRuntimeError> {
         let mut config = app_config.clone();
         let first = start_local_service(&config).await;
@@ -710,7 +435,31 @@ impl DesktopRuntimeManager {
                 return map_start_result(start_local_service(&config).await, false);
             }
         }
-        map_start_result(first, config.server.mode == SharedRuntimeMode::ServerMode)
+        let server_mode = config.server.mode == SharedRuntimeMode::ServerMode;
+        let started = map_start_result(first, server_mode)?;
+        if !server_mode {
+            return Ok(started);
+        }
+        let (service, mut details) = started;
+        let port = service.info().bound_addr.port();
+        let firewall_result = if configure_firewall {
+            firewall::ensure(port, self.app.is_some())
+        } else {
+            firewall::probe(port, self.app.is_some())
+        };
+        match firewall_result {
+            Ok(status) => {
+                if status.status == "ready" {
+                    let _ = self.store.clear_firewall_cleanup();
+                }
+                details.firewall = Some(status)
+            }
+            Err(error) => {
+                details.firewall = firewall_snapshot_for_error(runtime_config, &error);
+                details.firewall_error = Some(error);
+            }
+        }
+        Ok((service, details))
     }
 
     /// 等待本地服务退出并停止；供应用退出流程使用。
@@ -724,6 +473,92 @@ impl DesktopRuntimeManager {
         inner.snapshot = snapshot.clone();
         drop(inner);
         self.emit(&snapshot);
+    }
+
+    /// 显式修复当前 server-mode 的防火墙规则，或重试离开 server-mode 时未完成的清理。
+    pub async fn repair_firewall(&self) -> Result<RuntimeSnapshot, ShellRuntimeError> {
+        let current = self.snapshot().await;
+        let cleanup_pending = current
+            .service
+            .firewall
+            .as_ref()
+            .is_some_and(|firewall| firewall.status == "cleanup-pending");
+
+        if current.config.mode == "server-mode" {
+            let port = u16::try_from(current.config.port).map_err(|_| {
+                ShellRuntimeError::new(
+                    contract::ERROR_FIREWALL_RULE_UPDATE_FAILED,
+                    "当前 server-mode 端口无效",
+                )
+            })?;
+            let result = firewall::ensure(port, self.app.is_some());
+            let mut inner = self.inner.lock().await;
+            match result {
+                Ok(status) => {
+                    if status.status == "ready" {
+                        let _ = self.store.clear_firewall_cleanup();
+                    }
+                    inner.snapshot.service.firewall = Some(status);
+                    if inner
+                        .snapshot
+                        .service
+                        .error
+                        .as_ref()
+                        .is_some_and(is_firewall_error)
+                    {
+                        inner.snapshot.service.error = None;
+                    }
+                }
+                Err(error) => {
+                    inner.snapshot.service.firewall =
+                        firewall_snapshot_for_error(&inner.snapshot.config, &error);
+                    inner.snapshot.service.error = Some(error.clone());
+                    let snapshot = inner.snapshot.clone();
+                    drop(inner);
+                    self.emit(&snapshot);
+                    return Err(error);
+                }
+            }
+            let snapshot = inner.snapshot.clone();
+            drop(inner);
+            self.emit(&snapshot);
+            return Ok(snapshot);
+        }
+
+        if !cleanup_pending {
+            return Err(ShellRuntimeError::new(
+                ERROR_UNSUPPORTED_RUNTIME_MODE,
+                "当前运行模式没有待清理的防火墙规则",
+            ));
+        }
+        let port = current
+            .service
+            .firewall
+            .as_ref()
+            .and_then(|firewall| firewall.port)
+            .ok_or_else(|| {
+                ShellRuntimeError::new(
+                    contract::ERROR_FIREWALL_CLEANUP_PENDING,
+                    "待清理的 Windows 防火墙规则缺少端口信息",
+                )
+            })?;
+        firewall::remove(port, self.app.is_some())?;
+        let _ = self.store.clear_firewall_cleanup();
+        let mut inner = self.inner.lock().await;
+        inner.snapshot.service.firewall = None;
+        if inner
+            .snapshot
+            .service
+            .error
+            .as_ref()
+            .is_some_and(|error| error.code == contract::ERROR_FIREWALL_CLEANUP_PENDING)
+        {
+            inner.snapshot.service.error = None;
+        }
+        let snapshot = inner.snapshot.clone();
+        drop(inner);
+        self.emit(&snapshot);
+        Ok(snapshot)
     }
 
     /// 重新读取 server-mode 的真实网卡地址并发布最新快照。
@@ -742,11 +577,92 @@ impl DesktopRuntimeManager {
         let Some(service) = inner.service.as_ref() else {
             return;
         };
+        let port = service.info().bound_addr.port();
         let urls = discover_lan_access_urls(service.info().bound_addr);
+        match firewall::probe(port, self.app.is_some()) {
+            Ok(status) => {
+                if status.status == "ready" {
+                    let _ = self.store.clear_firewall_cleanup();
+                }
+                inner.snapshot.service.firewall = Some(status);
+                if inner
+                    .snapshot
+                    .service
+                    .error
+                    .as_ref()
+                    .is_some_and(is_firewall_error)
+                {
+                    inner.snapshot.service.error = None;
+                }
+            }
+            Err(error) => {
+                inner.snapshot.service.firewall =
+                    firewall_snapshot_for_error(&inner.snapshot.config, &error);
+                inner.snapshot.service.error = Some(error);
+            }
+        }
         inner.snapshot.service.lan_access_urls = Some(urls);
         let snapshot = inner.snapshot.clone();
         drop(inner);
         self.emit(&snapshot);
+    }
+
+    async fn stop_owned_service(
+        &self,
+        inner: &mut ManagerInner,
+        remove_firewall_rule: bool,
+    ) -> (
+        Option<ShellRuntimeError>,
+        Option<crate::contract::RuntimeFirewallSnapshot>,
+    ) {
+        let previous = inner.snapshot.clone();
+        let service_port = inner
+            .service
+            .as_ref()
+            .map(|service| service.info().bound_addr.port());
+        let shutdown_error = if let Some(service) = inner.service.take() {
+            service
+                .shutdown()
+                .await
+                .err()
+                .map(|_| ShellRuntimeError::new(ERROR_SERVICE_START_FAILED, "本地服务停止失败"))
+        } else {
+            None
+        };
+        let cleanup = if remove_firewall_rule {
+            self.cleanup_firewall(&previous, service_port)
+        } else {
+            None
+        };
+        (shutdown_error, cleanup)
+    }
+
+    fn cleanup_firewall(
+        &self,
+        previous: &RuntimeSnapshot,
+        service_port: Option<u16>,
+    ) -> Option<crate::contract::RuntimeFirewallSnapshot> {
+        if previous.config.mode != "server-mode" || previous.service.ownership != "local" {
+            return None;
+        }
+        let port = previous
+            .service
+            .firewall
+            .as_ref()
+            .and_then(|firewall| firewall.port)
+            .or(service_port)
+            .or_else(|| u16::try_from(previous.config.port).ok());
+        let Some(port) = port else { return None };
+        match firewall::remove(port, self.app.is_some()) {
+            Ok(()) => {
+                let _ = self.store.clear_firewall_cleanup();
+                None
+            }
+            Err(_) => {
+                let _ = self.store.save_firewall_cleanup(port);
+                Some(firewall_cleanup_snapshot(port))
+            }
+        }
     }
 
     /// 后台监视本地服务异常退出并发布 `service_crashed` 快照。
@@ -776,6 +692,7 @@ impl DesktopRuntimeManager {
                             bound_address: None,
                             local_auth_exchange_token: None,
                             lan_access_urls: None,
+                            firewall: None,
                             error: Some(ShellRuntimeError::new(
                                 ERROR_SERVICE_CRASHED,
                                 "本地服务意外退出",
@@ -793,7 +710,10 @@ impl DesktopRuntimeManager {
     async fn restore_from_previous(&self, previous: RuntimeSnapshot) -> RuntimeSnapshot {
         if previous.service.ownership == "local" && previous.service.phase == "running" {
             if let Ok(prepared) = prepare_config(&previous.config, &self.storage_paths) {
-                match self.start_service(&prepared.app_config).await {
+                match self
+                    .start_service(&prepared.app_config, &prepared.normalized, false)
+                    .await
+                {
                     Ok((service, details)) => {
                         let restored = local_running_snapshot(
                             effective_config(&prepared.normalized, &details),
@@ -848,189 +768,6 @@ pub fn emit_app_resumed(app: &AppHandle) {
         manager.refresh_network_state().await;
         let _ = app.emit(APP_RESUMED_EVENT, ());
     });
-}
-
-fn unconfigured_snapshot(config: EditableRuntimeConfig) -> RuntimeSnapshot {
-    RuntimeSnapshot {
-        protocol_version: contract::SHELL_BRIDGE_PROTOCOL_VERSION,
-        platform: "desktop".to_owned(),
-        config_status: "unconfigured".to_owned(),
-        config,
-        initialized: false,
-        service: stopped_service(),
-        capabilities: desktop_capabilities(false, "local"),
-    }
-}
-
-fn invalid_snapshot(config: EditableRuntimeConfig) -> RuntimeSnapshot {
-    let mut snapshot = unconfigured_snapshot(config);
-    snapshot.config_status = "invalid".to_owned();
-    snapshot.service.error = Some(ShellRuntimeError::new(
-        ERROR_CONFIG_INVALID,
-        "运行配置文件损坏或校验失败",
-    ));
-    snapshot
-}
-
-fn configured_snapshot(
-    config: EditableRuntimeConfig,
-    service: RuntimeServiceSnapshot,
-) -> RuntimeSnapshot {
-    let ownership = service.ownership.clone();
-    RuntimeSnapshot {
-        protocol_version: contract::SHELL_BRIDGE_PROTOCOL_VERSION,
-        platform: "desktop".to_owned(),
-        config_status: "configured".to_owned(),
-        config,
-        initialized: true,
-        service,
-        capabilities: desktop_capabilities(true, &ownership),
-    }
-}
-
-fn remote_snapshot(config: EditableRuntimeConfig, _initialized: bool) -> RuntimeSnapshot {
-    let mut snapshot = configured_snapshot(config.clone(), stopped_service());
-    snapshot.service = RuntimeServiceSnapshot {
-        ownership: "remote".to_owned(),
-        phase: "stopped".to_owned(),
-        api_base_url: Some(config.remote_base_url.clone()),
-        bound_address: None,
-        local_auth_exchange_token: None,
-        lan_access_urls: None,
-        error: None,
-    };
-    snapshot.capabilities = desktop_capabilities(true, &snapshot.service.ownership);
-    snapshot
-}
-
-fn local_running_snapshot(
-    config: EditableRuntimeConfig,
-    details: &LocalServiceDetails,
-    _initialized: bool,
-) -> RuntimeSnapshot {
-    let mut snapshot = configured_snapshot(config.clone(), stopped_service());
-    snapshot.service = RuntimeServiceSnapshot {
-        ownership: "local".to_owned(),
-        phase: "running".to_owned(),
-        api_base_url: Some(details.api_base_url.clone()),
-        bound_address: Some(details.bound_address.clone()),
-        local_auth_exchange_token: details.local_auth_exchange_token.clone(),
-        lan_access_urls: if parse_mode(&config.mode) == Some(RuntimeMode::ServerMode) {
-            Some(details.lan_access_urls.clone())
-        } else {
-            None
-        },
-        error: None,
-    };
-    snapshot
-}
-
-fn failed_snapshot(
-    config: EditableRuntimeConfig,
-    error: ShellRuntimeError,
-    _initialized: bool,
-) -> RuntimeSnapshot {
-    let mut snapshot = configured_snapshot(config.clone(), stopped_service());
-    snapshot.service = RuntimeServiceSnapshot {
-        ownership: "local".to_owned(),
-        phase: "failed".to_owned(),
-        api_base_url: None,
-        bound_address: None,
-        local_auth_exchange_token: None,
-        lan_access_urls: None,
-        error: Some(error),
-    };
-    snapshot
-}
-
-fn effective_config(
-    config: &EditableRuntimeConfig,
-    details: &LocalServiceDetails,
-) -> EditableRuntimeConfig {
-    if parse_mode(&config.mode) != Some(RuntimeMode::SelfHosted) {
-        return config.clone();
-    }
-    let actual_port = details
-        .api_base_url
-        .parse::<Url>()
-        .ok()
-        .and_then(|url| url.port());
-    match actual_port {
-        Some(port) if i64::from(port) != config.port => EditableRuntimeConfig {
-            port: i64::from(port),
-            ..config.clone()
-        },
-        _ => config.clone(),
-    }
-}
-
-fn config_draft_from_raw(raw: &str) -> EditableRuntimeConfig {
-    serde_json::from_str::<PersistedRuntimeConfig>(raw)
-        .map(EditableRuntimeConfig::from)
-        .unwrap_or_else(|_| EditableRuntimeConfig::default_draft())
-}
-
-fn map_start_result(
-    result: Result<RunningLocalService, LocalServiceRuntimeError>,
-    server_mode: bool,
-) -> Result<(RunningLocalService, LocalServiceDetails), ShellRuntimeError> {
-    match result {
-        Ok(service) => {
-            let info = service.info().clone();
-            Ok((
-                service,
-                LocalServiceDetails {
-                    bound_address: info.bound_addr.to_string(),
-                    api_base_url: local_api_base_url(info.bound_addr),
-                    local_auth_exchange_token: info
-                        .local_session_token
-                        .as_ref()
-                        .map(|token| token.expose().to_owned()),
-                    lan_access_urls: if server_mode {
-                        discover_lan_access_urls(info.bound_addr)
-                    } else {
-                        Vec::new()
-                    },
-                },
-            ))
-        }
-        Err(error) => Err(map_service_error(&error)),
-    }
-}
-
-/// 生成 Desktop WebView 使用的本机 API 地址。
-///
-/// wildcard 监听仍优先走 loopback；具体监听地址则必须使用实际绑定的 IP，否则 WebView
-/// 无法访问只绑定在某个网卡上的服务。
-fn local_api_base_url(bound_addr: SocketAddr) -> String {
-    let ip = match bound_addr.ip() {
-        IpAddr::V4(address) if address.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
-        IpAddr::V6(address) if address.is_unspecified() => IpAddr::V6(Ipv6Addr::LOCALHOST),
-        address => address,
-    };
-    format!("http://{}", SocketAddr::new(ip, bound_addr.port()))
-}
-
-fn map_service_error(error: &LocalServiceRuntimeError) -> ShellRuntimeError {
-    match error {
-        LocalServiceRuntimeError::Bootstrap(_) => {
-            ShellRuntimeError::new(ERROR_DATABASE_OPEN_FAILED, "本地数据库初始化失败")
-        }
-        LocalServiceRuntimeError::LocalServiceNotInitialized => {
-            ShellRuntimeError::new(ERROR_SERVICE_START_FAILED, "本地服务初始化失败")
-        }
-        LocalServiceRuntimeError::Server(ServerStartError::Bind { source, .. })
-            if source.kind() == std::io::ErrorKind::AddrInUse =>
-        {
-            ShellRuntimeError::new(ERROR_PORT_IN_USE, "本地端口已被占用")
-        }
-        LocalServiceRuntimeError::Server(_) => {
-            ShellRuntimeError::new(ERROR_SERVICE_START_FAILED, "本地服务启动失败")
-        }
-        LocalServiceRuntimeError::Task(_) => {
-            ShellRuntimeError::new(ERROR_SERVICE_CRASHED, "本地服务意外退出")
-        }
-    }
 }
 
 #[cfg(test)]

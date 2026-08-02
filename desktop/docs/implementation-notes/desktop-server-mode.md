@@ -22,7 +22,7 @@
 | Desktop 配置校验 | `prepare_config()` 拒绝 `server-mode`；`self-hosted` 只允许 loopback                          | 已接受有效 IP；server-mode 固定端口，self-hosted 规则保持不变                |
 | Desktop 能力   | `desktop_capabilities()` 固定 `serverMode: false`                                         | Desktop `serverMode: true`，本地生命周期仍按归属动态开放            |
 | Desktop 快照   | Rust `RuntimeServiceSnapshot` 没有实际填充 `lanAccessUrls`                                    | 已发布真实 LAN 地址，并在状态切换时清理/刷新        |
-| 前端协议         | `RuntimeSnapshot.service.lanAccessUrls`、`getUsableLanAccessUrls()`、地址 Dialog 和设置页入口已经存在 | 主要是接收真实数据、补测试，不重建 UI                                 |
+| 前端协议         | `RuntimeSnapshot.service.lanAccessUrls`、`getUsableLanAccessUrls()`、地址 Dialog 和设置页入口已经存在 | 接收真实数据；地址 Dialog 由应用壳头像 Popover 提供，运行设置页不再重复放置地址入口 |
 | Android      | 当前明确禁用 server-mode                                                                      | 本方案不改变 Android 策略                                    |
 
 ## 当前实现
@@ -32,13 +32,13 @@
 - `prepare_config()` 接受 `server-mode`，允许有效 IP 监听；`self-hosted` 仍只允许 loopback。
 - Desktop 复用 `winestock_core::start_local_service()`；WebView 对 wildcard 监听使用 loopback，具体监听地址使用实际绑定 IP。
 - server-mode 使用固定端口，端口占用返回 `port_in_use`；只有 self-hosted 保留动态端口重试。
-- Rust Shell Bridge 快照已发布 `lanAccessUrls`；当前 Windows 通过 IP Helper 读取运行中的 IPv4 网卡，只返回 RFC1918 私网地址，
-  非 Windows 暂为空列表；后续迁移到 `if-addrs` 后统一覆盖 Windows/macOS/Linux。
+- Rust Shell Bridge 快照已发布 `lanAccessUrls`；当前通过 `if-addrs` 0.15 读取 Windows/macOS/Linux 运行中的 IPv4
+  网卡，只返回 RFC1918 私网地址。
 - 停止、启动中、失败、崩溃和切换远端时不保留旧 LAN 地址；没有合格网卡时服务仍保持 running、地址列表为空。
-- `capabilities.serverMode` 已对 Desktop 开放；前端既有运行设置页和地址 Dialog 直接消费真实快照，不新增第二套 UI。
+- `capabilities.serverMode` 已对 Desktop 开放；运行设置页消费状态，地址 Dialog 由应用壳头像 Popover 提供，不新增第二套 UI。
 
-首版明确不发布 IPv6、VPN/公网 IPv4，也不自动写入 Windows 防火墙规则；LAN 地址发现当前仍是 Windows-only，
-后续应按跨平台方案迁移；防火墙集成的独立方案见
+首版明确不发布 IPv6、VPN/公网 IPv4。Windows 已自动维护只允许 Domain/Private + LocalSubnet 的当前 TCP
+端口规则；macOS/Linux 地址发现已跨平台，但防火墙 provider 尚未实现，能力保持关闭。防火墙细节见
 [`desktop-firewall-access.md`](desktop-firewall-access.md)。这不改变 Android `server-mode` 策略。
 
 ## 已执行验证
@@ -70,12 +70,11 @@
 - 把 Desktop 改造成无头 `server` 进程；Desktop `server-mode` 仍保留 Tauri 窗口和共享前端，无 UI 部署另使用 `server/`。
 - 让 Axum 服务前端静态资源，WebView 仍加载 Tauri 打包的 `frontend/dist`。
 - Android `server-mode`、Foreground Service、系统通知或后台常驻。
-- 自动修改 Windows 防火墙规则。首版只检测并提示防火墙可能阻止访问，是否自动放行应另立安全设计。
+- macOS/Linux 防火墙 provider、签名特权 helper 和对应发布链路。
 - TLS 证书、反向代理、互联网暴露或公网部署。Desktop server-mode 首版只定义 HTTP 局域网访问。
 
-Windows 防火墙不是本首版 server-mode 实现的一部分。当前实现只发布 LAN URL 并在无地址时提示用户检查
-防火墙；规则写入、UAC 和 Public/组策略处理按 [`desktop-firewall-access.md`](desktop-firewall-access.md)
-单独实施。
+Windows 防火墙已经是本首版 server-mode 实现的一部分；当前实现只对 WineStock 自有规则执行精确的 TCP
+端口更新/删除，并通过 Shell Bridge/UI 报告 UAC、策略、网络配置文件、服务关闭和清理状态。
 
 ## 目标架构
 
@@ -201,7 +200,7 @@ Rust 发布的 payload 能通过 `assertCompatibleRuntimeSnapshot()`。
 
 ### Command 与权限
 
-不新增 command。现有以下方法足以覆盖流程：
+使用具名 command 覆盖配置应用和防火墙恢复流程：
 
 - `shell_get_runtime_snapshot`
 - `shell_validate_runtime_config`
@@ -209,6 +208,7 @@ Rust 发布的 payload 能通过 `assertCompatibleRuntimeSnapshot()`。
 - `shell_start_local_service`
 - `shell_stop_local_service`
 - `shell_restart_local_service`
+- `shell_repair_firewall`
 - `shell_frontend_ready`
 - `shell_open_external`
 
@@ -263,14 +263,14 @@ core 服务启动条件。
 
 ## 前端改造
 
-前端运行设置和地址 Dialog 已有 server-mode 的主要 UI，现有“允许其他设备连接”文案和交互方向正确，不应新建
-第二套设置界面。实施时检查并补齐：
+前端运行设置已有 server-mode 的主要 UI，现有“允许其他设备连接”文案和交互方向正确，不应新建第二套设置界面；
+局域网地址 Dialog 由已登录应用壳的头像 Popover 提供。实施时检查并补齐：
 
 - `snapshot.capabilities.serverMode` 为 true 时 Desktop 显示并允许选择“允许其他设备连接”。
 - server-mode 只显示固定端口；监听地址放在高级设置，默认建议 `0.0.0.0`，但明确说明这是监听语义，不是分享地址。
 - 保存前继续使用已有的局域网开放确认和本机管理员密码门，防止把随机占位密码直接开放给其它设备。
-- 保存成功后只从 `snapshot.service.lanAccessUrls` 展示地址；前端不枚举网卡、不根据 `bindHost` 生成地址。
-- 地址列表为空时显示“当前设备没有可用的局域网地址”，并提示检查网络适配器和防火墙。
+- 保存成功后只由应用壳从 `snapshot.service.lanAccessUrls` 展示地址；前端不枚举网卡、不根据 `bindHost` 生成地址。
+- 地址列表为空时显示“当前设备没有可用的局域网地址”，设置页只提示检查网络适配器或监听地址。
 - 服务停止、启动中、失败、切回 remote/self-hosted 时关闭地址 Dialog，并清除旧地址。
 - 保持 HTTP 明文风险提示。首版没有 TLS，不得把局域网地址描述成互联网安全地址。
 
@@ -293,6 +293,12 @@ core 服务启动条件。
 - Desktop capability 在 `server-mode` 可用时返回 `serverMode=true`。
 - server-mode 使用固定端口，端口占用返回 `port_in_use`，不自动动态端口重试。
 - server-mode 成功启动后 `apiBaseUrl` 对 wildcard 使用 loopback、对具体监听使用实际 IP；`boundAddress` 是真实监听地址，LAN URL 不包含 wildcard。
+- Windows server-mode 显式保存时按需通过同一签名程序的受限 UAC helper 更新 Firewall COM 规则；软件启动只读
+  检测规则，不自动触发 UAC。快照单独发布 `firewall.status`，规则失败时保留本次 core 和配置，并由前端提示
+  继续使用或重试。
+- Windows 防火墙规则按系统规则持久保存：正常停止、重启、异常恢复和 Desktop 退出只停止 core、释放端口，
+  不删除已授权规则，因此冷启动会先复用规则而不会重复触发 UAC。切出 server-mode 时才尽力删除 WineStock
+  自有规则；清理失败不阻止 core 停止，而是发布 `firewall_cleanup_pending` 和 `cleanup-pending` 状态。
 - 切换到 remote 会停止本地服务；应用退出释放端口。
 - 配置保存失败或新服务启动失败时，旧运行服务和旧配置尽力恢复。
 - 服务异常退出发布 failed 快照且不保留陈旧 LAN 地址。

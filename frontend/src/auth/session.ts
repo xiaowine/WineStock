@@ -14,6 +14,7 @@ import {
   clearPersistedRefreshToken,
   clearPersistedRefreshTokenIfMatches,
   loadPersistedRefreshToken,
+  rebindPersistedRefreshTokenApiBaseUrl,
   persistRefreshToken,
   subscribePersistedRefreshTokenRemoval,
 } from "./storage";
@@ -218,6 +219,22 @@ export function resetAuthSessionForRuntimeChange(): void {
   mutableAuthStatus.value = "idle";
   initializationInFlight = null;
   refreshInFlight = null;
+}
+
+/** 保留本地 server-mode 端口变化时的登录会话，并迁移 refresh token 地址绑定。 */
+export function preserveAuthSessionForServerPortChange(
+  previousApiBaseUrl: string,
+  nextApiBaseUrl: string,
+): void {
+  // 使仍在旧地址上的 refresh 请求失效，但保留当前 access token 和登录状态。
+  runtimeGeneration += 1;
+  initializationInFlight = null;
+  refreshInFlight = null;
+  try {
+    rebindPersistedRefreshTokenApiBaseUrl(previousApiBaseUrl, nextApiBaseUrl);
+  } catch {
+    // 当前内存会话仍然有效；存储不可写时不应把已应用的端口变化判定为失败。
+  }
 }
 
 async function performInitialization(generation: number): Promise<AuthStatus> {

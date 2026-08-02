@@ -2697,6 +2697,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "if-addrs"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0a05c691e1fae256cf7013d99dad472dc52d5543322761f83ec8d47eab40d2b"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7510,6 +7520,7 @@ dependencies = [
 name = "winestock-desktop"
 version = "0.1.0"
 dependencies = [
+ "if-addrs",
  "rfd",
  "serde",
  "serde_json",
@@ -7523,7 +7534,6 @@ dependencies = [
  "url",
  "webview2-com",
  "windows",
- "windows-sys 0.61.2",
  "winestock-core",
  "winestock-shared",
 ]

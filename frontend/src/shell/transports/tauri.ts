@@ -36,6 +36,9 @@ export function createTauriShellBridge(): ShellBridge {
     restartLocalService() {
       return invokeShell<RuntimeSnapshot>("shell_restart_local_service");
     },
+    repairFirewall() {
+      return invokeShell<RuntimeSnapshot>("shell_repair_firewall");
+    },
     frontendReady() {
       return invokeShell<void>("shell_frontend_ready");
     },

@@ -141,7 +141,8 @@ Current workspace dependencies:
 - `utoipa-swagger-ui`（可选 Debug Swagger UI feature）
 - `winestock-core`
 - `winestock-shared`
-- `windows-sys`（Desktop Windows IP Helper 网卡发现）
+- `if-addrs`（Desktop 跨平台高层网卡地址发现）
+- `windows`（Desktop Windows Firewall COM 与 UAC；使用高层 windows crate）
 
 `tokio` is used by core service startup and the server shell.
 

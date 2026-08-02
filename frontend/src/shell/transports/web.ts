@@ -76,6 +76,9 @@ export function createWebShellBridge(): ShellBridge {
     async restartLocalService() {
       return unsupportedLocalServiceOperation();
     },
+    async repairFirewall() {
+      return unsupportedLocalServiceOperation();
+    },
     async frontendReady() {
       return undefined;
     },

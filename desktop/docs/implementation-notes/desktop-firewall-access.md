@@ -3,20 +3,21 @@
 ## 结论
 
 当前 Desktop `server-mode` 已经能够让 `winestock_core` 监听局域网地址，也能通过 Shell Bridge 发布
-`lanAccessUrls`，但还没有为 Windows Defender Firewall 创建入站规则。因此现在的“服务 running”只能证明
-本机 socket 已成功监听，不能证明其它设备能够连接。
+`lanAccessUrls`。Windows 首版已由 Desktop 壳创建并维护 WineStock 自有的 Windows Defender Firewall
+入站规则；“服务 running”仍只证明 core 已监听，是否具备局域网访问条件由快照中的 `firewall` 状态单独表示。
 
 推荐由 Desktop 壳补齐一条由 WineStock 自己管理的、只允许局域网访问当前 TCP 端口的 Windows 防火墙规则。
 `core`、`shared`、无头 `server` shell 和业务 HTTP 契约不感知 Windows 防火墙；需要管理员权限的动作交给一个
 受限的、按需以 UAC `runas` 启动的 helper 完成。主 Tauri 进程不整体提权，也不向前端开放通用命令执行能力。
 
-这是一份实施方案，不代表防火墙规则管理已经在当前代码中实现。
+当前文档同时记录已落地的 Windows 首版实现和 macOS/Linux 后续 provider 方案；后续 provider 不应改变
+Shell Bridge 中“服务生命周期”和“防火墙状态”分离的语义。
 
 ## LAN 地址发现与多平台策略
 
 局域网地址发现和防火墙放行是两个独立能力，不能因为 Windows 有 IP Helper 就把地址发现设计成
-Windows-only。当前 `desktop/src/lan_access.rs` 在非 Windows 返回空列表，这是首版实现的缺口：服务可能已经
-监听成功，但 macOS/Linux 的 Desktop 仍无法向用户展示可连接地址。
+地址发现不再是 Windows-only。当前 `desktop/src/lan_access.rs` 使用 `if-addrs` 0.15 在 Windows、macOS 和 Linux 统一枚举
+接口地址，服务监听成功后各平台都可以执行同一套私网 IPv4 过滤和 URL 生成。
 
 推荐把地址发现改成跨平台高层接口，优先采用 `if-addrs` `0.15.x`：
 
@@ -27,18 +28,16 @@ Windows-only。当前 `desktop/src/lan_access.rs` 在非 Windows 返回空列表
 - 地址过滤、RFC1918 判断、去重、具体绑定地址限制和 URL 格式化保持平台无关。
 - 防火墙实现不放入这个模块；地址发现失败只能产生空地址/诊断状态，不能伪装成防火墙已放行。
 
-这比直接把 `GetAdaptersAddresses` 从 `windows-sys` 换成 `windows` 更稳妥。高层 `windows` crate 的确应该
-用于 Firewall COM 和 UAC 相关 Windows API，但它对 `GetAdaptersAddresses` 仍主要提供生成绑定，调用方仍要
-处理原始链表和指针生命周期。若依赖策略最终不允许 `if-addrs`，备选方案才是 Windows 使用高层 `windows`
-绑定、Unix 使用各自的高层接口，并把三套实现放在同一抽象后；不建议继续保留当前 `windows-sys` 版本。
+本项目保留高层 `windows` crate 用于 Firewall COM 和 UAC，网卡地址则统一交给 `if-addrs`，避免在 Desktop
+业务模块中处理 `GetAdaptersAddresses` 的原始链表和指针生命周期。
 
 ### 平台能力矩阵
 
 | 平台 | LAN 地址发现 | 防火墙自动管理 | server-mode 首版策略 |
 | --- | --- | --- | --- |
-| Windows Desktop | `if-addrs` | 高层 `windows` crate + Firewall COM + UAC helper | 自动放行 Domain/Private 的 LocalSubnet |
-| macOS Desktop | `if-addrs` | 可通过特权 helper 管理 PF；Application Firewall 只能做应用级放行 | provider 验证后可自动放行，否则 `manual-required` |
-| Linux Desktop | `if-addrs` | 可通过 firewalld D-Bus 或受控 nftables provider 管理 | provider 验证后可自动放行，否则 `manual-required` |
+| Windows Desktop | `if-addrs` | 高层 `windows` crate + Firewall COM + UAC helper | 已实现：自动放行 Domain/Private 的 LocalSubnet |
+| macOS Desktop | `if-addrs` | 可通过特权 helper 管理 PF；Application Firewall 只能做应用级放行 | 当前 capability 关闭，provider 验证后再开放 |
+| Linux Desktop | `if-addrs` | 可通过 firewalld D-Bus 或受控 nftables provider 管理 | 当前 capability 关闭，provider 验证后再开放 |
 | 无头 `server` | shell 自己输出地址 | 由部署管理员配置 | 不由 WineStock 自动写主机防火墙 |
 | Android | Android 原生网络能力 | 不适用当前方案 | 现有 `server-mode` 继续禁用 |
 | Web | 浏览器能力 | 不适用 | 不启动本地服务 |
@@ -173,7 +172,8 @@ PF 规则文本只能在 helper 内由结构化参数生成；即使底层通过
   -> WineStock HTTP 服务正常运行
 ```
 
-目前代码只覆盖第一项、第四项和第五项。Windows 对未经允许的入站连接通常按当前配置文件的默认策略处理，
+当前代码覆盖服务监听、Windows 首版规则检查/写入、真实 LAN 地址发布和应用 HTTP 健康检查；路由器隔离等外部
+条件仍不由 WineStock 控制。Windows 对未经允许的入站连接通常按当前配置文件的默认策略处理，
 所以即使 `http://192.168.x.x:<port>/api/health` 在 Desktop 本机可用，另一台设备仍可能超时。
 
 以下问题不属于同一层，不能用添加防火墙规则替代：
@@ -219,9 +219,8 @@ winestock_core
 ```
 
 防火墙协调器属于 `desktop`，因为它是 Windows OS 集成和 Desktop 生命周期的一部分。`core` 不应依赖
-`windows`、`windows-sys` 或任何 Tauri API。当前 `windows-sys` 的 IP Helper 依赖继续只服务于
-`lan_access.rs`；防火墙 COM 实施统一复用现有高层 `windows` crate，并增加
-`Win32_NetworkManagement_WindowsFirewall` feature。实际落地前仍需用目标 `windows` crate 版本验证接口生成结果。
+`windows`、`windows-sys` 或任何 Tauri API。`lan_access.rs` 使用跨平台 `if-addrs`；防火墙 COM 实施统一复用
+高层 `windows` crate 的 `Win32_NetworkManagement_WindowsFirewall` feature。
 
 ## 规则设计
 
@@ -265,12 +264,13 @@ server-mode：
 不能按“所有名字包含 WineStock 的规则”删除。协调器只操作同时满足以下条件的规则：
 
 1. `Name` 等于代码中的稳定规则名；
-2. `Grouping` 或描述中包含稳定的 WineStock 规则标识；
-3. 规则属于本应用定义的 server-mode 规则形状。
+2. `Grouping` 等于稳定的 WineStock 规则标识；
+3. 新增/更新时规则属于本应用定义的 server-mode 规则形状。
 
-端口变化时先创建/更新新端口规则，确认成功后再删除旧的 WineStock 规则；失败时保留旧服务和旧规则，或
-回滚到旧服务，不能先删除旧规则再让新服务裸奔。正常停止、切换到 remote/self-hosted 和应用退出时删除
-自有规则。异常崩溃后下一次启动必须执行一次自有规则收敛，清理没有当前运行服务对应的旧端口规则。
+端口变化时更新同一条自有规则；如果新端口授权失败，旧端口规则仍会保留，服务和配置仍可继续使用，前端提示
+局域网访问可能不可用。离开 server-mode 时按稳定名称和分组清理自有规则，不依赖当前配置端口，避免这种失败路径
+留下旧端口规则。正常停止、重启、异常恢复和应用退出时保留已授权规则；切换到 remote/self-hosted 或卸载时才删除
+自有规则。异常崩溃后下一次启动只读检查规则，不自动触发 UAC。
 
 卸载器也应删除同一稳定标识的规则，但只能删除 WineStock 自有规则；不能清空整机防火墙策略。
 
@@ -286,7 +286,8 @@ server-mode：
    `INetFwPolicy2` 获取策略，使用 `INetFwRules`/`INetFwRule` 创建、更新或删除规则，然后返回受控退出码。
 5. Desktop 等待 helper 退出，把退出码和 Windows HRESULT 映射为稳定 Shell Bridge 状态；helper 立刻结束，
    不作为常驻管理员服务。
-6. 只有服务和规则都成功时，才把新的 server-mode 配置持久化为权威配置并发布 `firewall=ready`。
+6. 服务启动成功后即可持久化新的 server-mode 配置；规则成功时发布 `firewall=ready`，UAC 取消或规则更新
+   失败时保留服务并发布对应防火墙状态，由前端让用户选择继续或重试。
 
 `INetFwPolicy2`、`INetFwRules` 和 `INetFwRule` 是 Windows Firewall COM API；`NetFwPolicy2` 和
 `NetFwRule` 是对应的 COM 类标识。实施时应使用高层 `windows` crate 生成的 COM 接口、`BSTR`/Windows
@@ -306,38 +307,38 @@ server-mode：
 
 ### 启动、应用和重启
 
-server-mode 的一次成功应用应按以下事务边界执行：
+server-mode 的一次显式应用应按以下事务边界执行：
 
 ```text
 校验配置
   -> 启动/绑定 core
   -> 发现可发布的 IPv4 地址
-  -> ensure 当前端口的防火墙规则
+  -> 显式 ensure 当前端口的防火墙规则
   -> 规则成功：保存配置、发布 running + ready
-  -> 规则失败：关闭本次新服务，不保存新配置，返回稳定错误
+  -> UAC/规则失败：仍保存配置并发布 running + requires-elevation/error，前端选择继续或重试
 ```
 
 从旧的本地服务切换端口时，新规则成功后再清理旧规则。若新服务或新规则失败，应尽力恢复旧服务、旧端口
-和旧配置；前端不得看到“已应用”但没有对应的防火墙状态。
+和旧配置；防火墙失败不属于 core 启动失败，前端必须看到“已应用但局域网访问可能不可用”的防火墙状态。
 
-停止服务时删除自有规则失败，不应阻止用户停止 core；应返回 `cleanup_pending` 或记录下次启动收敛任务，
-并在快照中提示规则清理未完成。因为旧规则在没有 WineStock 服务时仍可能放行同端口，启动时必须再次校验和
-收敛，不能永久依赖退出清理。
+切换到非 server-mode 时删除自有规则失败，不应阻止用户切换模式；应返回 `cleanup_pending`，并在快照中提示
+规则清理未完成。正常停止和退出不执行删除，因此不会因为进程重启反复触发 UAC。
 
 ### 不同失败的语义
 
 | 情况 | 推荐服务行为 | Shell Bridge 状态/错误 |
 | --- | --- | --- |
-| 用户取消 UAC | 停止本次新服务，不保存新 server-mode 配置 | `firewall_authorization_required` / `requires-elevation` |
-| 组策略或权限拒绝 | 停止本次新服务，不伪装成端口冲突 | `firewall_policy_blocked` / `blocked-by-policy` |
+| 用户取消 UAC | 保存配置并保留 core，提示局域网可能不可达；用户可继续或显式重试 | `firewall_authorization_required` / `requires-elevation` |
+| 组策略或权限拒绝 | 保存配置并保留 core，不伪装成端口冲突；允许继续使用并显示状态 | `firewall_policy_blocked` / `blocked-by-policy` |
 | Windows Firewall 服务关闭 | 可运行但明确展示风险；不能显示为“防火墙已保护” | `disabled` |
 | 当前配置文件仅为 Public | 默认不自动开放，提示切换为 Private 或手动配置 | `profile-unsupported` |
-| COM/API 或 helper 异常 | 停止本次新服务并保留旧配置 | `firewall_rule_update_failed` / `error` |
+| COM/API 或 helper 异常 | 保存配置并保留 core，提示局域网可能不可达；显式操作时可重试 | `firewall_rule_update_failed` / `error` |
 | 当前网络地址暂时消失 | 保持现有服务状态，刷新 LAN URL；网络恢复时重新收敛规则 | `ready` 或 `error`，不能保留陈旧 URL |
 | 用户/安全软件外部删除规则 | 不重复弹 UAC 循环；显示外部设备可能不可达，显式重试时重新授权 | `requires-elevation` 或 `error` |
 
-对于已经持久化且自动恢复的配置，建议只在显式启动、重启、重新应用或用户点击“修复防火墙”时触发 UAC。
-应用焦点恢复可以无权读取规则并刷新状态，但不应每次获得焦点都弹 UAC。
+对于已经持久化且自动恢复的配置，启动只调用无权 `probe` 读取规则并刷新状态，不触发 UAC；只有显式保存、
+端口变化、模式切换或用户点击“重试防火墙”时才调用 `ensure/remove`。应用焦点恢复可以无权读取规则，
+但不应每次获得焦点都弹 UAC。
 
 ## Shell Bridge 契约建议
 
@@ -440,7 +441,7 @@ Dialog 足够承载这项能力。
 - Helper 的可执行文件应和应用使用同一发布者签名，安装到受控应用目录；启动时校验自身路径和固定参数格式。
 - Helper 不读取或返回数据库、认证 token、绝对存储路径或业务请求内容。
 - 日志只记录状态、端口和错误码，不记录 UAC 凭据或完整命令行敏感内容。
-- 规则名称和所有权标识必须是产品常量；删除前进行精确匹配和字段校验。
+- 规则名称和分组所有权标识必须是产品常量；删除前按固定名称和分组精确匹配。
 - 不允许前端自定义规则名称、程序路径、远端地址、Public profile 或任意 PowerShell 代码。
 - HTTP 局域网访问仍需依赖现有首次设密门和业务认证；防火墙规则不是认证机制。
 
@@ -466,8 +467,12 @@ Dialog 足够承载这项能力。
 
 ### 第三阶段：RuntimeManager 生命周期接入
 
-- 在 server-mode 成功 bind 后调用 `ensure`，规则失败时回滚新服务和配置持久化。
-- 停止、切换模式、端口变化、异常恢复和进程退出接入规则清理/收敛。
+- 显式保存 server-mode 在成功 bind 后调用 `ensure`；规则失败时保留新服务和配置持久化，并发布防火墙告警。
+- 软件启动和应用恢复时只调用无权 `probe`，规则不符合条件时通过前端提示是否重新设置。
+- 防火墙规则是 Windows 的持久配置：正常停止、重启、异常恢复和进程退出只停止 core、释放端口，
+  不删除已授权规则；下次启动先只读检查，匹配时不触发 UAC。
+- 从 server-mode 切换到 remote/self-hosted 时删除自有规则；server-mode 内部端口变化由新的 `ensure`
+  更新规则，通常只在规则需要变更时再次请求 UAC。
 - 将只读状态刷新接入快照和焦点恢复；禁止无感知反复弹 UAC。
 - 保持现有 `lan_access.rs` 的职责：它只发现访问地址，不写防火墙规则。
 
@@ -484,19 +489,20 @@ Dialog 足够承载这项能力。
 
 - 规则字段单元测试：端口变化、Profile 不含 Public、远端范围为 `LocalSubnet`、Edge Traversal 关闭。
 - helper 测试：非法动作、非法端口、重复 ensure、remove 幂等、只清理自有规则。
-- RuntimeManager 测试：UAC 失败不持久化、不留下新服务；规则成功后快照和配置一致；停止清理失败不阻止停止。
+- RuntimeManager 测试：启动 probe 不触发 helper；显式 ensure 失败时配置和 core 仍可保留；规则成功后快照和配置一致；
+  模式切换清理失败不阻止切换，且可通过 repair 重试。
 - Shell Bridge 契约测试：新字段可选，旧快照仍可反序列化，稳定错误码不退化为 `service_start_failed`。
 
 ### Windows 实机/虚拟机
 
 - 防火墙开启、Private 网络：同网第二台设备访问 `http://<lan-ip>:<port>/api/health` 成功。
 - 首次授权接受 UAC：规则出现，端口和 Profile 字段正确。
-- UAC 取消：服务停止、配置未保存、前端显示重新授权入口。
+- UAC 取消：服务和配置保留，前端提示局域网可能不可达，并提供继续使用/重试入口；启动检测不自动弹 UAC。
 - Public 网络：不创建 Public 放行；状态为 `profile-unsupported`，手动切换 Private 后可修复。
 - Group Policy 拒绝：状态为 `blocked-by-policy`，不循环弹窗，不删除其它规则。
 - 防火墙服务关闭：服务行为、风险提示和状态与规则 ready 明确区分。
 - 端口变更：新端口可访问，旧端口规则清理；中途失败能恢复旧配置。
-- 停止、切换 remote、正常退出、异常重启和卸载：自有规则最终清理。
+- 正常停止、正常退出和异常重启：规则保持；切换 remote/self-hosted：显式清理并在失败时提供重试；卸载流程最终清理自有规则。
 - 访客 Wi-Fi/AP 客户端隔离：防火墙规则正确但访问仍失败，诊断结果应指向网络设备而非继续扩大规则。
 - IPv6 绑定：按首版策略明确拒绝自动放行或显示不支持，不产生未验证的 IPv6 暴露。
 
@@ -512,7 +518,5 @@ Dialog 足够承载这项能力。
 - [if-addrs 0.15](https://docs.rs/if-addrs/0.15.0/)，用于跨平台高层网卡地址枚举
 
 当前 Context7 查询到 Rust for Windows 的高层 `windows` crate 支持通过生成的 COM 接口、`BSTR` 和
-`windows::core::Result` 管理 Windows API；实现阶段应以目标 `windows` crate 版本的
-`Win32_NetworkManagement_WindowsFirewall` feature 为准，并通过 Windows 目标编译验证
-`INetFwPolicy2`/`INetFwRules`/`INetFwRule` 的实际可用性。当前源代码中的 `windows-sys` 仅暂时用于旧的
-IP Helper 地址发现；迁移到 `if-addrs` 后应移除这条地址发现依赖，且它始终不参与 Firewall API。
+`windows::core::Result` 管理 Windows API；本实现已通过 Windows 目标编译验证
+`INetFwPolicy2`/`INetFwRules`/`INetFwRule` 的实际可用性。`windows-sys` 不参与地址发现或 Firewall API。

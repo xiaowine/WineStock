@@ -35,6 +35,23 @@ export type RuntimeConfigStatus = "configured" | "unconfigured" | "invalid";
 /** Shell 管理的服务生命周期阶段。 */
 export type ShellServicePhase = "stopped" | "starting" | "running" | "stopping" | "failed";
 
+/** 平台对 server-mode 局域网防火墙规则的保护状态。 */
+export type RuntimeFirewallStatus =
+  | "ready"
+  | "requires-elevation"
+  | "blocked-by-policy"
+  | "profile-unsupported"
+  | "disabled"
+  | "error"
+  | "cleanup-pending"
+  | "not-required";
+
+export interface RuntimeFirewallSnapshot {
+  status: RuntimeFirewallStatus;
+  port?: number;
+  scope?: "local-subnet";
+}
+
 /** 平台向前端返回的稳定运行错误。 */
 export interface ShellRuntimeError {
   /** 前端分支使用的稳定错误码。 */
@@ -74,6 +91,8 @@ export interface RuntimeSnapshot {
     localAuthExchangeToken?: string;
     /** Shell 探测到的局域网访问地址。 */
     lanAccessUrls?: string[];
+    /** Shell 对当前 server-mode 端口的防火墙保护状态。 */
+    firewall?: RuntimeFirewallSnapshot;
     /** 最近一次配置或生命周期错误。 */
     error?: ShellRuntimeError;
   };
@@ -196,6 +215,8 @@ export interface ShellBridge {
   stopLocalService(): Promise<RuntimeSnapshot>;
   /** 重启当前本地服务。 */
   restartLocalService(): Promise<RuntimeSnapshot>;
+  /** 显式配置当前 server-mode 防火墙规则，或重试待清理规则。 */
+  repairFirewall(): Promise<RuntimeSnapshot>;
   /** 前端首个稳定画面已经渲染。 */
   frontendReady(): Promise<void>;
   /** 通过平台安全能力打开经过校验的外部链接。 */
@@ -224,6 +245,7 @@ export function assertCompleteShellBridge(value: unknown): asserts value is Shel
     "startLocalService",
     "stopLocalService",
     "restartLocalService",
+    "repairFirewall",
     "frontendReady",
     "openExternal",
     "onRuntimeStateChanged",
@@ -309,6 +331,9 @@ export function cloneRuntimeSnapshot(snapshot: RuntimeSnapshot): RuntimeSnapshot
       lanAccessUrls: snapshot.service.lanAccessUrls
         ? [...snapshot.service.lanAccessUrls]
         : undefined,
+      firewall: snapshot.service.firewall
+        ? { ...snapshot.service.firewall }
+        : undefined,
       error: snapshot.service.error ? { ...snapshot.service.error } : undefined,
     },
     capabilities: { ...snapshot.capabilities },
@@ -342,6 +367,7 @@ export function assertCompatibleRuntimeSnapshot(value: unknown): asserts value i
     !isOptionalString(service.boundAddress) ||
     !isOptionalString(service.localAuthExchangeToken) ||
     !isOptionalStringArray(service.lanAccessUrls) ||
+    !isOptionalRuntimeFirewall(service.firewall) ||
     !isOptionalRuntimeError(service.error) ||
     !isRecord(capabilities) ||
     ![
@@ -475,6 +501,26 @@ function isOptionalString(value: unknown): boolean {
 function isOptionalStringArray(value: unknown): boolean {
   return (
     value === undefined || (Array.isArray(value) && value.every((item) => typeof item === "string"))
+  );
+}
+
+function isOptionalRuntimeFirewall(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isRecord(value)) return false;
+  return (
+    [
+      "ready",
+      "requires-elevation",
+      "blocked-by-policy",
+      "profile-unsupported",
+      "disabled",
+      "error",
+      "cleanup-pending",
+      "not-required",
+    ].includes(String(value.status)) &&
+    (value.port === undefined ||
+      (typeof value.port === "number" && Number.isInteger(value.port) && value.port > 0)) &&
+    (value.scope === undefined || value.scope === "local-subnet")
   );
 }
 

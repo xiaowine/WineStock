@@ -3,7 +3,11 @@ import { computed, readonly, ref, shallowRef } from "vue";
 import { apiClient } from "../api/client";
 import { resetAuthBootstrapStatus } from "../api/auth";
 import { configureRuntimeApiBaseUrl } from "../api/runtime-config";
-import { resetAuthSessionForRuntimeChange, setLocalAuthExchangeToken } from "../auth/session";
+import {
+  preserveAuthSessionForServerPortChange,
+  resetAuthSessionForRuntimeChange,
+  setLocalAuthExchangeToken,
+} from "../auth/session";
 import {
   applyShellServiceStateSignal,
   resetServiceAvailabilityForRuntimeChange,
@@ -96,7 +100,7 @@ export async function validateRuntimeConfig(
   return result;
 }
 
-/** 保存并应用运行配置；API 地址变化时同步重置健康检查和内存会话。 */
+/** 保存并应用运行配置；服务切换时同步重置健康检查和内存会话。 */
 export async function applyRuntimeConfig(
   config: EditableRuntimeConfig,
 ): Promise<ApplyRuntimeConfigResult> {
@@ -172,6 +176,15 @@ export async function restartLocalService(): Promise<RuntimeSnapshot> {
   return result;
 }
 
+/** 显式修复 server-mode 防火墙规则；不会重启本地服务。 */
+export async function repairFirewall(): Promise<RuntimeSnapshot> {
+  await initializeShellRuntime();
+  const previousApiBaseUrl = activeApiBaseUrl.value;
+  const result = await requireBridge().repairFirewall();
+  applySnapshot(result, previousApiBaseUrl);
+  return result;
+}
+
 /** 通过当前平台的受控能力打开外部 HTTP/HTTPS 地址。 */
 export async function openExternal(url: string): Promise<void> {
   const snapshot = await initializeShellRuntime();
@@ -223,13 +236,29 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
 function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): void {
   assertCompatibleRuntimeSnapshot(snapshot);
   const nextSnapshot = cloneRuntimeSnapshot(snapshot);
+  const previousSnapshot = mutableRuntimeSnapshot.value;
   const apiBaseUrlChanged =
     previousApiBaseUrl !== undefined && previousApiBaseUrl !== nextSnapshot.service.apiBaseUrl;
+  const isServerPortChange =
+    apiBaseUrlChanged &&
+    previousSnapshot?.config.mode === "server-mode" &&
+    nextSnapshot.config.mode === "server-mode" &&
+    previousSnapshot.service.ownership === "local" &&
+    nextSnapshot.service.ownership === "local" &&
+    previousSnapshot.config.port !== nextSnapshot.config.port &&
+    nextSnapshot.service.apiBaseUrl !== undefined;
 
   if (apiBaseUrlChanged) {
     apiClient.cancelRequestsForRuntimeChange();
     resetAuthBootstrapStatus();
-    resetAuthSessionForRuntimeChange();
+    if (isServerPortChange) {
+      preserveAuthSessionForServerPortChange(
+        previousApiBaseUrl,
+        nextSnapshot.service.apiBaseUrl as string,
+      );
+    } else {
+      resetAuthSessionForRuntimeChange();
+    }
   }
 
   configureRuntimeApiBaseUrl(nextSnapshot.service.apiBaseUrl);

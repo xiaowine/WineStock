@@ -72,6 +72,12 @@ pub const ERROR_PORT_IN_USE: &str = "port_in_use";
 pub const ERROR_SERVICE_START_FAILED: &str = "service_start_failed";
 pub const ERROR_SERVICE_CRASHED: &str = "service_crashed";
 pub const ERROR_UNSUPPORTED_RUNTIME_MODE: &str = "unsupported_runtime_mode";
+pub const ERROR_FIREWALL_AUTHORIZATION_REQUIRED: &str = "firewall_authorization_required";
+pub const ERROR_FIREWALL_POLICY_BLOCKED: &str = "firewall_policy_blocked";
+pub const ERROR_FIREWALL_PROFILE_UNSUPPORTED: &str = "firewall_profile_unsupported";
+pub const ERROR_FIREWALL_SERVICE_UNAVAILABLE: &str = "firewall_service_unavailable";
+pub const ERROR_FIREWALL_RULE_UPDATE_FAILED: &str = "firewall_rule_update_failed";
+pub const ERROR_FIREWALL_CLEANUP_PENDING: &str = "firewall_cleanup_pending";
 
 /// Shell 可安全返回给前端的稳定运行错误。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,6 +90,20 @@ pub struct ShellRuntimeError {
     /// 错误对应的运行配置字段。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field: Option<String>,
+}
+
+/// Windows 防火墙对当前 server-mode 端口的保护状态。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeFirewallSnapshot {
+    /// `ready`、`requires-elevation`、`blocked-by-policy`、`profile-unsupported`、`disabled` 或 `error`。
+    pub status: String,
+    /// 规则对应的当前服务端口。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+    /// 规则设计使用的网络范围；当前 Windows 实现为 `local-subnet`。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
 }
 
 impl ShellRuntimeError {
@@ -116,6 +136,9 @@ pub struct RuntimeServiceSnapshot {
     /// server-mode 由 Shell 根据真实网卡地址发布的局域网访问地址。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lan_access_urls: Option<Vec<String>>,
+    /// server-mode 当前平台防火墙保护状态。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub firewall: Option<RuntimeFirewallSnapshot>,
     /// 最近一次配置或生命周期错误。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<ShellRuntimeError>,
@@ -183,7 +206,7 @@ pub struct ApplyRuntimeConfigResult {
     pub error: Option<ShellRuntimeError>,
 }
 
-/// Desktop 能力：按当前快照的本地归属动态开放生命周期；server-mode 可由前端配置。
+/// Desktop 能力：按当前快照的本地归属动态开放生命周期；当前仅 Windows 自动支持 server-mode。
 pub fn desktop_capabilities(initialized: bool, ownership: &str) -> RuntimeCapabilities {
     let local_lifecycle_available = initialized && ownership == "local";
     RuntimeCapabilities {
@@ -192,7 +215,7 @@ pub fn desktop_capabilities(initialized: bool, ownership: &str) -> RuntimeCapabi
         restart_local_service: local_lifecycle_available,
         native_back: false,
         open_external: true,
-        server_mode: true,
+        server_mode: cfg!(windows),
     }
 }
 
@@ -205,6 +228,7 @@ pub fn stopped_service() -> RuntimeServiceSnapshot {
         bound_address: None,
         local_auth_exchange_token: None,
         lan_access_urls: None,
+        firewall: None,
         error: None,
     }
 }

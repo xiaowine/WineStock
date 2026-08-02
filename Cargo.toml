@@ -55,16 +55,15 @@ utoipa-axum = "0.2"
 utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
 url = "2.5.8"
 rfd = "0.17.2"
+if-addrs = "0.15.0"
 webview2-com = "0.38.2"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
+  "Win32_NetworkManagement_WindowsFirewall",
   "Win32_System_Com",
   "Win32_System_LibraryLoader",
-] }
-windows-sys = { version = "0.61", features = [
-  "Win32_NetworkManagement_IpHelper",
-  "Win32_NetworkManagement_Ndis",
-  "Win32_Networking_WinSock",
+  "Win32_System_Threading",
+  "Win32_UI_Shell",
 ] }
 winestock-core = { path = "core" }
 winestock-shared = { path = "shared" }

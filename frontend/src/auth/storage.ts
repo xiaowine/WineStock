@@ -50,6 +50,50 @@ export function loadPersistedRefreshToken(): string | null {
   return parsed.api_base_url === resolveApiBaseUrl() ? parsed.refresh_token : null;
 }
 
+/**
+ * 本地 server-mode 端口变化时迁移 refresh token 的地址绑定；不适用于远端服务切换。
+ * 迁移只在记录仍绑定旧地址时执行，避免覆盖其它标签页刚写入的新会话。
+ */
+export function rebindPersistedRefreshTokenApiBaseUrl(
+  previousApiBaseUrl: string,
+  nextApiBaseUrl: string,
+): boolean {
+  if (previousApiBaseUrl === nextApiBaseUrl) {
+    return false;
+  }
+
+  const storage = resolveLocalStorage();
+  let serialized: string | null;
+  try {
+    serialized = storage.getItem(STORAGE_KEY);
+  } catch (error) {
+    throw new AuthPersistenceError("无法读取本地登录状态", error);
+  }
+  if (!serialized) {
+    return false;
+  }
+
+  const parsed = parsePersistedRefreshSession(serialized);
+  if (!parsed || parsed.api_base_url !== previousApiBaseUrl) {
+    return false;
+  }
+
+  const rebound: PersistedRefreshSession = {
+    ...parsed,
+    api_base_url: nextApiBaseUrl,
+    saved_at: Date.now(),
+  };
+  try {
+    if (storage.getItem(STORAGE_KEY) !== serialized) {
+      return false;
+    }
+    storage.setItem(STORAGE_KEY, JSON.stringify(rebound));
+    return true;
+  } catch (error) {
+    throw new AuthPersistenceError("无法更新本地登录状态", error);
+  }
+}
+
 /** 保存当前 API 服务的 refresh token；新 token 会覆盖已经轮换失效的旧值。 */
 export function persistRefreshToken(refreshToken: string): void {
   const record: PersistedRefreshSession = {

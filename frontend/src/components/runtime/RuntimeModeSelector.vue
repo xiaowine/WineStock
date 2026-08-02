@@ -72,7 +72,9 @@ const options = computed(() => [
     description: "在当前设备运行服务，并允许局域网中的其他设备连接。",
     selected: props.modelValue === "server-mode",
     disabled: !props.serverModeAvailable,
-    unavailableReason: props.serverModeAvailable ? "" : "当前平台暂不支持持续提供局域网服务。",
+    unavailableReason: props.serverModeAvailable
+      ? ""
+      : "当前平台暂不支持自动配置防火墙，请手动配置。",
   },
 ]);
 
