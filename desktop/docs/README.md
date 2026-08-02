@@ -13,8 +13,12 @@ pnpm desktop:dev
 pnpm desktop:build
 ```
 
-Tauri 开发态使用 Vite 的 `desktop` mode；发布构建将同一份 `frontend/dist` 打包进应用，主窗口不会导航到
-Axum 或远端 API 地址。
+Tauri 开发态和发布构建都使用共享前端的普通 Vite 配置，发布时将同一份 `frontend/dist` 打包进应用，
+主窗口不会导航到 Axum 或远端 API 地址。
+
+Desktop transport 由 Tauri 运行时识别；`clientKind`、`deviceName` 和 `appVersion` 由 Desktop Rust 在 WebView
+document-start 阶段动态注入。设备名由 `whoami` 按当前 Windows、macOS 或 Linux 用户解析，
+版本来自 Tauri 包信息，读取失败时设备名回退为 `WineStock Desktop`。
 
 Windows `x86_64-pc-windows-msvc` 目标沿用默认 Rust 链接方式；`core` 和 desktop 壳不会以 DLL 形式交付。
 当前 Rustls/AWS-LC 版本链与 KeyWine 对齐，避免额外的 VC++ runtime 文件依赖。Tauri 仍使用 Windows
@@ -84,7 +88,7 @@ Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询�
 
 ```text
 cargo test -p winestock-desktop
-cd frontend && pnpm run build:desktop
+cd frontend && pnpm run build
 cd frontend && pnpm run test:runtime-funnel
 cd frontend && pnpm run test:availability-policy
 ```

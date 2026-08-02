@@ -311,7 +311,7 @@ HRESULT、堆栈、路径或任意异常文本展示给用户。平台接收前�
 - 首次无配置、已有本地配置、远端配置和服务启动失败场景不受影响。
 - `cargo test -p winestock-desktop`。
 - `cd frontend && pnpm exec vue-tsc -b`。
-- `cd frontend && pnpm run build:desktop`。
+- `cd frontend && pnpm run build`。
 - `git diff --check`。
 
 ## 8. 实施结果

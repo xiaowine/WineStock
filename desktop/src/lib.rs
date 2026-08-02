@@ -4,6 +4,7 @@
 
 pub mod commands;
 pub mod contract;
+pub mod device_metadata;
 pub mod firewall;
 pub(crate) mod lan_access;
 pub mod lifecycle;

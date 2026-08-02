@@ -7,7 +7,7 @@
 
 ## 工程入口与启动
 
-- `frontend/package.json`、`vite.config.ts`、`public/`：pnpm 脚本、Web/Android/Desktop 三构建模式、Node test runner 纯逻辑测试入口及从根 `brand/` 母版派生的 favicon；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest；Desktop mode 只在 Tauri 开发/打包时选择其 IPC 适配且不影响普通 Web fallback；不固定 Node/pnpm 版本。package.json `appStage` 字段经 define 注入为品牌阶段徽标常量（各模式一致，空串时应用壳徽标隐藏）。
+- `frontend/package.json`、`vite.config.ts`、`public/`：pnpm 脚本、共享 Web/Desktop 构建、Android 隔离构建、Node test runner 纯逻辑测试入口及从根 `brand/` 母版派生的 favicon；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest；Desktop 通过 Tauri 运行时选择 IPC 适配，不再依赖专用 Vite mode；不固定 Node/pnpm 版本。package.json `appStage` 字段经 define 注入为品牌阶段徽标常量，空串时应用壳徽标隐藏。
 - `frontend/src/main.ts` 与 `src/bootstrap/`：在任何异步启动工作前初始化主题，再初始化 Shell 运行快照和动态 API 地址；随后按需启动健康检查、会话恢复、跨标签页同步、全局浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
 - `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
 - `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。

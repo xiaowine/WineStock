@@ -149,9 +149,8 @@ winestock-app-resumed
 
 前端新增 `frontend/src/shell/transports/tauri.ts`，使用 `invoke` 和 `listen` 实现现有 `ShellBridge` 接口，
 并直接使用 `@tauri-apps/plugin-opener` 的 `openUrl` 打开外部链接；
-`frontend/src/shell/transportFactory.ts` 负责选择注入桥、Tauri 传输或 Web fallback。
-Vite 增加明确的 desktop 构建模式来选择该适配层；普通浏览器继续使用 Web fallback，不通过
-`window.__TAURI__` 或 User-Agent 猜测能力。
+`frontend/src/shell/transportFactory.ts` 负责选择注入桥、Tauri 传输或 Web fallback；Tauri 传输通过官方运行时
+宿主探测选择，普通浏览器继续使用 Web fallback，不通过 User-Agent 猜测能力。
 
 `openExternal` 只接受业务声明的 `http` 和 `https` URL；Desktop 由 Tauri opener capability 的精确 scope
 限制为 GitHub 项目页、QQ群链接和 Microsoft 隐私声明，普通浏览器仍由 Web fallback 处理。
@@ -214,7 +213,7 @@ Vite 增加明确的 desktop 构建模式来选择该适配层；普通浏览器
 
 ```text
 cargo test -p winestock-desktop
-cd frontend && pnpm run build:desktop
+cd frontend && pnpm run build
 cd frontend && pnpm run test:runtime-funnel
 cd frontend && pnpm run test:availability-policy
 Tauri development smoke

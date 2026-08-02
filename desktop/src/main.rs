@@ -126,9 +126,15 @@ fn main() {
             // 或启动失败均会快速返回，并由最终快照驱动对应的前端页面。
             tauri::async_runtime::block_on(manager.initialize());
             let snapshot = tauri::async_runtime::block_on(manager.snapshot());
+            let runtime_metadata_script =
+                winestock_desktop::device_metadata::build_runtime_config_script(
+                    &winestock_desktop::device_metadata::resolve_device_name(),
+                    &app.package_info().version.to_string(),
+                );
 
             let main_window =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                    .initialization_script(runtime_metadata_script)
                     .title("WineStock")
                     .inner_size(1280.0, 800.0)
                     .min_inner_size(460.0, 600.0)

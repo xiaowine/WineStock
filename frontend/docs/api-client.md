@@ -67,6 +67,7 @@ window.__WINESTOCK_RUNTIME_CONFIG__ = {
 ```
 
 本地 Vite 开发可在不提交到仓库的 `.env.local` 中设置对应 `VITE_*` 变量。
+Desktop 和 Android 的正式 Shell 在前端脚本执行前动态注入三项客户端元数据；Desktop 使用与 Web 相同的 Vite 前端构建，不编译固定的客户端类型、设备名称或版本号。
 浏览器 fallback 会把用户应用的运行配置保存到版本化 `localStorage`；损坏记录以 `configStatus = invalid` 返回默认修复草稿，不阻止设置页加载。
 
 ## 请求行为

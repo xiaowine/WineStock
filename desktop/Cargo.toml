@@ -18,6 +18,7 @@ tauri-plugin-opener = { workspace = true }
 tauri-plugin-single-instance = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
+whoami = { workspace = true }
 rfd = { workspace = true }
 if-addrs = { workspace = true }
 webview2-com = { workspace = true }

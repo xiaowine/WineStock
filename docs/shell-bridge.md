@@ -37,6 +37,17 @@ Shell 不提供原生设置窗口、Android 设置 Activity、Tauri 原生配置
 
 Shell Bridge 不得复制 HTTP DTO、代理业务请求或把 Rust 内部业务函数暴露给前端。
 
+### 客户端元数据
+
+`clientKind`、`deviceName` 和 `appVersion` 属于 Shell 启动时提供的客户端元数据，不属于运行快照、可编辑运行配置或业务 API。
+UI Shell 必须在前端业务脚本执行前注入 `window.__WINESTOCK_RUNTIME_CONFIG__`；前端只负责读取并将这些值带入登录、注册和本地会话换取请求。
+
+- Desktop：Tauri 初始化脚本在 document-start 阶段注入 `clientKind = "desktop"`、当前系统用户名和 Tauri 包版本；用户名由跨平台实现解析。
+- Android：原生 Shell 通过 document-start transport 注入 `clientKind = "android"`、设备型号和应用版本。
+- Web：没有原生 Shell 时使用 `VITE_*` 开发配置或 Web 默认值。
+
+Desktop 使用与 Web 相同的 Vite 前端构建；Tauri 只在运行时选择 Desktop transport 并注入客户端元数据，不得把客户端元数据编译进前端产物。
+
 ### Shell Bridge 边界
 
 以下能力通过 Shell Bridge：

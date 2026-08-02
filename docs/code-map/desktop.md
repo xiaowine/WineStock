@@ -1,6 +1,6 @@
 # Desktop 代码地图
 
-`desktop` 是 WineStock 正式的 Tauri v2 桌面壳，当前以 Windows 为优先交付目标。它依赖
+`desktop` 是 WineStock 正式的 Tauri v2 桌面壳，当前以 Windows 为优先交付目标，同时保留 macOS/Linux 的跨平台运行边界。它依赖
 `core -> shared` 启动本地 Axum 并打包 `frontend/dist`；业务调用仍严格为前端到 HTTP API。
 
 - `desktop/src/`：Tauri 窗口装配、单实例/快捷键等桌面平台插件、受限 Shell Bridge command、版本化 DTO，
@@ -14,6 +14,7 @@
   Windows 使用高层 `windows` crate 的 Firewall COM 和受限 UAC helper 管理自有规则；
   `webview_compatibility.rs` 在主窗口显示前通过 WebView2 官方 Loader binding 执行 M111
   启动门禁并为原生阻断提示提供受控诊断码，`webview_privacy.rs` 通过 Tauri 高层配置和 Windows WebView2 Settings 关闭普通表单自动填充与密码自动保存；
+  `device_metadata.rs` 负责读取 Desktop 客户端元数据并生成 document-start 前端注入脚本；
   不拥有业务路由、数据库 schema 或前端设置界面。
 - `desktop/capabilities/` 与 `permissions/`：只把主窗口绑定到具名 Shell Bridge command 和事件监听，
   不授予通用 shell 或文件系统能力。
