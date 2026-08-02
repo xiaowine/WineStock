@@ -24,7 +24,7 @@
       },
       "nsis": {
         "languages": ["English", "SimpChinese"],
-        "displayLanguageSelector": false,
+        "displayLanguageSelector": true,
         "customLanguageFiles": {
           "SimpChinese": "nsis/languages/SimpChinese.nsh"
         }

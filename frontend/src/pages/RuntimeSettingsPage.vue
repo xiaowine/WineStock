@@ -266,29 +266,44 @@
         :disabled="gateSubmitting"
         required
       />
-      <FormInput
-        v-model="gatePassword"
+      <FormField
         label="当前用户密码"
+        control-id="runtime_next_gate_password"
         validation-key="gatePassword"
         :error="gateFieldError"
         hint="至少 8 个字符。"
-        name="runtime_next_gate_password"
-        type="password"
-        autocomplete="off"
-        :disabled="gateSubmitting"
         required
-      />
-      <FormInput
-        v-model="gatePasswordConfirm"
+        v-slot="{ describedBy, invalid }"
+      >
+        <PasswordInput
+          id="runtime_next_gate_password"
+          v-model="gatePassword"
+          name="runtime_next_gate_password"
+          minlength="8"
+          maxlength="128"
+          :disabled="gateSubmitting"
+          :aria-invalid="invalid || undefined"
+          :aria-describedby="describedBy"
+        />
+      </FormField>
+      <FormField
         label="确认密码"
+        control-id="runtime_next_gate_password_confirm"
         validation-key="gatePasswordConfirm"
         :error="gateConfirmError"
-        name="runtime_next_gate_password_confirm"
-        type="password"
-        autocomplete="off"
-        :disabled="gateSubmitting"
         required
-      />
+        v-slot="{ describedBy, invalid }"
+      >
+        <PasswordInput
+          id="runtime_next_gate_password_confirm"
+          v-model="gatePasswordConfirm"
+          name="runtime_next_gate_password_confirm"
+          maxlength="128"
+          :disabled="gateSubmitting"
+          :aria-invalid="invalid || undefined"
+          :aria-describedby="describedBy"
+        />
+      </FormField>
       <template #actions>
         <button
           class="secondary-button"
@@ -321,8 +336,10 @@ import {
   localSilentAuthActive,
   replaceCurrentSessionUser,
 } from "../auth/session";
+import FormField from "../components/forms/FormField.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import ModalDialog from "../components/ModalDialog.vue";
+import PasswordInput from "../components/PasswordInput.vue";
 import { useFormValidation } from "../composables/useFormValidation";
 import { notice } from "../notices/notice";
 import { getDefaultAppRouteName } from "../router/navigation";
