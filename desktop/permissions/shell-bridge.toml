@@ -12,5 +12,5 @@ commands.allow = [
   "shell_get_desktop_preferences",
   "shell_set_desktop_preferences",
   "shell_frontend_ready",
-  "shell_open_external",
+  "shell_frontend_failed",
 ]

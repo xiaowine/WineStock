@@ -107,5 +107,7 @@ internal class WebViewCompatibilityScreen(
                 R.string.webview_compatibility_message_version_too_old
             WebViewIncompatibilityReason.REQUIRED_FEATURES_MISSING ->
                 R.string.webview_compatibility_message_features_missing
+            WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE ->
+                R.string.webview_compatibility_message_shell_bridge_unavailable
         }
 }

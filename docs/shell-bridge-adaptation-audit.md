@@ -80,7 +80,7 @@ Shell Bridge 只负责运行配置、服务生命周期、运行快照、平台�
 - `desktop/src/main.rs`：窗口创建、隐藏/显示、单实例聚焦、退出时等待 Core 关闭。
 - `tauri-plugin-single-instance`：第二实例聚焦首实例并退出，不向桥转发参数或 URL。
 - `tauri-plugin-prevent-default`：Release 禁用 WebView2 默认快捷键，Debug 保留调试快捷键。
-- `tauri-plugin-opener`：外链的实际系统调用由 `shell_open_external` 触发，但插件本身不属于桥协议。
+- `tauri-plugin-opener`：前端 Tauri transport 直接调用 `openUrl`；主窗口 capability 只允许项目 GitHub 页、QQ群链接和 Microsoft 隐私声明，插件本身不属于桥协议。
 - Tauri 资源打包、CSP、窗口尺寸和 NSIS 安装器：属于平台打包，不通过前端桥控制。
 - Desktop 前端客户端元数据当前由 `vite.config.ts` 的 desktop build-time define 提供，不是运行时桥字段。
 

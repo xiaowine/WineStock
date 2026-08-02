@@ -35,13 +35,10 @@ internal class MainShellCoordinator(
     private val activity: ComponentActivity,
     launchFileChooser: (Intent) -> Unit,
     requestCameraPermission: () -> Unit,
+    private val onBridgeFailure: (String) -> Unit = {},
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val splashGate =
-        SplashFrontendGate(
-            mainHandler = mainHandler,
-            timeoutMs = AppConfig.SPLASH_TIMEOUT_MS,
-        )
+    private val splashGate = SplashFrontendGate()
     private val fileChooserHost = WebViewFileChooserHost(launchIntent = launchFileChooser)
     private val cameraPermissionHost =
         WebViewCameraPermissionHost(
@@ -56,6 +53,7 @@ internal class MainShellCoordinator(
     private lateinit var systemBarAppearance: SystemBarAppearanceController
     private var shellBridge: ShellBridgeHost? = null
     private var viewportInsetsPublisher: WebViewportInsetsPublisher? = null
+    private var shellFailureHandled = false
 
     /**
      * 完成 edge-to-edge、内容视图、WebView、Bridge 与返回协商，并加载前端入口。
@@ -77,6 +75,7 @@ internal class MainShellCoordinator(
         assetLoader = createAssetLoader()
         webView = binding.webView
         configureWebView(webView)
+        if (shellFailureHandled) return
         NativeBackNavigator(
             activity = activity,
             webView = { webView },
@@ -132,10 +131,25 @@ internal class MainShellCoordinator(
         fileChooserHost.destroy()
         cameraPermissionHost.destroy()
         disposeWebViewInfrastructure()
+        if (::webView.isInitialized && !shellFailureHandled) {
+            binding.webViewContainer.removeView(webView)
+            webView.destroy()
+        }
+    }
+
+    /** Bridge 无法安装或前端契约不兼容时，销毁 WebView 并把恢复 UI 交回 Activity。 */
+    fun stopForBridgeFailure(message: String) {
+        if (shellFailureHandled) return
+        shellFailureHandled = true
+        splashGate.markReady()
+        fileChooserHost.cancelPending()
+        cameraPermissionHost.cancelPending()
+        disposeWebViewInfrastructure()
         if (::webView.isInitialized) {
             binding.webViewContainer.removeView(webView)
             webView.destroy()
         }
+        onBridgeFailure(message)
     }
 
     private fun configureWebView(target: WebView) {
@@ -154,10 +168,10 @@ internal class MainShellCoordinator(
             cameraPermissionHost = cameraPermissionHost,
             onPageStarted = { url -> shellBridge?.onPageStarted(url) },
             onPageVisible = { url -> viewportInsetsPublisher?.onPageVisible(url) },
-            onFrontendReady = { splashGate.markReady() },
             onRendererExit = ::recoverFromRendererExit,
         ).configure(target)
         installShellBridge(target)
+        if (shellFailureHandled) return
         target.loadUrl(AppConfig.FRONTEND_HOME_URL)
     }
 
@@ -228,14 +242,16 @@ internal class MainShellCoordinator(
                 deviceName = DeviceMetadata.resolveDeviceName(),
                 appVersion = DeviceMetadata.resolveAppVersion(activity),
                 nativeBackResponseTimeoutMs = AppConfig.NATIVE_BACK_RESPONSE_TIMEOUT_MS,
+                frontendReadyTimeoutMs = AppConfig.SHELL_BRIDGE_READY_TIMEOUT_MS,
                 onFrontendReady = { splashGate.markReady() },
+                onBridgeFailure = ::stopForBridgeFailure,
             )
         if (bridge.install(webView)) {
             shellBridge = bridge
         } else {
             bridge.destroy()
+            stopForBridgeFailure("Shell Bridge 安装失败")
         }
-        // 桥不可用时前端会通过降级桥进入可修复失败态，Activity 仍加载前端资源。
     }
 
     companion object {

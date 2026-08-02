@@ -18,8 +18,8 @@ internal object AppConfig {
     /** Shell Bridge 消息通道允许的 origin 规则，仅限受信任前端 origin。 */
     const val TRUSTED_ORIGIN = "https://$TRUSTED_HOST"
 
-    /** 无就绪信号时放行冷启动 SplashScreen 的兜底超时，避免异常时永久卡在启动画面。 */
-    const val SPLASH_TIMEOUT_MS = 8_000L
+    /** Shell Bridge 等待前端完成握手的最长时间；超时由原生壳显示失败提示。 */
+    const val SHELL_BRIDGE_READY_TIMEOUT_MS = 8_000L
 
     /** Android 等待前端结算一次原生返回请求的最长时间；超时后重新读取 WebView history 并 fallback。 */
     const val NATIVE_BACK_RESPONSE_TIMEOUT_MS = 400L

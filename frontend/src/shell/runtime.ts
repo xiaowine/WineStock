@@ -17,6 +17,7 @@ import {
   assertCompleteShellBridge,
   assertApplyRuntimeConfigResult,
   assertCompatibleRuntimeSnapshot,
+  assertDesktopFirewallShellBridgeExtension,
   assertDesktopPreferences,
   assertNativeBackRequest,
   assertNativeBackResolutionAck,
@@ -122,6 +123,14 @@ export async function reportFrontendReady(): Promise<void> {
   await requireBridge().frontendReady();
 }
 
+/** 把不可恢复的前端桥契约错误交给原生壳；原生壳负责停止 WebView 并显示平台提示。 */
+export async function reportShellBridgeFailure(error: unknown): Promise<void> {
+  const reporter = bridge?.reportFrontendFailure;
+  if (typeof reporter !== "function") return;
+  const message = error instanceof Error ? error.message : "无法初始化 WineStock Shell Bridge";
+  await reporter(message).catch(() => undefined);
+}
+
 /**
  * 订阅 Android 原生返回请求。普通浏览器或 capability=false 时返回稳定 no-op，且不调用可选扩展。
  */
@@ -180,9 +189,13 @@ export async function restartLocalService(): Promise<RuntimeSnapshot> {
 
 /** 显式修复 server-mode 防火墙规则；不会重启本地服务。 */
 export async function repairFirewall(): Promise<RuntimeSnapshot> {
-  await initializeShellRuntime();
+  const snapshot = await initializeShellRuntime();
+  const repair = requireBridge().repairFirewall;
+  if (snapshot.platform !== "desktop" || typeof repair !== "function") {
+    throw new Error("当前平台不支持防火墙操作");
+  }
   const previousApiBaseUrl = activeApiBaseUrl.value;
-  const result = await requireBridge().repairFirewall();
+  const result = await repair();
   applySnapshot(result, previousApiBaseUrl);
   return result;
 }
@@ -227,6 +240,9 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
     const initialSnapshot = await requireBridge().getRuntimeSnapshot();
     assertCompatibleRuntimeSnapshot(initialSnapshot);
     assertCompleteShellBridge(requireBridge());
+    if (initialSnapshot.platform === "desktop") {
+      assertDesktopFirewallShellBridgeExtension(requireBridge());
+    }
     if (initialSnapshot.capabilities.nativeBack) {
       assertNativeBackShellBridgeExtension(requireBridge());
     }

@@ -7,10 +7,9 @@ use std::sync::{
     Arc,
 };
 
+use rfd::{MessageButtons, MessageDialog, MessageLevel};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
-use tauri_plugin_opener::OpenerExt;
-use url::Url;
 
 use crate::{
     contract::{ApplyRuntimeConfigResult, EditableRuntimeConfig, RuntimeConfigValidationResult},
@@ -21,6 +20,7 @@ use crate::{
 type CommandResult<T> = Result<T, String>;
 
 static FRONTEND_READY: AtomicBool = AtomicBool::new(false);
+static FRONTEND_FAILURE_REPORTED: AtomicBool = AtomicBool::new(false);
 
 /// 返回当前进程是否已收到前端首帧就绪信号；仅供 Desktop 窗口显示兜底使用。
 pub fn is_frontend_ready() -> bool {
@@ -176,25 +176,20 @@ pub async fn shell_frontend_ready(app: AppHandle) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub async fn shell_open_external(app: AppHandle, url: String) -> CommandResult<()> {
-    let parsed =
-        Url::parse(&url).map_err(|_| command_error("invalid_bridge_payload", "外部链接无效"))?;
-    if !matches!(parsed.scheme(), "http" | "https")
-        || !parsed.username().is_empty()
-        || parsed.password().is_some()
-    {
-        return Err(command_error(
-            "invalid_bridge_payload",
-            "外部链接必须使用不含凭据的 http 或 https 地址",
-        ));
+pub fn shell_frontend_failed(app: AppHandle, _message: String) -> CommandResult<()> {
+    if FRONTEND_FAILURE_REPORTED.swap(true, Ordering::AcqRel) {
+        return Ok(());
     }
-    app.opener()
-        .open_url(parsed.as_str(), None::<&str>)
-        .map_err(|error| {
-            command_error(
-                "service_start_failed",
-                &format!("无法打开外部链接：{error}"),
-            )
-        })?;
+
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+    MessageDialog::new()
+        .set_level(MessageLevel::Error)
+        .set_title("WineStock 无法加载")
+        .set_description("加载异常，请更新后重试。")
+        .set_buttons(MessageButtons::Ok)
+        .show();
+    app.exit(1);
     Ok(())
 }

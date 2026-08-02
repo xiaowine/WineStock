@@ -68,12 +68,14 @@
             :display-name="accountDisplayName"
             :show-user-summary="!silentLocalMode"
             :show-lan-access="lanAccessUrls.length > 0"
+            :show-contact="contactEntryVisible"
             :show-logout="!silentLocalMode"
             :logout-error="logoutError"
             :is-logging-out="isLoggingOut"
             @preferences="openPreferencesDialog"
             @runtime-settings="openRuntimeSettings"
             @lan-access="openLanAccessDialog"
+            @contact="openContactDialog"
             @logout="handleLogout"
           />
         </Transition>
@@ -138,6 +140,8 @@
 
     <AppPreferencesDialog :open="preferencesDialogOpen" @close="preferencesDialogOpen = false" />
 
+    <ContactDialog :open="contactDialogOpen" @close="closeContactDialog" />
+
     <RuntimeSettingsDialog
       v-if="runtimeSettingsDialogOpen"
       embedded
@@ -165,6 +169,9 @@ import BrandMark from "../components/BrandMark.vue";
 import RouteContentView from "../components/RouteContentView.vue";
 import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import AppPreferencesDialog from "../components/preferences/AppPreferencesDialog.vue";
+import ContactDialog from "../contact/ContactDialog.vue";
+import { closeContactDialog, contactDialogOpen, openContactDialog } from "../contact/contactDialog";
+import { contactEntryVisible } from "../contact/contactPreferences";
 import { useAccountPopover } from "../composables/useAccountPopover";
 import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useShellLogout } from "../composables/useShellLogout";

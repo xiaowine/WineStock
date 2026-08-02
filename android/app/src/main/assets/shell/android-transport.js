@@ -143,6 +143,9 @@
     frontendReady: function () {
       return call("frontendReady");
     },
+    reportFrontendFailure: function (message) {
+      return call("frontendFailed", { message: message });
+    },
     openExternal: function (url) {
       return call("openExternal", { url: url });
     },
@@ -209,6 +212,9 @@
       stopLocalService: rejected,
       restartLocalService: rejected,
       frontendReady: function () {
+        return Promise.resolve();
+      },
+      reportFrontendFailure: function () {
         return Promise.resolve();
       },
       openExternal: rejected,

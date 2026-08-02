@@ -40,8 +40,11 @@ class ShellBridgeHost(
     private val deviceName: String,
     private val appVersion: String,
     nativeBackResponseTimeoutMs: Long,
+    private val frontendReadyTimeoutMs: Long,
     /** 前端报告首屏就绪时回调，用于隐藏加载遮罩；在主线程调用。 */
     private val onFrontendReady: () -> Unit = {},
+    /** 前端未完成 Bridge 握手时回调；在主线程调用。 */
+    private val onBridgeFailure: (String) -> Unit = {},
 ) {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -72,6 +75,11 @@ class ShellBridgeHost(
     private var activityResumed = false
     private var destroyed = false
     private var runtimeSubscription: AutoCloseable? = null
+    private val frontendReadyTimeout = Runnable {
+        if (!destroyed && installed && !frontendReady) {
+            onBridgeFailure("前端未完成 Shell Bridge 握手")
+        }
+    }
 
     /** 平台能否安装消息通道与文档起始脚本；任一能力缺失则桥不可用。 */
     val isSupported: Boolean =
@@ -123,6 +131,7 @@ class ShellBridgeHost(
                 }
             }
         installed = true
+        scheduleFrontendReadyTimeout()
         return true
     }
 
@@ -135,6 +144,7 @@ class ShellBridgeHost(
         frontendReady = false
         replyProxy = null
         readyReplyProxy = null
+        scheduleFrontendReadyTimeout()
     }
 
     /** Activity 恢复可交互状态；页面仍需 frontendReady 后才能接收 native back。 */
@@ -152,6 +162,7 @@ class ShellBridgeHost(
     fun destroy() {
         if (destroyed) return
         destroyed = true
+        mainHandler.removeCallbacks(frontendReadyTimeout)
         installed = false
         activityResumed = false
         frontendReady = false
@@ -309,8 +320,16 @@ class ShellBridgeHost(
                 runtimeManager.restartLocalService().thenApply { snapshot -> snapshotJson(snapshot) }
             "frontendReady" -> {
                 frontendReady = true
+                mainHandler.removeCallbacks(frontendReadyTimeout)
                 readyReplyProxy = proxy
                 onFrontendReady()
+                CompletableFuture.completedFuture(null)
+            }
+            "frontendFailed" -> {
+                val message = params?.optString("message").orEmpty()
+                mainHandler.post {
+                    if (!destroyed) onBridgeFailure(message)
+                }
                 CompletableFuture.completedFuture(null)
             }
             "resolveNativeBack" -> CompletableFuture.completedFuture(resolveNativeBack(params))
@@ -324,6 +343,11 @@ class ShellBridgeHost(
                     "未知的 Shell Bridge 方法：$method",
                 )
         }
+
+    private fun scheduleFrontendReadyTimeout() {
+        mainHandler.removeCallbacks(frontendReadyTimeout)
+        mainHandler.postDelayed(frontendReadyTimeout, frontendReadyTimeoutMs)
+    }
 
     /** 结算当前 native back 请求；未知、重复、迟到或旧页面 requestId 稳定返回 accepted=false。 */
     private fun resolveNativeBack(params: JSONObject?): JSONObject {

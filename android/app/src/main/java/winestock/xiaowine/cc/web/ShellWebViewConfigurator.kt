@@ -32,7 +32,6 @@ internal class ShellWebViewConfigurator(
     private val cameraPermissionHost: WebViewCameraPermissionHost,
     private val onPageStarted: (url: String?) -> Unit,
     private val onPageVisible: (url: String?) -> Unit,
-    private val onFrontendReady: () -> Unit,
     private val onRendererExit: (view: WebView, detail: RenderProcessGoneDetail) -> Boolean,
 ) {
     @SuppressLint("SetJavaScriptEnabled")
@@ -63,8 +62,6 @@ internal class ShellWebViewConfigurator(
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         onPageVisible(url)
-                        // 兜底：真正的就绪信号来自前端，但 SPA 首屏未绘制时也不应长期保持启动画面。
-                        onFrontendReady()
                     }
 
                     override fun onRenderProcessGone(

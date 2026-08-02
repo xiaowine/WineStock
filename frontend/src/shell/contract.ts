@@ -225,6 +225,11 @@ export interface DesktopPreferencesShellBridgeExtension {
   setDesktopPreferences(preferences: DesktopPreferences): Promise<DesktopPreferences>;
 }
 
+/** Desktop 专属防火墙扩展；Web/Android 不提供。 */
+export interface DesktopFirewallShellBridgeExtension {
+  repairFirewall(): Promise<RuntimeSnapshot>;
+}
+
 /** 前端依赖的统一 Shell Bridge；平台适配层不得扩展为任意 native invoke。 */
 export interface ShellBridge {
   /** 读取当前运行配置和服务状态。 */
@@ -239,16 +244,18 @@ export interface ShellBridge {
   stopLocalService(): Promise<RuntimeSnapshot>;
   /** 重启当前本地服务。 */
   restartLocalService(): Promise<RuntimeSnapshot>;
-  /** 显式配置当前 server-mode 防火墙规则，或重试待清理规则。 */
-  repairFirewall(): Promise<RuntimeSnapshot>;
   /** 前端首个稳定画面已经渲染。 */
   frontendReady(): Promise<void>;
+  /** 前端无法完成 Shell Bridge 初始化时通知原生壳；Web fallback 可以忽略。 */
+  reportFrontendFailure?(message: string): Promise<void>;
   /** 通过平台安全能力打开经过校验的外部链接。 */
   openExternal(url: string): Promise<void>;
   /** Desktop 读取本机偏好；非 Desktop 平台可以不提供。 */
   getDesktopPreferences?: DesktopPreferencesShellBridgeExtension["getDesktopPreferences"];
   /** Desktop 更新本机偏好；非 Desktop 平台可以不提供。 */
   setDesktopPreferences?: DesktopPreferencesShellBridgeExtension["setDesktopPreferences"];
+  /** Desktop 显式配置当前 server-mode 防火墙规则；非 Desktop 平台不提供。 */
+  repairFirewall?: DesktopFirewallShellBridgeExtension["repairFirewall"];
   /** 订阅配置和服务生命周期快照。 */
   onRuntimeStateChanged(
     listener: (snapshot: RuntimeSnapshot) => void,
@@ -277,7 +284,19 @@ export function assertDesktopPreferences(value: unknown): asserts value is Deskt
   }
 }
 
-/** 初始快照版本通过后，确认注入桥完整实现 v1 所有具名方法。 */
+/** Desktop 防火墙扩展只允许由 Desktop 平台提供。 */
+export function assertDesktopFirewallShellBridgeExtension(
+  value: ShellBridge,
+): asserts value is ShellBridge & DesktopFirewallShellBridgeExtension {
+  if (typeof value.repairFirewall !== "function") {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Desktop Shell Bridge 缺少防火墙方法",
+    );
+  }
+}
+
+/** 初始快照版本通过后，确认注入桥完整实现 v1 的公共具名方法。 */
 export function assertCompleteShellBridge(value: unknown): asserts value is ShellBridge {
   if (!isRecord(value)) {
     throw new ShellBridgeContractError("invalid_bridge_payload", "平台注入的 Shell Bridge 无效");
@@ -289,7 +308,6 @@ export function assertCompleteShellBridge(value: unknown): asserts value is Shel
     "startLocalService",
     "stopLocalService",
     "restartLocalService",
-    "repairFirewall",
     "frontendReady",
     "openExternal",
     "onRuntimeStateChanged",

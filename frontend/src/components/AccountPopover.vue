@@ -30,6 +30,15 @@
       本机运行设置
     </button>
     <button
+      v-if="showContact"
+      class="secondary-button account-popover__contact"
+      type="button"
+      :disabled="isLoggingOut"
+      @click="emit('contact')"
+    >
+      联系与反馈
+    </button>
+    <button
       v-if="showLanAccess"
       class="secondary-button account-popover__lan-access"
       type="button"
@@ -63,6 +72,8 @@ withDefaults(
     showUserSummary?: boolean;
     /** 当前 Shell 是否存在可向其它设备展示的真实局域网地址。 */
     showLanAccess?: boolean;
+    /** 是否显示联系与反馈入口。 */
+    showContact?: boolean;
     /** 本机静默免登录模式下隐藏退出登录（登出后会立即静默重建，无意义）。 */
     showLogout?: boolean;
     /** 退出操作的可展示错误；空字符串表示没有错误。 */
@@ -73,6 +84,7 @@ withDefaults(
   {
     showUserSummary: true,
     showLanAccess: false,
+    showContact: true,
     showLogout: true,
   },
 );
@@ -84,6 +96,8 @@ const emit = defineEmits<{
   runtimeSettings: [];
   /** 打开当前设备的局域网连接地址。 */
   lanAccess: [];
+  /** 打开联系与反馈 Dialog。 */
+  contact: [];
   /** 请求所属 Shell 执行统一退出流程。 */
   logout: [];
 }>();

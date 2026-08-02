@@ -3,5 +3,16 @@
   "identifier": "main-capability",
   "description": "WineStock 主窗口所需的最小 Shell Bridge 能力。",
   "windows": ["main"],
-  "permissions": ["core:event:allow-listen", "allow-shell-bridge"]
+  "permissions": [
+    "core:event:allow-listen",
+    "allow-shell-bridge",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://github.com/xiaowine/WineStock/" },
+        { "url": "https://qm.qq.com/q/m8KVxwrXva" },
+        { "url": "https://privacy.microsoft.com/zh-cn/privacystatement" }
+      ]
+    }
+  ]
 }

@@ -15,6 +15,22 @@
         <ThemePreferenceSelector />
       </section>
 
+      <section class="app-preferences__section" aria-labelledby="preferences-contact-title">
+        <h3 id="preferences-contact-title">联系与反馈</h3>
+        <label class="consent-toggle">
+          <input
+            v-model="contactVisible"
+            type="checkbox"
+            name="preferences-contact-visible"
+            @change="handleContactVisibilityChange"
+          />
+          <span class="consent-toggle__copy">
+            <strong>显示联系与反馈入口</strong>
+            <small>在总览页和账户菜单中显示联系作者入口。</small>
+          </span>
+        </label>
+      </section>
+
       <section
         v-if="isDesktop"
         class="app-preferences__section"
@@ -163,11 +179,13 @@ import { defaultDesktopPreferences } from "../../shell/contract";
 import type { DesktopCloseBehavior, DesktopPreferences } from "../../shell/contract";
 import { notice } from "../../notices/notice";
 import ThemePreferenceSelector from "./ThemePreferenceSelector.vue";
+import { contactEntryVisible, setContactEntryVisible } from "../../contact/contactPreferences";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
 const telemetryEnabled = ref(false);
+const contactVisible = ref(contactEntryVisible.value);
 const closeBehavior = ref<DesktopCloseBehavior>(defaultDesktopPreferences.closeBehavior);
 const autostartEnabled = ref(defaultDesktopPreferences.autostartEnabled);
 const autostartSilent = ref(defaultDesktopPreferences.autostartSilent);
@@ -188,9 +206,14 @@ watch(
   (open) => {
     if (!open) return;
     telemetryEnabled.value = readTelemetryConsent() === true;
+    contactVisible.value = contactEntryVisible.value;
     void loadDesktopPreferences();
   },
 );
+
+function handleContactVisibilityChange(): void {
+  setContactEntryVisible(contactVisible.value);
+}
 
 async function loadDesktopPreferences(): Promise<void> {
   const request = ++desktopPreferencesRequest;

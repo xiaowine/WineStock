@@ -144,6 +144,8 @@ scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 pa
 `web/WebViewCompatibility` / `web/WebViewCompatibilityScreen`、
 `web/ShellWebViewConfigurator`、`web/WebViewFileChooserHost`、`web/SplashFrontendGate`、
 `web/SystemBarAppearanceController`、`shell/NativeBackNavigator`。
+如果桥安装、前端契约校验或首屏握手失败，Shell 会先销毁 WebView，再复用同一兼容性阻断页显示“加载异常，请更新后重试。”；
+不会把失败页面继续留在 WebView 中。
 
 ## 相关文档
 

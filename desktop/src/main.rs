@@ -84,7 +84,7 @@ fn main() {
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                     .title("WineStock")
                     .inner_size(1280.0, 800.0)
-                    .min_inner_size(760.0, 560.0)
+                    .min_inner_size(460.0, 600.0)
                     .resizable(true)
                     .center()
                     .visible(false)
@@ -146,7 +146,7 @@ fn main() {
             winestock_desktop::commands::shell_get_desktop_preferences,
             winestock_desktop::commands::shell_set_desktop_preferences,
             winestock_desktop::commands::shell_frontend_ready,
-            winestock_desktop::commands::shell_open_external,
+            winestock_desktop::commands::shell_frontend_failed,
         ])
         .build(tauri::generate_context!())
         .expect("WineStock Desktop 构建失败")

@@ -1,6 +1,7 @@
 // 本文件实现 Desktop Tauri v2 的 Shell Bridge 前端传输适配；它不管理运行状态或代理业务 HTTP 请求。
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { normalizeShellBridgeTransportError } from "./bridgeError";
 import { assertDesktopPreferences } from "../contract";
 import type {
@@ -44,8 +45,11 @@ export function createTauriShellBridge(): ShellBridge {
     frontendReady() {
       return invokeShell<void>("shell_frontend_ready");
     },
+    reportFrontendFailure(message) {
+      return invokeShell<void>("shell_frontend_failed", { message });
+    },
     openExternal(url) {
-      return invokeShell<void>("shell_open_external", { url });
+      return openUrl(url);
     },
     async getDesktopPreferences() {
       const preferences = await invokeShell<DesktopPreferences>("shell_get_desktop_preferences");

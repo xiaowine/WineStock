@@ -14,6 +14,7 @@ internal enum class WebViewIncompatibilityReason {
     VERSION_UNREADABLE,
     VERSION_TOO_OLD,
     REQUIRED_FEATURES_MISSING,
+    SHELL_BRIDGE_UNAVAILABLE,
 }
 
 internal sealed interface WebViewCompatibilityResult {

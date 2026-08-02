@@ -20,6 +20,8 @@ async function loadModule(relativePath) {
 
 const {
   assertCompatibleRuntimeSnapshot,
+  assertCompleteShellBridge,
+  assertDesktopFirewallShellBridgeExtension,
   assertDesktopPreferences,
   defaultDesktopPreferences,
   ShellBridgeContractError,
@@ -66,8 +68,43 @@ function snapshot(overrides = {}) {
   };
 }
 
+function shellBridge(overrides = {}) {
+  return {
+    getRuntimeSnapshot: async () => snapshot(),
+    validateRuntimeConfig: async () => ({ valid: true, fieldErrors: {} }),
+    applyRuntimeConfig: async () => ({
+      applied: true,
+      valid: true,
+      fieldErrors: {},
+      snapshot: snapshot(),
+    }),
+    startLocalService: async () => snapshot(),
+    stopLocalService: async () => snapshot(),
+    restartLocalService: async () => snapshot(),
+    frontendReady: async () => undefined,
+    openExternal: async () => undefined,
+    onRuntimeStateChanged: async () => () => undefined,
+    onAppResumed: async () => () => undefined,
+    ...overrides,
+  };
+}
+
 test("accepts a valid local running snapshot", () => {
   assert.doesNotThrow(() => assertCompatibleRuntimeSnapshot(snapshot()));
+});
+
+test("keeps the Desktop firewall method outside the common bridge contract", () => {
+  const commonBridge = shellBridge();
+  assert.doesNotThrow(() => assertCompleteShellBridge(commonBridge));
+  assert.throws(
+    () => assertDesktopFirewallShellBridgeExtension(commonBridge),
+    (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
+  );
+  assert.doesNotThrow(() =>
+    assertDesktopFirewallShellBridgeExtension(
+      shellBridge({ repairFirewall: async () => snapshot() }),
+    ),
+  );
 });
 
 test("accepts a Desktop server-mode snapshot with real LAN URLs", () => {

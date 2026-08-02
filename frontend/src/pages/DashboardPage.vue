@@ -29,6 +29,20 @@
       </span>
     </header>
 
+    <section v-if="contactEntryVisible" class="dashboard-contact-banner" aria-label="联系与反馈">
+      <div class="dashboard-contact-banner__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M4 5.5h16v11H8l-4 3v-14Z" />
+          <path d="M8 10h8M8 13h5" />
+        </svg>
+      </div>
+      <div class="dashboard-contact-banner__copy">
+        <strong>需要帮助或发现问题？</strong>
+        <span>欢迎联系作者反馈使用情况。</span>
+      </div>
+      <button class="secondary-button" type="button" @click="openContactDialog">联系与反馈</button>
+    </section>
+
     <div v-if="showInitialLoading" class="dashboard-page__initial-state" role="status">
       正在加载库存总览…
     </div>
@@ -180,6 +194,8 @@ import {
 } from "../api/dashboard";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import DashboardTrendChart from "../components/dashboard/DashboardTrendChart.vue";
+import { openContactDialog } from "../contact/contactDialog";
+import { contactEntryVisible } from "../contact/contactPreferences";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
 import { notice } from "../notices/notice";
 

@@ -24,15 +24,12 @@ pub fn configure() {
 #[cfg(all(target_os = "windows", debug_assertions))]
 fn configure_debug_port() {
     let port = match std::env::var(CDP_PORT_ENVIRONMENT_VARIABLE) {
-        Ok(value) => match parse_port(&value) {
-            Some(port) => port,
-            None => {
-                eprintln!(
-                    "{CDP_PORT_ENVIRONMENT_VARIABLE} 无效，将使用默认 WebView2 CDP 端口 {DEFAULT_CDP_PORT}"
-                );
-                DEFAULT_CDP_PORT
-            }
-        },
+        Ok(value) => parse_port(&value).unwrap_or_else(|| {
+            eprintln!(
+                "{CDP_PORT_ENVIRONMENT_VARIABLE} 无效，将使用默认 WebView2 CDP 端口 {DEFAULT_CDP_PORT}"
+            );
+            DEFAULT_CDP_PORT
+        }),
         Err(_) => DEFAULT_CDP_PORT,
     };
 

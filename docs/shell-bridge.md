@@ -190,7 +190,9 @@ interface ShellBridge {
   startLocalService(): Promise<RuntimeSnapshot>;
   stopLocalService(): Promise<RuntimeSnapshot>;
   restartLocalService(): Promise<RuntimeSnapshot>;
+  repairFirewall?(): Promise<RuntimeSnapshot>;
   frontendReady(): Promise<void>;
+  reportFrontendFailure?(message: string): Promise<void>;
   openExternal(url: string): Promise<void>;
   getDesktopPreferences?(): Promise<DesktopPreferences>;
   setDesktopPreferences?(preferences: DesktopPreferences): Promise<DesktopPreferences>;
@@ -207,7 +209,7 @@ interface ShellBridge {
 }
 ```
 
-Desktop 可选扩展只承载当前设备的窗口和自启动偏好，不属于运行配置或业务 API：
+Desktop 可选扩展只承载当前设备的窗口、自启动偏好和 Windows 防火墙操作，不属于运行配置或业务 API：
 
 ```ts
 type DesktopCloseBehavior = "minimize-to-tray" | "exit-application";
@@ -220,7 +222,7 @@ interface DesktopPreferences {
 }
 ```
 
-只有 `platform = "desktop"` 的 Tauri bridge 提供这两个方法；Web/Android 不需要实现，前端在未提供扩展时隐藏对应偏好项。
+只有 `platform = "desktop"` 的 Tauri bridge 提供 Desktop 扩展方法；Web/Android 不需要实现，前端在未提供扩展时隐藏对应能力。
 Desktop shell 将偏好保存在自己的 app data 文件并缓存到进程状态。`autostartEnabled` 返回系统启动项的实际状态，
 由 Tauri autostart 插件的 `is_enabled()` 校准；`autostartSilent` 是本机持久化偏好。`CloseRequested` 只读取缓存，
 不在窗口事件中查询磁盘或等待 WebView IPC。自启动进程通过内部 `--winestock-autostart` 参数与普通手动启动区分，
@@ -351,6 +353,10 @@ Desktop 和 Android Shell 应：
 - 持久化成功激活的配置。
 - 向前端发布版本化快照和稳定错误码。
 - 在平台退出时优雅关闭本地服务。
+
+如果前端无法完成 Shell Bridge 契约校验、原生扩展订阅或首屏握手，前端不得继续挂载业务界面，
+应通过可选的 `reportFrontendFailure` 上报给当前平台 Shell。Android 销毁 WebView 并复用原生兼容性阻断页；
+Desktop 隐藏 WebView、通过 `rfd` 显示平台错误提示后退出。该路径属于 Shell/加载失败，不是运行配置或业务错误。
 
 Shell 不应：
 

@@ -59,18 +59,37 @@ class MainActivity : ComponentActivity() {
         compatibilityScreen?.destroy()
         compatibilityScreen = null
         window.setBackgroundDrawableResource(R.color.web_background)
-        val coordinator =
-            MainShellCoordinator(
-                activity = this,
-                launchFileChooser = { intent -> fileChooserLauncher.launch(intent) },
-                requestCameraPermission = {
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                },
-            ).also { it.start(splashScreen) }
+        val coordinator = MainShellCoordinator(
+            activity = this,
+            launchFileChooser = { intent -> fileChooserLauncher.launch(intent) },
+            requestCameraPermission = {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            },
+            onBridgeFailure = ::handleShellBridgeFailure,
+        )
         shell = coordinator
+        coordinator.start(splashScreen)
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
             coordinator.onResume()
         }
+    }
+
+    private fun handleShellBridgeFailure(_message: String) {
+        if (shell == null) return
+        shell = null
+        showCompatibilityScreen(
+            WebViewCompatibilityResult.Unsupported(
+                provider = runCatching { android.webkit.WebView.getCurrentWebViewPackage() }
+                    .getOrNull()
+                    ?.let { packageInfo ->
+                        winestock.xiaowine.cc.web.WebViewProviderSnapshot(
+                            packageName = packageInfo.packageName,
+                            versionName = packageInfo.versionName,
+                        )
+                    },
+                reason = WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE,
+            ),
+        )
     }
 
     private fun showCompatibilityScreen(result: WebViewCompatibilityResult.Unsupported) {

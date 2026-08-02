@@ -5,6 +5,7 @@
     <string name="webview_compatibility_message_version_unreadable">无法确认当前 WebView 版本。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
     <string name="webview_compatibility_message_version_too_old">当前 WebView 版本过低，无法可靠运行 WineStock。更新后即可继续，应用数据不会受到影响。</string>
     <string name="webview_compatibility_message_features_missing">当前 WebView 缺少 WineStock 所需的安全通信能力。请在系统侧更新 WebView，完成后返回这里重新检测。应用数据不会受到影响。</string>
+    <string name="webview_compatibility_message_shell_bridge_unavailable">加载异常，请更新后重试。</string>
     <string name="webview_compatibility_current_provider_label">当前 WebView</string>
     <string name="webview_compatibility_current_provider_value">%1$s\n%2$s</string>
     <string name="webview_compatibility_provider_unavailable">未检测到 WebView provider</string>

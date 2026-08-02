@@ -22,7 +22,12 @@ import {
   startServiceAvailabilityMonitor,
   successfulServiceCheckSequence,
 } from "./service/availability";
-import { activeApiBaseUrl, initializeShellRuntime, reportFrontendReady } from "./shell/runtime";
+import {
+  activeApiBaseUrl,
+  initializeShellRuntime,
+  reportFrontendReady,
+  reportShellBridgeFailure,
+} from "./shell/runtime";
 import { startTelemetryIfConsented } from "./telemetry/clarity";
 import { disposeThemeRuntime, initializeTheme } from "./theme/runtime";
 
@@ -34,8 +39,10 @@ initializeTheme();
 async function bootstrapFrontend(): Promise<void> {
   try {
     await initializeShellRuntime();
-  } catch {
-    // Shell 初始化失败时仍挂载运行设置页，由前端展示可恢复错误。
+  } catch (error) {
+    // 原生桥失败时不再挂载 WebView 内的 UI；由平台 Shell 显示统一恢复提示。
+    void reportShellBridgeFailure(error);
+    return;
   }
 
   apiClient.setAccessTokenProvider(getValidAccessToken);
@@ -86,13 +93,15 @@ async function bootstrapFrontend(): Promise<void> {
   try {
     stopNativeBackNavigation = await installNativeBackNavigation(router);
   } catch (error) {
-    // capability 声明与订阅不一致时保持页面未 ready，让 Android 直接使用 native fallback。
+    // capability 声明与订阅不一致属于桥契约失败，交给平台 Shell 阻断 WebView。
     console.warn("无法安装平台原生返回订阅", error);
+    void reportShellBridgeFailure(error);
     return;
   }
   window.requestAnimationFrame(() => {
     void reportFrontendReady().catch((error: unknown) => {
       console.warn("无法向平台 Shell 报告前端就绪状态", error);
+      void reportShellBridgeFailure(error);
     });
   });
 }

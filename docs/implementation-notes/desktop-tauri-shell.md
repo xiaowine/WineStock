@@ -138,7 +138,6 @@ shell_start_local_service
 shell_stop_local_service
 shell_restart_local_service
 shell_frontend_ready
-shell_open_external
 ```
 
 状态变化通过单向事件发布：
@@ -148,18 +147,20 @@ winestock-runtime-state-changed
 winestock-app-resumed
 ```
 
-前端新增 `frontend/src/shell/transports/tauri.ts`，使用 `invoke` 和 `listen` 实现现有 `ShellBridge` 接口；
+前端新增 `frontend/src/shell/transports/tauri.ts`，使用 `invoke` 和 `listen` 实现现有 `ShellBridge` 接口，
+并直接使用 `@tauri-apps/plugin-opener` 的 `openUrl` 打开外部链接；
 `frontend/src/shell/transportFactory.ts` 负责选择注入桥、Tauri 传输或 Web fallback。
 Vite 增加明确的 desktop 构建模式来选择该适配层；普通浏览器继续使用 Web fallback，不通过
 `window.__TAURI__` 或 User-Agent 猜测能力。
 
-`openExternal` 只接受校验后的 `http` 和 `https` URL，并使用 Tauri 官方 opener 能力打开。
+`openExternal` 只接受业务声明的 `http` 和 `https` URL；Desktop 由 Tauri opener capability 的精确 scope
+限制为 GitHub 项目页、QQ群链接和 Microsoft 隐私声明，普通浏览器仍由 Web fallback 处理。
 所有业务请求仍由前端 HTTP client 直接访问 Axum。
 
 ## 8. Tauri 安全配置
 
 - `permissions/shell-bridge.toml` 只定义上述自有 command 的 allow permission。
-- `capabilities/main.json` 只绑定主窗口，并授予 Shell Bridge、事件监听和受限外链所需 permission。
+- `capabilities/main.json` 只绑定主窗口，并授予 Shell Bridge、事件监听和 opener 精确 URL scope。
 - 不启用通用 shell 执行、任意文件系统访问或宽泛 URL opener 权限。
 - CSP 至少允许 Tauri 打包资源、loopback HTTP API 和配置的远端 HTTP/HTTPS API。
 - 远端 API 范围如无法在静态 CSP 中安全限定，应先使用项目明确允许的连接规则，不得直接关闭 CSP。

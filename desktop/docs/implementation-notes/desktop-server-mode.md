@@ -210,10 +210,10 @@ Rust 发布的 payload 能通过 `assertCompatibleRuntimeSnapshot()`。
 - `shell_restart_local_service`
 - `shell_repair_firewall`
 - `shell_frontend_ready`
-- `shell_open_external`
 
-`capabilities/main.json` 和 `permissions/shell-bridge.toml` 继续采用具名 command 集合。Tauri capability 不应因为
-server-mode 而开放通用 shell、文件系统或任意网络 native API。
+`capabilities/main.json` 和 `permissions/shell-bridge.toml` 继续采用具名 command 集合；外链由前端 Tauri
+transport 直接调用 opener，并通过 capability scope 限制到明确的项目链接。Tauri capability 不应因为 server-mode
+而开放通用 shell、文件系统或任意网络 native API。
 
 ## Desktop RuntimeManager 改造
 
