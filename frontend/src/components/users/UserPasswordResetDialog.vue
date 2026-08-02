@@ -28,7 +28,7 @@
             id="user-temporary-password"
             v-model="password"
             name="temporary_password"
-            autocomplete="new-password"
+            autocomplete="off"
             minlength="8"
             maxlength="128"
             autofocus
@@ -49,7 +49,7 @@
             id="user-temporary-password-confirmation"
             v-model="confirmation"
             name="temporary_password_confirmation"
-            autocomplete="new-password"
+            autocomplete="off"
             maxlength="128"
             :disabled="submitting"
             :aria-invalid="invalid || undefined"

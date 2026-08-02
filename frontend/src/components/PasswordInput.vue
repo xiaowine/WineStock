@@ -9,6 +9,7 @@
       v-model="model"
       v-bind="attrs"
       :type="visible ? 'text' : 'password'"
+      autocomplete="off"
     />
     <button
       class="password-input__toggle"

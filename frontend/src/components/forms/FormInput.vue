@@ -16,6 +16,7 @@
       :id="inputId"
       :type="type"
       :value="modelValue ?? ''"
+      autocomplete="off"
       :required="required"
       :aria-invalid="invalid || undefined"
       :aria-describedby="mergeDescribedBy(controlAttrs['aria-describedby'], describedBy)"

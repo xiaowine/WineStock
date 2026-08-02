@@ -53,7 +53,7 @@
                 hint="示例：http://192.168.1.10:17890"
                 name="server-url"
                 type="url"
-                autocomplete="url"
+                autocomplete="off"
                 inputmode="url"
                 placeholder="http://192.168.1.10:17890"
                 :disabled="testingConnection"

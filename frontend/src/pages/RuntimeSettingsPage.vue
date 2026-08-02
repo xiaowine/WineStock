@@ -116,7 +116,7 @@
               name="runtime_next_remote_base_url"
               type="url"
               inputmode="url"
-              autocomplete="url"
+              autocomplete="off"
               placeholder="https://server.example.com:17890"
               :disabled="applying"
               required
@@ -275,7 +275,7 @@
         hint="至少 8 个字符。"
         name="runtime_next_gate_password"
         type="password"
-        autocomplete="new-password"
+        autocomplete="off"
         :disabled="gateSubmitting"
         required
       />
@@ -286,7 +286,7 @@
         :error="gateConfirmError"
         name="runtime_next_gate_password_confirm"
         type="password"
-        autocomplete="new-password"
+        autocomplete="off"
         :disabled="gateSubmitting"
         required
       />

@@ -18,7 +18,7 @@ use tauri::{
 use winestock_desktop::runtime::{
     emit_app_resumed, DesktopRuntimeManager, RUNTIME_STATE_CHANGED_EVENT,
 };
-use winestock_desktop::webview_compatibility;
+use winestock_desktop::{webview_compatibility, webview_privacy};
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 static EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
@@ -80,7 +80,7 @@ fn main() {
             tauri::async_runtime::block_on(manager.initialize());
             let snapshot = tauri::async_runtime::block_on(manager.snapshot());
 
-            let _main_window =
+            let main_window =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                     .title("WineStock")
                     .inner_size(1280.0, 800.0)
@@ -88,8 +88,11 @@ fn main() {
                     .resizable(true)
                     .center()
                     .visible(false)
+                    .general_autofill_enabled(false)
                     .build()
                     .map_err(|error| format!("无法创建 WineStock 主窗口：{error}"))?;
+            webview_privacy::disable_password_autosave(&main_window)
+                .map_err(|error| format!("无法配置 WebView2 隐私设置：{error}"))?;
             let _ = app.emit(RUNTIME_STATE_CHANGED_EVENT, snapshot);
             DesktopRuntimeManager::spawn_monitor(manager);
             let _ = APP_HANDLE.set(app.handle().clone());

@@ -15,6 +15,7 @@
       :id="textareaId"
       v-model="model"
       v-bind="controlAttrs"
+      autocomplete="off"
       :required="required"
       :aria-invalid="invalid || undefined"
       :aria-describedby="mergeDescribedBy(controlAttrs['aria-describedby'], describedBy)"

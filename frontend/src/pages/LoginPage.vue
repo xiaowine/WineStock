@@ -32,7 +32,7 @@
           :error="usernameError"
           name="username"
           type="text"
-          autocomplete="username"
+          autocomplete="off"
           maxlength="64"
           :disabled="isSubmitting"
         />
@@ -48,7 +48,7 @@
             id="login-password"
             v-model="password"
             name="password"
-            autocomplete="current-password"
+            autocomplete="off"
             maxlength="256"
             :disabled="isSubmitting"
             :aria-invalid="invalid || undefined"
@@ -173,13 +173,16 @@ function applyLoginError(error: unknown): void {
     return;
   }
   if (error instanceof ApiError) {
+    if (error.code === "invalid_credentials") {
+      fieldErrors.value = {};
+      errorMessage.value = "";
+      notice.error("用户名或密码错误");
+      return;
+    }
+
     fieldErrors.value = error.fieldErrors;
     errorMessage.value =
-      error.code === "invalid_credentials"
-        ? "用户名或密码错误"
-        : Object.keys(error.fieldErrors).length > 0
-          ? "请检查输入内容"
-          : error.message;
+      Object.keys(error.fieldErrors).length > 0 ? "请检查输入内容" : error.message;
     notice.error(errorMessage.value);
     return;
   }
