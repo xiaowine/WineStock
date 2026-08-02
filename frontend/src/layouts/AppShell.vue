@@ -137,12 +137,26 @@
     />
 
     <AppPreferencesDialog :open="preferencesDialogOpen" @close="preferencesDialogOpen = false" />
+
+    <RuntimeSettingsDialog
+      v-if="runtimeSettingsDialogOpen"
+      embedded
+      @close="closeRuntimeSettings"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
+import { useRoute } from "vue-router";
 import { authSession, localSilentAuthActive } from "../auth/session";
 import AccountPopover from "../components/AccountPopover.vue";
 import AccountUserSummary from "../components/AccountUserSummary.vue";
@@ -164,13 +178,16 @@ import { runtimeSnapshot } from "../shell/runtime";
 /** 品牌名后的前端发布阶段徽标文案，来自 package.json `appStage`；为空时徽标整体隐藏。 */
 const APP_STAGE_LABEL = __APP_STAGE_LABEL__;
 const DESKTOP_QUERY = "(min-width: 768px)";
+const RuntimeSettingsDialog = defineAsyncComponent(
+  () => import("../pages/RuntimeSettingsPage.vue"),
+);
 const navOpen = ref(false);
 const navTrigger = ref<HTMLButtonElement | null>(null);
 const accountTrigger = ref<HTMLButtonElement | null>(null);
 const lanAccessDialogOpen = ref(false);
 const preferencesDialogOpen = ref(false);
+const runtimeSettingsDialogOpen = ref(false);
 const route = useRoute();
-const router = useRouter();
 const {
   accountMenuOpen,
   closeAccountMenu,
@@ -221,12 +238,15 @@ function toggleAccountMenu(): void {
   toggleAccountPopover();
 }
 
-function openRuntimeSettings(): void {
+async function openRuntimeSettings(): Promise<void> {
   closeAccountMenu();
-  void router.push({
-    name: "runtime-settings",
-    query: { returnTo: route.fullPath },
-  });
+  await nextTick();
+  accountTrigger.value?.focus();
+  runtimeSettingsDialogOpen.value = true;
+}
+
+function closeRuntimeSettings(): void {
+  runtimeSettingsDialogOpen.value = false;
 }
 
 async function openPreferencesDialog(): Promise<void> {
@@ -266,6 +286,7 @@ watch(
   () => {
     closeNavigation();
     closeLanAccessDialog();
+    closeRuntimeSettings();
   },
 );
 

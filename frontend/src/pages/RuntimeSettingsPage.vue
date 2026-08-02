@@ -1,52 +1,23 @@
 <!--
-  本文件拥有正式运行设置界面：视觉对齐初始化向导/认证页体系（auth-panel 骨架、
-  分段 tab 运行方式、tone 状态卡），逻辑复用既有 Shell 契约、runtime-settings
-  纯模块与共享 Dialog；含本机静默会话切 server-mode 的强制设密门。
+  本文件拥有正式运行设置 Dialog：复用既有 ModalDialog、Shell 契约、runtime-settings
+  纯模块与嵌套 Dialog；含本机静默会话切 server-mode 的强制设密门。
+  `embedded` 为 true 时由 AppShell 原地打开；启动漏斗和恢复入口仍通过路由挂载同一组件。
   它不读写平台文件、不直接管理 core 生命周期，也不改变业务 API 契约。
 -->
 <template>
-  <main class="auth-page">
-    <section class="auth-panel runtime-next" aria-labelledby="runtime-next-title">
-      <header class="auth-header">
-        <div class="runtime-next__masthead">
-          <div class="brand-lockup">
-            <BrandMark />
-            <span class="brand-name">WineStock</span>
-          </div>
-          <!-- 已登录用返回图标；匿名完成设置后的「继续」是漏斗动作，保持文字按钮。 -->
-          <button
-            v-if="showLeaveAction && authStatus === 'authenticated'"
-            class="icon-button runtime-next__leave"
-            type="button"
-            aria-label="返回应用"
-            title="返回应用"
-            @click="leaveRuntimeSettings"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M15 5l-7 7 7 7" />
-            </svg>
-          </button>
-          <button
-            v-else-if="showLeaveAction"
-            class="text-button"
-            type="button"
-            @click="leaveRuntimeSettings"
-          >
-            继续
-          </button>
-        </div>
-        <div>
-          <h1 id="runtime-next-title">运行设置</h1>
-          <p>
-            {{
-              setupFinished
-                ? "调整这台设备连接 WineStock 的方式。"
-                : "先确认这台设备的使用方式，保存后继续。"
-            }}
-          </p>
-        </div>
-      </header>
-
+  <ModalDialog
+    :open="true"
+    title="运行设置"
+    :description="
+      setupFinished
+        ? '调整这台设备连接 WineStock 的方式。'
+        : '先确认这台设备的使用方式，保存后继续。'
+    "
+    :busy="applying"
+    wide
+    @close="leaveRuntimeSettings"
+  >
+    <section class="runtime-next" aria-labelledby="runtime-next-config-title">
       <section
         class="runtime-next-status"
         :class="`runtime-next-status--${statusTone}`"
@@ -68,7 +39,12 @@
         </button>
       </section>
 
-      <form class="runtime-next__form" novalidate @submit.prevent="requestApply">
+      <form
+        id="runtime-settings-form"
+        class="runtime-next__form"
+        novalidate
+        @submit.prevent="requestApply"
+      >
         <div>
           <fieldset class="runtime-next-tabs" :disabled="applying" aria-label="运行方式">
             <label
@@ -193,15 +169,26 @@
             当前设备没有可用的局域网地址，请检查网络适配器或监听地址。
           </div>
         </section>
-
-        <footer class="auth-page-actions runtime-next__actions">
-          <button class="secondary-button" type="button" @click="leaveRuntimeSettings">取消</button>
-          <button class="primary-button" type="submit" :disabled="applying || !canSave">
-            {{ applying ? "正在保存…" : remoteMode ? "连接服务器" : "保存设置" }}
-          </button>
-        </footer>
       </form>
     </section>
+
+    <template #actions>
+      <button
+        class="secondary-button runtime-next__cancel"
+        type="button"
+        @click="leaveRuntimeSettings"
+      >
+        取消
+      </button>
+      <button
+        class="primary-button"
+        type="submit"
+        form="runtime-settings-form"
+        :disabled="applying || !canSave"
+      >
+        {{ applying ? "正在保存…" : remoteMode ? "连接服务器" : "保存设置" }}
+      </button>
+    </template>
 
     <ModalDialog
       :open="confirmationOpen"
@@ -209,6 +196,7 @@
       :description="confirmationDescription"
       :busy="applying"
       compact
+      nested
       @close="confirmationOpen = false"
     >
       <p class="runtime-next__confirmation">{{ confirmationDetail }}</p>
@@ -233,6 +221,7 @@
       :description="firewallRecoveryDescription"
       :busy="firewallRepairing"
       compact
+      nested
       @close="firewallRecoveryOpen = false"
     >
       <p class="runtime-next__confirmation">{{ firewallRecoveryDetail }}</p>
@@ -262,6 +251,7 @@
       description="开放给其他设备连接前，需要为当前用户设置登录用户名和真实密码；其他设备将用它登录。"
       :busy="gateSubmitting"
       compact
+      nested
       @close="closePasswordGate"
     >
       <FormInput
@@ -318,7 +308,7 @@
         </button>
       </template>
     </ModalDialog>
-  </main>
+  </ModalDialog>
 </template>
 
 <script setup lang="ts">
@@ -331,7 +321,6 @@ import {
   localSilentAuthActive,
   replaceCurrentSessionUser,
 } from "../auth/session";
-import BrandMark from "../components/BrandMark.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import ModalDialog from "../components/ModalDialog.vue";
 import { useFormValidation } from "../composables/useFormValidation";
@@ -369,6 +358,11 @@ import {
 
 type StatusTone = "neutral" | "success" | "warning" | "danger";
 type TestTone = "success" | "warning" | "danger";
+
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), {
+  embedded: false,
+});
+const emit = defineEmits<{ close: [] }>();
 
 const router = useRouter();
 const route = useRoute();
@@ -500,8 +494,6 @@ const canRetryActiveService = computed(() => Boolean(activeAddress.value));
 const setupFinished = computed(() => isRuntimeSetupFinished(snapshot.value));
 /** 未初始化时即使表单与草稿一致也允许保存，把确认权收在保存路径上。 */
 const canSave = computed(() => dirty.value || !setupFinished.value);
-/** 仅设置已确认后才展示离开；未确认必须先「保存设置」。 */
-const showLeaveAction = computed(() => setupFinished.value || authStatus.value === "authenticated");
 const modeTitle = computed(() =>
   remoteMode.value ? "连接已有服务器" : serverMode.value ? "允许其他设备连接" : "在本机使用",
 );
@@ -856,6 +848,10 @@ function isFirewallRecoveryStatus(status: string | undefined): boolean {
 async function leaveRuntimeSettings(): Promise<void> {
   if (authStatus.value !== "authenticated" && !setupFinished.value) {
     notice.warning("请先保存运行设置，再继续。", { detail: "保存成功后才能离开此页面。" });
+    return;
+  }
+  if (props.embedded) {
+    emit("close");
     return;
   }
   await navigateAfterSetup();

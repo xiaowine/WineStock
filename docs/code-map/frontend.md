@@ -77,7 +77,7 @@
 - 替代料：`SubstitutesPage` 全局分组治理与确定性星链网络视图（力导向布局 composable），`components/substitutes/` 关系组、共享编辑 Dialog 与 SVG 画布。
 - 用户：`UsersPage` 与 `components/users/` 管理表单族，包含独立用户名修改 Dialog；编辑当前账号时锁定权限管理关键权限，改名后同步当前会话用户快照。
 - 操作日志：`EventsPage` 与 `components/events/` 读取后端审计事件，提供高级筛选、只读详情和历史 JSON 差异兼容。
-- 运行设置：`RuntimeSettingsPage` 无 API 和鉴权依赖；self-hosted 端口由 Shell 自动分配，server-mode 编辑固定端口与监听地址。
+- 运行设置：`RuntimeSettingsPage` 拥有共享运行设置 Dialog 及其表单状态，无 API 和鉴权依赖；AppShell 在已进入应用时原地挂载 Dialog，`/settings/runtime` 仅用于启动漏斗和服务恢复；self-hosted 端口由 Shell 自动分配，server-mode 编辑固定端口与监听地址。
 
 ## 样式与存储
 
