@@ -146,9 +146,29 @@ scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 pa
 `web/SystemBarAppearanceController`、`shell/NativeBackNavigator`。
 如果桥安装、前端契约校验或首屏握手失败，Shell 会先销毁 WebView，再复用同一兼容性阻断页显示“加载异常，请更新后重试。”；
 不会把失败页面继续留在 WebView 中。
-Debug APK 支持以下 adb 测试参数：`winestock.xiaowine.cc.extra.FORCE_WEBVIEW_BLOCK` 强制 WebView 兼容性阻断，
-`winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_BLOCK` 强制桥安装失败，
-`winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK` 强制首屏握手超时；Release APK 忽略这些参数。
+
+### Debug 故障注入
+
+以下参数只对 Debug APK 生效，Release APK 会忽略：
+
+```powershell
+adb shell am force-stop winestock.xiaowine.cc
+adb shell am start -n winestock.xiaowine.cc/.MainActivity `
+  --ez winestock.xiaowine.cc.extra.FORCE_WEBVIEW_BLOCK true
+```
+
+上例强制 WebView 版本/能力门禁失败。将参数替换为以下值，可分别测试其它启动边界：
+
+```text
+winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_BLOCK
+winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK
+```
+
+前者应在加载前销毁 WebView，后者应在首屏握手超时后销毁 WebView；两者均复用原生阻断页。
+测试握手超时需要等待 `SHELL_BRIDGE_READY_TIMEOUT_MS`（当前为 8 秒）。已有 Activity 实例时先执行
+`adb shell am force-stop winestock.xiaowine.cc`，避免沿用旧 Intent。
+
+Android 启动失败文案整改方案见 [`webview-startup-error-remediation.md`](webview-startup-error-remediation.md)。
 
 ## 相关文档
 
