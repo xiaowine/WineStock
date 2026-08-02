@@ -14,7 +14,7 @@ Desktop 主窗口点击关闭后不退出进程，而是隐藏窗口并继续在
 
 当前入口位于 [`desktop/src/main.rs`](../../src/main.rs)：
 
-- 主窗口由 `WebviewWindowBuilder` 创建，初始 `visible(false)`，由 `frontendReady` 或 8 秒兜底逻辑显示；
+- 主窗口由 `WebviewWindowBuilder` 创建，初始 `visible(false)`，正常路径仅由 `frontendReady` 显示；8 秒未完成握手时由原生壳提示超时并退出；
 - `on_window_event` 目前只处理主窗口获得焦点，用于发布应用恢复事件；没有处理 `WindowEvent::CloseRequested`；
 - `RunEvent::ExitRequested` 会阻止立即退出，等待 `DesktopRuntimeManager::shutdown_local_service` 完成后再调用 `handle.exit(0)`；
 - `tauri-plugin-single-instance` 的二次启动回调会显示、取消最小化并聚焦主窗口；
@@ -210,7 +210,7 @@ exit_started:     是否已经启动应用退出清理
 
 当前主窗口在前端首帧就绪前隐藏，属于加载防闪烁机制；托盘后台行为是运行时关闭窗口后的长期状态，二者必须区分：
 
-- 首次启动仍由 `frontendReady` 或 8 秒兜底显示；
+- 首次启动正常由 `frontendReady` 显示；启动门卫未完成时不显示空白窗口，而由原生壳提示并退出；
 - 托盘图标可以在 shell setup 后创建；
 - 用户在首帧完成前主动点击托盘时，可以按用户明确意图显示窗口；
 - 托盘恢复不能绕过前端已有的配置/错误状态，也不能直接打开 Axum 地址。
@@ -267,7 +267,7 @@ client-only、connect-to-remote 和 self-hosted 也采用相同的窗口后台�
 5. 右键托盘选择“打开”，结果与左键一致。
 6. 右键托盘选择“退出”，本地服务释放端口，进程退出，防火墙规则不因退出被删除。
 7. 窗口隐藏后再次启动程序，只恢复首个实例，不创建第二个进程。
-8. 前端未发送 `frontendReady` 时点击托盘，窗口不会永久隐藏；正常首屏兜底仍有效。
+8. 前端未发送 `frontendReady` 时，启动超时会显示原生错误提示并退出，不把未初始化窗口交给用户。
 9. 托盘初始化失败的模拟路径不会把窗口置于无法恢复的隐藏状态。
 10. 偏好设置默认是“最小化到系统托盘”，关闭窗口后进程和 server-mode 服务仍在运行。
 11. 切换为“退出应用”后关闭窗口，进程退出并释放本地服务端口；再次打开应用后偏好仍保持。

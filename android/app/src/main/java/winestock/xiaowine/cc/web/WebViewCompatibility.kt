@@ -29,6 +29,7 @@ internal sealed interface WebViewCompatibilityResult {
         override val provider: WebViewProviderSnapshot?,
         val reason: WebViewIncompatibilityReason,
         val missingFeatures: Set<String> = emptySet(),
+        val diagnosticCode: String? = null,
     ) : WebViewCompatibilityResult
 }
 

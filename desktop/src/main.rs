@@ -51,11 +51,55 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .setup(move |app| {
             let webview = webview_compatibility::check();
-            if debug_startup_overrides.force_webview_block || !webview.supported {
+            let webview_failure = if debug_startup_overrides.force_webview_block {
+                Some(webview_compatibility::WebViewRuntimeFailure::ForcedBlock)
+            } else {
+                webview.failure
+            };
+            if let Some(failure) = webview_failure {
+                eprintln!(
+                    "WineStock Desktop 启动门卫失败：gate=webview2 reason={} version={:?} debug={}",
+                    failure.code(),
+                    webview.version,
+                    cfg!(debug_assertions)
+                );
+                let (title, description) = match failure {
+                    webview_compatibility::WebViewRuntimeFailure::Missing => {
+                        (
+                            "无法启动 WineStock",
+                            "未检测到 WineStock 所需的 WebView2 Runtime。请重新安装 WineStock，安装器会补全所需组件。确认后 WineStock 将退出。",
+                        )
+                    }
+                    webview_compatibility::WebViewRuntimeFailure::VersionTooOld => {
+                        (
+                            "WineStock 运行组件版本过低",
+                            "当前 WebView2 Runtime 版本低于 WineStock 的最低要求（M111）。请重新安装 WineStock，安装器会补全满足要求的组件。确认后 WineStock 将退出。",
+                        )
+                    }
+                    webview_compatibility::WebViewRuntimeFailure::VersionInvalid => {
+                        (
+                            "无法检查 WineStock 运行组件",
+                            "无法正确读取 WebView2 Runtime 版本。请重新安装 WineStock，安装器会重新配置所需组件。确认后 WineStock 将退出。",
+                        )
+                    }
+                    webview_compatibility::WebViewRuntimeFailure::VersionCheckFailed => {
+                        (
+                            "无法检查 WineStock 运行组件",
+                            "WineStock 无法确认 WebView2 Runtime 是否可用。请重新安装 WineStock，安装器会重新配置所需组件。确认后 WineStock 将退出。",
+                        )
+                    }
+                    webview_compatibility::WebViewRuntimeFailure::ForcedBlock => {
+                        (
+                            "WebView2 门卫测试",
+                            "当前为 Debug 测试配置，已模拟 WebView2 版本不满足要求。确认后 WineStock 将退出。",
+                        )
+                    }
+                };
+                let description = append_diagnostic_code(description, failure.diagnostic_code());
                 MessageDialog::new()
                     .set_level(MessageLevel::Error)
-                    .set_title("WineStock 无法启动")
-                    .set_description("WineStock 依赖损坏，请重新安装软件后重试。")
+                    .set_title(title)
+                    .set_description(description)
                     .set_buttons(MessageButtons::Ok)
                     .show();
                 std::process::exit(1);
@@ -104,13 +148,13 @@ fn main() {
             }
             let fallback_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                // 正常路径由 frontendReady 控制显示；异常页面或桥初始化失败时，
-                // 受控超时仍显示前端设置/错误页，避免窗口永久隐藏。
+                // 正常路径由 frontendReady 控制显示；未完成握手时使用原生提示并退出，
+                // 避免用户看到空白或半初始化窗口。
                 tokio::time::sleep(Duration::from_secs(8)).await;
-                if !winestock_desktop::commands::is_frontend_ready() {
-                    if let Some(window) = fallback_handle.get_webview_window("main") {
-                        winestock_desktop::window::show_main_window(&window);
-                    }
+                if !winestock_desktop::commands::is_frontend_ready()
+                    && !winestock_desktop::commands::is_frontend_failure_reported()
+                {
+                    winestock_desktop::commands::show_frontend_load_timeout(&fallback_handle);
                 }
             });
             Ok(())
@@ -172,4 +216,21 @@ fn main() {
                 });
             }
         });
+}
+
+fn append_diagnostic_code(description: &str, diagnostic_code: &str) -> String {
+    format!("{description}\n错误代码：{diagnostic_code}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::append_diagnostic_code;
+
+    #[test]
+    fn appends_diagnostic_code_on_a_separate_line() {
+        assert_eq!(
+            append_diagnostic_code("加载失败。", "SHELL_BRIDGE_READY_FAILED"),
+            "加载失败。\n错误代码：SHELL_BRIDGE_READY_FAILED"
+        );
+    }
 }

@@ -29,6 +29,16 @@
 | `REQUIRED_FEATURES_MISSING` | WebView 能力不兼容   | 当前 WebView 缺少 WineStock 需要的安全通信接口，可能与 WebView 版本、系统实现或应用兼容性有关。请先更新后重试；若仍失败，请反馈诊断信息。 |
 | `SHELL_BRIDGE_UNAVAILABLE`  | WineStock 加载失败  | WineStock 与系统 WebView 的桥接未能启动，可能是应用资源、应用版本或系统兼容性问题。请重新打开应用；若仍失败，请更新应用或反馈诊断信息。       |
 
+对应的用户可见错误码为：
+
+| 原因 | 错误代码 |
+|---|---|
+| `PROVIDER_UNAVAILABLE` | `WEBVIEW_PROVIDER_UNAVAILABLE` |
+| `VERSION_UNREADABLE` | `WEBVIEW_VERSION_UNREADABLE` |
+| `VERSION_TOO_OLD` | `WEBVIEW_VERSION_TOO_OLD` |
+| `REQUIRED_FEATURES_MISSING` | `WEBVIEW_REQUIRED_FEATURES_MISSING` |
+| Shell Bridge 不可用 | `SHELL_BRIDGE_UNAVAILABLE` |
+
 ## 实施结果
 
 1. `WebViewCompatibilityScreen` 已按原因切换标题，不再固定显示“需要更新系统 WebView”。
@@ -36,7 +46,9 @@
 3. 兼容页已增加检测结果标签；Shell Bridge 失败时把“最低要求”区域替换为“失败阶段”，避免暗示系统版本必然有问题。
 4. `SHELL_BRIDGE_UNAVAILABLE` 已使用应用加载失败语义，并保留应用资源、应用版本和系统兼容性的多因归因。
 5. provider、版本和缺失能力仍由现有日志记录，内部异常不展示给用户。
-6. 已增加 JVM 文案映射测试；下一步使用以下 Debug 参数进行真机验收：
+6. 每条兼容性页正文末尾追加稳定的 `错误代码：...`；WebView 原因使用 `WEBVIEW_*` 码，Shell Bridge 使用
+   `SHELL_BRIDGE_*` 或 `FRONTEND_LOAD_TIMEOUT`。未知前端值降级为 `SHELL_BRIDGE_UNAVAILABLE`，不显示原始输入。
+7. 已增加 JVM 文案映射和错误码白名单测试；下一步使用以下 Debug 参数进行真机验收：
    - `FORCE_WEBVIEW_BLOCK` 验证系统 WebView 版本过低路径；
    - `FORCE_SHELL_BRIDGE_BLOCK` 验证应用桥安装失败路径；
    - `FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK` 验证应用桥握手失败路径。
@@ -45,6 +57,7 @@
 
 - 版本过低时，用户能明确知道需要更新系统 WebView。
 - Bridge 安装或握手失败时，用户不会被告知“必须更新 WebView”；页面应明确这是 WineStock 加载失败，并保留重试/反馈方向。
+- 页面正文末尾包含稳定错误码，且未知 Bridge 输入不会出现在页面中。
 - provider 不存在、版本不可读和缺失能力三类提示互不混淆。
 - Debug 注入参数覆盖三条路径，WebView 销毁、原生阻断页和返回重试均符合预期。
 - Release APK 不响应 Debug 注入参数。

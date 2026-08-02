@@ -65,6 +65,7 @@ class WebViewCompatibilityEvaluatorTest {
         val reasons = WebViewIncompatibilityReason.values()
 
         reasons.forEach { reason ->
+            assertTrue(WebViewCompatibilityPresentation.diagnosticCode(reason).isNotEmpty())
             assertTrue(WebViewCompatibilityPresentation.title(reason) != 0)
             assertTrue(WebViewCompatibilityPresentation.message(reason) != 0)
             assertTrue(WebViewCompatibilityPresentation.resultLabel(reason) != 0)
@@ -84,6 +85,20 @@ class WebViewCompatibilityEvaluatorTest {
             WebViewCompatibilityPresentation.requirementLabel(
                 WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE,
             ),
+        )
+    }
+
+    @Test
+    fun `frontend bridge diagnostic codes are allowlisted`() {
+        assertEquals(
+            "SHELL_BRIDGE_READY_FAILED",
+            WebViewCompatibilityPresentation.normalizeBridgeDiagnosticCode(
+                "shell_bridge_ready_failed",
+            ),
+        )
+        assertEquals(
+            "SHELL_BRIDGE_UNAVAILABLE",
+            WebViewCompatibilityPresentation.normalizeBridgeDiagnosticCode("unknown-code"),
         )
     }
 

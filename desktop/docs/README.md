@@ -40,11 +40,13 @@ Desktop 偏好支持由 `tauri-plugin-autostart` 管理的“开机自启”和�
 仍显示主窗口。实现边界和验收项见 [`implementation-notes/desktop-autostart.md`](implementation-notes/desktop-autostart.md)。
 
 Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询实际 Evergreen Runtime 版本（复用 Tauri/Wry 的静态 Loader 绑定），
-最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。版本缺失或低于
-M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过跨平台 `rfd` 原生错误对话框提示依赖损坏，要求重新安装软件后退出。
-安装器的 `minimumWebview2Version` 同样设置为 `111.0.0.0`，用于安装/更新阶段拦截不满足要求的运行时。
+最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。WebView2 未安装、无法找到、版本过低、
+版本格式异常或检查 API 失败时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过 `rfd` 原生错误对话框提示重新安装 WineStock，
+由安装器补全或更新 WebView2。安装器的 `minimumWebview2Version` 同样设置为 `111.0.0.0`。
 前端 Shell Bridge 在初始化、原生扩展订阅或首屏握手阶段失败时，不继续显示 WebView；由 `shell_frontend_failed`
-隐藏窗口、使用 `rfd` 显示“加载异常，请更新后重试。”并退出进程。
+接收稳定失败代码，按故障类别显示 `rfd` 原生提示并退出进程。WebView2 和 Shell Bridge 提示正文末尾会追加
+受控的 `错误代码：...`，未知前端值降级为通用码；8 秒内未完成握手时显示带
+`错误代码：FRONTEND_LOAD_TIMEOUT` 的原生超时提示并退出，不再展示空白窗口。
 
 ### Debug 故障注入
 
@@ -57,7 +59,7 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
 ```
 
 三个参数依次覆盖 WebView2 门禁失败、初始 Shell Bridge 调用失败和首屏就绪握手失败；后两者应隐藏 WebView，
-使用 `rfd` 显示“加载异常，请更新后重试。”并退出。参数只对 Debug 构建生效，Release 构建会忽略。
+按稳定失败类别使用 `rfd` 显示原生提示并退出。参数只对 Debug 构建生效，Release 构建会忽略。
 
 本地运行配置保存于 Tauri 的 `app_data_dir/config.json`。配置、数据库和文件目录均由本壳管理，绝对路径
 不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际
@@ -75,6 +77,8 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
   关闭窗口转后台、系统托盘恢复主窗口和明确退出的生命周期方案。
 - [`implementation-notes/desktop-autostart.md`](implementation-notes/desktop-autostart.md)：Desktop
   开机自启、静默启动、Tauri autostart 插件接入、Shell Bridge 偏好和跨平台验收方案。
+- [`implementation-notes/desktop-startup-gates-warning-remediation.md`](implementation-notes/desktop-startup-gates-warning-remediation.md)：Desktop
+  WebView2 版本门卫、Shell Bridge 加载/握手门卫的故障分类、提示文案和验收方案。
 
 ## 验证入口
 

@@ -29,7 +29,14 @@ internal class WebViewCompatibilityScreen(
         binding.compatibilityResultLabel.setText(
             WebViewCompatibilityPresentation.resultLabel(result.reason),
         )
-        binding.compatibilityMessage.setText(WebViewCompatibilityPresentation.message(result.reason))
+        binding.compatibilityMessage.text =
+            activity.getString(WebViewCompatibilityPresentation.message(result.reason)) +
+                "\n" +
+                activity.getString(
+                    R.string.webview_compatibility_diagnostic_code,
+                    result.diagnosticCode
+                        ?: WebViewCompatibilityPresentation.diagnosticCode(result.reason),
+                )
         binding.requirementLabel.setText(
             WebViewCompatibilityPresentation.requirementLabel(result.reason),
         )

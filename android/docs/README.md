@@ -145,7 +145,9 @@ scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 pa
 `web/ShellWebViewConfigurator`、`web/WebViewFileChooserHost`、`web/SplashFrontendGate`、
 `web/SystemBarAppearanceController`、`shell/NativeBackNavigator`。
 如果桥安装、前端契约校验或首屏握手失败，Shell 会先销毁 WebView，再复用同一兼容性阻断页显示“WineStock 加载失败”；
-不会把应用自身失败归因成系统 WebView 版本过低。
+不会把应用自身失败归因成系统 WebView 版本过低。阻断页正文末尾追加受控的 `错误代码：...`，WebView 原因使用
+`WEBVIEW_*` 码，Shell Bridge 原因使用对应的 `SHELL_BRIDGE_*` 或 `FRONTEND_LOAD_TIMEOUT`；未知前端值降级为
+`SHELL_BRIDGE_UNAVAILABLE`。
 
 ### Debug 故障注入
 

@@ -78,7 +78,7 @@ class ShellBridgeHost(
     private var runtimeSubscription: AutoCloseable? = null
     private val frontendReadyTimeout = Runnable {
         if (!destroyed && installed && !frontendReady) {
-            onBridgeFailure("前端未完成 Shell Bridge 握手")
+            onBridgeFailure("frontend_load_timeout")
         }
     }
 

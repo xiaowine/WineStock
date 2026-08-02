@@ -25,7 +25,7 @@
 ## WebView 环境（`app/.../web/`）
 
 - 资源加载：`WebViewAssetLoader` 把受信任 origin 根路径映射到 `assets/frontend`，根路径回退 `index.html`，不做 SPA 回退（前端使用 hash 路由）；`ShellWebViewConfigurator.kt` 集中 WebView 配置，并关闭 WebView 整页缩放支持、内置缩放机制和屏幕缩放控件。前端画布等局部缩放仍由组件自己的手势逻辑负责。
-- 启动兼容性：`WebViewCompatibility.kt` 读取并记录实际 provider package/version，使用主版本和两个 AndroidX WebKit capability 共同判定，未知状态按不兼容处理；纯判定由 JVM 单测覆盖。`WebViewCompatibilityScreen.kt` 与 `activity_webview_compatibility.xml` 构成不依赖 WebView 的恢复边界。
+- 启动兼容性：`WebViewCompatibility.kt` 读取并记录实际 provider package/version，使用主版本和两个 AndroidX WebKit capability 共同判定，未知状态按不兼容处理；`WebViewCompatibilityPresentation.kt` 负责原因与受控用户诊断码映射。纯判定由 JVM 单测覆盖。`WebViewCompatibilityScreen.kt` 与 `activity_webview_compatibility.xml` 构成不依赖 WebView 的恢复边界。
 - 摄像头授权：`WebViewCameraPermissionHost.kt` 处理 `onPermissionRequest`——仅受信任 origin 的 VIDEO_CAPTURE 且原生 CAMERA 运行时权限获准后才 grant，权限未授时经 Activity launcher 请求后结算，其余来源与资源一律 deny；manifest 声明 `CAMERA` 并以 `uses-feature required=false` 保持无摄像头设备可安装。
 - 渲染环境：WindowInsets 按 density 换算成 CSS 像素后仅在受信任 origin 写入 `--shell-safe-area-inset-*`（不扩展 Shell Bridge 业务契约）；系统栏在前端接管前跟随系统 day/night mode，之后由独立 JS 接口接收主题基线与临时覆盖并在 resume 时重放。Activity 根 `ProtectionLayout` 在透明底部系统栏下绘制主题相关 `ColorProtection`，不依赖系统自动 contrast scrim。应用主题的 `android:isLightTheme` 同样按 day/night 切换以驱动 WebView `prefers-color-scheme`，WebView 算法着色关闭，页面颜色只归前端双主题 CSS 所有。edge-to-edge 使 manifest `adjustResize` 失效，键盘避让由同一发布器消费 IME inset 完成——弹出时只给内部 WebView 内容容器添加 bottom padding，保持根保护层位于真实系统栏，期间安全区底边发布为 0；shell 已处理的系统栏、挖孔与 IME 类型置零后继续下发，避免新版 WebView 重复应用且保留后续更新通知。
 - 文件选择：单 pending 回调的纯状态机 Session（supersede/cancel/destroy 一次结算，JVM 单元测试覆盖竞态）加启动系统选择器的 Host；不声明存储/媒体权限。

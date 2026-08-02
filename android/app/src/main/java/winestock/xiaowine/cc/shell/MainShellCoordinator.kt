@@ -253,7 +253,7 @@ internal class MainShellCoordinator(
             shellBridge = bridge
         } else {
             bridge.destroy()
-            stopForBridgeFailure("Shell Bridge 安装失败")
+            stopForBridgeFailure("shell_bridge_unavailable")
         }
     }
 

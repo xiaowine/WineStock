@@ -10,6 +10,7 @@ import type {
   EditableRuntimeConfig,
   RuntimeConfigValidationResult,
   RuntimeSnapshot,
+  ShellBridgeFailureCode,
   ShellBridge,
 } from "../contract";
 
@@ -45,8 +46,8 @@ export function createTauriShellBridge(): ShellBridge {
     frontendReady() {
       return invokeShell<void>("shell_frontend_ready");
     },
-    reportFrontendFailure(message) {
-      return invokeShell<void>("shell_frontend_failed", { message });
+    reportFrontendFailure(code: ShellBridgeFailureCode) {
+      return invokeShell<void>("shell_frontend_failed", { code });
     },
     openExternal(url) {
       return openUrl(url);

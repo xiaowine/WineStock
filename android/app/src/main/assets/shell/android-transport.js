@@ -143,8 +143,8 @@
     frontendReady: function () {
       return call("frontendReady");
     },
-    reportFrontendFailure: function (message) {
-      return call("frontendFailed", { message: message });
+    reportFrontendFailure: function (code) {
+      return call("frontendFailed", { message: code });
     },
     openExternal: function (url) {
       return call("openExternal", { url: url });

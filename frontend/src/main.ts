@@ -95,13 +95,13 @@ async function bootstrapFrontend(): Promise<void> {
   } catch (error) {
     // capability 声明与订阅不一致属于桥契约失败，交给平台 Shell 阻断 WebView。
     console.warn("无法安装平台原生返回订阅", error);
-    void reportShellBridgeFailure(error);
+    void reportShellBridgeFailure(error, "shell_bridge_event_subscription_failed");
     return;
   }
   window.requestAnimationFrame(() => {
     void reportFrontendReady().catch((error: unknown) => {
       console.warn("无法向平台 Shell 报告前端就绪状态", error);
-      void reportShellBridgeFailure(error);
+      void reportShellBridgeFailure(error, "shell_bridge_ready_failed");
     });
   });
 }

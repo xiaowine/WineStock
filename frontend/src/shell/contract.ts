@@ -24,6 +24,17 @@ export const defaultDesktopPreferences: DesktopPreferences = {
 /** 当前前端实现支持的 Shell Bridge 协议版本。 */
 export const SHELL_BRIDGE_PROTOCOL_VERSION = 1 as const;
 
+/** 前端启动门卫上报给原生壳的稳定失败类别。 */
+export type ShellBridgeFailureCode =
+  | "shell_bridge_unavailable"
+  | "shell_bridge_snapshot_invalid"
+  | "shell_bridge_version_mismatch"
+  | "shell_bridge_method_missing"
+  | "shell_bridge_extension_invalid"
+  | "shell_bridge_event_subscription_failed"
+  | "shell_bridge_ready_failed"
+  | "frontend_load_timeout";
+
 /** 注入桥返回不兼容版本或无效快照时使用的稳定错误。 */
 export class ShellBridgeContractError extends Error {
   readonly code: "bridge_version_mismatch" | "invalid_bridge_payload";
@@ -247,7 +258,7 @@ export interface ShellBridge {
   /** 前端首个稳定画面已经渲染。 */
   frontendReady(): Promise<void>;
   /** 前端无法完成 Shell Bridge 初始化时通知原生壳；Web fallback 可以忽略。 */
-  reportFrontendFailure?(message: string): Promise<void>;
+  reportFrontendFailure?(code: ShellBridgeFailureCode): Promise<void>;
   /** 通过平台安全能力打开经过校验的外部链接。 */
   openExternal(url: string): Promise<void>;
   /** Desktop 读取本机偏好；非 Desktop 平台可以不提供。 */

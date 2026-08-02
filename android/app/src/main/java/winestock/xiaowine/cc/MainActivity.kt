@@ -16,6 +16,7 @@ import winestock.xiaowine.cc.shell.MainShellCoordinator
 import winestock.xiaowine.cc.web.WebViewCompatibility
 import winestock.xiaowine.cc.web.WebViewCompatibilityResult
 import winestock.xiaowine.cc.web.WebViewCompatibilityScreen
+import winestock.xiaowine.cc.web.WebViewCompatibilityPresentation
 import winestock.xiaowine.cc.web.WebViewIncompatibilityReason
 
 /**
@@ -77,7 +78,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun handleShellBridgeFailure(_message: String) {
+    private fun handleShellBridgeFailure(code: String) {
         if (shell == null) return
         shell = null
         showCompatibilityScreen(
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                 reason = WebViewIncompatibilityReason.SHELL_BRIDGE_UNAVAILABLE,
+                diagnosticCode = WebViewCompatibilityPresentation.normalizeBridgeDiagnosticCode(code),
             ),
         )
     }

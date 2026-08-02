@@ -27,19 +27,27 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let mut overrides = DebugStartupOverrides::default();
-    #[cfg(debug_assertions)]
-    for argument in args.into_iter().map(|value| value.as_ref().to_owned()) {
-        match argument.as_str() {
-            FORCE_WEBVIEW_BLOCK_ARGUMENT => overrides.force_webview_block = true,
-            FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT => overrides.force_shell_bridge_block = true,
-            FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT => {
-                overrides.force_shell_bridge_handshake_block = true
-            }
-            _ => {}
-        }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = args;
+        return DebugStartupOverrides::default();
     }
-    overrides
+
+    #[cfg(debug_assertions)]
+    {
+        let mut overrides = DebugStartupOverrides::default();
+        for argument in args.into_iter().map(|value| value.as_ref().to_owned()) {
+            match argument.as_str() {
+                FORCE_WEBVIEW_BLOCK_ARGUMENT => overrides.force_webview_block = true,
+                FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT => overrides.force_shell_bridge_block = true,
+                FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT => {
+                    overrides.force_shell_bridge_handshake_block = true
+                }
+                _ => {}
+            }
+        }
+        overrides
+    }
 }
 
 /// 判断当前进程是否由 Tauri autostart 注册项拉起。

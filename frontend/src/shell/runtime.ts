@@ -29,6 +29,7 @@ import {
   type RuntimeConfigValidationResult,
   type RuntimeSnapshot,
   type ShellBridge,
+  type ShellBridgeFailureCode,
   type NativeBackRequest,
   type NativeBackResolution,
   type NativeBackResolutionAck,
@@ -124,11 +125,13 @@ export async function reportFrontendReady(): Promise<void> {
 }
 
 /** 把不可恢复的前端桥契约错误交给原生壳；原生壳负责停止 WebView 并显示平台提示。 */
-export async function reportShellBridgeFailure(error: unknown): Promise<void> {
+export async function reportShellBridgeFailure(
+  error: unknown,
+  explicitCode?: ShellBridgeFailureCode,
+): Promise<void> {
   const reporter = bridge?.reportFrontendFailure;
   if (typeof reporter !== "function") return;
-  const message = error instanceof Error ? error.message : "无法初始化 WineStock Shell Bridge";
-  await reporter(message).catch(() => undefined);
+  await reporter(explicitCode ?? classifyShellBridgeFailure(error)).catch(() => undefined);
 }
 
 /**
@@ -237,33 +240,68 @@ export async function setDesktopPreferences(
 
 async function performInitialization(): Promise<RuntimeSnapshot> {
   try {
-    const initialSnapshot = await requireBridge().getRuntimeSnapshot();
-    assertCompatibleRuntimeSnapshot(initialSnapshot);
-    assertCompleteShellBridge(requireBridge());
+    try {
+      assertCompleteShellBridge(requireBridge());
+    } catch (error) {
+      throw startupFailure("shell_bridge_method_missing", error);
+    }
+    let initialSnapshot: RuntimeSnapshot;
+    try {
+      initialSnapshot = await requireBridge().getRuntimeSnapshot();
+    } catch (error) {
+      throw startupFailure("shell_bridge_unavailable", error);
+    }
+    try {
+      assertCompatibleRuntimeSnapshot(initialSnapshot);
+    } catch (error) {
+      throw startupFailure(
+        error instanceof Error && error.name === "ShellBridgeContractError" &&
+          "code" in error && error.code === "bridge_version_mismatch"
+          ? "shell_bridge_version_mismatch"
+          : "shell_bridge_snapshot_invalid",
+        error,
+      );
+    }
     if (initialSnapshot.platform === "desktop") {
-      assertDesktopFirewallShellBridgeExtension(requireBridge());
+      try {
+        assertDesktopFirewallShellBridgeExtension(requireBridge());
+      } catch (error) {
+        throw startupFailure("shell_bridge_extension_invalid", error);
+      }
     }
     if (initialSnapshot.capabilities.nativeBack) {
-      assertNativeBackShellBridgeExtension(requireBridge());
+      try {
+        assertNativeBackShellBridgeExtension(requireBridge());
+      } catch (error) {
+        throw startupFailure("shell_bridge_extension_invalid", error);
+      }
     }
     applySnapshot(initialSnapshot);
-    stopRuntimeStateSubscription = await requireBridge().onRuntimeStateChanged((nextSnapshot) => {
-      try {
-        applySnapshot(nextSnapshot, activeApiBaseUrl.value);
-      } catch (error) {
-        mutableRuntimeStatus.value = "failed";
-        mutableRuntimeError.value =
-          error instanceof Error ? error.message : "Shell Bridge 发布了无效运行快照";
-      }
-    });
-    stopAppResumedSubscription = await requireBridge().onAppResumed(() => {
-      resetServiceAvailabilityForRuntimeChange();
-    });
+    try {
+      stopRuntimeStateSubscription = await requireBridge().onRuntimeStateChanged((nextSnapshot) => {
+        try {
+          applySnapshot(nextSnapshot, activeApiBaseUrl.value);
+        } catch (error) {
+          mutableRuntimeStatus.value = "failed";
+          mutableRuntimeError.value =
+            error instanceof Error ? error.message : "Shell Bridge 发布了无效运行快照";
+          void reportShellBridgeFailure(error, "shell_bridge_snapshot_invalid");
+        }
+      });
+      stopAppResumedSubscription = await requireBridge().onAppResumed(() => {
+        resetServiceAvailabilityForRuntimeChange();
+      });
+    } catch (error) {
+      throw startupFailure("shell_bridge_event_subscription_failed", error);
+    }
     if (
       typeof stopRuntimeStateSubscription !== "function" ||
       typeof stopAppResumedSubscription !== "function"
     ) {
-      throw new Error("Shell Bridge 事件订阅没有返回取消函数");
+      throw startupFailure(
+        "shell_bridge_event_subscription_failed",
+        new Error("Shell Bridge 事件订阅没有返回取消函数"),
+      );
     }
     mutableRuntimeStatus.value = "ready";
     mutableRuntimeError.value = "";
@@ -275,6 +313,33 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
     configureRuntimeApiBaseUrl(undefined);
     throw error;
   }
+}
+
+function startupFailure(code: ShellBridgeFailureCode, cause: unknown): Error & {
+  shellBridgeFailureCode: ShellBridgeFailureCode;
+} {
+  const error = cause instanceof Error ? cause : new Error("Shell Bridge 启动失败");
+  return Object.assign(error, { shellBridgeFailureCode: code });
+}
+
+function classifyShellBridgeFailure(error: unknown): ShellBridgeFailureCode {
+  if (isShellBridgeFailure(error)) {
+    return error.shellBridgeFailureCode;
+  }
+  if (error instanceof Error && error.name === "ShellBridgeContractError") {
+    return "shell_bridge_snapshot_invalid";
+  }
+  return "shell_bridge_unavailable";
+}
+
+function isShellBridgeFailure(
+  error: unknown,
+): error is Error & { shellBridgeFailureCode: ShellBridgeFailureCode } {
+  return (
+    error instanceof Error &&
+    typeof (error as Error & { shellBridgeFailureCode?: unknown }).shellBridgeFailureCode ===
+      "string"
+  );
 }
 
 function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): void {
