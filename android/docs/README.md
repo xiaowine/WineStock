@@ -146,6 +146,9 @@ scrollHeight，保证最后一项可完整露出；不在 `.app-shell` 上用 pa
 `web/SystemBarAppearanceController`、`shell/NativeBackNavigator`。
 如果桥安装、前端契约校验或首屏握手失败，Shell 会先销毁 WebView，再复用同一兼容性阻断页显示“加载异常，请更新后重试。”；
 不会把失败页面继续留在 WebView 中。
+Debug APK 支持以下 adb 测试参数：`winestock.xiaowine.cc.extra.FORCE_WEBVIEW_BLOCK` 强制 WebView 兼容性阻断，
+`winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_BLOCK` 强制桥安装失败，
+`winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK` 强制首屏握手超时；Release APK 忽略这些参数。
 
 ## 相关文档
 

@@ -35,6 +35,8 @@ internal class MainShellCoordinator(
     private val activity: ComponentActivity,
     launchFileChooser: (Intent) -> Unit,
     requestCameraPermission: () -> Unit,
+    private val forceBridgeInstallFailure: Boolean = false,
+    private val forceBridgeHandshakeFailure: Boolean = false,
     private val onBridgeFailure: (String) -> Unit = {},
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -243,10 +245,11 @@ internal class MainShellCoordinator(
                 appVersion = DeviceMetadata.resolveAppVersion(activity),
                 nativeBackResponseTimeoutMs = AppConfig.NATIVE_BACK_RESPONSE_TIMEOUT_MS,
                 frontendReadyTimeoutMs = AppConfig.SHELL_BRIDGE_READY_TIMEOUT_MS,
+                forceFrontendReadyFailure = forceBridgeHandshakeFailure,
                 onFrontendReady = { splashGate.markReady() },
                 onBridgeFailure = ::stopForBridgeFailure,
             )
-        if (bridge.install(webView)) {
+        if (!forceBridgeInstallFailure && bridge.install(webView)) {
             shellBridge = bridge
         } else {
             bridge.destroy()

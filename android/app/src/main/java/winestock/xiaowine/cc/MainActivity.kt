@@ -65,6 +65,9 @@ class MainActivity : ComponentActivity() {
             requestCameraPermission = {
                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
             },
+            forceBridgeInstallFailure = isDebugExtraEnabled(EXTRA_FORCE_SHELL_BRIDGE_BLOCK),
+            forceBridgeHandshakeFailure =
+                isDebugExtraEnabled(EXTRA_FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK),
             onBridgeFailure = ::handleShellBridgeFailure,
         )
         shell = coordinator
@@ -114,6 +117,10 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun isDebugExtraEnabled(name: String): Boolean =
+        applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+            intent.getBooleanExtra(name, false)
+
     override fun onResume() {
         super.onResume()
         shell?.onResume()
@@ -145,5 +152,9 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val EXTRA_FORCE_WEBVIEW_BLOCK =
             "winestock.xiaowine.cc.extra.FORCE_WEBVIEW_BLOCK"
+        const val EXTRA_FORCE_SHELL_BRIDGE_BLOCK =
+            "winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_BLOCK"
+        const val EXTRA_FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK =
+            "winestock.xiaowine.cc.extra.FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK"
     }
 }
