@@ -8,4 +8,5 @@ pub mod firewall;
 pub(crate) mod lan_access;
 pub mod runtime;
 pub mod webview_compatibility;
+pub mod webview_debug;
 pub mod webview_privacy;

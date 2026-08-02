@@ -18,7 +18,7 @@ use tauri::{
 use winestock_desktop::runtime::{
     emit_app_resumed, DesktopRuntimeManager, RUNTIME_STATE_CHANGED_EVENT,
 };
-use winestock_desktop::{webview_compatibility, webview_privacy};
+use winestock_desktop::{webview_compatibility, webview_debug, webview_privacy};
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 static EXIT_REQUESTED: AtomicBool = AtomicBool::new(false);
@@ -35,10 +35,7 @@ fn main() {
         std::process::exit(exit_code);
     }
 
-    #[cfg(not(debug_assertions))]
-    unsafe {
-        std::env::remove_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
-    }
+    webview_debug::configure();
 
     #[cfg(debug_assertions)]
     let prevent_default_plugin = tauri_plugin_prevent_default::debug();

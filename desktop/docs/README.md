@@ -30,6 +30,11 @@ SimpChinese，默认按 Windows 系统语言自动选择；需要显示语言选
 快捷键由 `tauri-plugin-prevent-default` 控制：Debug 使用 `debug()` 保留调试快捷键，Release 使用 `init()`
 禁用 WebView2 默认快捷键。
 
+Windows WebView2 的 CDP 远程调试仅由 Debug 构建启用：默认监听 `127.0.0.1:9222`，可用
+`WINESTOCK_WEBVIEW2_CDP_PORT` 修改端口。Release 构建会清理 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`，
+不接受外部注入调试参数。连接方式、安全边界和 MCP 调试步骤见
+[`implementation-notes/webview2-remote-debugging.md`](implementation-notes/webview2-remote-debugging.md)。
+
 Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询实际 Evergreen Runtime 版本（复用 Tauri/Wry 的静态 Loader 绑定），
 最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。版本缺失或低于
 M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过跨平台 `rfd` 原生错误对话框提示依赖损坏，要求重新安装软件后退出。
@@ -45,6 +50,8 @@ M111 时，不创建主窗口、不加载前端、不启动本地服务；Shell 
   的现状分析、复用边界、实施步骤、Shell Bridge 变化和验收矩阵。
 - [`implementation-notes/desktop-firewall-access.md`](implementation-notes/desktop-firewall-access.md)：Desktop
   server-mode 的跨平台 LAN 地址发现、Windows 防火墙规则、UAC 提权、其它系统策略和验收方案。
+- [`implementation-notes/webview2-remote-debugging.md`](implementation-notes/webview2-remote-debugging.md)：Windows
+  WebView2 Debug/CDP 远程调试策略、MCP 连接方式和 Release 安全边界。
 
 ## 验证入口
 
