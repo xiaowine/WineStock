@@ -6,12 +6,13 @@
   -webkit-tap-highlight-color: transparent;
   scrollbar-color: var(--scrollbar-thumb) transparent;
   scrollbar-gutter: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 
-  /* 所有滚动宿主共用同一套轻量滚动条，避免响应式切换滚动容器后露出系统默认样式。 */
+  /* 原生滚动槽由启动层替换为只显示滑块的全局浮层，避免浏览器绘制上下按钮。 */
   &::-webkit-scrollbar {
-    width: var(--scrollbar-size);
-    height: var(--scrollbar-size);
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   &::-webkit-scrollbar-track,
@@ -161,19 +162,6 @@ h3 {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-/* 触控和移动布局依赖手势滚动，隐藏经典滚动槽，避免其压缩业务内容宽度。 */
-@include mixins.mobile-or-touch {
-  * {
-    scrollbar-width: none;
-  }
-
-  *::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
-  }
 }
 
 /* 原生槽位隐藏后，由启动层把可见滑块覆盖在真实滚动宿主边缘。

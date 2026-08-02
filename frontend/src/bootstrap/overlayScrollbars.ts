@@ -1,4 +1,4 @@
-// 本文件拥有移动与触控视口的全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
+// 本文件拥有全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
 // 滑块挂在 Dialog 之上的固定层以保证可见；嵌套 Dialog 打开时隐藏被遮挡宿主的滑块，避免下层滑块穿透。
 
 type ScrollAxis = "vertical" | "horizontal";
@@ -30,7 +30,7 @@ interface VisibleRect {
   width: number;
 }
 
-const ACTIVE_MEDIA_QUERY = "(max-width: 767px), ((hover: none) and (pointer: coarse))";
+const ACTIVE_MEDIA_QUERY = "all";
 const ROOT_ID = "app-overlay-scrollbars";
 const TRACK_INSET = 3;
 const THUMB_HIT_SIZE = 12;
@@ -47,7 +47,7 @@ const entries = new Map<HTMLElement, OverlayScrollbarEntry>();
 /**
  * 安装全局浮层滚动条。
  *
- * 移动布局隐藏会占宽度的经典滚动槽，本模块为当前真实滚动宿主绘制独立滑块；
+ * 隐藏会占宽度的经典滚动槽，本模块为当前真实滚动宿主绘制独立滑块；
  * 响应式切换滚动容器、Dialog Teleport 和动态列表变化都会重新核对宿主。
  */
 export function installOverlayScrollbars(): void {
