@@ -472,31 +472,10 @@ async fn user_username_update_rejects_duplicate_deleted_and_invalid_names() {
 }
 
 #[tokio::test]
-async fn self_password_change_updates_username_and_is_atomic_on_duplicate() {
+async fn self_password_change_only_updates_password() {
     let app = seeded_app().await;
     seed_plain_user(app.state.database(), "self-user", "old-password").await;
-    seed_plain_user(app.state.database(), "taken-user", "taken-password").await;
     let login = login_request(&app, "self-user", "old-password").await;
-
-    let duplicate = authorized_json_request(
-        &app,
-        "POST",
-        "/api/auth/me/password",
-        &login.body.access_token,
-        &UserPasswordChangeRequest {
-            username: "taken-user".to_owned(),
-            current_password: "old-password".to_owned(),
-            new_password: "new-password".to_owned(),
-        },
-    )
-    .await;
-    assert_eq!(duplicate.status(), StatusCode::CONFLICT);
-    assert_eq!(error_code(duplicate).await, "username_taken");
-
-    let old_login = login_request(&app, "self-user", "old-password").await;
-    assert_eq!(old_login.status, StatusCode::OK);
-    let new_login = raw_login_request(&app, "self-user", "new-password").await;
-    assert_eq!(new_login.status(), StatusCode::UNAUTHORIZED);
 
     let changed = authorized_json_request(
         &app,
@@ -504,7 +483,6 @@ async fn self_password_change_updates_username_and_is_atomic_on_duplicate() {
         "/api/auth/me/password",
         &login.body.access_token,
         &UserPasswordChangeRequest {
-            username: "renamed-self".to_owned(),
             current_password: "old-password".to_owned(),
             new_password: "new-password".to_owned(),
         },
@@ -518,7 +496,7 @@ async fn self_password_change_updates_username_and_is_atomic_on_duplicate() {
         StatusCode::UNAUTHORIZED
     );
     assert_eq!(
-        login_request(&app, "renamed-self", "new-password")
+        login_request(&app, "self-user", "new-password")
             .await
             .status,
         StatusCode::OK
@@ -654,7 +632,6 @@ async fn user_password_reset_requires_reset_permission() {
         "/api/auth/me/password",
         &temporary_login.body.access_token,
         &UserPasswordChangeRequest {
-            username: "managed".to_owned(),
             current_password: "new-password".to_owned(),
             new_password: "final-password".to_owned(),
         },
@@ -685,7 +662,6 @@ async fn current_user_changes_only_own_password_with_current_password() {
         "/api/auth/me/password",
         &login.body.access_token,
         &UserPasswordChangeRequest {
-            username: "self-user".to_owned(),
             current_password: "wrong-password".to_owned(),
             new_password: "new-password".to_owned(),
         },
@@ -700,7 +676,6 @@ async fn current_user_changes_only_own_password_with_current_password() {
         "/api/auth/me/password",
         &login.body.access_token,
         &UserPasswordChangeRequest {
-            username: "self-user".to_owned(),
             current_password: "old-password".to_owned(),
             new_password: "new-password".to_owned(),
         },

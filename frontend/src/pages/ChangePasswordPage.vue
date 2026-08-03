@@ -27,17 +27,6 @@
       </p>
 
       <form class="auth-form" novalidate @submit.prevent="submitPasswordChange">
-        <input
-          class="visually-hidden"
-          name="username"
-          type="text"
-          autocomplete="off"
-          :value="username"
-          tabindex="-1"
-          aria-hidden="true"
-          readonly
-        />
-
         <FormField
           label="当前密码"
           control-id="change-current-password"
@@ -167,10 +156,6 @@ const newPasswordConfirmationError = computed(
 /** 校验并修改当前用户密码；成功后解除强制改密状态并恢复原内部目标。 */
 async function submitPasswordChange(): Promise<void> {
   errorMessage.value = "";
-  if (!username.value.trim()) {
-    notice.error("无法确认当前用户名", { detail: "请重新登录后再试。" });
-    return;
-  }
   fieldErrors.value = validatePasswordChange(
     currentPassword.value,
     newPassword.value,
@@ -186,7 +171,6 @@ async function submitPasswordChange(): Promise<void> {
   isSubmitting.value = true;
   try {
     await changeOwnPassword({
-      username: username.value,
       current_password: currentPassword.value,
       new_password: newPassword.value,
     });

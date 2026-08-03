@@ -41,8 +41,8 @@ pub async fn run() -> Result<(), ServerShellError> {
     }
     println!("数据库: {}", info.database_path.display());
     println!("文件目录: {}", info.files_dir.display());
-    if info.admin_setup_required {
-        println!("首次管理员尚未初始化；管理员创建流程尚未实现。");
+    if info.initial_user_setup_required {
+        println!("首个用户尚未初始化；请通过注册接口创建首个用户。");
     }
 
     let bound_addr = info.bound_addr;

@@ -113,7 +113,7 @@ fn running_state(info: &LocalServiceInfo) -> NativeServiceState {
         phase: "running".to_owned(),
         bound_address: Some(info.bound_addr.to_string()),
         api_base_url: Some(format!("http://127.0.0.1:{port}")),
-        admin_setup_required: Some(info.admin_setup_required),
+        initial_user_setup_required: Some(info.initial_user_setup_required),
         local_auth_exchange_token: info
             .local_session_token
             .as_ref()

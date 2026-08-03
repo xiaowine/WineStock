@@ -83,9 +83,9 @@ pub struct NativeServiceState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_base_url: Option<String>,
 
-    /// 当前数据库是否仍需创建首个管理员。
+    /// 当前数据库是否仍需创建首个用户。
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub admin_setup_required: Option<bool>,
+    pub initial_user_setup_required: Option<bool>,
 
     /// self-hosted 本机静默会话换取凭据；只经壳内可信桥传递，不得写入日志。
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,7 +103,7 @@ impl NativeServiceState {
             phase: "stopped".to_owned(),
             bound_address: None,
             api_base_url: None,
-            admin_setup_required: None,
+            initial_user_setup_required: None,
             local_auth_exchange_token: None,
             error: None,
         }
@@ -115,7 +115,7 @@ impl NativeServiceState {
             phase: "failed".to_owned(),
             bound_address: None,
             api_base_url: None,
-            admin_setup_required: None,
+            initial_user_setup_required: None,
             local_auth_exchange_token: None,
             error: Some(error),
         }

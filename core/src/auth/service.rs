@@ -53,8 +53,8 @@ pub(crate) async fn login(
 
 /// self-hosted 本机静默会话换取：校验壳内下发的换取凭据后为标记用户签发正常 token 对。
 ///
-/// 空库首次换取会自动开通默认管理员；标记用户被停用/收权时自愈。非 self-hosted 模式
-/// 或存量库未标记换取目标时返回 `LocalSessionUnavailable`。
+/// 空库首次换取使用用户提交的用户名开通本机账户；标记用户被停用/收权时自愈。非
+/// self-hosted 模式或存量库未标记换取目标时返回 `LocalSessionUnavailable`。
 pub(crate) async fn local_session(
     state: &CoreState,
     request: AuthLocalSessionRequest,
@@ -69,7 +69,8 @@ pub(crate) async fn local_session(
         return Err(AuthApiError::InvalidCredentials);
     }
 
-    let user = resolve_local_auto_login_user(state.database()).await?;
+    let user = resolve_local_auto_login_user(state.database(), request.initial_username.as_deref())
+        .await?;
     issue_session_response(
         state,
         &user,

@@ -1,13 +1,13 @@
-# 本机模式免登录：自动管理员 + 静默本地会话（2026-07-27，同日实施完成）
+# 本机模式免登录：本机用户 + 静默本地会话（2026-07-27，同日实施完成）
 
-> 实施状态：core（含 7 个新测试）、契约同步、Android 透传（含单测）、前端接线与 UI 均已完成；
+> 实施状态：core、契约同步、Android 透传（含单测）、前端接线与 UI 均已完成；
 > 桌面/Android **实机验证与存量测试库转换尚未执行**（见文末验证计划 3–5）。
 >
 > **实施偏差**（对下文方案的修正，以此为准）：
 >
 > 1. **自动开通改为惰性**：不在 core bootstrap 阶段，而在**首次换取时**（`local-session` 端点内，
 >    与首用户注册共用同一把写锁）。原因：bootstrap 即开通会让"浏览器直连空库"（当前桌面用法）
->    的首用户注册向导变成死路——admin 已存在但密码无人知晓。惰性开通下，壳内空库首启仍是
+>    的首用户注册向导变成死路——首用户已存在但密码无人知晓。惰性开通下，壳内空库首启仍是
 >    "首次换取即免登录"，浏览器空库仍走注册向导，两者互不破坏。
 > 2. 换取凭据由 `bootstrap_from_config` 在 `self-hosted` 时生成（`LocalSessionSecret`，Debug 脱敏），
 >    每次本地服务启动即新凭据；经 `LocalServiceInfo → NativeServiceState → RuntimeSnapshot.service.localAuthExchangeToken` 透传。
@@ -16,12 +16,11 @@
 >    普通匿名回落登录流程；`401` 与网络失败落 `authStatus = "unavailable"`，并入 App.vue 既有的
 >    服务不可用覆盖层（local-failed 变体带重试），健康检查恢复或 core 重启带来新凭据时自动重试
 >    （复用 main.ts 既有联动，未新增 AuthStatus 枚举值，改以 `localSilentAuthActive` 标记静默模式）。
-> 5. **账户区与导航呈现修正**：完全隐藏账户身份（头像/用户名/退出登录），收起用户管理及出入库审批一级导航，但顶栏保留一个
->    中性的"本机"选项入口（弹层只含运行设置/局域网地址）——它是 Android 上运行设置的唯一入口，
->    不能随账户区一起消失。审批路由和单据详情入口继续保留，用于处理历史或异常待审批单据。
+> 5. **账户区与导航呈现修正**：本机模式在账户区显示当前用户名，但隐藏退出登录并收起用户管理及出入库审批一级导航；顶栏账户入口仍保留
+>    运行设置/局域网地址等本机选项——它是 Android 上运行设置的唯一入口。审批路由和单据详情入口继续保留，用于处理历史或异常待审批单据。
 
 `self-hosted`（仅本机运行）模式下，用户不应看到注册/登录界面。但实现方式**不是绕过鉴权**，
-而是"系统里仍有用户和 token，只是用户看不到"：core 自动开通一个默认管理员，
+而是"系统里仍有用户和 token，只是用户看不到"：本机首次认证时由用户输入用户名，core 按该用户名开通本机用户，
 前端经壳内可信通道静默换取正常会话。鉴权中间件、权限体系、refresh 轮换全部原样工作。
 
 ## 决策要点
@@ -35,17 +34,17 @@
   同构：可信桥 + 内嵌 core），落地时按本方案同机制接入；当前为 Android WebMessage 桥。
   纯浏览器访问（web 平台桥）拿不到换取凭据，回落到现有登录页——这是特性而非缺陷：
   浏览器场景无法区分"本机用户"和"任意本地进程"。
-- **业务数据保持可追溯**。单据 `created_by`、审计事件照常记录默认管理员，
+- **业务数据保持可追溯**。单据 `created_by`、审计事件照常记录本机初始化用户，
   日后切到 `server-mode` 多用户时历史数据语义完整，无需补建用户体系。
-- **切 `server-mode` 前必须设真实密码**。默认管理员创建时密码为随机占位（无人知晓），
+- **切 `server-mode` 前必须设真实密码**。本机用户创建时密码为随机占位（无人知晓），
   本机模式无感；一旦要对局域网开放，先强制设置一次真实密码，这是免登录与共享之间的门。
 
 ## 方案总览
 
 三个新机制，均为小改动面：
 
-1. **自动开通默认管理员**（core bootstrap）：`self-hosted` 且库中无任何用户时，
-   自动创建用户 `admin`（用户名经用户确认；随机占位密码 + 全部内置权限，复用现有
+1. **按用户名惰性开通本机用户**（core local-session）：`self-hosted` 且库中无任何用户时，
+   首次本机换取请求携带用户输入的 `initial_username`，按该用户名创建用户（随机占位密码 + 全部内置权限，复用现有
    "首个注册用户自动获全权限"的逻辑），并在数据库托管鉴权设置中记录两行：
    `local_auto_login_user_id`（静默会话的目标用户）与
    `local_auto_login_password_placeholder`（密码仍为占位标记）。
@@ -61,8 +60,8 @@
    `AuthTokenResponse`（access + refresh）。其余模式下该端点直接 404/403。
 
 前端在 `ownership === "local"` 且快照携带换取凭据、当前会话为匿名时自动调用换取并
-`establishAuthSession()`，登录页整个流程被跳过。**本地静默模式下不存在"回落登录页"**：
-自动开通的当前用户密码是随机占位、无人可输，登录页是死胡同。换取失败一律由前端控制层
+`establishAuthSession()`；空库首次换取缺少用户名时回到 `/auth`，复用 `/register` 的本机初始化变体。已有本机用户时登录页仍被跳过。**本地静默模式下不存在无密码的普通登录回退**：
+自动开通的当前用户密码是随机占位、无人可输。除本机初始化所需的稳定错误外，换取失败一律由前端控制层
 按服务可用性语义处理——面向用户给出错误提示并自动重试，登录/注册路由完全不参与。
 
 ## core 改动
@@ -70,8 +69,8 @@
 | 位置                                                          | 内容                                                                                                                                                                                   |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `local_service.rs` + `state.rs`                               | `self-hosted` 时生成 per-boot 换取凭据入 AppState；`LocalServiceInfo` 增字段（仅进程内传递）                                                                                           |
-| `users/service/register.rs` 或新 `users/service/bootstrap.rs` | 抽出"创建用户 + 授予全部内置权限"共用逻辑；bootstrap 阶段 `self-hosted && !has_users` 时创建 `admin`（随机占位密码），写入两行鉴权设置                                                 |
-| `auth/bootstrap.rs`                                           | 自动开通后 `admin_setup_required` 为 false（`has_users` 已真），无需额外改动，确认即可                                                                                                 |
+| `users/service/register.rs` 或新 `users/service/bootstrap.rs` | 抽出"创建用户 + 授予全部内置权限"共用逻辑；`local-session` 首次换取阶段 `self-hosted && !has_users` 时按 `initial_username` 创建用户（随机占位密码），写入两行鉴权设置 |
+| `auth/bootstrap.rs`                                           | `initial_user_setup_required` 仍只表示数据库是否为空；本机用户不在 bootstrap 阶段提前创建                                                                                       |
 | 换取目标自愈（users bootstrap 同处实施）                      | `self-hosted` 启动校验 `local_auto_login_user_id`：缺失/未激活/权限不全时自动修复并写 `audit_events`（见"模式切换语义"）                                                               |
 | `auth/mod.rs` + `auth/controller.rs` + `auth/service.rs`      | 新增 `POST /api/auth/local-session`：校验换取凭据（常数时间比较）→ 复用 login 的 token 签发路径（抽共用函数），`device_name` 固定如 `local-shell`；非 `self-hosted` 模式不注册该路由   |
 | `auth`（改密）                                                | 改自身密码接口：当 `local_auto_login_password_placeholder` 标记当前用户时，允许**不提供旧密码**直接设置新密码，成功后清除占位标记（占位密码无人知晓，否则永远设不了真实密码）          |
@@ -88,7 +87,7 @@ core 改完执行 `cd frontend && pnpm gen:api`，前端获得 `local-session` �
 | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `android/native/src/contract.rs` + `engine.rs`             | `NativeServiceState` 增可选 `local_auth_exchange_token`，running 态投影时填充                                                     |
 | `NativeContract.kt` / `NativeCoreClient.kt`                | JSON 解析增字段                                                                                                                   |
-| `RuntimeSnapshotFactory.kt` + `LocalCoreRuntimeManager.kt` | `RuntimeServiceSnapshot` 增字段并透传进快照 JSON（注意现状：`admin_setup_required` 在 Kotlin 层被丢弃未透传，本字段不要重蹈覆辙） |
+| `RuntimeSnapshotFactory.kt` + `LocalCoreRuntimeManager.kt` | `RuntimeServiceSnapshot` 增字段并透传进快照 JSON（注意现状：首用户初始化状态字段在 Kotlin 层被丢弃未透传，本字段不要重蹈覆辙） |
 
 ## frontend 改动
 
@@ -99,8 +98,8 @@ core 改完执行 `cd frontend && pnpm gen:api`，前端获得 `local-session` �
 | `auth/session.ts`           | `ensureAuthSessionInitialized` 流程内：匿名且有换取凭据 → 调 `local-session` 换取并 `establishAuthSession`；refresh 失败（本地库 7 天 refresh 过期等）时同样自动重新换取。新增本地会话状态（如 `local-auth-failed`）供控制层消费，不落入普通匿名态                                                                          |
 | 路由守卫 `router/guards.ts` | 本地静默模式（`ownership === "local"` 且快照应携带换取凭据）下，匿名/会话失败**不重定向 auth-entry/login**；换取失败呈现为错误提示态，路由停留原地。远端模式守卫行为不变                                                                                                                                                    |
 | 控制层错误呈现              | 换取失败并入既有 Shell 感知可用性分层（`service/availability.ts` / `availabilityPolicy.ts` 的错误呈现路径）：显示"本地会话建立失败"类提示 + 重试按钮；core 重启产生新快照/新凭据时自动重试恢复                                                                                                                              |
-| UI                          | 本地静默模式下**完全隐藏账户区**（含头像/当前用户/退出登录/改密）并收起用户管理、入库审批和出库审批一级导航——界面不呈现无意义的账号与复核流程；审批路由和单据详情入口仍用于恢复历史或异常待审批单据。登录/注册页与账户区仅服务于远端模式与纯浏览器访问；切 `server-mode` 的强制设密引导对话框是本地模式下唯一的密码设置入口 |
-| `RuntimeSettingsPage.vue`   | 切换到 `server-mode` 前检查占位标记（经换取会话调用状态接口或复用 `/api/auth/me` 扩展字段）：仍为占位 → 弹出"设置当前用户账号和密码"流程（用户名、密码一次提交到 `POST /api/auth/me/password`，走免旧密码改密），完成后才允许提交模式切换                                                                                     |
+| UI                          | 本地静默模式下账户区显示当前用户名，但隐藏退出登录/改密并收起用户管理、入库审批和出库审批一级导航；审批路由和单据详情入口仍用于恢复历史或异常待审批单据。登录/注册页仅服务于远端模式与纯浏览器访问；切 `server-mode` 的强制设密引导对话框是本地模式下唯一的密码设置入口 |
+| `RuntimeSettingsPage.vue`   | 切换到 `server-mode` 前检查占位标记（经换取会话调用状态接口）：仍为占位 → 弹出"设置当前用户密码"流程（只提交密码到 `POST /api/auth/me/password`，走免旧密码改密），完成后才允许提交模式切换                                                                                     |
 
 ## 存量库处理
 
@@ -116,12 +115,12 @@ core 改完执行 `cd frontend && pnpm gen:api`，前端获得 `local-session` �
 
 | 切换                                                | 行为                                                                                                                                                                                                                                                                                                                 |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `self-hosted` → `server-mode`                       | 前置门：占位标记仍在则先强制设真实密码（见 frontend 改动）。切换后换取端点关闭，宿主 UI 与其它客户端一样走登录页；`admin` 及其历史单据（`created_by` 等）原样保留，用刚设的密码登录即可。此前静默会话持有的 refresh token 若 `api_base_url` 未变仍可续期（本人合法凭据，无需强制吊销）；地址变化则自然失效落到登录页 |
+| `self-hosted` → `server-mode`                       | 前置门：占位标记仍在则先强制设真实密码（见 frontend 改动）。切换后换取端点关闭，宿主 UI 与其它客户端一样走登录页；本机初始化用户及其历史单据（`created_by` 等）原样保留，用刚设的密码登录即可。此前静默会话持有的 refresh token 若 `api_base_url` 未变仍可续期（本人合法凭据，无需强制吊销）；地址变化则自然失效落到登录页 |
 | `server-mode` → `self-hosted`                       | 换取端点重新启用，静默会话自动恢复，无需任何操作；期间设置的真实密码保留且继续可用（静默与密码登录不互斥）                                                                                                                                                                                                           |
 | `self-hosted` → `client-only` / `connect-to-remote` | 本地 core 停止，前端连远端，走远端服务器的正常登录。本地 refresh token 因绑定 `api_base_url` 不会误用于远端；本地库、`local-admin`、鉴权设置行全部原样保留                                                                                                                                                           |
-| `client-only` / `connect-to-remote` → `self-hosted` | 壳启动本地 core：本地库为空则触发自动开通（首次即免登录）；已有标记则直接静默恢复。之前远端会话的 refresh token 留在 localStorage（按远端 URL 隔离），下次切回远端仍可续期                                                                                                                                           |
+| `client-only` / `connect-to-remote` → `self-hosted` | 壳启动本地 core：本地库为空则先在认证层输入用户名并完成本机初始化；已有标记则直接静默恢复。之前远端会话的 refresh token 留在 localStorage（按远端 URL 隔离），下次切回远端仍可续期                                                                                                                                           |
 
-**换取目标自愈**（多用户库切回本机的边界）：`server-mode` 期间 `admin` 可能被
+**换取目标自愈**（多用户库切回本机的边界）：`server-mode` 期间本机初始化用户可能被
 停用或收权。`self-hosted` 启动时 core 校验 `local_auto_login_user_id`：用户缺失、
 未激活或权限不全时自动修复（重新激活 / 补齐全部内置权限 / 极端情况下重建标记用户），
 并写入 `audit_events` 留痕。依据：本机模式下设备物理持有者即最高权限——SQLite 文件

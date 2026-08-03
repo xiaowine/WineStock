@@ -17,7 +17,6 @@ use crate::{
 use super::{
     local_admin::{clear_password_placeholder_if_marked, password_placeholder_active},
     response::load_user_response,
-    validation::normalize_username,
 };
 
 /// 根据当前认证上下文读取数据库中的最新用户和权限快照。
@@ -59,11 +58,6 @@ pub(crate) async fn change_own_password(
     if user.status != "active" {
         return Err(AuthApiError::InvalidAccessToken);
     }
-    let username = normalize_username(&request.username)?;
-    if users.username_exists_for_other(&username, user.id).await? {
-        return Err(AuthApiError::UsernameTaken);
-    }
-    let previous_username = user.username.clone();
     let placeholder_active = password_placeholder_active(&transaction, user.id).await?;
     if !placeholder_active {
         if request.current_password.is_empty() {
@@ -76,7 +70,7 @@ pub(crate) async fn change_own_password(
 
     let password_hash = create_password_hash(&request.new_password)?;
     let updated = users
-        .update_credentials(user, username, password_hash, false)
+        .update_password_hash(user, password_hash, false)
         .await?;
     clear_password_placeholder_if_marked(&transaction, updated.id).await?;
     audit
@@ -85,27 +79,14 @@ pub(crate) async fn change_own_password(
             entity_type: "user".to_owned(),
             entity_id: Some(updated.id),
             action: "updated".to_owned(),
-            details: Some(if previous_username == updated.username {
-                json!({
-                    "field": "password",
-                    "mode": if placeholder_active {
-                        "local_placeholder_initial_set"
-                    } else {
-                        "self_change"
-                    }
-                })
-            } else {
-                json!({
-                    "field": "username_and_password",
-                    "previous_username": previous_username,
-                    "new_username": updated.username,
-                    "mode": if placeholder_active {
-                        "local_placeholder_initial_set"
-                    } else {
-                        "self_change"
-                    }
-                })
-            }),
+            details: Some(json!({
+                "field": "password",
+                "mode": if placeholder_active {
+                    "local_placeholder_initial_set"
+                } else {
+                    "self_change"
+                }
+            })),
         })
         .await?;
     transaction.commit().await?;

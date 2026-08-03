@@ -992,6 +992,8 @@ export interface components {
             device_name: string;
             /** @description 每次本地服务启动生成的一次性换取凭据明文。 */
             exchange_token: string;
+            /** @description 空库首次本机初始化时使用的用户名；已有标记用户换取时忽略。 */
+            initial_username?: string | null;
             /** @description 客户端版本号，用于记录 refresh token 来源版本。 */
             version: string;
         };
@@ -2884,8 +2886,6 @@ export interface components {
             current_password: string;
             /** @description 新明文密码，只允许出现在本请求中，服务端只保存 Argon2 哈希。 */
             new_password: string;
-            /** @description 修改后的登录用户名；所有前端调用方都必须传入，普通改密时传入当前用户名。 */
-            username: string;
         };
         /** @description 管理员设置临时密码请求。 */
         UserPasswordResetRequest: {
@@ -2992,6 +2992,15 @@ export interface operations {
             };
             /** @description Local session unavailable */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorResponse"];
+                };
+            };
+            /** @description Initial local username required */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

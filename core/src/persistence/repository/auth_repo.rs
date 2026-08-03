@@ -1,6 +1,6 @@
 //! auth 模块鉴权 repository。
 //!
-//! 本模块属于 `core` 的持久化层，封装鉴权设置、签名密钥和首次管理员判断所需查询。
+//! 本模块属于 `core` 的持久化层，封装鉴权设置、签名密钥和首个用户判断所需查询。
 //! 调用方不需要知道 `auth_settings`、`auth_signing_keys` 和 `auth_users` 的具体查询细节。
 
 use sea_orm::{
@@ -125,9 +125,9 @@ where
             .await
     }
 
-    /// 判断是否已经存在任何用户，用于首次管理员初始化判断。
+    /// 判断是否已经存在任何用户，用于首个用户初始化判断。
     pub(crate) async fn has_any_user(&self) -> Result<bool, DbErr> {
-        // v1 schema 总是包含 auth_users 表，首次管理员判断只需要检查是否已有用户。
+        // v1 schema 总是包含 auth_users 表，首个用户判断只需要检查是否已有用户。
         user::Entity::find().exists(self.database).await
     }
 }

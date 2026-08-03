@@ -28,7 +28,13 @@
                 class="choice-card"
                 :class="{ 'choice-card--selected': mode === option.value }"
               >
-                <input v-model="mode" type="radio" name="setup_mode" :value="option.value" />
+                <input
+                  v-model="mode"
+                  type="radio"
+                  name="setup_mode"
+                  :value="option.value"
+                  :disabled="option.disabled"
+                />
                 <strong>
                   {{ option.label }}
                   <span v-if="option.recommended" class="choice-card__badge">推荐</span>
@@ -181,7 +187,7 @@ import {
   validateRuntimeConfig,
 } from "../shell/runtime";
 
-type SetupMode = "local" | "remote";
+type SetupMode = "local" | "server" | "remote";
 type SetupStep = "mode" | "server" | "consent" | "applying";
 
 const CONNECTION_TEST_TIMEOUT_MS = 4_000;
@@ -211,12 +217,23 @@ const modeOptions = [
     label: "仅在本机使用",
     description: "数据保存在这台设备上，无需网络即可使用。",
     recommended: true,
+    disabled: false,
+  },
+  {
+    value: "server" as const,
+    label: "允许其他设备连接",
+    description: "让同一网络中的设备使用这台设备的数据。",
+    recommended: false,
+    disabled:
+      runtimeSnapshot.value?.platform !== "desktop" ||
+      !(runtimeSnapshot.value?.capabilities.serverMode ?? false),
   },
   {
     value: "remote" as const,
     label: "连接已有服务器",
     description: "多台设备共享同一台服务器上的数据。",
     recommended: false,
+    disabled: false,
   },
 ];
 
@@ -225,7 +242,12 @@ const stepSequence = computed<readonly SetupStep[]>(() => {
   if (isPureWebPlatform) {
     return ["server", "consent"];
   }
-  return mode.value === "local" ? ["mode", "consent"] : ["mode", "server", "consent"];
+  const steps: SetupStep[] = ["mode"];
+  if (mode.value === "remote") {
+    steps.push("server");
+  }
+  steps.push("consent");
+  return steps;
 });
 const currentStepIndex = computed(() => stepSequence.value.indexOf(step.value));
 const isFirstStep = computed(() => currentStepIndex.value <= 0 || step.value === "applying");
@@ -308,6 +330,9 @@ function buildCandidateConfig(): EditableRuntimeConfig {
     : { mode: "self-hosted", bindHost: "127.0.0.1", port: 0, remoteBaseUrl: "" };
   if (mode.value === "local") {
     return { ...draft, mode: "self-hosted" };
+  }
+  if (mode.value === "server") {
+    return { ...draft, mode: "server-mode" };
   }
   return { ...draft, mode: "client-only", remoteBaseUrl: serverUrl.value.trim() };
 }

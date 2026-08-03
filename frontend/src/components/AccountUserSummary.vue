@@ -7,7 +7,7 @@
     <span class="account-user-summary__avatar" aria-hidden="true">{{ initials }}</span>
     <span class="account-user-summary__identity">
       <strong>{{ displayName }}</strong>
-      <small>当前用户</small>
+      <small>{{ subtitle }}</small>
     </span>
   </div>
 </template>
@@ -18,6 +18,8 @@ defineProps<{
   initials: string;
   /** 当前用户展示名称。 */
   displayName: string;
+  /** 当前运行模式展示名称。 */
+  subtitle: string;
 }>();
 </script>
 

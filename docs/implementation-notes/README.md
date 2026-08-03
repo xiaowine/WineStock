@@ -26,8 +26,9 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `shell-aware-service-availability.md`：前端服务可用性按 ownership 分层、Shell phase 权威信号 + HTTP 看门狗、本地故障自动恢复与去抖的跨 frontend/各 Shell 实施方案（已实施，真机验收待做）。
 - `first-run-setup-wizard.md`：首次启动漏斗从运行设置页迁移到初始化向导的页面结构、文案定稿、守卫分流、数据收集偏好与 UI 实现约束（已实施；含纯网页端单能力跳页/运行设置页 web 限制）。
 - `server-mode-tls-pinning.md`：server-mode 自签 HTTPS-only + 客户端 TOFU 首次信任与 SPKI 指纹固定的跨 core/契约/Android/frontend 方案整理（未实施，作为后续任务执行依据）。
-- `self-hosted-silent-auth.md`：self-hosted 本机模式免登录的自动默认管理员（惰性开通）、壳内换取凭据与静默会话方案，含 server-mode 切换设密门、模式切换语义与安全边界（已实施，实机验证待做）。
-- `username-change-and-server-mode-password.md`：server-mode 切换设密时复用原有改密 API 并要求必填用户名，以及用户管理独立用户名修改 API、权限、会话和验收方案（已实施）。
+- `self-hosted-silent-auth.md`：self-hosted 本机模式免登录的惰性本机用户开通、壳内换取凭据与静默会话方案，含 server-mode 切换设密门、模式切换语义与安全边界（已实施，实机验证待做）。
+- `username-change-and-server-mode-password.md`：历史用户名与 server-mode 设密方案，当前契约以新的本机初始化方案为准。
+- `local-initial-username-and-server-mode-password.md`：本机用户初始化与 server-mode 首用户分流重设计方案；账号初始化统一放在认证层，server-mode/远端保持现有注册分流（已实施，实机验证待做）。
 - `lcsc-batch-item-creation-and-erp-backup-import.md`：立创物品批量创建（勾选子集分批/每批一个模板/前置选项对话框/串行限速）与 LCSC Android ERP 备份导入器（四表解析、C0 跳过、期初入库草稿、重复导入防护）的方案（两特性均已实施）。
 - `erp-backup-import-implementation.md`：阶段2 ERP 备份导入的落地细化——解析三层架构、四表解析契约、库位/物品/期初三阶段执行、预览交互、入口装配与测试（已实施，真机走查待补）。
 - `lcsc-phone-query-and-direct-image.md`：立创商城移动查询接口替换 EDA 器件库、Core 归一化契约与前端直连受控商品图的跨 Core/Frontend 实施方案。

@@ -227,23 +227,6 @@ where
         active.update(self.database).await
     }
 
-    /// 在同一用户记录中更新用户名、密码哈希和强制改密状态。
-    pub(crate) async fn update_credentials(
-        &self,
-        user: user::Model,
-        username: String,
-        password_hash: String,
-        password_change_required: bool,
-    ) -> Result<user::Model, DbErr> {
-        let now = sqlite_now(self.database).await?;
-        let mut active: user::ActiveModel = user.into();
-        active.username = Set(username);
-        active.password_hash = Set(password_hash);
-        active.password_change_required = Set(password_change_required);
-        active.updated_at = Set(now);
-        active.update(self.database).await
-    }
-
     /// 更新用户登录用户名，并刷新更新时间。
     pub(crate) async fn update_username(
         &self,

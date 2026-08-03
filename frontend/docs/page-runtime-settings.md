@@ -18,10 +18,10 @@
 本机静默免登录会话（`localSilentAuthActive`）下把运行方式切到「局域网服务器」提交时：
 
 - 先经已鉴权接口 `GET /api/auth/local-session/status` 查询占位密码标记；
-- 仍为占位（自动开通的随机密码，无人可输）时弹出「先设置当前用户密码」Dialog，同时填写当前用户名和新密码，
+- 仍为占位（自动生成的随机密码，无人可输）时弹出「先设置当前用户密码」Dialog，只填写新密码，
   经免旧密码通道 `POST /api/auth/me/password`（`current_password` 留空）设置真实凭据后
   才回到正常的确认与保存流程；取消 Dialog 则本次不保存。
-- `username` 是该接口的必填请求字段；成功后重新请求 `/api/auth/me` 同步当前会话用户名。
+- 当前用户由 Bearer token 确定，密码接口不接收用户名；用户名后续通过用户管理的独立改名接口修改。
 - 状态查询失败时阻止提交并提示，避免带着占位密码开放局域网（届时局域网端无人能登录）。
 - 设计见 `docs/implementation-notes/self-hosted-silent-auth.md`。
 

@@ -205,7 +205,7 @@ Core 只根据立创查询响应字段按 source、首张 breviary、`bigImageUr
 - 登录成功建立内存会话；合法内部 `redirect` 使用 replace 回到原目标，其它值回到总览。
 - 登录和首个用户注册在桌面与移动视口共用同一表单和业务流程。
 - 登录响应始终先建立受管理会话；服务端返回 `password_change_required` 时，由全局守卫进入独立修改密码页。
-- 修改密码页调用 `POST /api/auth/me/password`，请求包含必填用户名、当前密码和新密码，成功响应为 204。
+- 修改密码页调用 `POST /api/auth/me/password`，请求只包含当前密码和新密码，当前用户由 Bearer token 确定，成功响应为 204。
 - 强制改密期间前端只允许进入修改密码页；后端也只允许访问 `/api/auth/me` 和 `/api/auth/me/password`。
 - 修改成功后保留现有 token 和权限，只清除当前会话用户摘要中的强制改密标记并恢复原内部目标。
 

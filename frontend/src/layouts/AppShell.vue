@@ -47,11 +47,15 @@
           :aria-expanded="accountMenuOpen"
           aria-controls="app-account-popover"
           :aria-label="
-            silentLocalMode ? '查看本机选项' : `查看当前用户 ${userDisplayName} 的账户与本机选项`
+            userDisplayName ? `查看当前用户 ${userDisplayName} 的账户与本机选项` : '查看本机选项'
           "
           @click="toggleAccountMenu"
         >
-          <AccountUserSummary :initials="accountInitials" :display-name="accountDisplayName" />
+          <AccountUserSummary
+            :initials="accountInitials"
+            :display-name="accountDisplayName"
+            :subtitle="runtimeModeLabel"
+          />
         </button>
         <button
           v-if="accountMenuOpen"
@@ -66,7 +70,8 @@
             id="app-account-popover"
             :initials="accountInitials"
             :display-name="accountDisplayName"
-            :show-user-summary="!silentLocalMode"
+            :subtitle="runtimeModeLabel"
+            :show-user-summary="Boolean(userDisplayName)"
             :show-lan-access="lanAccessUrls.length > 0"
             :show-contact="contactEntryVisible"
             :show-logout="!silentLocalMode"
@@ -202,7 +207,7 @@ const {
 } = useAccountPopover();
 const { handleLogout, isLoggingOut, logoutError } = useShellLogout();
 const pageTitle = computed(() => route.meta.title);
-// 本机静默免登录模式：界面彻底无账号感，只保留中性的"本机选项"入口与运行设置能力。
+// 本机静默免登录模式：保留用户名展示，但隐藏退出登录并收起不适用的账户管理导航。
 const silentLocalMode = computed(() => localSilentAuthActive.value);
 const visibleNavigation = computed(() =>
   getVisibleAppNavigation(authSession.value?.user.permissions, {
@@ -210,7 +215,20 @@ const visibleNavigation = computed(() =>
   }),
 );
 const userDisplayName = computed(() => authSession.value?.user.username ?? "");
-const accountDisplayName = computed(() => (silentLocalMode.value ? "本机" : userDisplayName.value));
+const accountDisplayName = computed(() => userDisplayName.value || "本机");
+const runtimeModeLabel = computed(() => {
+  switch (runtimeSnapshot.value?.config.mode) {
+    case "self-hosted":
+      return "本机模式";
+    case "server-mode":
+      return "服务器模式";
+    case "client-only":
+    case "connect-to-remote":
+      return "远程连接";
+    default:
+      return "运行模式";
+  }
+});
 const accountInitials = computed(() =>
   Array.from(accountDisplayName.value.trim()).slice(0, 2).join("").toUpperCase(),
 );

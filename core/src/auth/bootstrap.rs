@@ -87,8 +87,8 @@ pub struct AuthBootstrap {
     /// 数据库中是否已经存在用户。
     pub has_users: bool,
 
-    /// 是否需要执行首次管理员初始化流程。
-    pub admin_setup_required: bool,
+    /// 是否需要执行首个用户初始化流程。
+    pub initial_user_setup_required: bool,
 }
 
 /// 鉴权内部配置初始化错误。
@@ -168,7 +168,7 @@ const REFRESH_TOKEN_TTL_SECONDS: &str = "refresh_token_ttl_seconds";
 // 当前仅生成对称签名密钥；若以后支持非对称算法，需要同步调整密钥材料存储语义。
 const SIGNING_ALGORITHM: &str = "HS256";
 
-// 缺省鉴权设置只用于补齐空库，不能覆盖数据库中已有的管理员配置。
+// 缺省鉴权设置只用于补齐空库，不能覆盖数据库中已有的鉴权配置。
 const DEFAULT_AUTH_SETTINGS: [(&str, &str); 2] = [
     (ACCESS_TOKEN_TTL_SECONDS, "900"),
     (REFRESH_TOKEN_TTL_SECONDS, "604800"),
@@ -198,7 +198,7 @@ pub(crate) async fn bootstrap_auth(
         settings,
         active_signing_key: signing_key_from_model(active_signing_key),
         has_users,
-        admin_setup_required: !has_users,
+        initial_user_setup_required: !has_users,
     })
 }
 

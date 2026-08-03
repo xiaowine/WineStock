@@ -7,7 +7,7 @@
 - 业务授权判断权限代码，不判断角色代码。
 - 用户直接拥有权限，响应体不返回角色列表。
 - 管理接口会在 route layer 重新读取数据库当前权限，撤销权限后旧 access token 不能继续绕过授权。
-- 当前用户修改自己密码只要求已登录并校验当前密码；请求中的 `username` 为必填，普通改密时传入当前用户名。
+- 当前用户修改自己密码只要求已登录并校验当前密码；当前用户完全由 Bearer token 确定，密码请求不接收用户名。
 - 管理员设置临时密码后，目标用户登录响应会返回 `password_change_required = true`；该用户只能访问 `/api/auth/me` 和 `/api/auth/me/password`，改密成功后恢复正常访问。
 
 ## 用户域权限
@@ -187,7 +187,6 @@
 
 ```json
 {
-  "username": "current-name",
   "current_password": "old-password",
   "new_password": "new-password"
 }
@@ -195,8 +194,7 @@
 
 - 响应：`204`
 - 行为：
-  - `username` 是必填字段；普通改密时传入当前用户名，self-hosted 占位密码首次设置时可同时修改用户名。
-  - 用户名、密码哈希和强制改密状态在同一事务中更新；用户名冲突或密码校验失败时两者均不写入。
+  - 当前用户由 Bearer token 的用户 ID 确定；接口只更新密码哈希、更新时间和强制改密状态，不修改用户名。
   - 唯一例外：本机免登录标记用户的密码仍为自动开通的随机占位值时（`local_auto_login_password_placeholder = true`），
     允许 `current_password` 留空直接设置新密码；成功后清除占位标记。
   - 针对标记用户的任何改密（本人改密或管理员重置临时密码）都会清除占位标记。
@@ -210,9 +208,9 @@
 self-hosted 本机静默会话换取与占位密码状态查询。
 
 - `local-session`：请求携带壳内可信通道下发的 per-boot 换取凭据（`exchange_token` + 设备元数据），
-  成功返回与登录相同的 token 包。空库首次换取会自动开通 `admin`（随机占位密码 + 全部内置权限，
+  空库首次还需携带用户输入的 `initial_username`；成功返回与登录相同的 token 包。空库首次换取会按该用户名开通本机用户（随机占位密码 + 全部内置权限，
   与首用户注册共用写锁）；标记用户被停用/软删除/收权时自愈并写审计。
-- 失败：`401 invalid_credentials`（凭据不匹配）；`404 local_session_unavailable`（非 self-hosted 模式，
+- 失败：`401 invalid_credentials`（凭据不匹配）；`409 local_initial_user_required`（空库首次缺少用户名）；`404 local_session_unavailable`（非 self-hosted 模式，
   或已有用户但鉴权设置未标记换取目标——存量库需手工插入
   `local_auto_login_user_id` 设置行转换）。
 - `local-session/status`：返回 `{ "password_placeholder": bool }`，仅当前用户就是标记用户且

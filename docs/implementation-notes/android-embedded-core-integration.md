@@ -281,7 +281,7 @@ pub struct LocalServiceInfo {
     pub bound_addr: SocketAddr,
     pub database_path: PathBuf,
     pub files_dir: PathBuf,
-    pub admin_setup_required: bool,
+    pub initial_user_setup_required: bool,
 }
 
 pub struct RunningLocalService {

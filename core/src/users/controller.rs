@@ -132,10 +132,6 @@ pub(crate) struct UserPasswordResetRequest {
 )]
 #[serde(deny_unknown_fields)]
 pub(crate) struct UserPasswordChangeRequest {
-    /// 修改后的登录用户名；所有前端调用方都必须传入，普通改密时传入当前用户名。
-    #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
-    pub username: String,
-
     /// 当前明文密码，用于确认操作者仍掌握原凭据；
     /// 仅本机免登录标记用户处于占位密码状态时允许留空。
     #[garde(length(max = 256))]

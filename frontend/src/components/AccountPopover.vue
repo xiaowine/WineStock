@@ -9,6 +9,7 @@
       class="account-popover__summary"
       :initials="initials"
       :display-name="displayName"
+      :subtitle="subtitle"
     />
     <p v-if="logoutError" class="account-popover__error" role="alert">
       {{ logoutError }}
@@ -68,6 +69,8 @@ withDefaults(
     initials: string;
     /** 当前用户展示名称。 */
     displayName: string;
+    /** 当前运行模式展示名称。 */
+    subtitle: string;
     /** 是否在弹层中补充头像和用户名；触发区已显示完整信息时应关闭。 */
     showUserSummary?: boolean;
     /** 当前 Shell 是否存在可向其它设备展示的真实局域网地址。 */

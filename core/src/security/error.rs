@@ -65,6 +65,9 @@ pub enum AuthApiError {
     /// 本机免登录会话不可用：非 self-hosted 模式，或存量库存在用户但未标记换取目标。
     LocalSessionUnavailable,
 
+    /// self-hosted 空库首次本机换取缺少用户指定的用户名。
+    LocalInitialUserRequired,
+
     /// 数据库读写失败。
     Database(DbErr),
 
@@ -148,6 +151,11 @@ impl IntoResponse for AuthApiError {
                 StatusCode::NOT_FOUND,
                 "local_session_unavailable",
                 "本机免登录会话不可用",
+            ),
+            Self::LocalInitialUserRequired => (
+                StatusCode::CONFLICT,
+                "local_initial_user_required",
+                "请先设置本机账户用户名",
             ),
             Self::Database(_) | Self::Jwt(_) | Self::Random(_) | Self::Internal => (
                 StatusCode::INTERNAL_SERVER_ERROR,

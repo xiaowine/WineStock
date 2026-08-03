@@ -99,6 +99,10 @@ pub struct AuthLocalSessionRequest {
     #[garde(length(bytes, min = 1, max = 512), custom(validate_not_blank))]
     pub exchange_token: String,
 
+    /// 空库首次本机初始化时使用的用户名；已有标记用户换取时忽略。
+    #[garde(inner(length(utf16, min = 1, max = 64), custom(validate_not_blank)))]
+    pub initial_username: Option<String>,
+
     /// 设备名称，用于标识 refresh token 来源。
     #[garde(length(utf16, min = 1, max = 64), custom(validate_not_blank))]
     pub device_name: String,

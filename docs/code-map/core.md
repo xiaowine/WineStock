@@ -55,7 +55,7 @@
   - 定义 `start_local_service()`、`RunningLocalService`、`LocalServiceInfo` 和
     `LocalServiceRuntimeError`，统一平台 shell 的 bootstrap/bind/serve/shutdown 编排。
   - 先绑定端口再执行有副作用的 bootstrap，因此端口占用不会提前打开数据库或执行 migration。
-  - 运行句柄报告实际绑定地址、管理员初始化状态、任务意外结束，并支持显式 graceful shutdown。
+  - 运行句柄报告实际绑定地址、首用户初始化状态、任务意外结束，并支持显式 graceful shutdown。
 
 ## 测试
 

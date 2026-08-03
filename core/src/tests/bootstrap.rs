@@ -30,7 +30,7 @@ async fn self_hosted_bootstrap_initializes_auth_defaults_and_key() {
     );
     assert!(first.auth.active_signing_key.key_id.starts_with("ak_"));
     assert!(!first.auth.active_signing_key.key_material.is_empty());
-    assert!(first.auth.admin_setup_required);
+    assert!(first.auth.initial_user_setup_required);
 
     let second = bootstrap_from_config(&config)
         .await

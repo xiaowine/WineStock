@@ -84,7 +84,7 @@ async fn me_requires_token_and_returns_latest_user_snapshot() {
 }
 
 #[tokio::test]
-async fn password_change_requires_username_field() {
+async fn password_change_uses_authenticated_user_without_username_field() {
     let app = seeded_app().await;
     let login = login_request(&app, "admin", "password").await;
     let response = app
@@ -101,6 +101,32 @@ async fn password_change_requires_username_field() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     r#"{"current_password":"password","new_password":"new-password"}"#,
+                ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("request should complete");
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
+async fn password_change_rejects_username_field() {
+    let app = seeded_app().await;
+    let login = login_request(&app, "admin", "password").await;
+    let response = app
+        .router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/me/password")
+                .header(
+                    "authorization",
+                    format!("Bearer {}", login.body.access_token),
+                )
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"username":"admin","current_password":"password","new_password":"new-password"}"#,
                 ))
                 .expect("request should build"),
         )

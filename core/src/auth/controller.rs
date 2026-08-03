@@ -67,6 +67,7 @@ pub(crate) async fn login(
     responses(
         (status = 200, description = "Local session established", body = AuthTokenResponse),
         (status = 401, description = "Invalid exchange token", body = crate::http::ApiErrorResponse),
+        (status = 409, description = "Initial local username required", body = crate::http::ApiErrorResponse),
         (status = 404, description = "Local session unavailable", body = crate::http::ApiErrorResponse)
     )
 )]

@@ -11,8 +11,16 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="register-title">{{ $route.meta.title }}</h1>
-          <p>首个用户无需登录即可创建，并会自动获得全部内置权限。</p>
+          <h1 id="register-title">
+            {{ localBootstrapMode ? "创建本机账户" : $route.meta.title }}
+          </h1>
+          <p>
+            {{
+              localBootstrapMode
+                ? "设置一个用于识别本机账户的用户名。"
+                : "首个用户无需登录即可创建，并会自动获得全部内置权限。"
+            }}
+          </p>
         </div>
       </header>
 
@@ -35,6 +43,7 @@
         />
 
         <FormField
+          v-if="!localBootstrapMode"
           label="密码"
           control-id="register-password"
           validation-key="password"
@@ -54,6 +63,7 @@
         </FormField>
 
         <FormField
+          v-if="!localBootstrapMode"
           label="确认密码"
           control-id="register-password-confirmation"
           validation-key="password_confirmation"
@@ -78,7 +88,11 @@
       </form>
 
       <p v-if="!checkingBootstrapStatus" class="auth-runtime-note">
-        注册成功后会使用同一组凭据自动登录当前服务。
+        {{
+          localBootstrapMode
+            ? "创建后会自动进入 WineStock。"
+            : "注册成功后会使用同一组凭据自动登录当前服务。"
+        }}
       </p>
     </section>
   </main>
@@ -95,7 +109,11 @@ import {
 } from "../api/auth";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import { resolveApiClientMetadata } from "../api/runtime-config";
-import { establishAuthSession } from "../auth/session";
+import {
+  establishAuthSession,
+  establishLocalInitialUser,
+  localSilentAuthActive,
+} from "../auth/session";
 import { AuthPersistenceError } from "../auth/storage";
 import BrandMark from "../components/BrandMark.vue";
 import { notice } from "../notices/notice";
@@ -103,6 +121,7 @@ import PasswordInput from "../components/PasswordInput.vue";
 import FormField from "../components/forms/FormField.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import { useFormValidation } from "../composables/useFormValidation";
+import { runtimeSnapshot } from "../shell/runtime";
 
 const router = useRouter();
 const route = useRoute();
@@ -114,6 +133,14 @@ const checkingBootstrapStatus = ref(true);
 const errorMessage = ref("");
 const fieldErrors = ref<Readonly<Record<string, readonly string[]>>>({});
 useFormValidation(fieldErrors);
+
+const localBootstrapMode = computed(
+  () =>
+    runtimeSnapshot.value?.platform !== "web" &&
+    runtimeSnapshot.value?.config.mode === "self-hosted" &&
+    runtimeSnapshot.value?.service.ownership === "local" &&
+    localSilentAuthActive.value,
+);
 
 const usernameError = computed(() => fieldErrors.value.username?.[0]);
 const passwordError = computed(() => fieldErrors.value.password?.[0]);
@@ -137,8 +164,9 @@ async function submitRegistration(): Promise<void> {
   errorMessage.value = "";
   fieldErrors.value = validateRegistrationInput(
     username.value,
-    password.value,
-    passwordConfirmation.value,
+    localBootstrapMode.value ? "" : password.value,
+    localBootstrapMode.value ? "" : passwordConfirmation.value,
+    localBootstrapMode.value,
   );
   if (Object.keys(fieldErrors.value).length > 0) {
     notice.warning("请检查注册信息", {
@@ -151,6 +179,13 @@ async function submitRegistration(): Promise<void> {
   let registrationCompleted = false;
   try {
     const normalizedUsername = username.value.trim();
+    if (localBootstrapMode.value) {
+      await establishLocalInitialUser(normalizedUsername);
+      markAuthBootstrapInitialized();
+      await router.replace({ name: "dashboard" });
+      notice.success("本机账户已创建并进入 WineStock");
+      return;
+    }
     await registerInitialUser({
       username: normalizedUsername,
       password: password.value,
@@ -181,15 +216,16 @@ function validateRegistrationInput(
   usernameValue: string,
   passwordValue: string,
   passwordConfirmationValue: string,
+  localMode: boolean,
 ): Readonly<Record<string, readonly string[]>> {
   const errors: Record<string, string[]> = {};
   if (!usernameValue.trim()) {
     errors.username = ["请输入用户名"];
   }
-  if (!passwordValue) {
+  if (!localMode && !passwordValue) {
     errors.password = ["请输入密码"];
   }
-  if (!passwordConfirmationValue) {
+  if (!localMode && !passwordConfirmationValue) {
     errors.password_confirmation = ["请再次输入密码"];
   } else if (passwordValue !== passwordConfirmationValue) {
     errors.password_confirmation = ["两次输入的密码不一致"];

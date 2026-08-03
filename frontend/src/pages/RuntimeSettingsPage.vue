@@ -248,24 +248,12 @@
     <ModalDialog
       :open="passwordGateOpen"
       title="先设置当前用户密码"
-      description="开放给其他设备连接前，需要为当前用户设置登录用户名和真实密码；其他设备将用它登录。"
+      description="开放给其他设备连接前，需要为当前用户设置真实密码；其他设备将用当前用户名登录。"
       :busy="gateSubmitting"
       compact
       nested
       @close="closePasswordGate"
     >
-      <FormInput
-        v-model="gateUsername"
-        label="当前用户名"
-        validation-key="gateUsername"
-        :error="gateUsernameError"
-        name="runtime_next_gate_username"
-        type="text"
-        autocomplete="off"
-        maxlength="64"
-        :disabled="gateSubmitting"
-        required
-      />
       <FormField
         label="当前用户密码"
         control-id="runtime_next_gate_password"
@@ -329,13 +317,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { changeOwnPassword, getCurrentUser, getLocalSessionStatus } from "../api/auth";
-import {
-  authSession,
-  authStatus,
-  localSilentAuthActive,
-  replaceCurrentSessionUser,
-} from "../auth/session";
+import { changeOwnPassword, getLocalSessionStatus } from "../api/auth";
+import { authSession, authStatus, localSilentAuthActive } from "../auth/session";
 import FormField from "../components/forms/FormField.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import ModalDialog from "../components/ModalDialog.vue";
@@ -393,11 +376,9 @@ const confirmationOpen = ref(false);
 const firewallRecoveryOpen = ref(false);
 const firewallRepairing = ref(false);
 const passwordGateOpen = ref(false);
-const gateUsername = ref("");
 const gatePassword = ref("");
 const gatePasswordConfirm = ref("");
 const gateSubmitting = ref(false);
-const gateUsernameError = ref("");
 const gateFieldError = ref("");
 const gateConfirmError = ref("");
 useFormValidation(fieldErrors);
@@ -698,10 +679,8 @@ async function resolveLocalUserPasswordGate(): Promise<"pass" | "required" | "bl
 }
 
 function openPasswordGate(): void {
-  gateUsername.value = authSession.value?.user.username ?? "";
   gatePassword.value = "";
   gatePasswordConfirm.value = "";
-  gateUsernameError.value = "";
   gateFieldError.value = "";
   gateConfirmError.value = "";
   passwordGateOpen.value = true;
@@ -714,18 +693,12 @@ function closePasswordGate(): void {
 
 /** 占位态免旧密码设置真实密码；成功后回到正常的确认与保存流程。 */
 async function submitPasswordGate(): Promise<void> {
-  const normalizedUsername = gateUsername.value.trim();
-  gateUsernameError.value = !normalizedUsername
-    ? "请输入当前用户名"
-    : normalizedUsername.length > 64
-      ? "用户名不能超过 64 个字符"
-      : "";
   gateFieldError.value = gatePassword.value.length < 8 ? "密码至少需要 8 个字符" : "";
   gateConfirmError.value =
     gatePassword.value === gatePasswordConfirm.value ? "" : "两次输入的密码不一致";
-  if (gateUsernameError.value || gateFieldError.value || gateConfirmError.value) {
+  if (gateFieldError.value || gateConfirmError.value) {
     notice.warning("请检查当前用户账号", {
-      detail: gateUsernameError.value || gateFieldError.value || gateConfirmError.value,
+      detail: gateFieldError.value || gateConfirmError.value,
     });
     return;
   }
@@ -733,11 +706,9 @@ async function submitPasswordGate(): Promise<void> {
   gateSubmitting.value = true;
   try {
     await changeOwnPassword({
-      username: normalizedUsername,
       current_password: "",
       new_password: gatePassword.value,
     });
-    replaceCurrentSessionUser(await getCurrentUser());
     passwordGateOpen.value = false;
     notice.success("当前用户账号已设置");
     confirmationOpen.value = true;

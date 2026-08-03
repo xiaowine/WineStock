@@ -58,7 +58,7 @@ export const isLoggingOut = readonly(mutableIsLoggingOut);
 
 /**
  * self-hosted 本机静默会话是否生效（壳内下发了换取凭据）。
- * 该模式下界面隐藏账户身份与退出登录，会话失败走服务可用性错误呈现而非登录页。
+ * 该模式下界面隐藏退出登录，会话失败走服务可用性错误呈现而非登录页。
  */
 export const localSilentAuthActive = computed(
   () => mutableLocalAuthExchangeToken.value !== undefined,
@@ -86,6 +86,24 @@ export function establishAuthSession(response: AuthTokenResponse): void {
   persistRefreshToken(response.refresh_token);
   mutableAuthSession.value = toAuthSession(response);
   mutableAuthStatus.value = "authenticated";
+}
+
+/** 使用当前壳下发的换取凭据创建本机首个用户并建立会话。 */
+export async function establishLocalInitialUser(username: string): Promise<void> {
+  const exchangeToken = mutableLocalAuthExchangeToken.value;
+  if (exchangeToken === undefined || mutableIsLoggingOut.value) {
+    throw new Error("本机初始化凭据不可用");
+  }
+
+  const metadata = resolveApiClientMetadata();
+  const response = await exchangeLocalSession({
+    exchange_token: exchangeToken,
+    initial_username: username,
+    device_name: metadata.deviceName,
+    client_kind: metadata.clientKind,
+    version: metadata.appVersion,
+  });
+  establishAuthSession(response);
 }
 
 /** 改密接口成功后清除当前会话的强制改密标记；token 和权限保持不变。 */
@@ -284,9 +302,9 @@ async function performRefreshAndUpdateStatus(generation: number): Promise<AuthSe
 /**
  * refresh 无法恢复会话时，用壳内换取凭据静默建立本机会话。
  * 返回 null 表示当前不适用静默换取（无凭据，或服务端未配置换取目标——存量库未转换
- * 与纯浏览器场景），调用方按普通匿名处理并进入登录流程。
+ * 与纯浏览器场景），调用方按普通匿名处理并进入登录或本机初始化流程。
  * 其余失败（凭据不匹配、网络异常）抛出，由上层落入 unavailable，
- * 经服务可用性覆盖层提示并在 core 重启/健康恢复后自动重试——本地静默模式不回落登录页。
+ * 经服务可用性覆盖层提示并在 core 重启/健康恢复后自动重试。
  */
 async function performLocalSilentExchange(generation: number): Promise<AuthSession | null> {
   const exchangeToken = mutableLocalAuthExchangeToken.value;
@@ -310,7 +328,10 @@ async function performLocalSilentExchange(generation: number): Promise<AuthSessi
     mutableAuthSession.value = session;
     return session;
   } catch (error) {
-    if (error instanceof ApiError && error.code === "local_session_unavailable") {
+    if (
+      error instanceof ApiError &&
+      ["local_session_unavailable", "local_initial_user_required"].includes(error.code)
+    ) {
       return null;
     }
     throw error;

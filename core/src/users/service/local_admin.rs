@@ -1,7 +1,7 @@
 //! 本机免登录标记用户的开通、自愈与占位密码标记。
 //!
 //! 本模块属于 `users` 业务服务层，服务 self-hosted 静默会话：空库首次换取时自动开通
-//! `admin`，标记用户被停用/软删除/收权后自愈恢复，并维护"密码仍为随机占位"标记。
+//! 用户指定用户名，标记用户被停用/软删除/收权后自愈恢复，并维护"密码仍为随机占位"标记。
 //! 它不校验换取凭据，也不签发 token；那些属于 `auth` 业务层。
 
 use sea_orm::{ConnectionTrait, DatabaseConnection, TransactionTrait};
@@ -19,7 +19,7 @@ use crate::{
     security::{create_password_hash, random_urlsafe, AuthApiError},
 };
 
-use super::register::acquire_registration_write_lock;
+use super::{register::acquire_registration_write_lock, validation::normalize_username};
 
 /// 数据库托管鉴权设置：本机静默会话签发目标的用户 ID。
 pub(crate) const LOCAL_AUTO_LOGIN_USER_ID_SETTING: &str = "local_auto_login_user_id";
@@ -28,15 +28,13 @@ pub(crate) const LOCAL_AUTO_LOGIN_USER_ID_SETTING: &str = "local_auto_login_user
 pub(crate) const LOCAL_AUTO_LOGIN_PASSWORD_PLACEHOLDER_SETTING: &str =
     "local_auto_login_password_placeholder";
 
-/// 自动开通的默认管理员用户名（经用户确认）。
-const LOCAL_ADMIN_USERNAME: &str = "admin";
-
 /// 解析本机静默会话的目标用户；空库时自动开通，标记用户异常时自愈。
 ///
 /// 与首用户注册共用同一把写锁串行化，避免"浏览器注册首用户"与"壳内首次换取"并发时
 /// 产生两个初始全权限用户。已有用户但没有标记（存量库未转换）时拒绝，不做启发式误绑。
 pub(crate) async fn resolve_local_auto_login_user(
     database: &DatabaseConnection,
+    initial_username: Option<&str>,
 ) -> Result<user::Model, AuthApiError> {
     let transaction = database.begin().await?;
     acquire_registration_write_lock(&transaction).await?;
@@ -48,7 +46,9 @@ pub(crate) async fn resolve_local_auto_login_user(
             if auth.has_any_user().await? {
                 return Err(AuthApiError::LocalSessionUnavailable);
             }
-            provision_local_admin(&transaction).await?
+            let username = initial_username.ok_or(AuthApiError::LocalInitialUserRequired)?;
+            let username = normalize_username(username)?;
+            provision_local_user(&transaction, &username).await?
         }
     };
 
@@ -97,9 +97,10 @@ async fn read_marker(
         .and_then(|value| value.parse::<i64>().ok()))
 }
 
-/// 空库自动开通默认管理员：随机占位密码 + 全部内置权限 + 标记与占位设置 + 审计。
-async fn provision_local_admin(
+/// 空库自动开通用户：随机占位密码 + 全部内置权限 + 标记与占位设置 + 审计。
+async fn provision_local_user(
     transaction: &(impl ConnectionTrait + Send + Sync),
+    username: &str,
 ) -> Result<user::Model, AuthApiError> {
     let users = UserRepository::new(transaction);
     let rbac = RbacRepository::new(transaction);
@@ -111,7 +112,7 @@ async fn provision_local_admin(
     let password_hash = create_password_hash(&placeholder_password)?;
     let user = users
         .create_user(CreateUser {
-            username: LOCAL_ADMIN_USERNAME.to_owned(),
+            username: username.to_owned(),
             password_hash,
         })
         .await?;

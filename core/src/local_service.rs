@@ -25,8 +25,8 @@ pub struct LocalServiceInfo {
     /// core 实际使用的大对象文件目录。
     pub files_dir: PathBuf,
 
-    /// 当前数据库是否仍需要创建首个管理员。
-    pub admin_setup_required: bool,
+    /// 当前数据库是否仍需要创建首个用户。
+    pub initial_user_setup_required: bool,
 
     /// self-hosted 模式的本机会话换取凭据；只经壳内可信通道传递，不得写入日志。
     pub local_session_token: Option<LocalSessionSecret>,
@@ -136,7 +136,7 @@ pub async fn start_local_service(
         bound_addr,
         database_path: local.storage.database_path.clone(),
         files_dir: local.storage.files_dir.clone(),
-        admin_setup_required: local.auth.admin_setup_required,
+        initial_user_setup_required: local.auth.initial_user_setup_required,
         local_session_token: local.local_session.clone(),
     };
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
