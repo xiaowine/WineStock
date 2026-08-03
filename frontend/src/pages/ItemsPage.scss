@@ -1,5 +1,175 @@
 /* 本文件拥有物品库存目录的复合表格、固定列和移动库存项目，不定义 Dialog 或后端状态规则。 */
 @use "../styles/foundation/mixins" as mixins;
+
+@mixin items-catalog-card-layout {
+  .items-catalog__body {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .items-catalog__table {
+    display: grid;
+    min-width: 0;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 12px 12px;
+    background: var(--color-surface-subtle);
+  }
+
+  .items-catalog__table-head {
+    display: none;
+  }
+
+  .items-catalog__item {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: minmax(88px, 0.72fr) minmax(0, 2fr);
+    grid-template-areas:
+      "identity identity"
+      "details stock";
+    overflow: hidden;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--item-row-background);
+    box-shadow: var(--shadow-subtle);
+  }
+
+  .items-catalog__item > * {
+    border: 0;
+  }
+
+  .items-catalog__fixed-info {
+    position: static;
+    z-index: auto;
+    grid-area: identity;
+    grid-template-columns: 64px minmax(0, 1fr) 34px;
+    grid-template-areas:
+      "image identity actions"
+      "attributes attributes attributes";
+    gap: 8px 10px;
+    padding: 0 0 11px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .items-catalog__fixed-info .authenticated-image {
+    width: 64px !important;
+    height: 64px !important;
+    grid-area: image;
+  }
+
+  .items-catalog__identity-content {
+    grid-area: identity;
+    height: auto;
+    align-self: center;
+    gap: 5px;
+  }
+
+  .items-catalog__identity-name {
+    font-size: 15px;
+  }
+
+  .items-catalog__identity-meta {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+    gap: 3px 8px;
+  }
+
+  .items-catalog__row-actions {
+    grid-area: actions;
+  }
+
+  .items-catalog__row-actions .icon-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .items-catalog__fixed-info .items-catalog__attributes {
+    height: auto;
+    grid-area: attributes;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: 3px 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .items-catalog__fixed-info .items-catalog__attributes > div {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .items-catalog__fixed-info .items-catalog__attributes > div:last-child:nth-child(odd),
+  .items-catalog__fixed-info .items-catalog__attributes .is-empty {
+    grid-column: 1 / -1;
+  }
+
+  .items-catalog__fixed-info .items-catalog__attributes dt {
+    max-width: 6em;
+  }
+
+  .items-catalog__stock {
+    position: static;
+    z-index: auto;
+    grid-area: stock;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 3px 8px;
+    padding: 9px 10px;
+    border-left: 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: var(--color-surface-raised);
+    box-shadow: none;
+  }
+
+  .items-catalog__stock > strong {
+    font-size: 17px;
+  }
+
+  .items-catalog__stock > span {
+    grid-column: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .items-catalog__stock em {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    white-space: nowrap;
+  }
+
+  .items-catalog__details {
+    grid-area: details;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 0;
+    padding: 9px 8px 9px 10px;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    background: var(--color-surface-raised);
+  }
+
+  .items-catalog__attributes > div,
+  .items-catalog__details > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .items-catalog__details > div:nth-child(n + 2) {
+    display: none;
+  }
+
+  .items-catalog__load-more {
+    min-width: 0;
+    min-height: 58px;
+    margin: 0;
+    background: var(--color-surface-subtle);
+  }
+}
+
 .items-page {
   min-height: 0;
 }
@@ -26,6 +196,7 @@
 
 .items-page__workspace {
   display: flex;
+  container: items-page-workspace / inline-size;
   min-height: 560px;
   flex: 1 1 auto;
   margin-top: 14px;
@@ -511,153 +682,22 @@
   .items-catalog__refresh-status {
     display: none;
   }
-  /*
-   * 勿用 flex:1 把 body 锁死高度再 overflow:visible 把 load-more 画到导航栏下：
-   * 溢出不会可靠进入 content-pane 的 scrollHeight，导致尾部永远滚不出来。
-   * 按内容撑开，catalog 的 min-height 只负责「够高」，多出的空白在列表下方、栏上方。
-   */
-  .items-catalog__body {
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-  .items-catalog__table {
-    display: grid;
-    min-width: 0;
-    gap: 8px;
-    margin: 0 -12px;
-    padding: 8px 12px 12px;
-    background: var(--color-surface-subtle);
-  }
-  .items-catalog__table-head {
-    display: none;
-  }
-  .items-catalog__item {
-    display: grid;
-    min-height: 0;
-    grid-template-columns: minmax(88px, 0.72fr) minmax(0, 2fr);
-    grid-template-areas:
-      "identity identity"
-      "details stock";
-    overflow: hidden;
-    padding: 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--item-row-background);
-    box-shadow: var(--shadow-subtle);
-  }
-  .items-catalog__item > * {
-    border: 0;
-  }
-  .items-catalog__fixed-info {
-    position: static;
-    z-index: auto;
-    grid-area: identity;
-    grid-template-columns: 64px minmax(0, 1fr) 34px;
-    grid-template-areas:
-      "image identity actions"
-      "attributes attributes attributes";
-    gap: 8px 10px;
-    padding: 0 0 11px;
-    background: transparent;
-    box-shadow: none;
-  }
-  .items-catalog__fixed-info .authenticated-image {
-    width: 64px !important;
-    height: 64px !important;
-    grid-area: image;
-  }
-  .items-catalog__identity-content {
-    grid-area: identity;
-    height: auto;
-    align-self: center;
-    gap: 5px;
-  }
-  .items-catalog__identity-name {
-    font-size: 15px;
-  }
-  .items-catalog__identity-meta {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-    gap: 3px 8px;
-  }
-  .items-catalog__row-actions {
-    grid-area: actions;
-  }
-  .items-catalog__row-actions .icon-button {
-    width: 34px;
-    height: 34px;
-  }
-  .items-catalog__fixed-info .items-catalog__attributes {
-    height: auto;
-    grid-area: attributes;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-content: start;
-    gap: 3px 12px;
-    padding-top: 8px;
-    border-top: 1px solid var(--color-border);
-  }
-  .items-catalog__fixed-info .items-catalog__attributes > div {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 4px;
-  }
-  .items-catalog__fixed-info .items-catalog__attributes > div:last-child:nth-child(odd),
-  .items-catalog__fixed-info .items-catalog__attributes .is-empty {
-    grid-column: 1 / -1;
-  }
-  .items-catalog__fixed-info .items-catalog__attributes dt {
-    max-width: 6em;
-  }
-  .items-catalog__stock {
-    position: static;
-    z-index: auto;
-    grid-area: stock;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 3px 8px;
-    padding: 9px 10px;
-    border-left: 0;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    background: var(--color-surface-raised);
-    box-shadow: none;
-  }
-  .items-catalog__stock > strong {
-    font-size: 17px;
-  }
-  .items-catalog__stock > span {
-    grid-column: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .items-catalog__stock em {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
-    white-space: nowrap;
-  }
-  .items-catalog__details {
-    grid-area: details;
-    min-width: 0;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: center;
-    gap: 0;
-    padding: 9px 8px 9px 10px;
-    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-    background: var(--color-surface-raised);
-  }
-  .items-catalog__attributes > div,
-  .items-catalog__details > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
-  }
-  .items-catalog__details > div:nth-child(n + 2) {
-    display: none;
-  }
+  @include items-catalog-card-layout;
+  .items-catalog__table,
   .items-catalog__load-more {
-    min-width: 0;
-    min-height: 58px;
-    margin: 0 -12px;
-    background: var(--color-surface-subtle);
+    margin-right: -12px;
+    margin-left: -12px;
+  }
+}
+
+@container items-page-workspace (max-width: 783px) {
+  @include items-catalog-card-layout;
+}
+
+// 卡片实际可用宽度受应用内边距影响；窄容器下身份字段改为单列，避免分类值被挤压截断。
+@container items-page-workspace (max-width: 360px) {
+  .items-catalog__identity-meta {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

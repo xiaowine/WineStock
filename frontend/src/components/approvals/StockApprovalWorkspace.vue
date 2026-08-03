@@ -47,7 +47,6 @@
         </div>
       </div>
       <div
-        ref="resultsElement"
         class="approval-results"
         :class="{ 'approval-results--refreshing': showRefreshing }"
         :aria-busy="requestPending"
@@ -148,8 +147,7 @@ const selected = ref<ApprovalRecord | null>(null),
   detailError = ref(""),
   actionBusy = ref(false),
   actionError = ref("");
-const resultsElement = ref<HTMLElement | null>(null),
-  sentinelElement = ref<HTMLElement | null>(null);
+const sentinelElement = ref<HTMLElement | null>(null);
 let listController: AbortController | null = null,
   detailController: AbortController | null = null,
   observer: IntersectionObserver | null = null;
@@ -181,13 +179,12 @@ watch(
   },
   { immediate: true },
 );
-watch([resultsElement, sentinelElement], observeSentinel);
 onMounted(() => {
   observer = new IntersectionObserver(
     (entries) => {
       if (entries.some((entry) => entry.isIntersecting)) void loadNextPage();
     },
-    { root: resultsElement.value, rootMargin: "240px 0px" },
+    { rootMargin: "240px 0px" },
   );
   observeSentinel();
 });

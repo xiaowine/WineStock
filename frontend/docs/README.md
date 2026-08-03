@@ -43,6 +43,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `implementation-notes/stock-draft-merged-workspace.md`：出入库合并草稿工作台的结构、与旧页的对齐差异、验证结论与切换记录（已正式启用）。
 - `implementation-notes/outbound-estimated-cost.md`：新建出库提交前的批次成本预估、FIFO 分摊、界面呈现、错误边界与验收方案。
 - `implementation-notes/inbound-orders-mobile-remediation.md`：入库单列表移动端横向裁切的原因、单列条目重构、Dialog 适配与验收方案。
+- `implementation-notes/list-scroll-responsive-remediation-audit.md`：主列表横向/纵向滚动边界盘点、容器宽度切换规则、页面优先级和分阶段整改方案。
 - `implementation-notes/substitute-network-visualization.md`：替代关系星链网络的入口、力导向布局、交互、响应式、性能和分阶段实施方案。
 - `implementation-notes/runtime-tabs-consistency-remediation.md`：运行设置模式切换与全站 tab / 工作区导航 / 分段控件不一致的盘点与分阶段整改方案。
 - `implementation-notes/runtime-first-startup-funnel.md`：启动漏斗——Shell 发布 `initialized`，首次未初始化先进入设置，apply 成功后统一进 `/auth`。

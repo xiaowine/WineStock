@@ -68,7 +68,6 @@
       </div>
 
       <div
-        ref="resultsElement"
         class="inbound-orders-results"
         :class="{ 'inbound-orders-results--refreshing': showRefreshing }"
         :aria-busy="requestPending"
@@ -274,7 +273,6 @@ const searchInput = ref("");
 const dateFromInput = ref("");
 const dateToInput = ref("");
 const filterDialogOpen = ref(false);
-const resultsElement = ref<HTMLElement | null>(null);
 const loadMoreSentinel = ref<HTMLElement | null>(null);
 const state = reactive<{ page: number; status: InboundOrderStatus | ""; search: string }>({
   page: 1,
@@ -327,11 +325,8 @@ watch(
   { immediate: true },
 );
 
-watch([resultsElement, loadMoreSentinel], () => refreshLoadMoreObservation());
-
 onMounted(() => {
   loadMoreObserver = new IntersectionObserver(handleLoadMoreIntersection, {
-    root: resultsElement.value,
     rootMargin: "240px 0px",
   });
   refreshLoadMoreObservation();

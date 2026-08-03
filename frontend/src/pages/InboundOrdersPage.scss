@@ -1,5 +1,6 @@
 @use "../styles/foundation/mixins" as mixins;
 .inbound-orders-page {
+  container: inbound-orders-page / inline-size;
   min-height: 0;
   gap: 14px;
   &__header {
@@ -83,7 +84,8 @@
 }
 .inbound-orders-results {
   min-height: 300px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
   &--refreshing {
     opacity: 0.72;
@@ -246,26 +248,6 @@
   .inbound-orders-toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
   }
-  .inbound-orders-table {
-    min-width: 0;
-    padding: 10px;
-    &__head {
-      display: none;
-    }
-    &__row {
-      grid-template-columns: 1fr;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      margin-bottom: 8px;
-      > div {
-        border-right: 0;
-        border-bottom: 1px solid var(--color-border);
-        &:last-child {
-          border: 0;
-        }
-      }
-    }
-  }
 }
 
 .inbound-detail-summary {
@@ -383,7 +365,7 @@
   }
   .inbound-orders-results {
     min-height: 0;
-    overflow-x: hidden;
+    overflow: visible;
     background: var(--color-surface-subtle);
   }
   .inbound-orders-load-more {
@@ -419,5 +401,16 @@
   }
   .inbound-detail-items dd {
     overflow-wrap: anywhere;
+  }
+}
+
+@container inbound-orders-page (max-width: 783px) {
+  .inbound-orders-workspace {
+    overflow: visible;
+  }
+
+  .inbound-orders-results {
+    min-height: 0;
+    overflow: visible;
   }
 }

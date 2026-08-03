@@ -45,6 +45,7 @@
 
 .users-page__workspace {
   display: flex;
+  container: users-page-workspace / inline-size;
   min-width: 0;
   min-height: 560px;
   flex: 1 1 auto;
@@ -112,6 +113,13 @@
   color: var(--color-subtle);
   font-size: 12px;
   text-align: center;
+}
+
+@container users-page-workspace (max-width: 863px) {
+  .users-content {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
 }
 
 @include mixins.mobile {

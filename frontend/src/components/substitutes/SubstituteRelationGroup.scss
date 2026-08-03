@@ -180,7 +180,7 @@
   }
 }
 
-@include mixins.tablet(980px) {
+@container substitutes-page (max-width: 723px) {
   .substitute-relation-group {
     grid-template-areas:
       "identity decision"
@@ -223,6 +223,11 @@
 
     &__first {
       width: 100%;
+    }
+
+    &__identity > strong {
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
   }
 }

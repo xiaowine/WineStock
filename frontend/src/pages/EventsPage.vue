@@ -204,11 +204,6 @@
                   <time :datetime="event.timestamp">{{
                     formatLocalTimestamp(event.timestamp)
                   }}</time>
-                  <span
-                    class="event-action-pill"
-                    :class="`event-action-pill--${eventActionTone(event.action)}`"
-                    >{{ eventActionLabel(event.action) }}</span
-                  >
                 </div>
                 <button
                   class="icon-button"
@@ -239,8 +234,18 @@
               >
                 {{ actorLabel(event) }}
               </button>
+              <div class="event-mobile-item__action">
+                <button
+                  type="button"
+                  class="event-action-pill"
+                  :class="`event-action-pill--${eventActionTone(event.action)}`"
+                  @click.stop="filterByAction(event.action)"
+                >
+                  {{ eventActionLabel(event.action) }}
+                </button>
+                <small>事件 #{{ event.id }}</small>
+              </div>
               <p>{{ eventSummary(event) }}</p>
-              <small>事件 #{{ event.id }}</small>
             </article>
           </div>
 

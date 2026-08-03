@@ -1,5 +1,66 @@
 /* 本文件拥有库存总览页面的摘要、趋势面板和呆滞物品响应式布局，不拥有图表内部绘制。 */
 @use "../styles/foundation/mixins" as mixins;
+
+@mixin dashboard-slow-moving-card-layout {
+  .dashboard-slow-moving__table-wrap {
+    display: none;
+  }
+
+  .dashboard-slow-moving__mobile-list {
+    display: grid;
+    border-top: 1px solid var(--color-border);
+
+    article {
+      display: grid;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+
+      > div {
+        display: grid;
+        min-width: 0;
+        gap: 2px;
+      }
+
+      strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      small {
+        color: var(--color-subtle);
+        font-size: 12px;
+      }
+    }
+
+    dt {
+      color: var(--color-subtle);
+      font-size: 12px;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0;
+    }
+
+    dd {
+      margin: 2px 0 0;
+      color: var(--color-text);
+      font-size: 13px;
+    }
+  }
+}
+
 .dashboard-page {
   gap: 18px;
 
@@ -229,6 +290,8 @@
 }
 
 .dashboard-slow-moving {
+  container: dashboard-slow-moving / inline-size;
+
   &__empty {
     display: grid;
     min-height: 120px;
@@ -297,6 +360,10 @@
     font-size: 12px;
     text-align: right;
   }
+}
+
+@container dashboard-slow-moving (max-width: 643px) {
+  @include dashboard-slow-moving-card-layout;
 }
 
 .dashboard-age-pill {
@@ -382,62 +449,6 @@
   }
 
   .dashboard-slow-moving {
-    &__table-wrap {
-      display: none;
-    }
-
-    &__mobile-list {
-      display: grid;
-      border-top: 1px solid var(--color-border);
-
-      article {
-        display: grid;
-        gap: 12px;
-        padding: 13px 0;
-        border-bottom: 1px solid var(--color-border);
-      }
-
-      header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-
-        > div {
-          display: grid;
-          min-width: 0;
-          gap: 2px;
-        }
-
-        strong {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        small {
-          color: var(--color-subtle);
-          font-size: 12px;
-        }
-      }
-
-      dt {
-        color: var(--color-subtle);
-        font-size: 12px;
-      }
-
-      dl {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        margin: 0;
-      }
-
-      dd {
-        margin: 2px 0 0;
-        color: var(--color-text);
-        font-size: 13px;
-      }
-    }
+    @include dashboard-slow-moving-card-layout;
   }
 }

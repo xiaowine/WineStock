@@ -1,6 +1,7 @@
 /* 本文件拥有入库与出库审批共享工作台、队列、审核详情和响应式样式；不定义其它单据页面外观。 */
 @use "../../styles/foundation/mixins" as mixins;
 .approval-page {
+  container: approval-page / inline-size;
   min-height: 0;
   gap: 14px;
 }
@@ -78,7 +79,8 @@
 }
 .approval-results {
   min-height: 300px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
   &--refreshing {
     opacity: 0.72;
@@ -375,6 +377,21 @@
   gap: 14px;
 }
 @include mixins.tablet(900px) {
+  .approval-detail-lines article dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container approval-page (max-width: 783px) {
+  .approval-workspace {
+    overflow: visible;
+  }
+
+  .approval-results {
+    min-height: 0;
+    overflow: visible;
+  }
+
   .approval-queue-table {
     display: none;
   }
@@ -405,9 +422,6 @@
   }
   .approval-queue-mobile .approval-detail-button {
     display: none;
-  }
-  .approval-detail-lines article dl {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @include mixins.mobile {
@@ -441,7 +455,7 @@
   }
   .approval-results {
     min-height: 0;
-    overflow-x: hidden;
+    overflow: visible;
     background: var(--color-surface-subtle);
   }
   .approval-queue-table {

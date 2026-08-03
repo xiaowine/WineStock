@@ -2,6 +2,7 @@
 @use "../styles/foundation/mixins" as mixins;
 
 .locations-page {
+  container: locations-page / inline-size;
   min-height: 0;
 
   &__header {
@@ -121,6 +122,7 @@
 
 .locations-catalog {
   display: flex;
+  container: locations-catalog / inline-size;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
@@ -493,6 +495,130 @@
   display: none;
 }
 
+@mixin locations-catalog-card-layout {
+  .locations-catalog__body {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .locations-table {
+    display: none;
+  }
+
+  .locations-mobile-list {
+    display: grid;
+    gap: 8px;
+    margin: 0 -12px;
+    padding: 8px 12px 12px;
+    background: var(--color-surface-subtle);
+
+    &__item {
+      display: grid;
+      gap: 10px;
+      overflow: hidden;
+      padding: 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-subtle);
+
+      header {
+        display: flex;
+        min-width: 0;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      dl {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding-top: 8px;
+        border-top: 1px solid var(--color-border);
+
+        > div {
+          display: grid;
+          min-width: 0;
+          grid-template-columns: max-content minmax(0, 1fr);
+          gap: 8px;
+        }
+
+        dt {
+          color: var(--color-subtle);
+          font-size: 11px;
+        }
+
+        dd {
+          overflow: hidden;
+          margin: 0;
+          color: var(--color-text);
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    &__identity {
+      display: grid;
+      min-width: 0;
+      align-self: center;
+      gap: 4px;
+
+      > span {
+        overflow: hidden;
+        color: var(--color-muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    &__title {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 7px;
+
+      strong {
+        overflow: hidden;
+        min-width: 0;
+        font-size: 15px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .locations-table__default-badge {
+        flex: 0 0 auto;
+        margin-left: 0;
+      }
+    }
+
+    &__notes {
+      dd {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    &__actions {
+      display: inline-flex;
+      flex: 0 0 auto;
+      gap: 5px;
+
+      .icon-button {
+        width: 34px;
+        height: 34px;
+
+        svg {
+          @include mixins.svg-icon;
+        }
+      }
+    }
+  }
+}
+
 @keyframes locations-refresh-spin {
   to {
     transform: rotate(360deg);
@@ -572,7 +698,7 @@
   }
 }
 
-@include mixins.mobile {
+@container locations-page (max-width: 763px) {
   .locations-page {
     gap: 0;
 
@@ -705,130 +831,87 @@
       grid-area: create;
     }
 
-    &__body {
-      overflow: visible;
-    }
-
     &__inline-error {
       margin-right: 0;
       margin-left: 0;
     }
   }
 
-  .locations-table {
+  @include locations-catalog-card-layout;
+}
+
+@container locations-catalog (max-width: 763px) {
+  .locations-catalog__toolbar {
+    grid-template-areas:
+      "search search refresh create"
+      "group group summary summary";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) repeat(2, 40px);
+    gap: 6px;
+    padding: 8px 0 10px;
+
+    &--readonly {
+      grid-template-areas:
+        "search search search refresh"
+        "group group summary summary";
+    }
+  }
+
+  .locations-catalog__search {
+    grid-area: search;
+  }
+
+  .locations-catalog__search > span:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    margin: -1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .locations-catalog__context,
+  .locations-catalog__commands,
+  .locations-catalog__actions {
+    display: contents;
+  }
+
+  .locations-catalog__group-trigger {
+    display: inline-flex;
+    grid-area: group;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .locations-catalog__context-copy {
     display: none;
   }
 
-  .locations-mobile-list {
-    display: grid;
-    gap: 8px;
-    margin: 0 -12px;
-    padding: 8px 12px 12px;
-    background: var(--color-surface-subtle);
-
-    &__item {
-      display: grid;
-      gap: 10px;
-      overflow: hidden;
-      padding: 12px;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      background: var(--color-surface);
-      box-shadow: var(--shadow-subtle);
-
-      header {
-        display: flex;
-        min-width: 0;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      dl {
-        display: grid;
-        gap: 6px;
-        margin: 0;
-        padding-top: 8px;
-        border-top: 1px solid var(--color-border);
-
-        > div {
-          display: grid;
-          min-width: 0;
-          grid-template-columns: max-content minmax(0, 1fr);
-          gap: 8px;
-        }
-
-        dt {
-          color: var(--color-subtle);
-          font-size: 11px;
-        }
-
-        dd {
-          overflow: hidden;
-          margin: 0;
-          color: var(--color-text);
-          font-size: 12px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-    }
-
-    &__identity {
-      display: grid;
-      min-width: 0;
-      align-self: center;
-      gap: 4px;
-
-      > span {
-        overflow: hidden;
-        color: var(--color-muted);
-        font-size: 12px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
-
-    &__title {
-      display: flex;
-      min-width: 0;
-      align-items: center;
-      gap: 7px;
-
-      strong {
-        overflow: hidden;
-        min-width: 0;
-        font-size: 15px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .locations-table__default-badge {
-        flex: 0 0 auto;
-        margin-left: 0;
-      }
-    }
-
-    &__notes {
-      dd {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-      }
-    }
-
-    &__actions {
-      display: inline-flex;
-      flex: 0 0 auto;
-      gap: 5px;
-
-      .icon-button {
-        width: 34px;
-        height: 34px;
-
-        svg {
-          @include mixins.svg-icon;
-        }
-      }
-    }
+  .locations-catalog__summary {
+    grid-area: summary;
+    min-width: 0;
+    min-height: 40px;
+    justify-self: end;
   }
+
+  .locations-catalog__refresh-status {
+    display: none;
+  }
+
+  .locations-catalog__refresh {
+    grid-area: refresh;
+  }
+
+  .locations-catalog__create {
+    grid-area: create;
+  }
+
+  .locations-catalog__inline-error {
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  @include locations-catalog-card-layout;
 }

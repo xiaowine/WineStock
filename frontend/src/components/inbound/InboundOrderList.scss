@@ -5,7 +5,7 @@
   display: none;
 }
 
-@include mixins.tablet(900px) {
+@container inbound-orders-page (max-width: 783px) {
   .inbound-orders-table {
     display: none;
   }

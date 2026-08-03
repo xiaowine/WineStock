@@ -2,6 +2,7 @@
 @use "../styles/foundation/mixins" as mixins;
 
 .substitutes-page {
+  container: substitutes-page / inline-size;
   min-height: 0;
 
   &__header {
@@ -193,9 +194,14 @@
   }
 }
 
-@include mixins.tablet(980px) {
+@container substitutes-page (max-width: 723px) {
+  .substitutes-workspace {
+    overflow: visible;
+  }
+
   .substitutes-results {
-    overflow-x: hidden;
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .substitutes-table {
@@ -291,7 +297,7 @@
   }
 
   .substitutes-results {
-    overflow-x: hidden;
+    overflow: visible;
   }
 
   .substitutes-table {
