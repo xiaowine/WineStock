@@ -25,7 +25,7 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `inbound-template-removal.md`：删除入库模板概念的跨 core/frontend 影响评估、收货属性去留的方案取舍与实施决策记录（已按方案 B 实施）。
 - `shell-aware-service-availability.md`：前端服务可用性按 ownership 分层、Shell phase 权威信号 + HTTP 看门狗、本地故障自动恢复与去抖的跨 frontend/各 Shell 实施方案（已实施，真机验收待做）。
 - `first-run-setup-wizard.md`：首次启动漏斗从运行设置页迁移到初始化向导的页面结构、文案定稿、守卫分流、数据收集偏好与 UI 实现约束（已实施；含纯网页端单能力跳页/运行设置页 web 限制）。
-- `server-mode-tls-pinning.md`：server-mode 自签 HTTPS-only + 客户端 TOFU 首次信任与 SPKI 指纹固定的跨 core/契约/Android/frontend 设计（设计定稿、未实施，作为后续任务执行依据）。
+- `server-mode-tls-pinning.md`：server-mode 自签 HTTPS-only + 客户端 TOFU 首次信任与 SPKI 指纹固定的跨 core/契约/Android/frontend 方案整理（未实施，作为后续任务执行依据）。
 - `self-hosted-silent-auth.md`：self-hosted 本机模式免登录的自动默认管理员（惰性开通）、壳内换取凭据与静默会话方案，含 server-mode 切换设密门、模式切换语义与安全边界（已实施，实机验证待做）。
 - `username-change-and-server-mode-password.md`：server-mode 切换设密时复用原有改密 API 并要求必填用户名，以及用户管理独立用户名修改 API、权限、会话和验收方案（已实施）。
 - `lcsc-batch-item-creation-and-erp-backup-import.md`：立创物品批量创建（勾选子集分批/每批一个模板/前置选项对话框/串行限速）与 LCSC Android ERP 备份导入器（四表解析、C0 跳过、期初入库草稿、重复导入防护）的方案（两特性均已实施）。
