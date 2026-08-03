@@ -18,7 +18,11 @@
 }
 
 .templates-workspace {
-  min-height: 0;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  min-height: 560px;
   margin-top: 14px;
   overflow: hidden;
   border: 1px solid var(--color-border);
@@ -193,7 +197,7 @@
 }
 
 .templates-table {
-  --template-columns: minmax(220px, 0.85fr) minmax(320px, 1.7fr) minmax(220px, 0.75fr);
+  --template-columns: minmax(220px, 0.85fr) minmax(320px, 1.7fr) minmax(270px, 0.75fr);
 
   /* 全站默认模板标记与设默认按钮的激活态。 */
   &__default-badge {
@@ -245,10 +249,6 @@
   &__row {
     min-height: 94px;
     border-bottom: 1px solid var(--color-border);
-
-    &:last-child {
-      border-bottom: 0;
-    }
 
     > * {
       min-width: 0;
@@ -838,6 +838,7 @@
   }
 
   .templates-workspace {
+    min-height: 0;
     margin-top: 0;
     overflow: visible;
     border: 0;
