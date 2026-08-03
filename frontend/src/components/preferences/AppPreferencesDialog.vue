@@ -129,6 +129,48 @@
             <small>随系统启动时保持窗口隐藏，可从系统托盘重新打开。</small>
           </span>
         </label>
+        <label
+          class="consent-toggle startup-preference"
+          :class="{ 'startup-preference--disabled': desktopPreferencesUnavailable }"
+        >
+          <input
+            v-model="webviewReclaimEnabled"
+            type="checkbox"
+            name="preferences-webview-reclaim"
+            :disabled="desktopPreferencesUnavailable"
+            @change="handleDesktopPreferencesChange"
+          />
+          <span class="consent-toggle__copy">
+            <strong>空闲时回收 WebView</strong>
+            <small>窗口隐藏到系统托盘一段时间后释放页面内存，再次打开时重新加载。</small>
+          </span>
+        </label>
+        <div
+          class="webview-reclaim-time"
+          :class="{
+            'webview-reclaim-time--disabled':
+              desktopPreferencesUnavailable || !webviewReclaimEnabled,
+          }"
+        >
+          <label class="webview-reclaim-time__label" for="preferences-webview-reclaim-time">
+            回收等待时间
+          </label>
+          <SelectControl
+            id="preferences-webview-reclaim-time"
+            v-model="webviewReclaimIdleMinutes"
+            name="preferences-webview-reclaim-time"
+            :disabled="desktopPreferencesUnavailable || !webviewReclaimEnabled"
+            match-trigger-width
+            @change="handleDesktopPreferencesChange"
+          >
+            <option :value="5">5 分钟</option>
+            <option :value="15">15 分钟</option>
+            <option :value="30">30 分钟</option>
+            <option :value="60">1 小时</option>
+            <option :value="120">2 小时</option>
+            <option :value="240">4 小时</option>
+          </SelectControl>
+        </div>
       </section>
 
       <section class="app-preferences__section" aria-label="数据收集">
@@ -163,6 +205,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import ModalDialog from "../ModalDialog.vue";
+import SelectControl from "../forms/SelectControl.vue";
 import { startTelemetryIfConsented, stopTelemetry } from "../../telemetry/clarity";
 import {
   TELEMETRY_POLICY_URL,
@@ -176,7 +219,11 @@ import {
   setDesktopPreferences,
 } from "../../shell/runtime";
 import { defaultDesktopPreferences } from "../../shell/contract";
-import type { DesktopCloseBehavior, DesktopPreferences } from "../../shell/contract";
+import type {
+  DesktopCloseBehavior,
+  DesktopPreferences,
+  DesktopWebviewReclaimIdleMinutes,
+} from "../../shell/contract";
 import { notice } from "../../notices/notice";
 import ThemePreferenceSelector from "./ThemePreferenceSelector.vue";
 import { contactEntryVisible, setContactEntryVisible } from "../../contact/contactPreferences";
@@ -189,6 +236,10 @@ const contactVisible = ref(contactEntryVisible.value);
 const closeBehavior = ref<DesktopCloseBehavior>(defaultDesktopPreferences.closeBehavior);
 const autostartEnabled = ref(defaultDesktopPreferences.autostartEnabled);
 const autostartSilent = ref(defaultDesktopPreferences.autostartSilent);
+const webviewReclaimEnabled = ref(defaultDesktopPreferences.webviewReclaimEnabled);
+const webviewReclaimIdleMinutes = ref<DesktopWebviewReclaimIdleMinutes>(
+  defaultDesktopPreferences.webviewReclaimIdleMinutes,
+);
 const desktopPreferencesLoading = ref(false);
 const desktopPreferencesLoaded = ref(false);
 const desktopPreferencesSaving = ref(false);
@@ -226,6 +277,8 @@ async function loadDesktopPreferences(): Promise<void> {
     closeBehavior.value = preferences.closeBehavior;
     autostartEnabled.value = preferences.autostartEnabled;
     autostartSilent.value = preferences.autostartSilent;
+    webviewReclaimEnabled.value = preferences.webviewReclaimEnabled;
+    webviewReclaimIdleMinutes.value = preferences.webviewReclaimIdleMinutes;
     desktopPreferencesLoaded.value = true;
   } catch (error) {
     if (request !== desktopPreferencesRequest) return;
@@ -261,11 +314,15 @@ async function saveDesktopPreferences(): Promise<DesktopPreferences | null> {
       closeBehavior: closeBehavior.value,
       autostartEnabled: autostartEnabled.value,
       autostartSilent: autostartSilent.value,
+      webviewReclaimEnabled: webviewReclaimEnabled.value,
+      webviewReclaimIdleMinutes: webviewReclaimIdleMinutes.value,
     });
     if (preferences) {
       closeBehavior.value = preferences.closeBehavior;
       autostartEnabled.value = preferences.autostartEnabled;
       autostartSilent.value = preferences.autostartSilent;
+      webviewReclaimEnabled.value = preferences.webviewReclaimEnabled;
+      webviewReclaimIdleMinutes.value = preferences.webviewReclaimIdleMinutes;
     }
     return preferences;
   } catch (error) {
@@ -339,6 +396,32 @@ function errorMessage(error: unknown): string {
 .startup-preference--disabled {
   cursor: not-allowed;
   opacity: 0.66;
+}
+
+.webview-reclaim-time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 190px);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-left: 28px;
+
+  &--disabled {
+    opacity: 0.66;
+  }
+}
+
+.webview-reclaim-time__label {
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 540px) {
+  .webview-reclaim-time {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 0;
+  }
 }
 
 .window-close-preference {

@@ -6,12 +6,17 @@ export type RuntimeMode = "self-hosted" | "client-only" | "connect-to-remote" | 
 /** Desktop 主窗口收到系统关闭请求时的本机行为。 */
 export type DesktopCloseBehavior = "minimize-to-tray" | "exit-application";
 
+/** Desktop WebView 空闲回收的允许等待时间。 */
+export type DesktopWebviewReclaimIdleMinutes = 5 | 15 | 30 | 60 | 120 | 240;
+
 /** Desktop shell 专属偏好，不进入共享运行配置或业务 API。 */
 export interface DesktopPreferences {
   version: 1;
   closeBehavior: DesktopCloseBehavior;
   autostartEnabled: boolean;
   autostartSilent: boolean;
+  webviewReclaimEnabled: boolean;
+  webviewReclaimIdleMinutes: DesktopWebviewReclaimIdleMinutes;
 }
 
 export const defaultDesktopPreferences: DesktopPreferences = {
@@ -19,6 +24,8 @@ export const defaultDesktopPreferences: DesktopPreferences = {
   closeBehavior: "minimize-to-tray",
   autostartEnabled: false,
   autostartSilent: true,
+  webviewReclaimEnabled: false,
+  webviewReclaimIdleMinutes: 30,
 };
 
 /** 当前前端实现支持的 Shell Bridge 协议版本。 */
@@ -281,12 +288,16 @@ export interface ShellBridge {
 
 /** 校验 Desktop 偏好扩展的返回值。 */
 export function assertDesktopPreferences(value: unknown): asserts value is DesktopPreferences {
+  const reclaimIdleMinutes = isRecord(value) ? value.webviewReclaimIdleMinutes : undefined;
   if (
     !isRecord(value) ||
     value.version !== 1 ||
     !["minimize-to-tray", "exit-application"].includes(String(value.closeBehavior)) ||
     typeof value.autostartEnabled !== "boolean" ||
-    typeof value.autostartSilent !== "boolean"
+    typeof value.autostartSilent !== "boolean" ||
+    typeof value.webviewReclaimEnabled !== "boolean" ||
+    ![5, 15, 30, 60, 120, 240].includes(Number(reclaimIdleMinutes)) ||
+    !Number.isInteger(reclaimIdleMinutes)
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",

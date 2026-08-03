@@ -9,14 +9,14 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use rfd::{MessageButtons, MessageDialog, MessageLevel};
-use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 use winestock_desktop::runtime::{
     emit_app_resumed, DesktopRuntimeManager, RUNTIME_STATE_CHANGED_EVENT,
 };
 use winestock_desktop::{
     lifecycle::{self, AppLifecycleState},
     preferences::{CloseBehavior, DesktopPreferencesState},
-    tray, webview_compatibility, webview_debug, webview_privacy,
+    tray, webview_compatibility, webview_debug,
 };
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
@@ -43,9 +43,7 @@ fn main() {
             Some(vec![lifecycle::AUTOSTART_LAUNCH_ARGUMENT]),
         ))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                winestock_desktop::window::show_main_window(&window);
-            }
+            winestock_desktop::window::show_main_window_by_label(app);
         }))
         .plugin(prevent_default_plugin)
         .plugin(tauri_plugin_opener::init())
@@ -131,38 +129,17 @@ fn main() {
                     &winestock_desktop::device_metadata::resolve_device_name(),
                     &app.package_info().version.to_string(),
                 );
-
-            let main_window =
-                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-                    .initialization_script(runtime_metadata_script)
-                    .title("WineStock")
-                    .inner_size(1280.0, 800.0)
-                    .min_inner_size(460.0, 600.0)
-                    .resizable(true)
-                    .center()
-                    .visible(false)
-                    .general_autofill_enabled(false)
-                    .build()
-                    .map_err(|error| format!("无法创建 WineStock 主窗口：{error}"))?;
-            webview_privacy::disable_password_autosave(&main_window)
-                .map_err(|error| format!("无法配置 WebView2 隐私设置：{error}"))?;
+            app.manage(winestock_desktop::window::MainWindowConfig::new(
+                runtime_metadata_script,
+            ));
+            let show_on_ready = !app.state::<AppLifecycleState>().startup_silent();
+            winestock_desktop::window::create_main_window(app.handle(), show_on_ready)?;
             let _ = app.emit(RUNTIME_STATE_CHANGED_EVENT, snapshot);
             DesktopRuntimeManager::spawn_monitor(manager);
             let _ = APP_HANDLE.set(app.handle().clone());
             if let Err(error) = tray::setup(app) {
                 eprintln!("WineStock 系统托盘初始化失败：{error}");
             }
-            let fallback_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                // 正常路径由 frontendReady 控制显示；未完成握手时使用原生提示并退出，
-                // 避免用户看到空白或半初始化窗口。
-                tokio::time::sleep(Duration::from_secs(8)).await;
-                if !winestock_desktop::commands::is_frontend_ready()
-                    && !winestock_desktop::commands::is_frontend_failure_reported()
-                {
-                    winestock_desktop::commands::show_frontend_load_timeout(&fallback_handle);
-                }
-            });
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -173,13 +150,18 @@ fn main() {
                 WindowEvent::CloseRequested { api, .. } => {
                     let app_handle = window.app_handle();
                     let lifecycle = app_handle.state::<AppLifecycleState>();
+                    if lifecycle.webview_dispose_started() {
+                        return;
+                    }
                     let preferences = app_handle.state::<DesktopPreferencesState>();
                     if preferences.get().close_behavior == CloseBehavior::MinimizeToTray
                         && lifecycle.tray_available()
                         && !lifecycle.close_allowed()
                     {
                         api.prevent_close();
-                        let _ = window.hide();
+                        winestock_desktop::window::hide_main_window_and_schedule_reclaim(
+                            &app_handle,
+                        );
                     }
                 }
                 WindowEvent::Focused(true) => {
@@ -211,6 +193,14 @@ fn main() {
                     .get()
                     .expect("setup 完成后 AppHandle 必须已记录")
                     .clone();
+                if handle
+                    .state::<AppLifecycleState>()
+                    .webview_dispose_started()
+                    && !handle.state::<AppLifecycleState>().close_allowed()
+                {
+                    api.prevent_exit();
+                    return;
+                }
                 if !handle.state::<AppLifecycleState>().begin_exit() {
                     return;
                 }

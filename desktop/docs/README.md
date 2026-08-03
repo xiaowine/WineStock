@@ -43,6 +43,10 @@ Desktop 偏好支持由 `tauri-plugin-autostart` 管理的“开机自启”和�
 只有该标记与静默偏好同时满足且托盘可用时，主窗口才会在前端首帧后继续隐藏。手动启动、单实例恢复和托盘恢复
 仍显示主窗口。实现边界和验收项见 [`implementation-notes/desktop-autostart.md`](implementation-notes/desktop-autostart.md)。
 
+Desktop 偏好还支持关闭后按空闲时间回收主 WebView。回收默认关闭；开启后由前端设置等待时长，Shell 只销毁主
+`WebviewWindow`，不停止 `RunningLocalService` 或本地 Axum。托盘和单实例恢复会在窗口不存在时重新创建并加载共享前端；
+实现方案和验收项见根文档 [`../../docs/implementation-notes/desktop-webview-idle-reclamation.md`](../../docs/implementation-notes/desktop-webview-idle-reclamation.md)。
+
 Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询实际 Evergreen Runtime 版本（复用 Tauri/Wry 的静态 Loader 绑定），
 最低主版本与 Android Shell 对齐为 Chromium M111（配置使用 `111.0.0.0`，不限制补丁号）。WebView2 未安装、无法找到、版本过低、
 版本格式异常或检查 API 失败时，不创建主窗口、不加载前端、不启动本地服务；Shell 通过 `rfd` 原生错误对话框提示重新安装 WineStock，
@@ -81,6 +85,8 @@ Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询�
   关闭窗口转后台、系统托盘恢复主窗口和明确退出的生命周期方案。
 - [`implementation-notes/desktop-autostart.md`](implementation-notes/desktop-autostart.md)：Desktop
   开机自启、静默启动、Tauri autostart 插件接入、Shell Bridge 偏好和跨平台验收方案。
+- [`implementation-notes/desktop-webview-idle-reclamation.md`](../../docs/implementation-notes/desktop-webview-idle-reclamation.md)：Desktop
+  托盘隐藏后的 WebView 空闲回收、偏好设置、窗口重建和 Axum 持续运行方案。
 - [`implementation-notes/desktop-startup-gates-warning-remediation.md`](implementation-notes/desktop-startup-gates-warning-remediation.md)：Desktop
   WebView2 版本门卫、Shell Bridge 加载/握手门卫的故障分类、提示文案和验收方案。
 

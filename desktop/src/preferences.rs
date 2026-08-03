@@ -12,9 +12,14 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 pub const DESKTOP_PREFERENCES_VERSION: u32 = 1;
+pub const WEBVIEW_RECLAIM_IDLE_MINUTES: [u32; 6] = [5, 15, 30, 60, 120, 240];
 
 fn default_autostart_silent() -> bool {
     true
+}
+
+fn default_webview_reclaim_idle_minutes() -> u32 {
+    30
 }
 
 /// 主窗口收到系统关闭请求时采用的行为。
@@ -41,6 +46,10 @@ pub struct DesktopPreferences {
     pub autostart_enabled: bool,
     #[serde(default = "default_autostart_silent")]
     pub autostart_silent: bool,
+    #[serde(default)]
+    pub webview_reclaim_enabled: bool,
+    #[serde(default = "default_webview_reclaim_idle_minutes")]
+    pub webview_reclaim_idle_minutes: u32,
 }
 
 impl Default for DesktopPreferences {
@@ -50,8 +59,18 @@ impl Default for DesktopPreferences {
             close_behavior: CloseBehavior::default(),
             autostart_enabled: false,
             autostart_silent: true,
+            webview_reclaim_enabled: false,
+            webview_reclaim_idle_minutes: default_webview_reclaim_idle_minutes(),
         }
     }
+}
+
+/// 校验 Desktop 偏好，确保窗口生命周期使用有限且可预期的等待时间。
+pub fn validate_desktop_preferences(preferences: DesktopPreferences) -> Result<(), String> {
+    if !WEBVIEW_RECLAIM_IDLE_MINUTES.contains(&preferences.webview_reclaim_idle_minutes) {
+        return Err("WebView 回收等待时间不受支持".to_owned());
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -64,11 +83,14 @@ impl DesktopPreferencesState {
     pub fn load(path: PathBuf) -> Self {
         let value = match fs::read_to_string(&path) {
             Ok(raw) => match serde_json::from_str::<DesktopPreferences>(&raw) {
-                Ok(preferences) if preferences.version == DESKTOP_PREFERENCES_VERSION => {
+                Ok(preferences)
+                    if preferences.version == DESKTOP_PREFERENCES_VERSION
+                        && validate_desktop_preferences(preferences).is_ok() =>
+                {
                     preferences
                 }
                 _ => {
-                    eprintln!("WineStock desktop 偏好格式无效，使用默认关闭行为");
+                    eprintln!("WineStock desktop 偏好格式无效，使用默认偏好");
                     DesktopPreferences::default()
                 }
             },
@@ -95,6 +117,7 @@ impl DesktopPreferencesState {
         if preferences.version != DESKTOP_PREFERENCES_VERSION {
             return Err("不支持的 desktop 偏好版本".to_owned());
         }
+        validate_desktop_preferences(preferences)?;
 
         let mut current = self
             .value
@@ -133,6 +156,8 @@ mod tests {
         assert_eq!(defaults.close_behavior, CloseBehavior::MinimizeToTray);
         assert!(!defaults.autostart_enabled);
         assert!(defaults.autostart_silent);
+        assert!(!defaults.webview_reclaim_enabled);
+        assert_eq!(defaults.webview_reclaim_idle_minutes, 30);
     }
 
     #[test]
@@ -145,6 +170,8 @@ mod tests {
             close_behavior: CloseBehavior::ExitApplication,
             autostart_enabled: false,
             autostart_silent: false,
+            webview_reclaim_enabled: true,
+            webview_reclaim_idle_minutes: 60,
         };
 
         assert_eq!(state.set(preferences).expect("save"), preferences);
@@ -161,6 +188,8 @@ mod tests {
             close_behavior: CloseBehavior::ExitApplication,
             autostart_enabled: false,
             autostart_silent: false,
+            webview_reclaim_enabled: false,
+            webview_reclaim_idle_minutes: 30,
         };
 
         assert!(state.set(invalid).is_err());
@@ -178,5 +207,33 @@ mod tests {
         assert_eq!(preferences.close_behavior, CloseBehavior::ExitApplication);
         assert!(!preferences.autostart_enabled);
         assert!(preferences.autostart_silent);
+        assert!(!preferences.webview_reclaim_enabled);
+        assert_eq!(preferences.webview_reclaim_idle_minutes, 30);
+    }
+
+    #[test]
+    fn rejects_unsupported_webview_reclaim_idle_minutes() {
+        let mut preferences = DesktopPreferences::default();
+        preferences.webview_reclaim_idle_minutes = 1;
+        assert!(validate_desktop_preferences(preferences).is_err());
+        assert!(DesktopPreferencesState::load(
+            tempfile::tempdir().unwrap().path().join("prefs.json")
+        )
+        .set(preferences)
+        .is_err());
+    }
+
+    #[test]
+    fn falls_back_when_persisted_webview_reclaim_idle_minutes_are_invalid() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let path = directory.path().join("desktop-preferences.json");
+        fs::write(
+            &path,
+            r#"{"version":1,"closeBehavior":"minimize-to-tray","webviewReclaimIdleMinutes":1}"#,
+        )
+        .expect("write invalid preferences");
+
+        let preferences = DesktopPreferencesState::load(path).get();
+        assert_eq!(preferences, DesktopPreferences::default());
     }
 }

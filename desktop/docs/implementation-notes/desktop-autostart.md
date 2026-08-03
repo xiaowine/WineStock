@@ -140,7 +140,9 @@ PowerShell、`windows-sys` 或平台命令行解析。
   "version": 1,
   "closeBehavior": "minimize-to-tray",
   "autostartEnabled": false,
-  "autostartSilent": true
+  "autostartSilent": true,
+  "webviewReclaimEnabled": false,
+  "webviewReclaimIdleMinutes": 30
 }
 ```
 
@@ -151,8 +153,10 @@ PowerShell、`windows-sys` 或平台命令行解析。
 | `closeBehavior`    | Desktop Shell | JSON                                            | `minimize-to-tray` |
 | `autostartEnabled` | Desktop Shell | 插件 `is_enabled()` 为权威，JSON 只作持久化辅助 | `false`            |
 | `autostartSilent`  | Desktop Shell | JSON                                            | `true`             |
+| `webviewReclaimEnabled` | Desktop Shell | JSON                                      | `false`            |
+| `webviewReclaimIdleMinutes` | Desktop Shell | JSON                                  | `30`               |
 
-旧文件缺少新增字段时，读取为 `true`，不能因为迁移失败重置已有关闭行为；已经明确保存为 `false` 的值继续保留。
+旧文件缺少新增字段时按各字段默认值补齐，不能因为迁移失败重置已有关闭行为；已经明确保存的值继续保留。
 
 ### Shell Bridge 契约
 
@@ -166,6 +170,8 @@ interface DesktopPreferences {
   closeBehavior: DesktopCloseBehavior;
   autostartEnabled: boolean;
   autostartSilent: boolean;
+  webviewReclaimEnabled: boolean;
+  webviewReclaimIdleMinutes: 5 | 15 | 30 | 60 | 120 | 240;
 }
 ```
 

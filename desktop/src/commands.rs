@@ -13,7 +13,7 @@ use tauri_plugin_autostart::ManagerExt;
 
 use crate::{
     contract::{ApplyRuntimeConfigResult, EditableRuntimeConfig, RuntimeConfigValidationResult},
-    preferences::{DesktopPreferences, DesktopPreferencesState},
+    preferences::{validate_desktop_preferences, DesktopPreferences, DesktopPreferencesState},
     runtime::DesktopRuntimeManager,
 };
 
@@ -21,15 +21,22 @@ type CommandResult<T> = Result<T, String>;
 
 static FRONTEND_READY: AtomicBool = AtomicBool::new(false);
 static FRONTEND_FAILURE_REPORTED: AtomicBool = AtomicBool::new(false);
+static FRONTEND_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// 开始一代新的 WebView 前端加载，清理上一代的握手状态。
+pub fn begin_frontend_load(generation: u64) {
+    FRONTEND_GENERATION.store(generation, Ordering::Release);
+    FRONTEND_READY.store(false, Ordering::Release);
+    FRONTEND_FAILURE_REPORTED.store(false, Ordering::Release);
+}
 
 /// 返回当前进程是否已收到前端首帧就绪信号；仅供 Desktop 窗口显示兜底使用。
 pub fn is_frontend_ready() -> bool {
     FRONTEND_READY.load(Ordering::Acquire)
 }
 
-/// 返回前端是否已经上报启动失败；超时兜底不能覆盖原生失败提示。
-pub fn is_frontend_failure_reported() -> bool {
-    FRONTEND_FAILURE_REPORTED.load(Ordering::Acquire)
+fn is_current_frontend_generation(generation: u64) -> bool {
+    FRONTEND_GENERATION.load(Ordering::Acquire) == generation
 }
 
 fn command_error(code: &str, message: &str) -> String {
@@ -125,6 +132,8 @@ pub fn shell_set_desktop_preferences(
     preferences: DesktopPreferences,
     state: State<'_, DesktopPreferencesState>,
 ) -> CommandResult<DesktopPreferences> {
+    validate_desktop_preferences(preferences)
+        .map_err(|error| command_error("desktop_preferences_invalid", &error))?;
     let autostart = app.autolaunch();
     let previous_autostart = autostart
         .is_enabled()
@@ -162,6 +171,10 @@ pub fn shell_set_desktop_preferences(
         }
     };
 
+    // 偏好可能改变当前排队任务的开关或等待时间；统一重排可见状态下的任务，
+    // 关闭回收时也会通过同一入口使旧 token 失效。
+    crate::window::schedule_webview_reclaim(&app);
+
     let mut result = saved;
     result.autostart_enabled = autostart
         .is_enabled()
@@ -172,6 +185,7 @@ pub fn shell_set_desktop_preferences(
 #[tauri::command]
 pub async fn shell_frontend_ready(
     app: AppHandle,
+    generation: Option<u64>,
     debug: State<'_, crate::lifecycle::DebugStartupOverrides>,
 ) -> CommandResult<()> {
     if debug.force_shell_bridge_handshake_block {
@@ -180,35 +194,55 @@ pub async fn shell_frontend_ready(
             "测试：Shell Bridge 首屏握手失败",
         ));
     }
-    // 只有前端完成首帧渲染后才显示主窗口，避免 WebView 加载期间出现白屏或闪烁。
-    FRONTEND_READY.store(true, Ordering::Release);
-    if !app
-        .state::<crate::lifecycle::AppLifecycleState>()
-        .startup_silent()
-        || !app
-            .state::<crate::lifecycle::AppLifecycleState>()
-            .tray_available()
+    let lifecycle = app.state::<crate::lifecycle::AppLifecycleState>();
+    let current_generation = lifecycle.webview_generation();
+    if generation != Some(current_generation) || !is_current_frontend_generation(current_generation)
     {
+        return Ok(());
+    }
+
+    // 只有前端完成首帧渲染后才显示主窗口，避免 WebView 加载期间出现白屏或闪烁。
+    // 若用户在握手完成前已经关闭窗口，则保留该隐藏意图。
+    let was_hidden = lifecycle.webview_state() == crate::lifecycle::WebviewState::Hidden;
+    FRONTEND_READY.store(true, Ordering::Release);
+    lifecycle.mark_webview_ready(current_generation);
+    if !was_hidden && (lifecycle.show_webview_on_ready() || !lifecycle.tray_available()) {
         if let Some(window) = app.get_webview_window("main") {
             crate::window::show_main_window(&window);
         }
+    } else {
+        lifecycle.mark_webview_hidden(current_generation);
+        crate::window::schedule_webview_reclaim(&app);
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn shell_frontend_failed(app: AppHandle, code: String) -> CommandResult<()> {
+pub fn shell_frontend_failed(
+    app: AppHandle,
+    code: String,
+    generation: Option<u64>,
+) -> CommandResult<()> {
+    let reason = normalize_frontend_failure_code(&code);
+    let lifecycle = app.state::<crate::lifecycle::AppLifecycleState>();
+    let current_generation = lifecycle.webview_generation();
+    if generation != Some(current_generation) || !is_current_frontend_generation(current_generation)
+    {
+        return Ok(());
+    }
     if FRONTEND_FAILURE_REPORTED.swap(true, Ordering::AcqRel) {
         return Ok(());
     }
-
-    let reason = normalize_frontend_failure_code(&code);
     let (title, description) = frontend_failure_message(reason);
     let description = append_diagnostic_code(description, frontend_failure_diagnostic_code(reason));
     eprintln!(
         "WineStock Desktop 启动门卫失败：gate=shell_bridge reason={reason} debug={}",
         cfg!(debug_assertions)
     );
+    if current_generation > 1 {
+        crate::window::discard_failed_webview(&app, current_generation);
+        return Ok(());
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
@@ -223,8 +257,18 @@ pub fn shell_frontend_failed(app: AppHandle, code: String) -> CommandResult<()> 
 }
 
 /// 前端没有上报失败且超过启动窗口时使用的原生兜底。
-pub fn show_frontend_load_timeout(app: &AppHandle) {
-    if is_frontend_ready() || FRONTEND_FAILURE_REPORTED.swap(true, Ordering::AcqRel) {
+pub fn spawn_frontend_load_timeout(app: AppHandle, generation: u64, timeout: std::time::Duration) {
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(timeout).await;
+        show_frontend_load_timeout(&app, generation);
+    });
+}
+
+pub fn show_frontend_load_timeout(app: &AppHandle, generation: u64) {
+    if !is_current_frontend_generation(generation)
+        || is_frontend_ready()
+        || FRONTEND_FAILURE_REPORTED.swap(true, Ordering::AcqRel)
+    {
         return;
     }
 
@@ -232,6 +276,10 @@ pub fn show_frontend_load_timeout(app: &AppHandle) {
         "WineStock Desktop 启动门卫失败：gate=shell_bridge reason=frontend_load_timeout debug={}",
         cfg!(debug_assertions)
     );
+    if generation > 1 {
+        crate::window::discard_failed_webview(app, generation);
+        return;
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }

@@ -17,6 +17,12 @@ import type {
 const RUNTIME_STATE_EVENT = "winestock-runtime-state-changed";
 const APP_RESUMED_EVENT = "winestock-app-resumed";
 
+function currentWebviewGeneration(): number | undefined {
+  const generation = (globalThis as { __WINESTOCK_WEBVIEW_GENERATION__?: unknown })
+    .__WINESTOCK_WEBVIEW_GENERATION__;
+  return typeof generation === "number" && Number.isInteger(generation) ? generation : undefined;
+}
+
 /** 把统一 Shell Bridge v1 映射到受 capability 限制的 Tauri command 与 event。 */
 export function createTauriShellBridge(): ShellBridge {
   return {
@@ -44,10 +50,15 @@ export function createTauriShellBridge(): ShellBridge {
       return invokeShell<RuntimeSnapshot>("shell_repair_firewall");
     },
     frontendReady() {
-      return invokeShell<void>("shell_frontend_ready");
+      return invokeShell<void>("shell_frontend_ready", {
+        generation: currentWebviewGeneration(),
+      });
     },
     reportFrontendFailure(code: ShellBridgeFailureCode) {
-      return invokeShell<void>("shell_frontend_failed", { code });
+      return invokeShell<void>("shell_frontend_failed", {
+        code,
+        generation: currentWebviewGeneration(),
+      });
     },
     openExternal(url) {
       return openUrl(url);

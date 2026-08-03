@@ -230,6 +230,8 @@ interface DesktopPreferences {
   closeBehavior: DesktopCloseBehavior;
   autostartEnabled: boolean;
   autostartSilent: boolean;
+  webviewReclaimEnabled: boolean;
+  webviewReclaimIdleMinutes: 5 | 15 | 30 | 60 | 120 | 240;
 }
 ```
 
@@ -237,7 +239,9 @@ interface DesktopPreferences {
 Desktop shell 将偏好保存在自己的 app data 文件并缓存到进程状态。`autostartEnabled` 返回系统启动项的实际状态，
 由 Tauri autostart 插件的 `is_enabled()` 校准；`autostartSilent` 是本机持久化偏好。`CloseRequested` 只读取缓存，
 不在窗口事件中查询磁盘或等待 WebView IPC。自启动进程通过内部 `--winestock-autostart` 参数与普通手动启动区分，
-静默启动只对带该参数且托盘可用的进程生效。
+静默启动只对带该参数且托盘可用的进程生效。`webviewReclaimEnabled` 和
+`webviewReclaimIdleMinutes` 控制托盘隐藏后的主 WebView 空闲回收；回收只销毁 WebView，保留 Tauri 进程、托盘和
+本地 Axum 服务。WebView 重新创建后重新执行前端 Shell Bridge 握手和 `frontendReady`。
 
 `nativeBack` 是 v1 内 capability-gated 的可选扩展，不要求普通 Web fallback 或旧平台桥实现：
 
@@ -443,7 +447,8 @@ Desktop 窗口关闭行为由本机偏好决定：选择最小化到托盘时拦
 `ExitRequested` 清理流程。托盘明确退出和系统退出都必须等待本地 Axum 优雅停止后再结束进程。
 Desktop 偏好还支持由官方 Tauri autostart 插件管理的开机自启和自启动静默；插件状态由 Shell command
 封装，前端不得直接调用 autostart 插件 API。自启动注册失败使用稳定的 Desktop 偏好错误返回，不能让前端显示
-未生效的成功状态。
+未生效的成功状态。开启 WebView 回收后，窗口隐藏超过偏好时长才销毁主 WebView；此过程必须阻止由最后一个窗口
+销毁引起的 `ExitRequested`，不得调用 `DesktopRuntimeManager::shutdown_local_service`。
 
 ## 前端资源与 API 地址
 

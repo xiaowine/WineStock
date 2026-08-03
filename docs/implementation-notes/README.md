@@ -32,3 +32,4 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 - `erp-backup-import-implementation.md`：阶段2 ERP 备份导入的落地细化——解析三层架构、四表解析契约、库位/物品/期初三阶段执行、预览交互、入口装配与测试（已实施，真机走查待补）。
 - `lcsc-phone-query-and-direct-image.md`：立创商城移动查询接口替换 EDA 器件库、Core 归一化契约与前端直连受控商品图的跨 Core/Frontend 实施方案。
 - `inbound-location-prefill.md`：入库库位分层预填方案——同编号历史库位（严格同物品不做相似推断）→ 全局默认库位（`is_default` 模式复刻）→ 批量设置库位兜底（待实施）。
+- `desktop-webview-idle-reclamation.md`：Desktop 托盘隐藏后的 WebView 空闲回收、前端偏好开关与回收时长、窗口重建及 Axum 持续运行方案（已实施；Windows 同机 smoke 已通过，跨设备 server-mode 验证待补）。

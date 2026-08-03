@@ -204,12 +204,16 @@ test("normalizes malformed transport errors without leaking an unstructured reje
 test("accepts and rejects Desktop close behavior preferences by contract", () => {
   assert.equal(defaultDesktopPreferences.autostartEnabled, false);
   assert.equal(defaultDesktopPreferences.autostartSilent, true);
+  assert.equal(defaultDesktopPreferences.webviewReclaimEnabled, false);
+  assert.equal(defaultDesktopPreferences.webviewReclaimIdleMinutes, 30);
   assert.doesNotThrow(() =>
     assertDesktopPreferences({
       version: 1,
       closeBehavior: "minimize-to-tray",
       autostartEnabled: false,
       autostartSilent: false,
+      webviewReclaimEnabled: false,
+      webviewReclaimIdleMinutes: 30,
     }),
   );
   assert.doesNotThrow(() =>
@@ -218,6 +222,8 @@ test("accepts and rejects Desktop close behavior preferences by contract", () =>
       closeBehavior: "exit-application",
       autostartEnabled: true,
       autostartSilent: true,
+      webviewReclaimEnabled: true,
+      webviewReclaimIdleMinutes: 240,
     }),
   );
   assert.throws(
@@ -237,6 +243,20 @@ test("accepts and rejects Desktop close behavior preferences by contract", () =>
         closeBehavior: "minimize-to-tray",
         autostartEnabled: "true",
         autostartSilent: false,
+        webviewReclaimEnabled: false,
+        webviewReclaimIdleMinutes: 30,
+      }),
+    (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
+  );
+  assert.throws(
+    () =>
+      assertDesktopPreferences({
+        version: 1,
+        closeBehavior: "minimize-to-tray",
+        autostartEnabled: false,
+        autostartSilent: false,
+        webviewReclaimEnabled: true,
+        webviewReclaimIdleMinutes: 1,
       }),
     (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
   );
