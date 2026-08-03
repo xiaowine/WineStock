@@ -5,6 +5,12 @@ Desktop Tauri 与 Android 平台 shell 可以复用源码，但分别负责资�
 
 第一次接手前端时，先阅读 [`docs/README.md`](docs/README.md) 了解当前页面、路由、API client 和视觉文档入口。
 
+## 构建环境变量
+
+Microsoft Clarity 使用 `VITE_CLARITY_PROJECT_ID`。在 `frontend/.env` 中填写该变量即可，Vite 会在构建时自动加载；`.env` 未提供时 Clarity 保持停用。
+
+Clarity 项目 ID 必须视为浏览器公开配置：Vite 会把它编译进客户端产物，因此本地 `.env` 用于避免把值提交到开源源码，不提供运行时秘密保护。`.env.example` 只提供空值模板。
+
 ## 开发命令
 
 ```powershell

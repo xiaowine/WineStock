@@ -5,8 +5,8 @@
 import { resolveApiClientMetadata } from "../api/runtime-config";
 import { readTelemetryConsent } from "./consent";
 
-/** WineStock 的 Clarity 项目 ID；随 tag 脚本公开分发，不是密钥。留空可整体停用采集。 */
-const CLARITY_PROJECT_ID = "xsl053wgz1";
+/** 由前端构建环境提供的 Clarity 项目 ID；它会进入客户端产物，缺省时整体停用采集。 */
+const CLARITY_PROJECT_ID = import.meta.env.VITE_CLARITY_PROJECT_ID?.trim() ?? "";
 
 /** 问题事件的固定会话升级原因；Clarity 会优先完整保留升级会话的录制。 */
 const ISSUE_UPGRADE_REASON = "issue";

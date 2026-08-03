@@ -101,7 +101,7 @@
   值含版本号以便将来文案变更后重新征询），不进 Shell 运行配置、不动 Bridge 契约；
 - 同意前一个字节都不加载：Clarity SDK（`@microsoft/clarity`）动态 import，
   仅在 consent=true 且运行环境可出网时初始化；拒绝或未选择时不 import；
-  **已接入**（`telemetry/clarity.ts`，项目 xsl053wgz1）：装配时按持久化偏好补启动、
+  **已接入**（`telemetry/clarity.ts`，项目 ID 由本地 `.env` 的 `VITE_CLARITY_PROJECT_ID` 提供）：装配时按持久化偏好补启动、
   向导同意后立即启动；Network 面板已验证未同意零请求、同意后 tag 加载；
 - 设置页后续补一个可随时开关的入口（不属于本次迁移范围）；
 - Android self-hosted 本地回环场景天然不出网，文案"仅在联网时生效"已覆盖该预期。

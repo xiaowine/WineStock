@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_DEVICE_NAME?: string;
   /** 开发环境客户端版本号。 */
   readonly VITE_APP_VERSION?: string;
+  /** 由 Vite `.env` 提供的 Microsoft Clarity 项目 ID；缺省时停用遥测。 */
+  readonly VITE_CLARITY_PROJECT_ID?: string;
 }
 
 interface ImportMeta {
