@@ -1,0 +1,116 @@
+/* 本文件拥有用户管理桌面列表的直接列模型，不拥有请求、权限或 Dialog。 */
+.user-directory-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.user-directory-table {
+  min-width: 864px;
+  font-size: 13px;
+}
+
+.user-directory-table__header,
+.user-directory-table__row {
+  display: grid;
+  width: 100%;
+  min-width: 864px;
+  grid-template-columns: 180px 88px 92px 104px 148px minmax(252px, 1fr);
+}
+
+.user-directory-table__header {
+  min-height: 40px;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.user-directory-table__row {
+  min-height: 64px;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: background var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.user-directory-table__row:hover {
+  background: color-mix(in srgb, var(--color-surface) 97%, var(--color-text));
+}
+
+.user-directory-table__header > *,
+.user-directory-table__row > * {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.user-directory-table__header > *:first-child,
+.user-directory-table__row > *:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-surface, var(--color-surface-raised));
+  box-shadow: var(--shadow-fixed-inset-right);
+}
+
+.user-directory-table__header > *:last-child,
+.user-directory-table__row > *:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: var(--color-surface, var(--color-surface-raised));
+  box-shadow: var(--shadow-fixed-inset-left);
+}
+
+.user-directory-table__header > *:first-child,
+.user-directory-table__header > *:last-child {
+  z-index: 3;
+  background: var(--color-surface-raised);
+}
+
+.user-directory-table__identity {
+  display: grid !important;
+  align-content: center;
+  gap: 3px;
+}
+
+.user-directory-table__identity strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-directory-table__identity small {
+  color: var(--color-subtle);
+  white-space: nowrap;
+}
+
+.user-directory-table__permission-count,
+.user-directory-table__updated {
+  font-variant-numeric: tabular-nums;
+}
+
+.user-directory-table__updated time {
+  white-space: nowrap;
+}
+
+.user-directory-table__actions {
+  justify-content: flex-start;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.user-directory-table__empty {
+  color: var(--color-subtle);
+  font-size: 12px;
+}
+
+@container users-content (max-width: 863px) {
+  .user-directory-table-wrap {
+    display: none;
+  }
+}

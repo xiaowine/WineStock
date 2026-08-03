@@ -1,0 +1,90 @@
+/* 本文件拥有用户管理窄桌面和移动端列表项的结构和触控入口，不拥有移动导航或 Dialog。 */
+@use "../../styles/foundation/mixins" as mixins;
+
+.user-directory-mobile-list {
+  display: none;
+}
+
+@container users-content (max-width: 863px) {
+  .user-directory-mobile-list {
+    display: grid;
+    gap: 8px;
+    padding: 8px 12px 12px;
+  }
+
+  .user-directory-mobile-list__item {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-subtle);
+  }
+
+  .user-directory-mobile-list__header {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .user-directory-mobile-list__identity {
+    min-width: 0;
+  }
+
+  .user-directory-mobile-list__identity h2 {
+    overflow: hidden;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .user-directory-mobile-list__identity p {
+    margin-top: 3px;
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
+
+  .user-directory-mobile-list__more {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+
+    svg {
+      @include mixins.svg-icon;
+    }
+  }
+
+  .user-directory-mobile-list dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .user-directory-mobile-list dt {
+    color: var(--color-subtle);
+    font-size: 12px;
+  }
+
+  .user-directory-mobile-list dd {
+    min-width: 0;
+    margin: 2px 0 0;
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@include mixins.mobile {
+  .user-directory-mobile-list {
+    margin: 0 -12px;
+    background: var(--color-surface-subtle);
+  }
+}

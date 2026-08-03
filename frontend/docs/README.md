@@ -48,6 +48,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `implementation-notes/runtime-first-startup-funnel.md`：启动漏斗——Shell 发布 `initialized`，首次未初始化先进入设置，apply 成功后统一进 `/auth`。
 - `implementation-notes/import-dialog-loading-and-feedback-remediation.md`：订单/ERP 导入 Dialog 的一次性物品匹配、稳定滚动和异步状态反馈整改方案。
 - `implementation-notes/validation-notice-feedback-remediation.md`：前端校验、服务端错误和异步失败统一使用 Notice 的文案与验收规则。
+- `implementation-notes/user-management-page-redesign.md`：用户管理页面直接列模型、桌面/移动展示分工、操作入口和验收标准。
 
 ## UI 文档使用顺序
 

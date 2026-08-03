@@ -46,143 +46,32 @@
         </div>
 
         <div v-else class="users-results">
-          <div v-if="users.length > 0" class="users-table-wrap">
-            <div class="users-table" role="table" aria-label="用户列表">
-              <div class="users-table__header" role="row">
-                <span class="users-table__fixed-start" role="columnheader">用户</span>
-                <div class="users-table__middle" role="group">
-                  <span role="columnheader">状态</span>
-                  <span role="columnheader">权限</span>
-                  <span role="columnheader">密码</span>
-                  <span role="columnheader">最近更新</span>
-                </div>
-                <span class="users-table__fixed-end" role="columnheader">操作</span>
-              </div>
-
-              <article v-for="user in users" :key="user.id" class="users-table__row" role="row">
-                <div class="users-table__fixed-start" role="cell">
-                  <span class="user-identity-cell">
-                    <strong :title="user.username">{{ user.username }}</strong>
-                    <small
-                      >#{{ user.id
-                      }}<template v-if="isCurrentUser(user)"> · 当前账号</template></small
-                    >
-                  </span>
-                </div>
-
-                <div class="users-table__middle" role="group">
-                  <div role="cell">
-                    <span class="status-pill" :class="statusClass(user.status)">
-                      {{ statusLabel(user.status) }}
-                    </span>
-                  </div>
-                  <div role="cell">{{ user.permissions.length }} 项</div>
-                  <div role="cell">
-                    <span
-                      class="status-pill"
-                      :class="
-                        user.password_change_required ? 'status-pill--warn' : 'status-pill--neutral'
-                      "
-                    >
-                      {{ user.password_change_required ? "待修改" : "正常" }}
-                    </span>
-                  </div>
-                  <div role="cell">{{ formatDate(user.updated_at) }}</div>
-                </div>
-
-                <div class="users-table__fixed-end" role="cell">
-                  <div class="row-actions">
-                    <button
-                      v-if="canUpdateUsername"
-                      class="text-button"
-                      type="button"
-                      @click="openUsernameDialog(user)"
-                    >
-                      用户名
-                    </button>
-                    <button
-                      v-if="canEditPermissions"
-                      class="text-button"
-                      type="button"
-                      @click="openPermissionsDialog(user)"
-                    >
-                      权限
-                    </button>
-                    <button
-                      v-if="canResetPassword && !isCurrentUser(user)"
-                      class="text-button"
-                      type="button"
-                      @click="openPasswordDialog(user)"
-                    >
-                      临时密码
-                    </button>
-                    <button
-                      v-if="canUpdateStatus && !isCurrentUser(user)"
-                      class="text-button"
-                      type="button"
-                      @click="openStatusDialog(user)"
-                    >
-                      {{ user.status === "active" ? "停用" : "启用" }}
-                    </button>
-                    <button
-                      v-if="canDelete && !isCurrentUser(user)"
-                      class="text-button"
-                      type="button"
-                      @click="openDeleteDialog(user)"
-                    >
-                      删除
-                    </button>
-                    <span v-if="!hasAvailableAction(user)" class="row-actions__empty"
-                      >无可用操作</span
-                    >
-                  </div>
-                </div>
-              </article>
-            </div>
-          </div>
-
-          <div v-if="users.length > 0" class="users-mobile-list">
-            <article v-for="user in users" :key="user.id" class="user-mobile-item">
-              <header>
-                <div>
-                  <h2 :title="user.username">{{ user.username }}</h2>
-                  <p>#{{ user.id }}<template v-if="isCurrentUser(user)"> · 当前账号</template></p>
-                </div>
-                <div class="user-mobile-item__actions">
-                  <span class="status-pill" :class="statusClass(user.status)">
-                    {{ statusLabel(user.status) }}
-                  </span>
-                  <button
-                    v-if="hasAvailableAction(user)"
-                    class="icon-button user-mobile-item__edit"
-                    type="button"
-                    title="管理用户"
-                    :aria-label="`管理用户：${user.username}`"
-                    @click="openActionsDialog(user)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 20h4l11-11-4-4L4 16v4Z" />
-                      <path d="m13.5 6.5 4 4" />
-                    </svg>
-                  </button>
-                </div>
-              </header>
-              <dl>
-                <div>
-                  <dt>权限</dt>
-                  <dd>{{ user.permissions.length }} 项</dd>
-                </div>
-                <div>
-                  <dt>密码状态</dt>
-                  <dd>{{ user.password_change_required ? "待修改临时密码" : "正常" }}</dd>
-                </div>
-                <div>
-                  <dt>最近更新</dt>
-                  <dd>{{ formatDate(user.updated_at) }}</dd>
-                </div>
-              </dl>
-            </article>
-          </div>
+          <template v-if="users.length > 0">
+            <UserDirectoryTable
+              :users="users"
+              :current-user-id="currentUserId"
+              :can-update-username="canUpdateUsername"
+              :can-edit-permissions="canEditPermissions"
+              :can-reset-password="canResetPassword"
+              :can-update-status="canUpdateStatus"
+              :can-delete="canDelete"
+              @username="openUsernameDialog"
+              @permissions="openPermissionsDialog"
+              @password="openPasswordDialog"
+              @status="openStatusDialog"
+              @delete="openDeleteDialog"
+            />
+            <UserDirectoryMobileList
+              :users="users"
+              :current-user-id="currentUserId"
+              :can-update-username="canUpdateUsername"
+              :can-edit-permissions="canEditPermissions"
+              :can-reset-password="canResetPassword"
+              :can-update-status="canUpdateStatus"
+              :can-delete="canDelete"
+              @actions="openActionsDialog"
+            />
+          </template>
 
           <div ref="loadMoreSentinel" class="users-load-more" aria-live="polite">
             <Transition name="user-count" mode="out-in">
@@ -299,6 +188,8 @@ import {
 import UserActionsDialog from "../components/users/UserActionsDialog.vue";
 import UserCreateDialog from "../components/users/UserCreateDialog.vue";
 import UserDeleteDialog from "../components/users/UserDeleteDialog.vue";
+import UserDirectoryMobileList from "../components/users/UserDirectoryMobileList.vue";
+import UserDirectoryTable from "../components/users/UserDirectoryTable.vue";
 import UserListToolbar from "../components/users/UserListToolbar.vue";
 import UserPasswordResetDialog from "../components/users/UserPasswordResetDialog.vue";
 import UserPermissionsDialog from "../components/users/UserPermissionsDialog.vue";
@@ -778,36 +669,6 @@ function mergeUsers(
 
 function isCurrentUser(user: UserAdminResponse): boolean {
   return currentUserId.value === String(user.id);
-}
-
-function hasAvailableAction(user: UserAdminResponse): boolean {
-  return (
-    canUpdateUsername.value ||
-    canEditPermissions.value ||
-    (!isCurrentUser(user) && (canResetPassword.value || canUpdateStatus.value || canDelete.value))
-  );
-}
-
-function statusLabel(status: UserStatus): string {
-  return status === "active" ? "已启用" : "已停用";
-}
-
-function statusClass(status: UserStatus): string {
-  return status === "active" ? "status-pill--ok" : "status-pill--neutral";
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("zh-CN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).format(date);
 }
 
 function userManagementErrorMessage(error: unknown, fallback: string): string {
