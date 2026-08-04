@@ -133,7 +133,7 @@ function applyPreferenceToRoot(preference: ThemePreference): void {
 
 function syncExternalAppearance(): void {
   const theme = resolvedThemeState.value;
-  setSystemChromeBaseDarkContent(theme === "dark");
+  setSystemChromeBaseDarkContent(theme === "dark", preferenceState.value);
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   const pageColor = getComputedStyle(document.documentElement)
     .getPropertyValue("--color-page")

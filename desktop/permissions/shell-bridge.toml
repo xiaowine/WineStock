@@ -11,6 +11,7 @@ commands.allow = [
   "shell_repair_firewall",
   "shell_get_desktop_preferences",
   "shell_set_desktop_preferences",
+  "shell_set_window_theme",
   "shell_frontend_ready",
   "shell_frontend_failed",
 ]

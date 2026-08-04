@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { normalizeShellBridgeTransportError } from "./bridgeError";
 import { assertDesktopPreferences } from "../contract";
+import { setSystemChromeAppearanceAdapter } from "../systemChrome";
 import type {
   ApplyRuntimeConfigResult,
   DesktopPreferences,
@@ -25,7 +26,7 @@ function currentWebviewGeneration(): number | undefined {
 
 /** 把统一 Shell Bridge v1 映射到受 capability 限制的 Tauri command 与 event。 */
 export function createTauriShellBridge(): ShellBridge {
-  return {
+  const bridge: ShellBridge = {
     getRuntimeSnapshot() {
       return invokeShell<RuntimeSnapshot>("shell_get_runtime_snapshot");
     },
@@ -63,6 +64,9 @@ export function createTauriShellBridge(): ShellBridge {
     openExternal(url) {
       return openUrl(url);
     },
+    setWindowTheme(theme) {
+      return invokeShell<void>("shell_set_window_theme", { theme });
+    },
     async getDesktopPreferences() {
       const preferences = await invokeShell<DesktopPreferences>("shell_get_desktop_preferences");
       assertDesktopPreferences(preferences);
@@ -82,6 +86,10 @@ export function createTauriShellBridge(): ShellBridge {
       return listen(APP_RESUMED_EVENT, () => listener());
     },
   };
+  setSystemChromeAppearanceAdapter(({ themePreference }) =>
+    bridge.setWindowTheme?.(themePreference),
+  );
+  return bridge;
 }
 
 function invokeShell<T>(command: string, args?: Record<string, unknown>): Promise<T> {

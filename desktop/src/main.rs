@@ -180,6 +180,7 @@ fn main() {
             winestock_desktop::commands::shell_repair_firewall,
             winestock_desktop::commands::shell_get_desktop_preferences,
             winestock_desktop::commands::shell_set_desktop_preferences,
+            winestock_desktop::commands::shell_set_window_theme,
             winestock_desktop::commands::shell_frontend_ready,
             winestock_desktop::commands::shell_frontend_failed,
         ])

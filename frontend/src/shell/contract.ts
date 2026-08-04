@@ -248,6 +248,11 @@ export interface DesktopFirewallShellBridgeExtension {
   repairFirewall(): Promise<RuntimeSnapshot>;
 }
 
+/** Desktop 原生窗口主题扩展；Tauri 仅在 Windows 上调用原生主题 API。 */
+export interface DesktopWindowThemeShellBridgeExtension {
+  setWindowTheme(theme: "system" | "light" | "dark"): Promise<void>;
+}
+
 /** 前端依赖的统一 Shell Bridge；平台适配层不得扩展为任意 native invoke。 */
 export interface ShellBridge {
   /** 读取当前运行配置和服务状态。 */
@@ -274,6 +279,8 @@ export interface ShellBridge {
   setDesktopPreferences?: DesktopPreferencesShellBridgeExtension["setDesktopPreferences"];
   /** Desktop 显式配置当前 server-mode 防火墙规则；非 Desktop 平台不提供。 */
   repairFirewall?: DesktopFirewallShellBridgeExtension["repairFirewall"];
+  /** Desktop 同步原生窗口主题；非 Desktop 平台不提供。 */
+  setWindowTheme?: DesktopWindowThemeShellBridgeExtension["setWindowTheme"];
   /** 订阅配置和服务生命周期快照。 */
   onRuntimeStateChanged(
     listener: (snapshot: RuntimeSnapshot) => void,
@@ -314,6 +321,18 @@ export function assertDesktopFirewallShellBridgeExtension(
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
       "Desktop Shell Bridge 缺少防火墙方法",
+    );
+  }
+}
+
+/** 校验 Desktop 原生窗口主题扩展。 */
+export function assertDesktopWindowThemeShellBridgeExtension(
+  value: ShellBridge,
+): asserts value is ShellBridge & DesktopWindowThemeShellBridgeExtension {
+  if (typeof value.setWindowTheme !== "function") {
+    throw new ShellBridgeContractError(
+      "invalid_bridge_payload",
+      "Desktop Shell Bridge 缺少窗口主题方法",
     );
   }
 }

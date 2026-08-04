@@ -8,11 +8,13 @@ use std::sync::{
 };
 
 use rfd::{MessageButtons, MessageDialog, MessageLevel};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::{
-    contract::{ApplyRuntimeConfigResult, EditableRuntimeConfig, RuntimeConfigValidationResult},
+    contract::{
+        ApplyRuntimeConfigResult, EditableRuntimeConfig, RuntimeConfigValidationResult, WindowTheme,
+    },
     preferences::{validate_desktop_preferences, DesktopPreferences, DesktopPreferencesState},
     runtime::DesktopRuntimeManager,
 };
@@ -180,6 +182,29 @@ pub fn shell_set_desktop_preferences(
         .is_enabled()
         .map_err(|error| command_error("desktop_autostart_unavailable", &error.to_string()))?;
     Ok(result)
+}
+
+/// 通过 Shell Bridge 同步主窗口外观；只有 Windows 调用 Tauri 原生主题 API。
+#[tauri::command]
+pub fn shell_set_window_theme(window: WebviewWindow, theme: WindowTheme) -> CommandResult<()> {
+    #[cfg(target_os = "windows")]
+    {
+        let native_theme = match theme {
+            WindowTheme::System => None,
+            WindowTheme::Light => Some(tauri::Theme::Light),
+            WindowTheme::Dark => Some(tauri::Theme::Dark),
+        };
+        window.set_theme(native_theme).map_err(|error| {
+            command_error("desktop_window_theme_unavailable", &error.to_string())
+        })?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window, theme);
+    }
+
+    Ok(())
 }
 
 #[tauri::command]

@@ -205,6 +205,7 @@ interface ShellBridge {
   frontendReady(): Promise<void>;
   reportFrontendFailure?(message: string): Promise<void>;
   openExternal(url: string): Promise<void>;
+  setWindowTheme?(theme: "system" | "light" | "dark"): Promise<void>;
   getDesktopPreferences?(): Promise<DesktopPreferences>;
   setDesktopPreferences?(preferences: DesktopPreferences): Promise<DesktopPreferences>;
   onRuntimeStateChanged(
@@ -236,6 +237,7 @@ interface DesktopPreferences {
 ```
 
 只有 `platform = "desktop"` 的 Tauri bridge 提供 Desktop 扩展方法；Web/Android 不需要实现，前端在未提供扩展时隐藏对应能力。
+Desktop 的 `setWindowTheme` 也属于该扩展：前端主题运行时通过桥同步三态偏好，Windows Desktop Shell 才调用 Tauri 原生窗口主题 API，macOS/Linux 实现保持 no-op。
 Desktop shell 将偏好保存在自己的 app data 文件并缓存到进程状态。`autostartEnabled` 返回系统启动项的实际状态，
 由 Tauri autostart 插件的 `is_enabled()` 校准；`autostartSilent` 是本机持久化偏好。`CloseRequested` 只读取缓存，
 不在窗口事件中查询磁盘或等待 WebView IPC。自启动进程通过内部 `--winestock-autostart` 参数与普通手动启动区分，

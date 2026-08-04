@@ -18,6 +18,7 @@ import {
   assertApplyRuntimeConfigResult,
   assertCompatibleRuntimeSnapshot,
   assertDesktopFirewallShellBridgeExtension,
+  assertDesktopWindowThemeShellBridgeExtension,
   assertDesktopPreferences,
   assertNativeBackRequest,
   assertNativeBackResolutionAck,
@@ -255,8 +256,10 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
       assertCompatibleRuntimeSnapshot(initialSnapshot);
     } catch (error) {
       throw startupFailure(
-        error instanceof Error && error.name === "ShellBridgeContractError" &&
-          "code" in error && error.code === "bridge_version_mismatch"
+        error instanceof Error &&
+          error.name === "ShellBridgeContractError" &&
+          "code" in error &&
+          error.code === "bridge_version_mismatch"
           ? "shell_bridge_version_mismatch"
           : "shell_bridge_snapshot_invalid",
         error,
@@ -265,6 +268,7 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
     if (initialSnapshot.platform === "desktop") {
       try {
         assertDesktopFirewallShellBridgeExtension(requireBridge());
+        assertDesktopWindowThemeShellBridgeExtension(requireBridge());
       } catch (error) {
         throw startupFailure("shell_bridge_extension_invalid", error);
       }
@@ -315,7 +319,10 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
   }
 }
 
-function startupFailure(code: ShellBridgeFailureCode, cause: unknown): Error & {
+function startupFailure(
+  code: ShellBridgeFailureCode,
+  cause: unknown,
+): Error & {
   shellBridgeFailureCode: ShellBridgeFailureCode;
 } {
   const error = cause instanceof Error ? cause : new Error("Shell Bridge 启动失败");

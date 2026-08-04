@@ -24,6 +24,15 @@ pub enum RuntimeMode {
     ConnectToRemote,
 }
 
+/// Desktop 主窗口主题偏好；Windows Shell 将其映射到 Tauri 原生窗口主题。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum WindowTheme {
+    System,
+    Light,
+    Dark,
+}
+
 impl RuntimeMode {
     /// 仅连接远端服务、不启动本地 Axum 的模式。
     pub fn is_remote(self) -> bool {

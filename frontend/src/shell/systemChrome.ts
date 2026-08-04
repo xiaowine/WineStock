@@ -1,11 +1,36 @@
-// 本文件拥有前端主题与 Android 系统栏薄接口之间的外观协调；不进入 Shell Bridge，也不拥有平台生命周期。
+// 本文件拥有前端主题与平台原生外观适配器之间的协调；不拥有偏好存储或平台生命周期。
+
+import type { ThemePreference } from "../theme/model";
 
 let baseDarkContent = false;
+let baseThemePreference: ThemePreference = "system";
 let darkContentOverrideCount = 0;
+let appearanceAdapter: SystemChromeAppearanceAdapter | null = null;
 
-/** 更新普通页面的系统栏基线；深色主题使用浅色系统栏图标。 */
-export function setSystemChromeBaseDarkContent(enabled: boolean): void {
+export interface SystemChromeAppearance {
+  themePreference: ThemePreference;
+  darkContent: boolean;
+}
+
+export type SystemChromeAppearanceAdapter = (
+  appearance: SystemChromeAppearance,
+) => void | Promise<void>;
+
+/** 更新普通页面的系统栏/窗口外观基线；深色主题使用深色内容标记。 */
+export function setSystemChromeBaseDarkContent(
+  enabled: boolean,
+  themePreference: ThemePreference = "system",
+): void {
   baseDarkContent = enabled;
+  baseThemePreference = themePreference;
+  applySystemChromeAppearance();
+}
+
+/** 注册当前平台的 Shell Bridge 外观适配器，并立即同步当前主题。 */
+export function setSystemChromeAppearanceAdapter(
+  adapter: SystemChromeAppearanceAdapter | null,
+): void {
+  appearanceAdapter = adapter;
   applySystemChromeAppearance();
 }
 
@@ -26,9 +51,21 @@ export function acquireSystemChromeDarkContent(): () => void {
 }
 
 function applySystemChromeAppearance(): void {
+  const darkContent = baseDarkContent || darkContentOverrideCount > 0;
   try {
-    window.WineStockSystemChrome?.setDarkContent(baseDarkContent || darkContentOverrideCount > 0);
+    window.WineStockSystemChrome?.setDarkContent(darkContent);
   } catch {
-    // Web、桌面或平台接口暂不可用时保持 no-op，页面主题本身仍正常工作。
+    // Web 或平台接口暂不可用时保持 no-op，页面主题本身仍正常工作。
+  }
+  try {
+    const result = appearanceAdapter?.({
+      themePreference: baseThemePreference,
+      darkContent,
+    });
+    if (result) {
+      void result.catch(() => undefined);
+    }
+  } catch {
+    // 原生窗口外观失败时不阻断页面换肤或业务启动。
   }
 }

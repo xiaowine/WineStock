@@ -9,7 +9,7 @@
 - 当前源码已实现浅色与深色两套主题；`foundation/_tokens.scss` 通过 Sass map 单点输出运行时语义 token。
 - 主题范围只包含浅色与深色，不开放自定义主色、任意配色或服务端账户同步。
 - 用户偏好为三态：`跟随系统`、`浅色`、`深色`；默认值是 `跟随系统`。
-- 主题是当前设备上的前端偏好，由 `frontend` 读取、持久化和立即应用，不进入 core HTTP API、共享 Rust 配置或 Shell Bridge 业务契约。
+- 主题是当前设备上的前端偏好，由 `frontend` 读取、持久化和立即应用，不进入 core HTTP API 或共享 Rust 配置；Desktop 的原生窗口外观通过 Tauri transport 的受限适配器同步。
 - SCSS 负责按主题输出语义 CSS 自定义属性；Vue/TypeScript 只管理偏好、系统媒体查询和平台副作用。业务组件不得判断当前主题后选择颜色。
 - 深色模式已覆盖应用壳、认证/设置页、业务页面、共享控件、Dialog、Popover、Notice、图表和加载/错误状态；新增界面继续遵守本文的 token 与对比度门槛。
 
@@ -61,11 +61,11 @@ export type ResolvedTheme = "light" | "dark";
 
 状态含义：
 
-| 状态            | 来源                                         | 行为                                               |
-| --------------- | -------------------------------------------- | -------------------------------------------------- |
-| `preference`    | 本机持久化值                                 | 用户选择的三态偏好                                 |
-| `systemDark`    | `matchMedia("(prefers-color-scheme: dark)")` | 当前系统是否请求深色                               |
-| `resolvedTheme` | `preference` + `systemDark`                  | 浏览器主题色、Android 系统栏等副作用使用的最终二态 |
+| 状态            | 来源                                         | 行为                                                              |
+| --------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| `preference`    | 本机持久化值                                 | 用户选择的三态偏好                                                |
+| `systemDark`    | `matchMedia("(prefers-color-scheme: dark)")` | 当前系统是否请求深色                                              |
+| `resolvedTheme` | `preference` + `systemDark`                  | 浏览器主题色、Desktop 窗口和 Android 系统栏等副作用使用的最终二态 |
 
 解析规则固定为：
 
@@ -289,6 +289,10 @@ export function setThemePreference(value: ThemePreference): void;
 
 需要单独复核 Chromium/WebView 自动填充背景、`datetime-local` 图标和原生文件选择入口；无法由 token 控制的部分优先使用 `color-scheme`，不复制浏览器私有样式。
 
+### Desktop 原生窗口
+
+Desktop 的 Tauri transport 通过 `setWindowTheme` Shell Bridge 方法同步原生窗口外观：手动选择浅色/深色或跟随系统都先经过桥传给 Desktop Shell，只有 Windows Shell 再调用 Tauri `WebviewWindow::set_theme`；其它桌面系统保留 no-op。该同步不改变主题偏好的前端存储边界，command 受现有具名 Shell Bridge capability 约束。
+
 ### Android 系统栏
 
 Android 的 `SystemBarAppearanceController` 在前端接管前按系统 night mode 选择栏图标；前端加载后由主题运行时发布基线，图片查看器不再固定恢复浅色。
@@ -300,7 +304,7 @@ Android Activity 只接管系统 day/night 的 `uiMode` 配置变化并原地刷
 - 主题模块把 `resolvedTheme === "dark"` 作为系统栏基线。
 - 图片查看器打开时申请临时深色内容覆盖；关闭、卸载或异常退出时释放覆盖并恢复当前主题基线，而不是固定恢复浅色。
 - 适配器负责基线与临时覆盖计数，`InAppImageViewer.vue` 不再直接声明 `Window` 类型或猜测恢复值。
-- Web/桌面没有该接口时保持 no-op。
+- Web 没有该接口时保持 no-op；Desktop 由 Tauri transport 负责同步原生窗口主题。
 
 Android 的 `values-night` 已提供深色 `web_background`、`android:isLightTheme=false` 和浅色系统栏图标配置，因此原生 Splash、Window、WebView 空白期及 WebView `prefers-color-scheme` 会跟随系统 day/night。WebView 算法着色保持关闭，实际页面颜色只由前端双主题 token 决定。手动主题属于 Web localStorage 偏好，原生层在 WebView 首帧前无法读取；若手动主题与系统相反，仍以首帧脚本接管为边界。
 
@@ -318,7 +322,7 @@ Android 的 `values-night` 已提供深色 `web_background`、`android:isLightTh
 2. 重构 `_tokens.scss` 为两套显式颜色 map，补齐缺失 token，并保证浅色计算样式与当前视觉基本一致。
 3. 清理主题敏感颜色字面量，优先处理 foundation/shared、AppShell、Modal/Notice、认证与设置页，再覆盖各业务域和可视化。
 4. 在初始化向导和偏好 Dialog 接入同一个三态控件，完成跨标签页、系统实时变化和存储失败降级。
-5. 接入浏览器 `theme-color` 与 Android 系统栏基线/临时覆盖恢复。
+5. 接入浏览器 `theme-color`、Desktop 原生窗口主题与 Android 系统栏基线/临时覆盖恢复。
 6. 完成三档视口、两套主题、全状态浏览器验收后，才把深色主题视为可发布能力。
 
 实施期间可以使用以下扫描确认没有新增未审计颜色：
@@ -355,6 +359,7 @@ rg -n --glob '*.scss' --glob '*.vue' '#[0-9a-fA-F]{3,8}|rgba?\(' frontend/src
 ### 平台与工程
 
 - [x] Web 浏览器 `color-scheme`、`theme-color` 与最终主题一致。
+- [x] Desktop Windows 原生窗口主题随偏好切换，跟随系统时恢复系统控制。
 - [x] Android 状态栏/导航栏图标在浅色、深色、图片查看打开/关闭、Activity 恢复后均正确。
 - [x] `themeModel` 测试覆盖三态解析、损坏存储回退、系统解析组合、关键色对比度和系统栏覆盖恢复。
 - [x] `pnpm build`、相关 Node 测试、`pnpm format:check` 与 `git diff --check` 通过，无 Sass warning。

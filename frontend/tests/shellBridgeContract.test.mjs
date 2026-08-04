@@ -22,6 +22,7 @@ const {
   assertCompatibleRuntimeSnapshot,
   assertCompleteShellBridge,
   assertDesktopFirewallShellBridgeExtension,
+  assertDesktopWindowThemeShellBridgeExtension,
   assertDesktopPreferences,
   defaultDesktopPreferences,
   ShellBridgeContractError,
@@ -103,6 +104,19 @@ test("keeps the Desktop firewall method outside the common bridge contract", () 
   assert.doesNotThrow(() =>
     assertDesktopFirewallShellBridgeExtension(
       shellBridge({ repairFirewall: async () => snapshot() }),
+    ),
+  );
+});
+
+test("requires the Desktop window theme bridge extension", () => {
+  const commonBridge = shellBridge();
+  assert.throws(
+    () => assertDesktopWindowThemeShellBridgeExtension(commonBridge),
+    (error) => error instanceof ShellBridgeContractError && error.code === "invalid_bridge_payload",
+  );
+  assert.doesNotThrow(() =>
+    assertDesktopWindowThemeShellBridgeExtension(
+      shellBridge({ setWindowTheme: async () => undefined }),
     ),
   );
 });
