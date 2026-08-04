@@ -102,5 +102,20 @@ test("startup test parameters parse from the page URL", () => {
     ),
     { additionalAppOpens: 9, itemsCreated: 50 },
   );
+  assert.deepEqual(
+    testing.readDonationStartupTestParams(
+      "?donation_test_opens=9",
+      "#/dashboard?donation_test_items=50",
+      { additionalAppOpens: 1, itemsCreated: 50 },
+    ),
+    { additionalAppOpens: 10, itemsCreated: 100 },
+  );
   assert.equal(testing.readDonationStartupTestParams("?donation_test_items=invalid"), null);
+  assert.equal(
+    testing.readDonationStartupTestParams("", "", {
+      additionalAppOpens: Number.MAX_SAFE_INTEGER + 1,
+      itemsCreated: -1,
+    }),
+    null,
+  );
 });

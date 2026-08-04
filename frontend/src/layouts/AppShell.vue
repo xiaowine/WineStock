@@ -385,9 +385,11 @@ onMounted(() => {
   stopDonationSubscription = donationController.subscribe(({ milestone }) => {
     scheduleDonationPrompt(milestone);
   });
-  const donationTestStartup = import.meta.env.DEV
-    ? readDonationStartupTestParams(window.location.search, window.location.hash)
-    : null;
+  const donationTestStartup = readDonationStartupTestParams(
+    import.meta.env.DEV ? window.location.search : "",
+    import.meta.env.DEV ? window.location.hash : "",
+    window.__WINESTOCK_DONATION_TEST__,
+  );
   if (donationTestStartup) donationController.recordTestStartup(donationTestStartup);
   donationController.recordAppOpenOnce();
   if (donationTestStartup) donationController.notifyPendingPrompt();

@@ -7,9 +7,17 @@ export interface DonationStartupTestParams {
   itemsCreated: number;
 }
 
+export interface DonationStartupTestInjection {
+  /** Desktop Debug 启动时注入的额外累计启动次数。 */
+  additionalAppOpens?: number;
+  /** Desktop Debug 启动时注入的额外新增物品数量。 */
+  itemsCreated?: number;
+}
+
 export function readDonationStartupTestParams(
   search: string,
   hash = "",
+  injection: DonationStartupTestInjection | null | undefined = undefined,
 ): DonationStartupTestParams | null {
   const params = new URLSearchParams(search);
   const hashQueryIndex = hash.indexOf("?");
@@ -20,14 +28,28 @@ export function readDonationStartupTestParams(
     }
   }
 
-  const additionalAppOpens = readCount(params.get("donation_test_opens"));
-  const itemsCreated = readCount(params.get("donation_test_items"));
+  const additionalAppOpens = addCounts(
+    readCount(params.get("donation_test_opens")),
+    readCount(injection?.additionalAppOpens),
+  );
+  const itemsCreated = addCounts(
+    readCount(params.get("donation_test_items")),
+    readCount(injection?.itemsCreated),
+  );
   if (additionalAppOpens === 0 && itemsCreated === 0) return null;
   return { additionalAppOpens, itemsCreated };
 }
 
-function readCount(value: string | null): number {
+function readCount(value: string | number | null | undefined): number {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value >= 0 ? value : 0;
+  }
   if (!value || !/^\d+$/.test(value)) return 0;
   const count = Number(value);
   return Number.isSafeInteger(count) ? count : 0;
+}
+
+function addCounts(left: number, right: number): number {
+  const total = left + right;
+  return Number.isSafeInteger(total) ? total : Number.MAX_SAFE_INTEGER;
 }

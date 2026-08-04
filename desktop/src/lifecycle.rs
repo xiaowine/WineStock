@@ -4,22 +4,39 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 
+#[cfg(debug_assertions)]
+use serde_json::json;
+
 pub const AUTOSTART_LAUNCH_ARGUMENT: &str = "--winestock-autostart";
 pub const FORCE_WEBVIEW_BLOCK_ARGUMENT: &str = "--winestock-force-webview-block";
 pub const FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT: &str = "--winestock-force-shell-bridge-block";
 pub const FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT: &str =
     "--winestock-force-shell-bridge-handshake-block";
+#[cfg(debug_assertions)]
+pub const TEST_DONATION_OPENS_ARGUMENT: &str = "--winestock-test-donation-opens";
+#[cfg(debug_assertions)]
+pub const TEST_DONATION_ITEMS_ARGUMENT: &str = "--winestock-test-donation-items";
 pub const WEBVIEW_RECLAIM_IDLE_SECONDS_ARGUMENT: &str = "--winestock-webview-reclaim-idle-seconds";
 const WEBVIEW_RECLAIM_IDLE_SECONDS_ARGUMENT_PREFIX: &str =
     "--winestock-webview-reclaim-idle-seconds=";
+#[cfg(debug_assertions)]
+const TEST_DONATION_OPENS_ARGUMENT_PREFIX: &str = "--winestock-test-donation-opens=";
+#[cfg(debug_assertions)]
+const TEST_DONATION_ITEMS_ARGUMENT_PREFIX: &str = "--winestock-test-donation-items=";
 const MAX_WEBVIEW_RECLAIM_IDLE_SECONDS: u64 = 86_400;
+#[cfg(debug_assertions)]
+const MAX_DONATION_TEST_COUNT: u64 = 9_007_199_254_740_991;
 
-/// 启动测试覆盖；故障注入仅 Debug 构建启用，回收秒数覆盖不写入偏好文件。
+/// 启动测试覆盖；故障注入和捐赠计数模拟仅 Debug 构建启用，不写入偏好文件。
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DebugStartupOverrides {
     pub force_webview_block: bool,
     pub force_shell_bridge_block: bool,
     pub force_shell_bridge_handshake_block: bool,
+    /// 当前启动前额外模拟的累计打开次数。
+    pub test_donation_opens: Option<u64>,
+    /// 当前启动前额外模拟的成功新增物品数量。
+    pub test_donation_items: Option<u64>,
     pub webview_reclaim_idle_seconds: Option<u64>,
 }
 
@@ -37,6 +54,18 @@ where
         .map(|value| value.as_ref().to_owned())
         .collect();
     let webview_reclaim_idle_seconds = parse_webview_reclaim_idle_seconds(&arguments);
+    #[cfg(debug_assertions)]
+    let test_donation_opens = parse_donation_test_count(
+        &arguments,
+        TEST_DONATION_OPENS_ARGUMENT,
+        TEST_DONATION_OPENS_ARGUMENT_PREFIX,
+    );
+    #[cfg(debug_assertions)]
+    let test_donation_items = parse_donation_test_count(
+        &arguments,
+        TEST_DONATION_ITEMS_ARGUMENT,
+        TEST_DONATION_ITEMS_ARGUMENT_PREFIX,
+    );
 
     #[cfg(not(debug_assertions))]
     {
@@ -50,6 +79,8 @@ where
     {
         let mut overrides = DebugStartupOverrides::default();
         overrides.webview_reclaim_idle_seconds = webview_reclaim_idle_seconds;
+        overrides.test_donation_opens = test_donation_opens;
+        overrides.test_donation_items = test_donation_items;
         for argument in arguments {
             match argument.as_str() {
                 FORCE_WEBVIEW_BLOCK_ARGUMENT => overrides.force_webview_block = true,
@@ -61,6 +92,54 @@ where
             }
         }
         overrides
+    }
+}
+
+#[cfg(debug_assertions)]
+fn parse_donation_test_count(
+    arguments: &[String],
+    argument_name: &str,
+    argument_prefix: &str,
+) -> Option<u64> {
+    for (index, argument) in arguments.iter().enumerate() {
+        let value = argument.strip_prefix(argument_prefix).or_else(|| {
+            (argument == argument_name)
+                .then(|| arguments.get(index + 1).map(String::as_str))
+                .flatten()
+        });
+        let Some(value) = value else {
+            continue;
+        };
+        let Ok(count) = value.parse::<u64>() else {
+            continue;
+        };
+        if count <= MAX_DONATION_TEST_COUNT {
+            return Some(count);
+        }
+    }
+    None
+}
+
+/// 生成仅供 Debug Desktop 使用的捐赠启动测试注入脚本；不把测试值写入偏好或业务存储。
+pub fn build_donation_test_script(overrides: &DebugStartupOverrides) -> String {
+    #[cfg(debug_assertions)]
+    {
+        if overrides.test_donation_opens.is_none() && overrides.test_donation_items.is_none() {
+            return String::new();
+        }
+        let test_params = json!({
+            "additionalAppOpens": overrides.test_donation_opens.unwrap_or(0),
+            "itemsCreated": overrides.test_donation_items.unwrap_or(0),
+        });
+        let test_params_json =
+            serde_json::to_string(&test_params).expect("捐赠启动测试参数必须能够序列化为 JSON");
+        format!("window.__WINESTOCK_DONATION_TEST__ = {test_params_json};")
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = overrides;
+        String::new()
     }
 }
 
@@ -262,10 +341,54 @@ mod tests {
             FORCE_WEBVIEW_BLOCK_ARGUMENT,
             FORCE_SHELL_BRIDGE_BLOCK_ARGUMENT,
             FORCE_SHELL_BRIDGE_HANDSHAKE_BLOCK_ARGUMENT,
+            TEST_DONATION_OPENS_ARGUMENT,
+            "9",
+            TEST_DONATION_ITEMS_ARGUMENT,
+            "50",
         ]);
         assert!(overrides.force_webview_block);
         assert!(overrides.force_shell_bridge_block);
         assert!(overrides.force_shell_bridge_handshake_block);
+        assert_eq!(overrides.test_donation_opens, Some(9));
+        assert_eq!(overrides.test_donation_items, Some(50));
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn parses_donation_test_counts_in_both_argument_forms() {
+        let equals = debug_startup_overrides_from([
+            "winestock",
+            "--winestock-test-donation-opens=9",
+            "--winestock-test-donation-items=50",
+        ]);
+        assert_eq!(equals.test_donation_opens, Some(9));
+        assert_eq!(equals.test_donation_items, Some(50));
+
+        let invalid = debug_startup_overrides_from([
+            "winestock",
+            TEST_DONATION_OPENS_ARGUMENT,
+            "9007199254740992",
+            TEST_DONATION_ITEMS_ARGUMENT,
+            "invalid",
+        ]);
+        assert_eq!(invalid.test_donation_opens, None);
+        assert_eq!(invalid.test_donation_items, None);
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn builds_donation_test_initialization_script() {
+        let overrides = debug_startup_overrides_from([
+            "winestock",
+            TEST_DONATION_OPENS_ARGUMENT,
+            "9",
+            TEST_DONATION_ITEMS_ARGUMENT,
+            "50",
+        ]);
+        let script = build_donation_test_script(&overrides);
+        assert!(script.contains("window.__WINESTOCK_DONATION_TEST__"));
+        assert!(script.contains("\"additionalAppOpens\":9"));
+        assert!(script.contains("\"itemsCreated\":50"));
     }
 
     #[test]

@@ -240,6 +240,17 @@ localStorage 累加 totalItemsCreated；不检查、不发出提示
 
 示例：`/?donation_test_opens=9&donation_test_items=50#/dashboard` 表示在本次真实启动前模拟 9 次启动和 50 件新增物品，本次启动再计 1 次，并在启动空闲后检查提示。参数每次启动都会重新累加，适合连续验证 10/50 次启动和 50/100/300 件新增阈值。
 
+Desktop Tauri Debug 还支持命令行参数，在 `desktop/` 目录执行：
+
+```powershell
+..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-test-donation-opens 9
+..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-test-donation-items 50
+```
+
+两个参数分别对应 `donation_test_opens` 和 `donation_test_items`，也支持如 `--winestock-test-donation-opens=9` 的写法；命令行值与 URL 值会相加。
+参数只在 Debug Desktop 进程中注入，不写入偏好或业务存储。命令行参数适合直接验证 Desktop 打包前端的启动计数，
+URL 参数仍适合浏览器开发态和 Android/Web 环境。
+
 测试前可以在浏览器控制台清除 `winestock.donation-prompt.v1` 和 `winestock.donation-open-recorded.v1`，避免已有本机累计数据影响结果。
 
 ### 4.5 计数语义

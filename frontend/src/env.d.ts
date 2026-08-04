@@ -1,5 +1,6 @@
 // 本文件声明 frontend 的 Vite 环境变量和平台运行时注入对象；它不读取或修改实际配置。
 import type { FrontendRuntimeConfig } from "./api/runtime-config";
+import type { DonationStartupTestInjection } from "./donation/testing";
 import type { ShellBridge } from "./shell/contract";
 
 interface ImportMetaEnv {
@@ -32,6 +33,8 @@ declare global {
     __WINESTOCK_RUNTIME_CONFIG__?: FrontendRuntimeConfig;
     /** Desktop、Android 在页面脚本执行前注入的版本化 Shell Bridge。 */
     __WINESTOCK_SHELL_BRIDGE__?: ShellBridge;
+    /** Desktop Debug 启动时注入的捐赠累计测试数据；生产构建不注入。 */
+    __WINESTOCK_DONATION_TEST__?: DonationStartupTestInjection;
     /** Android 注入的系统栏图标外观薄接口；Web/桌面不存在。 */
     WineStockSystemChrome?: {
       setDarkContent(enabled: boolean): void;

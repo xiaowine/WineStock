@@ -64,10 +64,14 @@ Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询�
 ..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-force-webview-block
 ..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-force-shell-bridge-block
 ..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-force-shell-bridge-handshake-block
+..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-test-donation-opens 9
+..\frontend\node_modules\.bin\tauri.cmd dev -- -- --winestock-test-donation-items 50
 ```
 
-三个参数依次覆盖 WebView2 门禁失败、初始 Shell Bridge 调用失败和首屏就绪握手失败；后两者应隐藏 WebView，
-按稳定失败类别使用 `rfd` 显示原生提示并退出。参数只对 Debug 构建生效，Release 构建会忽略。
+前三个参数依次覆盖 WebView2 门禁失败、初始 Shell Bridge 调用失败和首屏就绪握手失败；后两者应隐藏 WebView，
+按稳定失败类别使用 `rfd` 显示原生提示并退出。最后两个参数分别在当前启动前额外模拟 9 次打开和 50 件新增物品，
+用于验证捐赠提示的 10/50 次打开、50/100/300 件新增物品阈值；也支持 `--参数=值` 写法。所有参数只对 Debug
+构建生效，Release 构建会忽略。
 
 本地运行配置保存于 Tauri 的 `app_data_dir/config.json`。配置、数据库和文件目录均由本壳管理，绝对路径
 不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际

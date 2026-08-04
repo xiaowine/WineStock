@@ -129,8 +129,10 @@ fn main() {
                     &winestock_desktop::device_metadata::resolve_device_name(),
                     &app.package_info().version.to_string(),
                 );
+            let donation_test_script =
+                lifecycle::build_donation_test_script(&debug_startup_overrides);
             app.manage(winestock_desktop::window::MainWindowConfig::new(
-                runtime_metadata_script,
+                format!("{runtime_metadata_script}\n{donation_test_script}"),
             ));
             let show_on_ready = !app.state::<AppLifecycleState>().startup_silent();
             winestock_desktop::window::create_main_window(app.handle(), show_on_ready)?;
