@@ -50,6 +50,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `implementation-notes/import-dialog-loading-and-feedback-remediation.md`：订单/ERP 导入 Dialog 的一次性物品匹配、稳定滚动和异步状态反馈整改方案。
 - `implementation-notes/validation-notice-feedback-remediation.md`：前端校验、服务端错误和异步失败统一使用 Notice 的文案与验收规则。
 - `implementation-notes/user-management-page-redesign.md`：用户管理页面直接列模型、桌面/移动展示分工、操作入口和验收标准。
+- `implementation-notes/donation-support-plan.md`：头像账户弹层中的捐赠入口、自动提示控制器、捐赠 Dialog、持久化状态和验收方案。
 
 ## UI 文档使用顺序
 

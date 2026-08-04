@@ -37,6 +37,7 @@
 ## 扫码与立创料袋
 
 - `frontend/src/barcode/decoder.ts`：zxing-wasm reader 懒加载、wasm 自托管定位与 QRCode 解码入口；相机帧走速度优先、静态图片走精度优先，模块与 wasm 均不进主包。
+- `frontend/src/donation/`：公开捐赠配置、二维码 writer、版本化累计计数、启动时提示控制器和开发环境启动测试参数；物品新增只累计，提示只在有效应用启动时检查。
 - `frontend/src/lcsc/`：料袋二维码与商城订单导出表格的解析纯逻辑、SheetJS 动态文件读取入口，以及 Core 白名单商品图的无凭据直连读取与 URL/状态/MIME/15 MiB/签名复核；不调用立创查询接口或上传文件。
 - `frontend/src/components/barcode/`：业务无关扫码层，只回传原文，业务语义由调用方决定（方案见 `docs/implementation-notes/lcsc-bag-scanning.md`）。`BarcodeCameraView.vue` 拥有取景区——摄像头会话、逐帧解码、检测框、设备循环切换（记住选择）、torch、点击触发单次对焦（全局 single-shot 后回连续；Chromium 未实现区域对焦 pointsOfInterest）；`BarcodeScanDialog.vue` 拥有 Dialog 编排——画面上方稳定状态行、图标工具栏、拍照/选图/拖放/粘贴降级。
 
@@ -53,6 +54,7 @@
 ## 布局与通用组件
 
 - `frontend/src/layouts/AppShell.*`：已登录应用区域唯一的稳定响应式应用框架；同一顶部栏、导航面板和路由出口通过 CSS 在桌面与移动端重排。
+- `frontend/src/components/donation/`：捐赠二维码 Dialog；消费 donation 领域状态，不拥有累计计数、启动测试参数或持久化。
 - `frontend/src/components/` 顶层：从根品牌母版派生并供应用壳/认证/设置复用的 `BrandMark`、账户弹层与用户摘要、分组导航列表（含导航目标乐观等待反馈）、路由出口切换动画、路由切换顶部进度条、通用 Modal（统一原生返回、嵌套层级与遮罩规则）、密码输入、自动搜索输入、图片预览/应用内查看等跨页面复用件；`components/preferences/` 的主题三态控件由初始化向导和偏好 Dialog 共用，Desktop 窗口行为和 WebView 回收偏好通过可选 Shell Bridge 扩展读写。
 - `frontend/src/components/forms/`：FormField 族、Teleport listbox 的 `SelectControl` 和不依赖浏览器原生弹层的日期时间字段；不包含业务校验规则。
 - `frontend/src/components/attributes/`：物品侧的单张图片属性控件、无依赖 HSV 颜色选择器、鉴权图片加载和图片草稿/纯色生成/提交阶段批量上传模型。

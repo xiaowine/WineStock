@@ -3,6 +3,7 @@
 import { apiClient } from "./client";
 import { ApiError } from "./errors";
 import { trackTelemetryEvent, trackTelemetryIssue } from "../telemetry/clarity";
+import { donationController } from "../donation/controller";
 import type { ApiResponse, ApiSchema } from "./contract";
 
 export type ItemAttributeResponse = ApiResponse<ApiSchema<"ItemAttributeResponse">>;
@@ -79,6 +80,7 @@ export async function createItem(request: ItemCreateRequest) {
   });
   // 遥测在唯一入口记录，单项/扫码/批量创建路径都覆盖；只记事件名不含物品数据。
   trackTelemetryEvent("item_created");
+  donationController.recordItemsCreated(1);
   return created;
 }
 

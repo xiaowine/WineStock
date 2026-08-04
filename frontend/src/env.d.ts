@@ -13,6 +13,10 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   /** 由 Vite `.env` 提供的 Microsoft Clarity 项目 ID；缺省时停用遥测。 */
   readonly VITE_CLARITY_PROJECT_ID?: string;
+  /** 微信捐赠二维码中编码的公开内容；缺省时隐藏微信方式。 */
+  readonly VITE_DONATION_WECHAT_CONTENT?: string;
+  /** 支付宝捐赠二维码中编码的公开内容；缺省时隐藏支付宝方式。 */
+  readonly VITE_DONATION_ALIPAY_CONTENT?: string;
 }
 
 interface ImportMeta {

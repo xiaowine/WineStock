@@ -74,6 +74,7 @@
             :show-user-summary="Boolean(userDisplayName)"
             :show-lan-access="lanAccessUrls.length > 0"
             :show-contact="contactEntryVisible"
+            :show-donation="donationEnabled"
             :show-logout="!silentLocalMode"
             :logout-error="logoutError"
             :is-logging-out="isLoggingOut"
@@ -81,6 +82,7 @@
             @runtime-settings="openRuntimeSettings"
             @lan-access="openLanAccessDialog"
             @contact="openContactDialog"
+            @donation="openDonationDialog"
             @logout="handleLogout"
           />
         </Transition>
@@ -147,6 +149,14 @@
 
     <ContactDialog :open="contactDialogOpen" @close="closeContactDialog" />
 
+    <DonationDialog
+      :open="donationDialogOpen"
+      :automatic="donationDialogAutomatic"
+      @close="closeDonationDialog"
+      @snooze="snoozeDonationDialog"
+      @disable="disableDonationDialog"
+    />
+
     <RuntimeSettingsDialog
       v-if="runtimeSettingsDialogOpen"
       embedded
@@ -172,6 +182,7 @@ import AccountUserSummary from "../components/AccountUserSummary.vue";
 import AppNavigationList from "../components/AppNavigationList.vue";
 import BrandMark from "../components/BrandMark.vue";
 import RouteContentView from "../components/RouteContentView.vue";
+import DonationDialog from "../components/donation/DonationDialog.vue";
 import LanAccessDialog from "../components/runtime/LanAccessDialog.vue";
 import AppPreferencesDialog from "../components/preferences/AppPreferencesDialog.vue";
 import ContactDialog from "../contact/ContactDialog.vue";
@@ -186,6 +197,10 @@ import { getVisibleAppNavigation } from "../router/navigation";
 import { pendingNavigationRouteName } from "../router/navigationPending";
 import { getUsableLanAccessUrls } from "../shell/lanAccess";
 import { runtimeSnapshot } from "../shell/runtime";
+import { donationEnabled } from "../donation/config";
+import { donationController } from "../donation/controller";
+import type { DonationMilestone } from "../donation/model";
+import { readDonationStartupTestParams } from "../donation/testing";
 
 /** 品牌名后的前端发布阶段徽标文案，来自 package.json `appStage`；为空时徽标整体隐藏。 */
 const APP_STAGE_LABEL = __APP_STAGE_LABEL__;
@@ -199,6 +214,8 @@ const accountTrigger = ref<HTMLButtonElement | null>(null);
 const lanAccessDialogOpen = ref(false);
 const preferencesDialogOpen = ref(false);
 const runtimeSettingsDialogOpen = ref(false);
+const donationDialogOpen = ref(false);
+const donationDialogAutomatic = ref(false);
 const route = useRoute();
 const {
   accountMenuOpen,
@@ -234,6 +251,8 @@ const accountInitials = computed(() =>
 );
 const lanAccessUrls = computed(() => getUsableLanAccessUrls(runtimeSnapshot.value));
 let desktopMediaQuery: MediaQueryList | undefined;
+let stopDonationSubscription: (() => void) | undefined;
+let donationPromptTimer: ReturnType<typeof setTimeout> | undefined;
 
 useNativeBackHandler({
   id: "app-navigation-drawer",
@@ -292,6 +311,49 @@ function closeLanAccessDialog(): void {
   lanAccessDialogOpen.value = false;
 }
 
+async function openDonationDialog(): Promise<void> {
+  if (!donationEnabled) return;
+  closeAccountMenu();
+  await nextTick();
+  accountTrigger.value?.focus();
+  donationDialogAutomatic.value = false;
+  donationDialogOpen.value = true;
+}
+
+function closeDonationDialog(): void {
+  if (donationDialogAutomatic.value) {
+    donationController.snooze(14);
+  }
+  donationDialogOpen.value = false;
+  donationDialogAutomatic.value = false;
+}
+
+function snoozeDonationDialog(): void {
+  donationController.snooze(30);
+  donationDialogOpen.value = false;
+  donationDialogAutomatic.value = false;
+}
+
+function disableDonationDialog(): void {
+  donationController.disableAutoPrompt();
+  donationDialogOpen.value = false;
+  donationDialogAutomatic.value = false;
+}
+
+function scheduleDonationPrompt(milestone: DonationMilestone, delay = 1_200): void {
+  if (!donationEnabled || donationPromptTimer !== undefined) return;
+  donationPromptTimer = setTimeout(() => {
+    donationPromptTimer = undefined;
+    if (donationDialogOpen.value || document.querySelector(".modal-layer")) {
+      scheduleDonationPrompt(milestone, 1_000);
+      return;
+    }
+    donationDialogAutomatic.value = true;
+    donationController.markPromptShown(milestone);
+    donationDialogOpen.value = true;
+  }, delay);
+}
+
 /** 断点变化只关闭临时 Drawer，不切换或重挂载应用框架和路由页面。 */
 function handleDesktopQueryChange(event: MediaQueryListEvent): void {
   if (event.matches) closeNavigation();
@@ -312,6 +374,7 @@ watch(
     closeNavigation();
     closeLanAccessDialog();
     closeRuntimeSettings();
+    if (donationDialogOpen.value) closeDonationDialog();
   },
 );
 
@@ -319,6 +382,15 @@ onMounted(() => {
   document.addEventListener("keydown", handleEscape);
   desktopMediaQuery = window.matchMedia(DESKTOP_QUERY);
   desktopMediaQuery.addEventListener("change", handleDesktopQueryChange);
+  stopDonationSubscription = donationController.subscribe(({ milestone }) => {
+    scheduleDonationPrompt(milestone);
+  });
+  const donationTestStartup = import.meta.env.DEV
+    ? readDonationStartupTestParams(window.location.search, window.location.hash)
+    : null;
+  if (donationTestStartup) donationController.recordTestStartup(donationTestStartup);
+  donationController.recordAppOpenOnce();
+  if (donationTestStartup) donationController.notifyPendingPrompt();
   // 空闲预取当前权限可见的页面 chunk，弱网下点击导航直接命中模块缓存。
   schedulePrefetchAppPages(visibleNavigation.value.map((item) => item.routeName));
 });
@@ -326,6 +398,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", handleEscape);
   desktopMediaQuery?.removeEventListener("change", handleDesktopQueryChange);
+  stopDonationSubscription?.();
+  if (donationPromptTimer !== undefined) clearTimeout(donationPromptTimer);
 });
 </script>
 

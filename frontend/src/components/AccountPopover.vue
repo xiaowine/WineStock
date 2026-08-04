@@ -31,6 +31,15 @@
       本机运行设置
     </button>
     <button
+      v-if="showDonation"
+      class="secondary-button account-popover__donation"
+      type="button"
+      :disabled="isLoggingOut"
+      @click="emit('donation')"
+    >
+      支持软件
+    </button>
+    <button
       v-if="showContact"
       class="secondary-button account-popover__contact"
       type="button"
@@ -77,6 +86,8 @@ withDefaults(
     showLanAccess?: boolean;
     /** 是否显示联系与反馈入口。 */
     showContact?: boolean;
+    /** 捐赠构建配置有效时显示支持入口。 */
+    showDonation?: boolean;
     /** 本机静默免登录模式下隐藏退出登录（登出后会立即静默重建，无意义）。 */
     showLogout?: boolean;
     /** 退出操作的可展示错误；空字符串表示没有错误。 */
@@ -101,6 +112,8 @@ const emit = defineEmits<{
   lanAccess: [];
   /** 打开联系与反馈 Dialog。 */
   contact: [];
+  /** 打开支持 WineStock Dialog。 */
+  donation: [];
   /** 请求所属 Shell 执行统一退出流程。 */
   logout: [];
 }>();
