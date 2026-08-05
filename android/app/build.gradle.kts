@@ -68,21 +68,22 @@ if (releaseSigningConfigured && releaseKeystore?.isFile != true) {
  */
 fun readWorkspaceReleaseVersion(cargoManifest: File): String {
     var inWorkspacePackage = false
-    cargoManifest.forEachLine { sourceLine ->
+    for (sourceLine in cargoManifest.readLines()) {
         val line = sourceLine.trim()
         if (line == "[workspace.package]") {
             inWorkspacePackage = true
-            return@forEachLine
+            continue
         }
         if (inWorkspacePackage && line.startsWith("[")) {
             inWorkspacePackage = false
         }
         if (inWorkspacePackage) {
-            Regex("""^version\\s*=\\s*\"([0-9]+\\.[0-9]+\\.[0-9]+)\"(?:\\s*#.*)?$""")
-                .matchEntire(line)
-                ?.groupValues
-                ?.get(1)
-                ?.let { return it }
+            val versionMatch =
+                Regex("""^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"(?:\s*#.*)?$""")
+                    .matchEntire(line)
+            if (versionMatch != null) {
+                return versionMatch.groupValues[1]
+            }
         }
     }
     throw GradleException("根 Cargo.toml 的 [workspace.package] 必须声明三段数字 version")
