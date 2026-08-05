@@ -248,7 +248,8 @@ cargo +stable run -p winestock-server
 ```
 
 The server shell creates `data/config.json` next to the executable with default values if it does not exist.
-Debug builds expose `/api-docs/openapi.json`; `/swagger-ui` requires the Swagger UI feature. Release builds expose neither endpoint.
+Debug server builds expose `/api-docs/openapi.json`; `/swagger-ui` requires the explicit
+`--features swagger-ui` flag. Release server builds omit that feature and expose neither endpoint.
 
 ## Stop Conditions
 

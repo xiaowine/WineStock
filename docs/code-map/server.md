@@ -11,7 +11,7 @@
 - `server/src/lib.rs`
   - 编排服务端生命周期。
   - 加载固定配置、校验运行模式、准备存储目录，通过 core 统一运行句柄启动服务并等待 Ctrl+C。
-  - 所有构建打印 API 与 OpenAPI 地址；仅 Debug 构建打印 Swagger UI 地址。
+  - Debug 构建打印 OpenAPI 地址；启用 `swagger-ui` feature 时打印 Swagger UI 地址，否则打印启用提示。
   - 绑定所有接口时只展示 loopback URL，不把 `0.0.0.0` 作为可打开地址。
 
 - `server/src/config.rs`

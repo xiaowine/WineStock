@@ -15,7 +15,7 @@ use crate::auth::{
     AuthTokenResponse, AuthUserResponse,
 };
 use axum::Router;
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, not(feature = "swagger-ui")))]
 use axum::{routing::get, Json};
 #[cfg(debug_assertions)]
 use utoipa::{
@@ -346,7 +346,7 @@ where
 }
 
 /// 在不依赖 Swagger UI 的情况下返回动态生成的 OpenAPI 文档。
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, not(feature = "swagger-ui")))]
 async fn openapi_json() -> Json<utoipa::openapi::OpenApi> {
     Json(ApiDoc::openapi())
 }

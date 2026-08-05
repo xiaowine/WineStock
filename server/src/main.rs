@@ -13,7 +13,7 @@ async fn main() {
         eprintln!("WineStock server 启动失败: {error}");
         let mut source = error.source();
         while let Some(cause) = source {
-            eprintln!("  caused by: {cause}");
+            eprintln!("  原因: {cause}");
             source = cause.source();
         }
         std::process::exit(1);

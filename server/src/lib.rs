@@ -11,11 +11,11 @@ mod error;
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use winestock_core::start_local_service;
 #[cfg(debug_assertions)]
 use winestock_core::OPENAPI_JSON_PATH;
 #[cfg(all(debug_assertions, feature = "swagger-ui"))]
 use winestock_core::SWAGGER_UI_PATH;
+use winestock_core::{start_local_service, LocalServiceInfo};
 
 pub use error::ServerShellError;
 
@@ -35,32 +35,14 @@ pub async fn run() -> Result<(), ServerShellError> {
         .map_err(ServerShellError::LocalService)?;
     let info = running.info();
 
-    println!("WineStock server 配置文件: {}", config_path.display());
-    if loaded_config.created_default {
-        println!("已创建默认配置文件: {}", config_path.display());
-    }
-    println!("数据库: {}", info.database_path.display());
-    println!("文件目录: {}", info.files_dir.display());
-    if info.initial_user_setup_required {
-        println!("首个用户尚未初始化；请通过注册接口创建首个用户。");
-    }
-
-    let bound_addr = info.bound_addr;
-    let access_url = access_url(bound_addr);
-    println!("监听地址: {}", display_bind_addr(bound_addr));
-    println!("访问地址: {access_url}");
-    #[cfg(debug_assertions)]
-    println!("OpenAPI JSON: {access_url}{OPENAPI_JSON_PATH}");
-    #[cfg(all(debug_assertions, feature = "swagger-ui"))]
-    println!("Swagger UI: {access_url}{SWAGGER_UI_PATH}");
-
-    println!("按 Ctrl+C 停止服务。");
+    print_startup_summary(&config_path, loaded_config.created_default, info);
     shutdown_signal().await;
     running
         .shutdown()
         .await
         .map_err(ServerShellError::LocalService)?;
-    println!("WineStock server 已停止。");
+    println!();
+    println!("WineStock Server 已停止。");
 
     Ok(())
 }
@@ -72,16 +54,51 @@ async fn shutdown_signal() {
     }
 }
 
+/// 打印结构化启动摘要，避免把配置、网络地址和开发文档混在连续日志中。
+fn print_startup_summary(
+    config_path: &std::path::Path,
+    created_default: bool,
+    info: &LocalServiceInfo,
+) {
+    let bound_addr = info.bound_addr;
+    let access_url = access_url(bound_addr);
+
+    println!();
+    println!("WineStock Server 已启动");
+    println!();
+    println!("配置");
+    println!("  配置文件: {}", config_path.display());
+    if created_default {
+        println!("  配置状态: 已创建默认配置");
+    }
+    println!("  数据库: {}", info.database_path.display());
+    println!("  文件目录: {}", info.files_dir.display());
+    println!();
+    println!("服务");
+    println!("  监听地址: {}", display_bind_addr(bound_addr));
+    println!("  本机访问: {access_url}");
+    if info.initial_user_setup_required {
+        println!("  初始化状态: 尚未创建首个用户，请通过注册接口完成初始化");
+    }
+    #[cfg(debug_assertions)]
+    {
+        println!();
+        println!("开发文档");
+        println!("  OpenAPI: {access_url}{OPENAPI_JSON_PATH}");
+        #[cfg(feature = "swagger-ui")]
+        println!("  Swagger UI: {access_url}{SWAGGER_UI_PATH}");
+        #[cfg(not(feature = "swagger-ui"))]
+        println!("  Swagger UI: 未启用（使用 --features swagger-ui 启动）");
+    }
+    println!();
+    println!("按 Ctrl+C 停止服务。");
+}
+
 /// 生成控制台中的监听地址文本。
 ///
-/// `0.0.0.0` 和 `::` 是绑定语义，不是可打开 URL，因此这里转换成“所有接口”的说明文本。
+/// 监听地址按实际绑定值原样输出；它与下方可打开的本机访问 URL 是两个概念。
 fn display_bind_addr(bound_addr: SocketAddr) -> String {
-    let port = bound_addr.port();
-    match bound_addr.ip() {
-        IpAddr::V4(ip) if ip.is_unspecified() => format!("所有 IPv4 接口:{port}"),
-        IpAddr::V6(ip) if ip.is_unspecified() => format!("所有 IPv6 接口:{port}"),
-        ip => format_socket_addr(ip, port),
-    }
+    format_socket_addr(bound_addr.ip(), bound_addr.port())
 }
 
 /// 生成本机可打开的访问 URL。

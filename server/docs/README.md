@@ -8,5 +8,14 @@ server shell 负责进程生命周期、固定配置位置、存储目录准备�
 - [`../../docs/runtime-networking.md`](../../docs/runtime-networking.md)：server mode、绑定地址和访问 URL。
 - [`../../docs/platforms.md`](../../docs/platforms.md)：server shell 平台职责。
 - [`../../docs/code-map/server.md`](../../docs/code-map/server.md)：当前源码结构和启动流程。
+- [`output-format.md`](output-format.md)：启动、运行、停止和错误输出格式。
+
+Swagger UI 通过条件 feature 提供，普通构建和 Release 构建默认不编译。开发调试时使用：
+
+```text
+cargo +stable run -p winestock-server --features swagger-ui
+```
+
+正式构建不传 `swagger-ui` feature，不包含 Swagger UI。
 
 后续新增仅属于 server shell 的部署、配置或运维说明时，应放在本目录，而不是堆入根 `docs/`。

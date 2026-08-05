@@ -6,7 +6,7 @@ publish = false
 
 [features]
 default = []
-# 服务端 Debug 需要 Swagger UI 时显式启用；Release 不启用，避免编译 Swagger UI。
+# 仅 Debug 开发按需启用；Release 不传该 feature，避免编译 Swagger UI。
 swagger-ui = ["winestock-core/swagger-ui"]
 
 [dependencies]

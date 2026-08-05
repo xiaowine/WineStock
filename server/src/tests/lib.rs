@@ -15,3 +15,15 @@ fn explicit_access_url_is_reported_directly() {
 
     assert_eq!(url, "http://10.0.0.8:17890");
 }
+
+#[test]
+fn bind_address_is_reported_without_network_interface_expansion() {
+    assert_eq!(
+        display_bind_addr(SocketAddr::from(([0, 0, 0, 0], 17890))),
+        "0.0.0.0:17890"
+    );
+    assert_eq!(
+        display_bind_addr(SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], 17890))),
+        "[::]:17890"
+    );
+}
