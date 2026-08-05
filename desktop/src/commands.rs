@@ -107,8 +107,10 @@ pub async fn shell_restart_local_service(
 
 /// 检查 Desktop 更新清单；网络和清单解析均留在 Desktop Shell 内。
 #[tauri::command]
-pub async fn shell_check_for_update() -> CommandResult<crate::update::AppUpdateCheckResult> {
-    crate::update::check_for_update()
+pub async fn shell_check_for_update(
+    app: AppHandle,
+) -> CommandResult<crate::update::AppUpdateCheckResult> {
+    crate::update::check_for_update(&app)
         .await
         .map_err(|error| command_error(error.code, &error.message))
 }

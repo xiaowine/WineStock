@@ -13,7 +13,6 @@ use url::Url;
 const UPDATE_MANIFEST_URL: &str = "https://api.ikuns.top/WineRealm/file/winestock/desktop.json";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
-const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -54,16 +53,18 @@ impl UpdateError {
 }
 
 /// 请求 Desktop 清单并返回当前版本是否有可用更新。
-pub async fn check_for_update() -> Result<AppUpdateCheckResult, UpdateError> {
-    let manifest = fetch_manifest().await?;
-    let has_update = compare_versions(&manifest.version, CURRENT_VERSION)? > 0;
-    Ok(result_from_manifest(manifest, has_update))
+pub async fn check_for_update(app: &AppHandle) -> Result<AppUpdateCheckResult, UpdateError> {
+    let current_version = app.package_info().version.to_string();
+    let manifest = fetch_manifest(&current_version).await?;
+    let has_update = compare_versions(&manifest.version, &current_version)? > 0;
+    Ok(result_from_manifest(manifest, has_update, &current_version))
 }
 
 /// 重新检查指定版本并下载、启动 Windows 安装器。
 pub async fn install_update(app: &AppHandle, expected_version: &str) -> Result<(), UpdateError> {
-    let manifest = fetch_manifest().await?;
-    let comparison = compare_versions(&manifest.version, CURRENT_VERSION)?;
+    let current_version = app.package_info().version.to_string();
+    let manifest = fetch_manifest(&current_version).await?;
+    let comparison = compare_versions(&manifest.version, &current_version)?;
     if comparison <= 0 || manifest.version != expected_version {
         return Err(UpdateError::new(
             "update_not_available",
@@ -82,7 +83,7 @@ pub async fn install_update(app: &AppHandle, expected_version: &str) -> Result<(
 
     #[cfg(target_os = "windows")]
     {
-        let bytes = download_update(&manifest).await?;
+        let bytes = download_update(&manifest, &current_version).await?;
         let cache_dir = app
             .path()
             .app_cache_dir()
@@ -102,10 +103,10 @@ pub async fn install_update(app: &AppHandle, expected_version: &str) -> Result<(
     }
 }
 
-async fn fetch_manifest() -> Result<UpdateManifest, UpdateError> {
+async fn fetch_manifest(current_version: &str) -> Result<UpdateManifest, UpdateError> {
     let client = reqwest::Client::builder()
         .timeout(REQUEST_TIMEOUT)
-        .user_agent(concat!("WineStock Desktop/", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("WineStock Desktop/{current_version}"))
         .build()
         .map_err(|_| UpdateError::new("update_check_unavailable", "更新服务暂时不可用"))?;
     let response = client
@@ -139,10 +140,13 @@ async fn fetch_manifest() -> Result<UpdateManifest, UpdateError> {
     Ok(manifest)
 }
 
-async fn download_update(manifest: &UpdateManifest) -> Result<Vec<u8>, UpdateError> {
+async fn download_update(
+    manifest: &UpdateManifest,
+    current_version: &str,
+) -> Result<Vec<u8>, UpdateError> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(120))
-        .user_agent(concat!("WineStock Desktop/", env!("CARGO_PKG_VERSION")))
+        .user_agent(format!("WineStock Desktop/{current_version}"))
         .build()
         .map_err(|_| UpdateError::new("update_download_failed", "更新安装器下载失败"))?;
     let response = client
@@ -216,16 +220,20 @@ fn validate_manifest(manifest: &UpdateManifest) -> Result<(), UpdateError> {
     Ok(())
 }
 
-fn result_from_manifest(manifest: UpdateManifest, has_update: bool) -> AppUpdateCheckResult {
+fn result_from_manifest(
+    manifest: UpdateManifest,
+    has_update: bool,
+    current_version: &str,
+) -> AppUpdateCheckResult {
     if has_update {
         AppUpdateCheckResult {
-            current_version: CURRENT_VERSION.to_owned(),
+            current_version: current_version.to_owned(),
             latest_version: Some(manifest.version),
             notes: (!manifest.notes.trim().is_empty()).then_some(manifest.notes),
         }
     } else {
         AppUpdateCheckResult {
-            current_version: CURRENT_VERSION.to_owned(),
+            current_version: current_version.to_owned(),
             latest_version: None,
             notes: None,
         }
@@ -264,7 +272,9 @@ fn parse_version(value: &str) -> Option<[u64; 3]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{compare_versions, parse_version, validate_manifest, UpdateManifest};
+    use super::{
+        compare_versions, parse_version, result_from_manifest, validate_manifest, UpdateManifest,
+    };
 
     #[test]
     fn compares_semantic_versions_numerically() {
@@ -300,5 +310,19 @@ mod tests {
             notes: String::new(),
         };
         assert!(validate_manifest(&manifest).is_ok());
+    }
+
+    #[test]
+    fn keeps_runtime_current_version_separate_from_manifest_version() {
+        let manifest = UpdateManifest {
+            version: "0.1.0".to_owned(),
+            url: "https://download.example.com/WineStock-0.1.0-setup.exe".to_owned(),
+            sha256: "a".repeat(64),
+            notes: String::new(),
+        };
+        let result = result_from_manifest(manifest, true, "0.0.1");
+
+        assert_eq!(result.current_version, "0.0.1");
+        assert_eq!(result.latest_version.as_deref(), Some("0.1.0"));
     }
 }
