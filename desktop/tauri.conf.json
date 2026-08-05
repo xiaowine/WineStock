@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "cc.xiaowine.winestock",
   "build": {
-    "beforeDevCommand": "pnpm --dir D:/Project/WineStock/frontend run dev",
+    "beforeDevCommand": "pnpm --dir frontend run dev",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeBuildCommand": "pnpm --dir D:/Project/WineStock/frontend run build",
+    "beforeBuildCommand": "pnpm --dir frontend run build",
     "frontendDist": "../frontend/dist"
   },
   "app": {
