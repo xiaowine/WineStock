@@ -1,5 +1,14 @@
 pluginManagement {
     repositories {
+        // 国内镜像优先，官方仓库保留为缺包时的回退。
+        maven {
+            name = "AliyunGradlePlugin"
+            url = uri("https://maven.aliyun.com/repository/gradle-plugin")
+        }
+        maven {
+            name = "HuaweiMaven"
+            url = uri("https://repo.huaweicloud.com/repository/maven/")
+        }
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -17,8 +26,25 @@ plugins {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // 普通 JVM/Rust 辅助依赖优先走 Maven Central，避免在无法直连 Google 时无意义等待。
-        mavenCentral()
+        // Google Maven 依赖优先使用国内镜像，官方 Google Maven 作为回退。
+        maven {
+            name = "AliyunGoogle"
+            url = uri("https://maven.aliyun.com/repository/google")
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        // 其它 Android/JVM 依赖依次使用阿里云公共仓库和华为云公共仓库。
+        maven {
+            name = "AliyunPublic"
+            url = uri("https://maven.aliyun.com/repository/public")
+        }
+        maven {
+            name = "HuaweiMaven"
+            url = uri("https://repo.huaweicloud.com/repository/maven/")
+        }
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -26,6 +52,7 @@ dependencyResolutionManagement {
                 includeGroupByRegex("androidx.*")
             }
         }
+        mavenCentral()
     }
 }
 

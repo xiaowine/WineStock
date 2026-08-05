@@ -1,0 +1,6 @@
+# Cargo 使用 rsproxy 加速 crates.io；依赖校验仍由 Cargo 的 checksum 机制负责。
+[source.crates-io]
+replace-with = "rsproxy"
+
+[source.rsproxy]
+registry = "sparse+https://rsproxy.cn/index/"

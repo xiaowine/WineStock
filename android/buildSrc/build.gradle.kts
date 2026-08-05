@@ -4,6 +4,19 @@ plugins {
 }
 
 repositories {
+    // buildSrc 的 Kotlin DSL 与插件依赖也优先使用国内镜像。
+    maven {
+        name = "AliyunGradlePlugin"
+        url = uri("https://maven.aliyun.com/repository/gradle-plugin")
+    }
+    maven {
+        name = "AliyunPublic"
+        url = uri("https://maven.aliyun.com/repository/public")
+    }
+    maven {
+        name = "HuaweiMaven"
+        url = uri("https://repo.huaweicloud.com/repository/maven/")
+    }
     gradlePluginPortal()
     mavenCentral()
 }
