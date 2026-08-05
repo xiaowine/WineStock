@@ -7,11 +7,11 @@
 <template>
   <ModalDialog
     :open="true"
-    title="运行设置"
+    title="运行模式"
     :description="
       setupFinished
-        ? '调整这台设备连接 WineStock 的方式。'
-        : '先确认这台设备的使用方式，保存后继续。'
+        ? '选择 WineStock 在这台设备上的运行方式，或连接已有服务。'
+        : '先选择这台设备的运行方式，保存后继续。'
     "
     :busy="applying"
     wide
@@ -46,7 +46,7 @@
         @submit.prevent="requestApply"
       >
         <div>
-          <fieldset class="runtime-next-tabs" :disabled="applying" aria-label="运行方式">
+          <fieldset class="runtime-next-tabs" :disabled="applying" aria-label="运行模式">
             <label
               v-for="option in modeOptions"
               :key="option.value"
@@ -69,7 +69,7 @@
             </label>
           </fieldset>
           <p v-if="isPureWebPlatform" class="runtime-next__tabs-note">
-            浏览器无法在本机启动服务，仅支持连接已有服务器。
+            浏览器无法在本机启动服务，仅支持连接远端。
           </p>
         </div>
 
@@ -95,24 +95,6 @@
               :disabled="applying"
               required
             />
-            <div class="runtime-next__test-row">
-              <button
-                class="secondary-button"
-                type="button"
-                :disabled="applying || testingRemote"
-                @click="testRemoteConnection"
-              >
-                {{ testingRemote ? "正在测试…" : "测试连接" }}
-              </button>
-              <span
-                v-if="remoteTestMessage"
-                class="runtime-next__test-result"
-                :class="`runtime-next__test-result--${remoteTestTone}`"
-                role="status"
-              >
-                {{ remoteTestMessage }}
-              </span>
-            </div>
             <div v-if="usesInsecureRemoteHttp" class="form-warning" role="status">
               这个地址没有使用 HTTPS，请只在可信网络中使用。
             </div>
@@ -122,9 +104,6 @@
             <p v-if="!serverMode" class="runtime-next__note">
               打开应用时，本机服务会自动启动并选择可用端口。
             </p>
-            <div v-if="firewallStatusMessage" class="form-warning" role="status">
-              {{ firewallStatusMessage }}
-            </div>
             <button
               v-if="canRepairFirewall"
               class="secondary-button runtime-next__firewall-action"
@@ -163,11 +142,11 @@
                 required
               />
             </details>
+            <div v-if="firewallStatusMessage" class="form-warning" role="status">
+              {{ firewallStatusMessage }}
+            </div>
           </template>
 
-          <div v-if="lanAccessUnavailable" class="form-warning" role="status">
-            当前设备没有可用的局域网地址，请检查网络适配器或监听地址。
-          </div>
         </section>
       </form>
     </section>
@@ -184,15 +163,23 @@
         class="primary-button"
         type="submit"
         form="runtime-settings-form"
-        :disabled="applying || !canSave"
+        :disabled="applying || testingRemote || !canSave"
       >
-        {{ applying ? "正在保存…" : remoteMode ? "连接服务器" : "保存设置" }}
+        {{
+          testingRemote
+            ? "正在测试连接…"
+            : applying
+              ? "正在保存…"
+              : remoteMode
+                ? "测试并保存"
+                : "保存设置"
+        }}
       </button>
     </template>
 
     <ModalDialog
       :open="confirmationOpen"
-      :title="enablingLanAccess ? '允许其他设备连接？' : '切换运行服务？'"
+      :title="enablingLanAccess ? '启用共享服务？' : '切换运行模式？'"
       :description="confirmationDescription"
       :busy="applying"
       compact
@@ -335,7 +322,6 @@ import {
   shellRuntimeError,
   validateRuntimeConfig,
 } from "../shell/runtime";
-import { getUsableLanAccessUrls } from "../shell/lanAccess";
 import {
   cloneRuntimeConfig,
   defaultRuntimeConfig,
@@ -357,8 +343,6 @@ import {
 } from "./runtime-settings/model";
 
 type StatusTone = "neutral" | "success" | "warning" | "danger";
-type TestTone = "success" | "warning" | "danger";
-
 const props = withDefaults(defineProps<{ embedded?: boolean }>(), {
   embedded: false,
 });
@@ -370,8 +354,6 @@ const draft = ref<EditableRuntimeConfig>(cloneRuntimeConfig(defaultRuntimeConfig
 const fieldErrors = ref<Partial<Record<RuntimeConfigField, readonly string[]>>>({});
 const applying = ref(false);
 const testingRemote = ref(false);
-const remoteTestMessage = ref("");
-const remoteTestTone = ref<TestTone>("warning");
 const confirmationOpen = ref(false);
 const firewallRecoveryOpen = ref(false);
 const firewallRepairing = ref(false);
@@ -384,7 +366,7 @@ const gateConfirmError = ref("");
 useFormValidation(fieldErrors);
 
 const snapshot = computed(() => runtimeSnapshot.value);
-/** 纯网页端只有连接远程服务一种能力：本机/局域网服务器模式禁用，草稿被动纠正为远端。 */
+/** 纯网页端只有连接远端一种能力：本机自用/共享服务禁用，草稿被动纠正为远端。 */
 const isPureWebPlatform = computed(() => snapshot.value?.platform === "web");
 const remoteMode = computed(() => isRemoteRuntimeMode(draft.value.mode));
 const serverMode = computed(() => draft.value.mode === "server-mode");
@@ -394,15 +376,6 @@ const displayAddress = computed(() =>
   snapshot.value?.service.ownership === "remote" ? activeAddress.value : "",
 );
 const previewAddress = computed(() => previewApiBaseUrl(draft.value));
-const lanAccessUrls = computed(() => getUsableLanAccessUrls(snapshot.value));
-const lanAccessUnavailable = computed(
-  () =>
-    snapshot.value?.config.mode === "server-mode" &&
-    snapshot.value.service.ownership === "local" &&
-    snapshot.value.service.phase === "running" &&
-    snapshot.value.capabilities.serverMode &&
-    lanAccessUrls.value.length === 0,
-);
 const firewallStatus = computed(() => snapshot.value?.service.firewall?.status);
 const firewallProviderName = computed(() =>
   snapshot.value?.platform === "desktop" && snapshot.value.capabilities.serverMode
@@ -410,6 +383,8 @@ const firewallProviderName = computed(() =>
     : "系统防火墙",
 );
 const firewallStatusMessage = computed(() => {
+  if (snapshot.value?.config.mode !== "server-mode" || !serverMode.value) return "";
+
   switch (firewallStatus.value) {
     case "ready":
       return "当前端口已允许局域网访问。";
@@ -493,18 +468,18 @@ const setupFinished = computed(() => isRuntimeSetupFinished(snapshot.value));
 /** 未初始化时即使表单与草稿一致也允许保存，把确认权收在保存路径上。 */
 const canSave = computed(() => dirty.value || !setupFinished.value);
 const modeTitle = computed(() =>
-  remoteMode.value ? "连接已有服务器" : serverMode.value ? "允许其他设备连接" : "在本机使用",
+  remoteMode.value ? "连接远端" : serverMode.value ? "共享服务" : "本机自用",
 );
 const bindHostHint = computed(() =>
   serverMode.value ? "默认值适用于大多数局域网环境。" : "本机模式固定为 127.0.0.1。",
 );
 const serverModeDisabledReason = computed(() => {
   if (isPureWebPlatform.value) {
-    return "浏览器无法在本机启动服务，不能作为局域网服务器。";
+    return "浏览器无法在本机启动服务，不能启用共享服务。";
   }
   if (snapshot.value?.capabilities.serverMode) return "";
   if (snapshot.value?.platform === "android") {
-    return "Android 当前只支持本机 127.0.0.1，自身不能作为局域网服务器。";
+    return "Android 当前只支持本机 127.0.0.1，不能启用共享服务。";
   }
   return "当前平台暂不支持自动配置防火墙，请手动配置。";
 });
@@ -523,24 +498,24 @@ const usesInsecureRemoteHttp = computed(() => {
 const modeOptions = computed(() => [
   {
     value: "self-hosted" as const,
-    label: "在本机使用",
-    description: "数据保存在这台设备上，适合只在这台设备使用。",
+    label: "本机自用",
+    description: "服务和数据运行在这台设备上，适合个人或单设备使用。",
     selected: draft.value.mode === "self-hosted",
     disabled: isPureWebPlatform.value,
-    disabledReason: isPureWebPlatform.value ? "浏览器无法在本机启动服务，请连接已有服务器。" : "",
+    disabledReason: isPureWebPlatform.value ? "浏览器无法在本机启动服务，请连接远端。" : "",
   },
   {
     value: "client-only" as const,
-    label: "连接已有服务器",
-    description: "多台设备共享同一台服务器上的数据。",
+    label: "连接远端",
+    description: "不启动本地服务，连接已经部署好的 WineStock 服务。",
     selected: remoteMode.value,
     disabled: false,
     disabledReason: "",
   },
   {
     value: "server-mode" as const,
-    label: "允许其他设备连接",
-    description: "让同一网络中的设备使用这台设备的数据。",
+    label: "共享服务",
+    description: "在这台设备运行服务，允许其他设备连接使用。",
     selected: serverMode.value,
     disabled: isPureWebPlatform.value || !(snapshot.value?.capabilities.serverMode ?? false),
     disabledReason: serverModeDisabledReason.value,
@@ -597,10 +572,6 @@ watch(
   },
   { immediate: true },
 );
-watch(
-  () => draft.value.remoteBaseUrl,
-  () => (remoteTestMessage.value = ""),
-);
 watch(shellRuntimeError, (error) => {
   if (error) notice.error("运行环境初始化失败", { detail: error });
 });
@@ -619,7 +590,6 @@ function fieldError(field: RuntimeConfigField): string {
 function changeMode(mode: RuntimeMode): void {
   draft.value = applyRuntimeModeDefaults(draft.value, mode);
   fieldErrors.value = {};
-  remoteTestMessage.value = "";
 }
 
 /** 纯网页端把本机类草稿纠正为远端；平台 shell 内原样返回。 */
@@ -639,11 +609,12 @@ async function requestApply(): Promise<void> {
   const validation = await validateRuntimeConfig(draft.value);
   fieldErrors.value = validation.fieldErrors;
   if (!validation.valid) {
-    notice.warning("请检查运行设置", {
+    notice.warning("请检查运行模式", {
       detail: Object.values(validation.fieldErrors)[0]?.[0] ?? "请检查输入内容",
     });
     return;
   }
+  if (remoteMode.value && !(await testRemoteConnection())) return;
   const gate = await resolveLocalUserPasswordGate();
   if (gate === "blocked") return;
   if (gate === "required") {
@@ -744,11 +715,11 @@ async function executeApply(): Promise<void> {
     draft.value = cloneRuntimeConfig(result.snapshot.config);
     if (firewallRecoveryRequired.value) {
       firewallRecoveryOpen.value = true;
-      notice.warning("运行设置已保存，但防火墙未完成", {
+      notice.warning("运行模式已保存，但防火墙未完成", {
         detail: "可以继续使用，或在此重试防火墙操作。",
       });
     } else {
-      notice.success("运行设置已保存");
+      notice.success("运行模式已保存");
     }
     // 设置从「未完成」变为「已确认」且仍匿名时，自动进入认证入口。
     if (
@@ -767,18 +738,8 @@ async function executeApply(): Promise<void> {
   }
 }
 
-async function testRemoteConnection(): Promise<void> {
-  const validation = await validateRuntimeConfig(draft.value);
-  fieldErrors.value = validation.fieldErrors;
-  if (!validation.valid) {
-    notice.warning("请检查远程连接设置", {
-      detail: Object.values(validation.fieldErrors)[0]?.[0] ?? "请检查服务器地址",
-    });
-    return;
-  }
-  if (!remoteMode.value) return;
+async function testRemoteConnection(): Promise<boolean> {
   testingRemote.value = true;
-  remoteTestMessage.value = "";
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 4_000);
   try {
@@ -789,13 +750,15 @@ async function testRemoteConnection(): Promise<void> {
     });
     const payload = (await response.json()) as unknown;
     if (!response.ok || !isHealthPayload(payload)) throw new Error("invalid health response");
-    remoteTestTone.value = "success";
-    remoteTestMessage.value = "连接成功";
+    return true;
   } catch (error) {
-    remoteTestTone.value =
-      error instanceof DOMException && error.name === "AbortError" ? "warning" : "danger";
-    remoteTestMessage.value =
-      error instanceof DOMException && error.name === "AbortError" ? "连接超时" : "暂时无法连接";
+    notice.error("远端连接测试失败", {
+      detail:
+        error instanceof DOMException && error.name === "AbortError"
+          ? "连接超时，请检查服务器地址和网络连接。"
+          : "暂时无法连接，请检查服务器地址和网络连接。",
+    });
+    return false;
   } finally {
     window.clearTimeout(timeout);
     testingRemote.value = false;
@@ -835,7 +798,9 @@ function isFirewallRecoveryStatus(status: string | undefined): boolean {
  */
 async function leaveRuntimeSettings(): Promise<void> {
   if (authStatus.value !== "authenticated" && !setupFinished.value) {
-    notice.warning("请先保存运行设置，再继续。", { detail: "保存成功后才能离开此页面。" });
+    notice.warning("请先保存运行模式，再继续。", {
+      detail: "保存成功后才能离开此页面。",
+    });
     return;
   }
   if (props.embedded) {

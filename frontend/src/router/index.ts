@@ -114,7 +114,7 @@ const routes: RouteRecordRaw[] = [
     name: "runtime-settings",
     component: () => import("../pages/RuntimeSettingsPage.vue"),
     meta: {
-      title: "运行设置",
+      title: "运行模式",
       requiresAuth: false,
       requiresService: false,
       allowsPasswordChangeRequired: true,

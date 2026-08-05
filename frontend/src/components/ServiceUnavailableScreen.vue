@@ -27,7 +27,7 @@
       </div>
       <div v-show="!initialCheck" class="service-unavailable__actions">
         <button class="secondary-button" type="button" :disabled="busy" @click="$emit('settings')">
-          本机运行设置
+          运行模式
         </button>
         <button
           class="primary-button service-unavailable__retry"
@@ -67,7 +67,7 @@ const props = withDefaults(
 defineEmits<{
   /** 用户要求重试；具体动作（重连/重启/启动）由宿主按平台能力决定。 */
   retry: [];
-  /** 用户要求打开不依赖 API 的运行设置。 */
+  /** 用户要求打开不依赖 API 的运行模式配置。 */
   settings: [];
 }>();
 
@@ -87,7 +87,7 @@ const copy = computed(() => {
     case "local-failed":
       return {
         title: "本地服务异常",
-        body: "本地服务自动恢复失败。可以重试启动，或前往运行设置检查配置。",
+        body: "本地服务自动恢复失败。可以重试启动，或前往运行模式检查配置。",
         retryLabel: "重试启动",
         retryBusyLabel: "正在启动…",
       };

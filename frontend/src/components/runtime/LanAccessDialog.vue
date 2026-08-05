@@ -28,7 +28,7 @@
           </button>
         </li>
       </ul>
-      <p v-else class="lan-access-dialog__empty" role="status">当前设备没有可用的局域网地址。</p>
+      <p v-else class="lan-access-dialog__empty" role="status">暂无可用的局域网连接地址。</p>
 
       <p class="lan-access-dialog__guidance">
         连接失败时，请确认设备与本机网络互通，并检查操作系统防火墙。

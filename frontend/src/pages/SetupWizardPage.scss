@@ -34,25 +34,6 @@
 
 /* 使用方式卡片复用全局 .choice-card（styles/shared/_choice-cards.scss）。 */
 
-.setup-wizard__test-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  .secondary-button {
-    flex: none;
-  }
-}
-
-.setup-wizard__test-result {
-  color: var(--color-muted);
-  font-size: 13px;
-
-  &--ok {
-    color: var(--color-teal);
-  }
-}
-
 /* 同意开关卡片外观已提升为 shared/_consent-toggle.scss，与偏好设置 Dialog 共用。 */
 
 .setup-wizard__preferences {

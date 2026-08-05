@@ -176,32 +176,6 @@
   }
 }
 
-.runtime-next__test-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  .secondary-button {
-    flex: none;
-  }
-}
-
-.runtime-next__test-result {
-  font-size: 13px;
-
-  &--success {
-    color: var(--color-teal);
-  }
-
-  &--warning {
-    color: var(--color-warn);
-  }
-
-  &--danger {
-    color: var(--color-danger);
-  }
-}
-
 .runtime-next__note {
   color: var(--color-muted);
   font-size: 13px;
@@ -233,7 +207,7 @@
 }
 
 @include mixins.mobile {
-  /* 窄屏收紧 tab 内边距与字号，保证「允许其他设备连接」单行不换行。 */
+  /* 窄屏收紧 tab 内边距与字号，保证「共享服务」单行不换行。 */
   .runtime-next-tab {
     min-height: 44px;
     padding: 9px 2px;

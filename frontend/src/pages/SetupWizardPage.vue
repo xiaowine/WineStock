@@ -62,30 +62,7 @@
                 autocomplete="off"
                 inputmode="url"
                 placeholder="http://192.168.1.10:17890"
-                :disabled="testingConnection"
               />
-              <div class="setup-wizard__test-row">
-                <button
-                  class="secondary-button"
-                  type="button"
-                  :disabled="testingConnection || !serverUrl.trim()"
-                  @click="testConnection"
-                >
-                  {{ testingConnection ? "正在测试…" : "测试连接" }}
-                </button>
-                <span
-                  v-if="connectionTestResult"
-                  class="setup-wizard__test-result"
-                  :class="{ 'setup-wizard__test-result--ok': connectionTestResult === 'ok' }"
-                  role="status"
-                >
-                  {{
-                    connectionTestResult === "ok"
-                      ? "连接成功"
-                      : "无法连接，请检查地址或稍后在下一步继续"
-                  }}
-                </span>
-              </div>
             </form>
           </div>
 
@@ -195,7 +172,7 @@ const CONNECTION_TEST_TIMEOUT_MS = 4_000;
 const router = useRouter();
 
 /**
- * 纯网页端只有「连接已有服务器」一种能力：使用方式页没有可做的决策，
+ * 纯网页端只有「连接远端」一种能力：使用方式页没有可做的决策，
  * 整页跳过，向导直接从服务器地址页开始。平台 shell 内不受影响。
  */
 const isPureWebPlatform = runtimeSnapshot.value?.platform === "web";
@@ -205,8 +182,6 @@ const direction = ref<"forward" | "back">("forward");
 const mode = ref<SetupMode>(isPureWebPlatform ? "remote" : "local");
 const serverUrl = ref("");
 const serverUrlError = ref("");
-const testingConnection = ref(false);
-const connectionTestResult = ref<"" | "ok" | "failed">("");
 const telemetryConsent = ref(true);
 const applying = ref(false);
 const applyError = ref("");
@@ -214,15 +189,15 @@ const applyError = ref("");
 const modeOptions = [
   {
     value: "local" as const,
-    label: "仅在本机使用",
-    description: "数据保存在这台设备上，无需网络即可使用。",
+    label: "本机自用",
+    description: "服务和数据运行在这台设备上，适合个人或单设备使用。",
     recommended: true,
     disabled: false,
   },
   {
     value: "server" as const,
-    label: "允许其他设备连接",
-    description: "让同一网络中的设备使用这台设备的数据。",
+    label: "共享服务",
+    description: "在这台设备运行服务，允许其他设备连接使用。",
     recommended: false,
     disabled:
       runtimeSnapshot.value?.platform !== "desktop" ||
@@ -230,8 +205,8 @@ const modeOptions = [
   },
   {
     value: "remote" as const,
-    label: "连接已有服务器",
-    description: "多台设备共享同一台服务器上的数据。",
+    label: "连接远端",
+    description: "不启动本地服务，连接已经部署好的 WineStock 服务。",
     recommended: false,
     disabled: false,
   },
@@ -300,24 +275,34 @@ async function advanceFromServerStep(): Promise<void> {
   step.value = "consent";
 }
 
-/** 轻量连通性探测；失败不阻断前进（apply 仍是权威确认）。 */
-async function testConnection(): Promise<void> {
+/** 远端配置在 apply 前必须通过健康检查，失败时不保存配置。 */
+async function testRemoteConnection(): Promise<boolean> {
   const base = serverUrl.value.trim().replace(/\/+$/, "");
   if (!base) {
-    return;
+    return false;
   }
-  testingConnection.value = true;
-  connectionTestResult.value = "";
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS);
   try {
-    const response = await fetch(`${base}/api/health`, { signal: controller.signal });
-    connectionTestResult.value = response.ok ? "ok" : "failed";
-  } catch {
-    connectionTestResult.value = "failed";
+    const response = await fetch(`${base}/api/health`, {
+      headers: { accept: "application/json" },
+      credentials: "omit",
+      signal: controller.signal,
+    });
+    const payload = (await response.json()) as unknown;
+    if (!response.ok || !isHealthPayload(payload)) {
+      throw new Error("invalid health response");
+    }
+    return true;
+  } catch (error) {
+    const detail =
+      error instanceof DOMException && error.name === "AbortError"
+        ? "连接超时，请检查服务器地址和网络连接。"
+        : "暂时无法连接，请检查服务器地址和网络连接。";
+    notice.error("远端连接测试失败", { detail });
+    return false;
   } finally {
     window.clearTimeout(timeout);
-    testingConnection.value = false;
   }
 }
 
@@ -346,6 +331,10 @@ async function applyConfiguration(): Promise<void> {
   applying.value = true;
   applyError.value = "";
   try {
+    if (mode.value === "remote" && !(await testRemoteConnection())) {
+      applyError.value = "远端连接测试失败，请返回修改服务器地址或检查网络连接";
+      return;
+    }
     const result = await applyRuntimeConfig(buildCandidateConfig());
     if (result.applied) {
       await router.replace({ name: "auth-entry" });
@@ -380,6 +369,10 @@ function restartWizard(): void {
   applyError.value = "";
   direction.value = "back";
   step.value = stepSequence.value[0];
+}
+
+function isHealthPayload(value: unknown): value is { status: "OK" } {
+  return typeof value === "object" && value !== null && "status" in value && value.status === "OK";
 }
 </script>
 

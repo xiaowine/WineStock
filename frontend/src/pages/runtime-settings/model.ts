@@ -2,7 +2,7 @@
 import { normalizeApiBaseUrl } from "../../api/runtime-config";
 import type { EditableRuntimeConfig, RuntimeMode } from "../../shell/contract";
 
-/** UI 中远端客户端模式统一归入“连接远程服务”。 */
+/** UI 中远端客户端模式统一归入“连接远端”。 */
 export function isRemoteRuntimeMode(mode: RuntimeMode): boolean {
   return mode === "client-only" || mode === "connect-to-remote";
 }

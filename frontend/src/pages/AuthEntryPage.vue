@@ -20,7 +20,7 @@
           class="secondary-button"
           :to="{ name: 'runtime-settings', query: { returnTo: route.fullPath } }"
         >
-          运行设置
+          运行模式
         </RouterLink>
       </div>
     </section>

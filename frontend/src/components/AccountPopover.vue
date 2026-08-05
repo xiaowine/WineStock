@@ -28,7 +28,7 @@
       :disabled="isLoggingOut"
       @click="emit('runtimeSettings')"
     >
-      本机运行设置
+      运行模式
     </button>
     <button
       v-if="showDonation"
@@ -106,7 +106,7 @@ withDefaults(
 const emit = defineEmits<{
   /** 打开本机偏好设置 Dialog（数据收集，后续语言/主题）。 */
   preferences: [];
-  /** 打开当前设备独立于业务服务的运行设置。 */
+  /** 打开当前设备的运行模式配置。 */
   runtimeSettings: [];
   /** 打开当前设备的局域网连接地址。 */
   lanAccess: [];
