@@ -81,6 +81,7 @@ Desktop 更新由 Shell 直接请求固定清单地址：
 `https://api.ikuns.top/WineRealm/file/winestock/desktop.json`。Shell 校验语义版本、HTTPS 安装器地址、
 `.exe` 类型、文件大小和 SHA-256，然后把安装器写入应用缓存、启动安装器并退出当前进程；前端只通过 Shell Bridge
 展示结果和错误，不直接请求更新地址。当前远端清单仍需替换为真实 Windows `.exe` 制品后才能执行安装 smoke。
+GitHub Actions 每次构建会根据实际 NSIS 安装器生成并上传 `desktop.json`，内容包含版本号、拼接后的制品 URL、SHA-256 和空 `notes`。
 
 ## 实现文档
 

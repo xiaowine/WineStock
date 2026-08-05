@@ -42,11 +42,38 @@ jobs:
       - name: Build Windows NSIS installer
         run: pnpm --dir frontend run desktop:build
 
+      - name: Generate desktop update manifest
+        shell: pwsh
+        env:
+          UPDATE_BASE_URL: https://api.ikuns.top/WineRealm/file/winestock/file
+        run: |
+          $installer = Get-ChildItem -File target/release/bundle/nsis -Filter '*.exe' | Select-Object -First 1
+          if ($null -eq $installer) {
+            throw 'Windows installer not found'
+          }
+          $version = (Get-Content -Raw desktop/tauri.conf.json | ConvertFrom-Json).version
+          $sha256 = (Get-FileHash -Algorithm SHA256 $installer.FullName).Hash.ToLowerInvariant()
+          $manifest = [ordered]@{
+            version = $version
+            url = "$env:UPDATE_BASE_URL/$($installer.Name)"
+            sha256 = $sha256
+            notes = ''
+          }
+          $manifest | ConvertTo-Json -Compress | Set-Content -Encoding utf8 desktop.json
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@v7
         with:
           name: winestock-windows-installer
           path: target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload desktop update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: winestock-desktop-update
+          path: desktop.json
           if-no-files-found: error
           retention-days: 14
 
@@ -102,14 +129,106 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
 
-      - name: Build release APK
-        working-directory: android
-        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+      - name: Prepare Android release signing
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing Android signing secret::$name is required for a release APK"
+              exit 1
+            fi
+          done
+          mkdir -p android/.secrets
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/.secrets/release.keystore
+          chmod 600 android/.secrets/release.keystore
 
-      - name: Upload release APK
+      - name: Build signed release APK
+        if: github.event_name != 'pull_request'
+        working-directory: android
+        run: ./gradlew :app:assembleRelease --no-daemon --no-configuration-cache --stacktrace
+
+      - name: Build signed debug APK for pull request
+        if: github.event_name == 'pull_request'
+        working-directory: android
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Verify release APK signature
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find android/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$apk" || { echo "::error::Release APK not found"; exit 1; }
+          test -n "$apksigner" || { echo "::error::apksigner not found"; exit 1; }
+          "$apksigner" verify --verbose "$apk"
+
+      - name: Verify debug APK signature
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find android/app/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$apk" || { echo "::error::Debug APK not found"; exit 1; }
+          test -n "$apksigner" || { echo "::error::apksigner not found"; exit 1; }
+          "$apksigner" verify --verbose "$apk"
+
+      - name: Generate Android update manifest
+        shell: bash
+        env:
+          UPDATE_BASE_URL: https://api.ikuns.top/WineRealm/file/winestock/file
+        run: |
+          set -euo pipefail
+          if [ -d android/app/build/outputs/apk/release ]; then
+            output_dir=android/app/build/outputs/apk/release
+          else
+            output_dir=android/app/build/outputs/apk/debug
+          fi
+          apk="$(find "$output_dir" -type f -name '*.apk' -print -quit)"
+          metadata="$output_dir/output-metadata.json"
+          test -n "$apk" || { echo "::error::Android APK not found"; exit 1; }
+          test -f "$metadata" || { echo "::error::Android APK metadata not found"; exit 1; }
+          filename="$(basename "$apk")"
+          version="$(jq -r '.elements[0].versionName' "$metadata")"
+          sha256="$(sha256sum "$apk" | cut -d ' ' -f 1)"
+          test -n "$version" && test "$version" != "null"
+          jq -n \
+            --arg version "$version" \
+            --arg url "$UPDATE_BASE_URL/$filename" \
+            --arg sha256 "$sha256" \
+            '{version: $version, url: $url, sha256: $sha256, notes: ""}' \
+            > android.json
+
+      - name: Upload Android update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: winestock-android-update
+          path: android.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed release APK
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: winestock-android-apk
           path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload signed debug APK
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: winestock-android-pr-apk
+          path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14

@@ -81,6 +81,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - Release APK 不允许无签名构建。复制 `keystore.properties.example` 为 `keystore.properties`，填入正式 keystore 路径、密码、alias 和 key 密码，或提供对应的 `WINSTOCK_ANDROID_*` 环境变量。
 - `keystore.properties`、`android/.secrets/` 和 `app/signing/` 已加入忽略规则；keystore 和密码不得提交到 Git。正式发布必须保持相同签名证书并递增 `versionCode`。
 - GitHub Actions 的 push/manual 构建读取 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS` 和 `ANDROID_KEY_PASSWORD` Secrets，关闭 Configuration Cache，并使用 `apksigner verify --verbose` 验证 Release APK。Pull Request 不读取签名 Secrets，改构建自动签名的 Debug APK。
+- 每次工作流都会根据实际 APK 生成 `android.json`，填入版本号、拼接后的制品 URL、SHA-256 和空 `notes`，并作为独立 artifact 上传；PR 生成的 Debug 清单不会影响正式发布。
 
 ## Rust/ARM64 APK 打包
 
