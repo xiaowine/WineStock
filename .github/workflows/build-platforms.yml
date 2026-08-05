@@ -1,4 +1,4 @@
-name: Build Desktop and Android
+name: Build Desktop, Server, and Android
 
 on:
   push:
@@ -52,6 +52,35 @@ jobs:
       - name: Build Windows NSIS installer
         run: pnpm --dir frontend run desktop:build
 
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: winestock-windows-installer
+          path: target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  server-windows:
+    name: Build Windows Server
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Build Windows Server package
         shell: pwsh
         run: |
@@ -65,19 +94,51 @@ jobs:
           $archive = "target/release/distribution/WineStock-server-$version-windows-x64.zip"
           Compress-Archive -Path target/release/winestock-server.exe -DestinationPath $archive -Force
 
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v7
-        with:
-          name: winestock-windows-installer
-          path: target/release/bundle/nsis/*.exe
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Upload Windows Server package
         uses: actions/upload-artifact@v7
         with:
           name: winestock-server-windows
           path: target/release/distribution/WineStock-server-*-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  server-linux:
+    name: Build Linux Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build Linux Server package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --release -p winestock-server --locked
+          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "winestock-server") | .version')"
+          test -n "$version" && test "$version" != 'null'
+          mkdir -p target/release/distribution
+          archive="target/release/distribution/WineStock-server-$version-linux-x64.zip"
+          zip -j "$archive" target/release/winestock-server
+
+      - name: Upload Linux Server package
+        uses: actions/upload-artifact@v7
+        with:
+          name: winestock-server-linux
+          path: target/release/distribution/WineStock-server-*-linux-x64.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -113,7 +174,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'ndk;30.0.14904198'
+          packages: "ndk;30.0.14904198"
 
       - name: Set up Rust for Android
         uses: dtolnay/rust-toolchain@stable
@@ -224,7 +285,7 @@ jobs:
 
   release-manifest:
     name: Generate Unified Update Manifest
-    needs: [desktop, android]
+    needs: [desktop, android, server-windows, server-linux]
     runs-on: ubuntu-latest
 
     steps:
@@ -250,9 +311,11 @@ jobs:
           installer="$(find release-artifacts -type f -name '*.exe' -print -quit)"
           apk="$(find release-artifacts -type f -name '*.apk' -print -quit)"
           server_archive="$(find release-artifacts -type f -name 'WineStock-server-*-windows-x64.zip' -print -quit)"
+          server_linux_archive="$(find release-artifacts -type f -name 'WineStock-server-*-linux-x64.zip' -print -quit)"
           test -n "$installer" || { echo '::error::Windows installer not found'; exit 1; }
           test -n "$apk" || { echo '::error::Android APK not found'; exit 1; }
           test -n "$server_archive" || { echo '::error::Windows Server package not found'; exit 1; }
+          test -n "$server_linux_archive" || { echo '::error::Linux Server package not found'; exit 1; }
 
           version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "winestock-server") | .version')"
           test -n "$version" && test "$version" != 'null'

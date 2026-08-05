@@ -118,6 +118,7 @@ WineStock 是一款专为个人、团队、工作室和小型仓库打造的全�
 访问 [GitHub Releases](https://github.com/xiaowine/WineStock/releases) 下载适合你平台的最新版本：
 - **桌面客户端**：Windows (`.exe`)（macOS / Linux 适配中）
 - **移动端**：Android (`.apk`)
+- **无头服务端**：Windows / Linux Server Shell (`.zip`)，适合局域网或自托管部署
 
 ### 2. 选择适合你的运行方式
 
@@ -128,6 +129,14 @@ WineStock 支持三种运行模式，满足不同场景的使用需求：
 - **连接远端（client-only）**：不启动本地服务与数据库，直接连接已部署的远端 WineStock 服务地址。
 
 > **提示**：应用启动后，你可以随时在“设置 -> 运行设置”中一键切换运行模式或调整连接参数。
+
+### 3. 部署 Server Shell
+
+Server Shell 是不包含前端界面的单文件后台服务。下载 Server ZIP 并解压到可写目录后，运行其中的
+`winestock-server` 可执行文件；配置、SQLite 数据库和文件目录默认位于可执行文件旁的 `data/` 目录。
+
+首次启动默认绑定 `127.0.0.1`，仅允许本机访问。需要让局域网设备连接时，编辑 `data/config.json`，将
+`server.bind_host` 改为明确的局域网地址或 `0.0.0.0`，并自行完成防火墙和访问控制配置。
 
 ---
 
