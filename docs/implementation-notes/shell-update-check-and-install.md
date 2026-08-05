@@ -2,7 +2,7 @@
 
 ## 结论
 
-更新检测和安装均由平台 Shell 负责。共享前端不直接请求更新清单、不下载安装包，也不访问更新域名；前端只通过现有 Shell Bridge 获取检查结果并展示更新状态。
+更新检测由三个平台 Shell 负责；Desktop 与 Android 安装各自的制品，Server 只报告可用制品。共享前端不直接请求更新清单、不下载安装包，也不访问更新域名；前端只通过现有 Shell Bridge 获取检查结果并展示更新状态。
 
 这样可以避免 WebView 中的跨域限制，也能把文件下载、临时文件、安装权限和平台生命周期留在正确的所有权边界内。
 
@@ -47,6 +47,20 @@ Android 不负责：
 - 复制一套前端设置 Activity 或原生更新 Dialog；
 - 在应用内部绕过系统安装确认。
 
+### Server Shell
+
+Server 负责：
+
+- 通过 `winestock-server --check-update` 请求统一清单；
+- 使用当前 Cargo 包版本比较清单版本；
+- 校验 `server` 制品的相对文件名、HTTPS 基础地址和 SHA-256 格式，并输出最终下载地址。
+
+Server 不负责：
+
+- 在常规服务启动期间访问更新服务；
+- 在运行中的服务进程内覆盖自身文件；
+- 替代部署系统下载或安装 Server ZIP。
+
 ### Frontend
 
 前端只负责：
@@ -61,41 +75,42 @@ Android 不负责：
 
 ## 更新清单
 
-Desktop 和 Android 可以使用不同清单地址和不同清单文件。清单不需要包含 `mandatory`，当前产品只支持普通更新提示，不支持强制升级。
+Desktop、Android 和 Server 使用相同的统一清单。清单不需要包含 `mandatory`，当前产品只支持普通更新提示，不支持强制升级。
 
 ### 当前清单地址
 
-- Android：`https://api.ikuns.top/WineRealm/file/winestock/android.json`
-- Desktop：`https://api.ikuns.top/WineRealm/file/winestock/desktop.json`
+`https://api.ikuns.top/WineRealm/file/winestock/winestock.json`
 
-这两个地址由对应 Shell 直接请求。共享前端不得直接访问，也不得把清单地址作为前端可编辑配置或业务 API 地址处理。正式实现中应继续限制请求使用 HTTPS、设置超时、校验响应内容类型和清单结构，并在 Shell 内把网络异常转换为稳定错误码。
+该地址由三个 Shell 直接请求。共享前端不得直接访问，也不得把清单地址作为前端可编辑配置或业务 API 地址处理。正式实现中应继续限制请求使用 HTTPS、设置超时、校验响应内容类型和清单结构，并在 Shell 内把网络异常转换为稳定错误码。
 
-### Desktop 清单
-
-```json
-{
-  "version": "0.1.1",
-  "url": "https://download.example.com/winestock/WineStock-0.1.1-setup.exe",
-  "sha256": "十六进制 SHA-256",
-  "notes": "修复若干问题并改进启动稳定性。"
-}
-```
-
-### Android 清单
+### 统一清单
 
 ```json
 {
   "version": "0.1.1",
-  "url": "https://download.example.com/winestock/WineStock-0.1.1-release.apk",
-  "sha256": "十六进制 SHA-256",
-  "notes": "修复若干问题并改进启动稳定性。"
+  "baseUrl": "https://tapan.top/file/winestock",
+  "notes": "修复若干问题并改进启动稳定性。",
+  "desktop": {
+    "file": "WineStock-0.1.1-setup.exe",
+    "sha256": "十六进制 SHA-256"
+  },
+  "android": {
+    "file": "WineStock-0.1.1-release.apk",
+    "sha256": "十六进制 SHA-256"
+  },
+  "server": {
+    "file": "WineStock-server-0.1.1-windows-x64.zip",
+    "sha256": "十六进制 SHA-256"
+  }
 }
 ```
 
 字段约束：
 
 - `version` 是面向用户和更新比较的语义版本；不能使用字符串字典序比较；
-- `url` 必须是不含凭据的 HTTPS 地址；Shell 应限制允许的更新域名；
+- `baseUrl` 必须是不含凭据、查询参数或片段的 HTTPS 地址；
+- `desktop`、`android` 和 `server` 都必须提供相对 `file` 与 SHA-256；Shell 只下载自己的制品；
+- `file` 不得是绝对路径、不得包含目录穿越、查询参数或片段；下载地址固定为 `baseUrl + "/" + file`；
 - `sha256` 用于发现传输损坏或文件不完整；
 - `notes` 可以为空，但清单结构必须完整；
 - 清单缺失、JSON 无法解析、版本格式无效或资产字段无效时，按检查失败处理，不展示部分结果。
@@ -106,7 +121,7 @@ SHA-256 不是发布签名。它只能证明下载文件与清单中的摘要一
 
 ## 版本语义
 
-Desktop 和 Android 的检查都只比较清单中的 `version` 与当前应用版本：
+Desktop、Android 和 Server 的检查都只比较清单中的 `version` 与当前 Shell 版本：
 
 - 相等：没有更新；
 - 远端更高：有更新；
@@ -116,7 +131,7 @@ Desktop 和 Android 的检查都只比较清单中的 `version` 与当前应用�
 
 Android 更新清单不需要增加 `versionCode` 字段。`versionCode` 仍然必须存在于 APK 自身的 Android manifest 中，并且每次正式发布必须递增，这是 Android Package Manager 的安装要求，不属于前端更新比较字段。
 
-当前 Android 构建中的 `versionCode = 1` 不能长期固定。后续应由发布配置或 Gradle 版本映射自动生成递增值，同时保持 `versionName` 与清单中的 `version` 一致。更新 APK 还必须保持相同的 `applicationId` 和正式签名证书，否则系统会拒绝覆盖安装。
+根 Cargo 工作区的 `[workspace.package].version` 是三个 Shell 的唯一发布版本来源：Desktop Tauri 在未指定配置版本时继承 Cargo 包版本，Server 使用同一 Cargo 包版本；Android 在 Gradle 构建时读取该值作为 `versionName`，并按 `major * 1_000_000 + minor * 1_000 + patch` 派生内部 `versionCode`。更新 APK 仍必须保持相同的 `applicationId` 和正式签名证书，否则系统会拒绝覆盖安装。
 
 ## Shell Bridge 建议
 
@@ -147,6 +162,8 @@ interface AppUpdateCheckResult {
 - `update_integrity_failed`：SHA-256 校验失败；
 - `update_install_permission_required`：Android 尚未允许当前应用安装未知来源应用；
 - `update_install_failed`：平台安装器无法启动或安装过程启动失败。
+
+Server 通过 `winestock-server --check-update` 输出同一清单中 Server ZIP 的下载地址，不在常规服务启动时联网，也不执行进程内自更新。
 
 Shell 不应把原始网络异常、HTTP 响应体、文件路径或堆栈直接传给前端。所有失败都应映射为稳定错误码和安全的用户提示文案。
 
@@ -289,7 +306,7 @@ FLAG_ACTIVITY_NEW_TASK（从非 Activity Shell 上下文启动时）
 3. 实现 Desktop 检查、下载和安装器启动。
 4. 实现 Android 清单检查、APK 下载、未知来源授权和 FileProvider 安装流程。
 5. 在共享前端偏好设置接入统一状态展示。
-6. 更新 Android 发布版本映射，保证 `versionName` 与清单版本一致、`versionCode` 递增。
+6. 从统一版本来源派生 Android `versionName` 与递增的 `versionCode`，并由 CI 一次性生成三种制品的统一清单。
 7. 执行纯逻辑测试、Desktop 安装包 smoke 和 Android 真机安装 smoke。
 
 ## 当前未包含
@@ -299,5 +316,5 @@ FLAG_ACTIVITY_NEW_TASK（从非 Activity Shell 上下文启动时）
 - 强制升级；
 - 后台静默安装；
 - Google Play 内购/商店更新；
-- server shell 自更新；
+- server shell 进程内自更新；
 - core HTTP 更新 API。

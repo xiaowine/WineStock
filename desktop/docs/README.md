@@ -77,11 +77,10 @@ Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询�
 不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际
 端口并由 `DesktopRuntimeManager` 持有 `RunningLocalService` 至停止、替换或退出。
 
-Desktop 更新由 Shell 直接请求固定清单地址：
-`https://api.ikuns.top/WineRealm/file/winestock/desktop.json`。Shell 校验语义版本、HTTPS 安装器地址、
+Desktop 更新由 Shell 直接请求与 Android、Server 共用的固定清单地址：
+`https://api.ikuns.top/WineRealm/file/winestock/winestock.json`。Shell 选择 `desktop` 制品，校验语义版本、受控 `baseUrl + file` 的 HTTPS 安装器地址、
 `.exe` 类型、文件大小和 SHA-256，然后把安装器写入应用缓存、启动安装器并退出当前进程；前端只通过 Shell Bridge
-展示结果和错误，不直接请求更新地址。当前远端清单仍需替换为真实 Windows `.exe` 制品后才能执行安装 smoke。
-GitHub Actions 每次构建会根据实际 NSIS 安装器生成并上传 `desktop.json`，内容包含版本号、拼接后的制品 URL、SHA-256 和空 `notes`。
+展示结果和错误，不直接请求更新地址。GitHub Actions 会根据实际 NSIS、APK 和 Server ZIP 一次生成并上传 `winestock.json`。
 
 ## 实现文档
 

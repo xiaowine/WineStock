@@ -52,24 +52,18 @@ jobs:
       - name: Build Windows NSIS installer
         run: pnpm --dir frontend run desktop:build
 
-      - name: Generate desktop update manifest
+      - name: Build Windows Server package
         shell: pwsh
-        env:
-          UPDATE_BASE_URL: https://api.ikuns.top/WineRealm/file/winestock/file
         run: |
-          $installer = Get-ChildItem -File target/release/bundle/nsis -Filter '*.exe' | Select-Object -First 1
-          if ($null -eq $installer) {
-            throw 'Windows installer not found'
+          cargo build --release -p winestock-server --locked
+          $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+          $version = ($metadata.packages | Where-Object name -eq 'winestock-server').version
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'WineStock Server version not found in Cargo metadata'
           }
-          $version = (Get-Content -Raw desktop/tauri.conf.json | ConvertFrom-Json).version
-          $sha256 = (Get-FileHash -Algorithm SHA256 $installer.FullName).Hash.ToLowerInvariant()
-          $manifest = [ordered]@{
-            version = $version
-            url = "$env:UPDATE_BASE_URL/$($installer.Name)"
-            sha256 = $sha256
-            notes = ''
-          }
-          $manifest | ConvertTo-Json -Compress | Set-Content -Encoding utf8 desktop.json
+          New-Item -ItemType Directory -Force -Path target/release/distribution | Out-Null
+          $archive = "target/release/distribution/WineStock-server-$version-windows-x64.zip"
+          Compress-Archive -Path target/release/winestock-server.exe -DestinationPath $archive -Force
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v7
@@ -79,11 +73,11 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload desktop update manifest
+      - name: Upload Windows Server package
         uses: actions/upload-artifact@v7
         with:
-          name: winestock-desktop-update
-          path: desktop.json
+          name: winestock-server-windows
+          path: target/release/distribution/WineStock-server-*-windows-x64.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -210,40 +204,6 @@ jobs:
           test -n "$apksigner" || { echo "::error::apksigner not found"; exit 1; }
           "$apksigner" verify --verbose "$apk"
 
-      - name: Generate Android update manifest
-        shell: bash
-        env:
-          UPDATE_BASE_URL: https://api.ikuns.top/WineRealm/file/winestock/file
-        run: |
-          set -euo pipefail
-          if [ -d android/app/build/outputs/apk/release ]; then
-            output_dir=android/app/build/outputs/apk/release
-          else
-            output_dir=android/app/build/outputs/apk/debug
-          fi
-          apk="$(find "$output_dir" -type f -name '*.apk' -print -quit)"
-          metadata="$output_dir/output-metadata.json"
-          test -n "$apk" || { echo "::error::Android APK not found"; exit 1; }
-          test -f "$metadata" || { echo "::error::Android APK metadata not found"; exit 1; }
-          filename="$(basename "$apk")"
-          version="$(jq -r '.elements[0].versionName' "$metadata")"
-          sha256="$(sha256sum "$apk" | cut -d ' ' -f 1)"
-          test -n "$version" && test "$version" != "null"
-          jq -n \
-            --arg version "$version" \
-            --arg url "$UPDATE_BASE_URL/$filename" \
-            --arg sha256 "$sha256" \
-            '{version: $version, url: $url, sha256: $sha256, notes: ""}' \
-            > android.json
-
-      - name: Upload Android update manifest
-        uses: actions/upload-artifact@v7
-        with:
-          name: winestock-android-update
-          path: android.json
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Upload signed release APK
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
@@ -259,5 +219,59 @@ jobs:
         with:
           name: winestock-android-pr-apk
           path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  release-manifest:
+    name: Generate Unified Update Manifest
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: release-artifacts
+          pattern: winestock-*
+          merge-multiple: true
+
+      - name: Generate unified update manifest
+        shell: bash
+        env:
+          UPDATE_BASE_URL: https://tapan.top/file/winestock
+        run: |
+          set -euo pipefail
+          installer="$(find release-artifacts -type f -name '*.exe' -print -quit)"
+          apk="$(find release-artifacts -type f -name '*.apk' -print -quit)"
+          server_archive="$(find release-artifacts -type f -name 'WineStock-server-*-windows-x64.zip' -print -quit)"
+          test -n "$installer" || { echo '::error::Windows installer not found'; exit 1; }
+          test -n "$apk" || { echo '::error::Android APK not found'; exit 1; }
+          test -n "$server_archive" || { echo '::error::Windows Server package not found'; exit 1; }
+
+          version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "winestock-server") | .version')"
+          test -n "$version" && test "$version" != 'null'
+          jq -n \
+            --arg version "$version" \
+            --arg base_url "$UPDATE_BASE_URL" \
+            --arg desktop_file "$(basename "$installer")" \
+            --arg desktop_sha256 "$(sha256sum "$installer" | cut -d ' ' -f 1)" \
+            --arg android_file "$(basename "$apk")" \
+            --arg android_sha256 "$(sha256sum "$apk" | cut -d ' ' -f 1)" \
+            --arg server_file "$(basename "$server_archive")" \
+            --arg server_sha256 "$(sha256sum "$server_archive" | cut -d ' ' -f 1)" \
+            '{version: $version, baseUrl: $base_url, notes: "", desktop: {file: $desktop_file, sha256: $desktop_sha256}, android: {file: $android_file, sha256: $android_sha256}, server: {file: $server_file, sha256: $server_sha256}}' \
+            > winestock.json
+
+      - name: Upload unified update manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: winestock-update-manifest
+          path: winestock.json
           if-no-files-found: error
           retention-days: 14

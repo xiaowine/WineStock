@@ -19,9 +19,8 @@ pub(crate) use common::{
     FilterFieldResponse, FilterFieldSource, FilterValueResponse, FilterValueType,
     FilterValuesResponse, OrderStatus,
 };
-// 以下纯契约类型只被 Debug OpenAPI 组件注册和 #[cfg(test)] 测试点名，Release 运行时仅由父请求结构携带；
-// 统一按 any(test, debug_assertions) 门控，保持 Release 构建零未使用导入告警。
-#[cfg(any(test, debug_assertions))]
+// 以下纯契约类型只被 Debug OpenAPI 组件注册，Release 运行时仅由父请求结构携带。
+#[cfg(debug_assertions)]
 pub(crate) use common::{FileAttributeReference, ItemAttributeValue};
 pub(crate) use dashboard::{
     dashboard_overview, dashboard_trends, DailyTrend, DashboardOverviewResponse, SlowMovingItem,

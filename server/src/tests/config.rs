@@ -58,7 +58,7 @@ fn creates_default_json_config_when_missing() {
     assert!(loaded.created_default);
     assert!(config_path.exists());
     assert_eq!(loaded.config.server.mode, RuntimeMode::ServerMode);
-    assert_eq!(loaded.config.server.bind_host, "0.0.0.0");
+    assert_eq!(loaded.config.server.bind_host, "127.0.0.1");
     assert_eq!(loaded.config.server.port, ServerConfig::default().port);
     assert!(loaded.config.server.auto_start_server);
     assert_eq!(

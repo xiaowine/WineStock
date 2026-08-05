@@ -223,7 +223,7 @@ interface ShellBridge {
 
 ### 平台更新扩展
 
-Desktop 和 Android 各自提供更新检查与安装扩展；Web 不提供该能力。更新清单请求、下载安装包、完整性校验和平台安装器均留在对应 Shell，前端不直接访问更新域名，避免 WebView 跨域和文件权限边界泄漏。
+Desktop 和 Android 各自提供更新检查与安装扩展；Web 不提供该能力。两者读取同一份发布清单，按自己的制品对象下载和校验；更新清单请求、下载安装包、完整性校验和平台安装器均留在对应 Shell，前端不直接访问更新域名，避免 WebView 跨域和文件权限边界泄漏。
 
 ```ts
 interface AppUpdateCheckResult {
@@ -238,12 +238,13 @@ interface AppUpdateShellBridgeExtension {
 }
 ```
 
-`installUpdate` 只接收前端已经展示的版本号。Shell 必须在安装前重新请求自身平台的更新清单并确认版本仍可用，不能信任前端传入的下载地址。检查失败、清单无效、下载失败、摘要校验失败和 Android 安装权限缺失都必须通过稳定错误码返回，由前端显示可恢复提示；错误不得只写入原生日志，也不得把原始网络异常、文件路径或堆栈暴露给前端。
+`installUpdate` 只接收前端已经展示的版本号。Shell 必须在安装前重新请求统一更新清单并确认版本仍可用，不能信任前端传入的下载地址。检查失败、清单无效、下载失败、摘要校验失败和 Android 安装权限缺失都必须通过稳定错误码返回，由前端显示可恢复提示；错误不得只写入原生日志，也不得把原始网络异常、文件路径或堆栈暴露给前端。
 
-当前清单地址由平台固定配置：
+当前三个 Shell 固定读取同一清单：
 
-- Android：`https://api.ikuns.top/WineRealm/file/winestock/android.json`
-- Desktop：`https://api.ikuns.top/WineRealm/file/winestock/desktop.json`
+`https://api.ikuns.top/WineRealm/file/winestock/winestock.json`
+
+清单的 `baseUrl` 是下载基础地址，`desktop`、`android` 和 `server` 分别只包含相对 `file` 与 `sha256`。各 Shell 必须拒绝绝对文件名、目录穿越、查询参数和非 HTTPS 的基础地址，再以 `baseUrl + "/" + file` 构造制品下载地址。
 
 更新比较使用语义版本。Android 更新清单不包含 `versionCode`，但 APK 内部的 Android `versionCode` 仍必须递增，且更新 APK 必须保持相同 `applicationId` 和签名证书。
 

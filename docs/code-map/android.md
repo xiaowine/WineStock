@@ -8,7 +8,7 @@
 ## 工程与构建（`android/*.gradle.kts`、`buildSrc/`）
 
 - 单 `:app` 模块工程，命名空间 `winestock.xiaowine.cc`；固定 NDK 与唯一 ABI `arm64-v8a`，交付物只支持 APK（无 AAB 校验或 bundle 挂钩）。Release 必须绑定正式签名配置，Debug 使用 AGP debug keystore。
-- Release variant 通过 AGP `VariantOutput.outputFileName` 生成 `WineStock-<versionName>-release.apk`，文件名与 `output-metadata.json` 保持一致；Debug 沿用 AGP 默认命名。
+- 根 Cargo 工作区版本是 Desktop、Android、Server 的统一发行版本；Android `versionName` 从此来源派生，三段数字版本再映射为严格递增的内部 `versionCode`。Release variant 通过 AGP `VariantOutput.outputFileName` 生成 `WineStock-<versionName>-release.apk`，文件名与 `output-metadata.json` 保持一致；Debug 沿用 AGP 默认命名。
 - `app/src/main/res` 持有从根 `brand/` 母版派生的 adaptive launcher 前景、紧凑 SplashScreen 和兼容页 VectorDrawable；launcher 背景直接引用品牌颜色，round/themed 复用主 adaptive 与前景轮廓。Android 遮罩/启动容器的视觉缩放与 day/night 着色属于平台派生，不改变母版几何。
 - 前端打包任务链：从当前 `PATH` 直接执行本机 `pnpm run build:android`（不固定或下载 Node/pnpm，不读取 `frontend/dist`），Android Vite 产物显式以 `chrome111` 为语法目标，再经目录校验、generated assets 暂存、legacy 守卫和 APK 包级验证；依赖未准备或产物缺失立即失败。
 - Rust JNI 构建任务链：`cargo-ndk --locked --offline` 按 variant 构建 ARM64 `.so`（Release 走 Cargo `--release`，core/shared 传递依赖同 profile），并校验 ELF64/AArch64、8 个具名 JNI 导出、允许的系统动态库和 APK 内唯一 `.so`。
@@ -38,7 +38,7 @@
 - 原生返回：`NativeBackNavigator.kt` 在 IME 可见时只隐藏键盘并消费，否则经 Bridge 协商，未处理时走 WebView history 或 finish；`NativeBackRequestBroker.kt` 是纯状态机（单 pending、400ms 超时、重复/迟到应答拒绝），由 JVM 单元测试覆盖竞态。
 - 运行配置：四字段 `EditableRuntimeConfig` 模型与版本化 SharedPreferences 持久化（三态读取，与前端 `web.ts` 一致，只保存运行配置不保存 token）；`RuntimeSnapshotFactory.kt` 构造 v1 快照并发布 Shell 权威 `initialized`，`serverMode` 固定 false；native 不可用时仅校验远端地址降级路径。
 - `AppConfig.kt`：受信任 host `winestock.internal`（ICANN 保留、永不进入公网 DNS）、允许 origin、Splash 超时和原生返回应答超时等 shell 常量。
-- `AppUpdateManager.kt` / `AppUpdateVersion.kt`：固定 Android 清单的版本比较、APK 下载与 SHA-256 校验；检查未知来源安装授权，
+- `AppUpdateManager.kt` / `AppUpdateVersion.kt`：读取与 Desktop、Server 共用清单中的 Android 制品，完成版本比较、APK 下载与 SHA-256 校验；检查未知来源安装授权，
   通过 `FileProvider` 生成受控 `content://` URI；不要求更新清单携带 `versionCode`。
 
 ## 资源与配置

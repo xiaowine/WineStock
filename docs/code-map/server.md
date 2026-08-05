@@ -5,12 +5,12 @@
 ## 源码
 
 - `server/src/main.rs`
-  - 二进制入口，调用 `winestock_server::run()`。
+  - 二进制入口；`--check-update` 检查统一发布清单，其它调用进入 `winestock_server::run()`。
   - 打印启动错误及其 source 链。
 
 - `server/src/lib.rs`
   - 编排服务端生命周期。
-  - 加载固定配置、校验运行模式、准备存储目录，通过 core 统一运行句柄启动服务并等待 Ctrl+C。
+  - 加载配置、校验运行模式、准备存储目录，通过 core 统一运行句柄启动服务；同时等待 Ctrl+C、退出信号错误和服务 task 异常结束。
   - Debug 构建打印 OpenAPI 地址；启用 `swagger-ui` feature 时打印 Swagger UI 地址，否则打印启用提示。
   - 绑定所有接口时只展示 loopback URL，不把 `0.0.0.0` 作为可打开地址。
 
@@ -22,6 +22,10 @@
 
 - `server/src/error.rs`
   - 定义 `ServerShellError`，集中配置、存储准备和统一 local-service 运行错误。
+
+- `server/src/update.rs`
+  - 通过 `--check-update` 显式检查与 Desktop、Android 共用的发布清单，校验 Server ZIP 制品并输出下载地址。
+  - 不在常规服务启动时联网，也不在进程内执行自更新。
 
 - `server/src/tests/`
   - `lib.rs` 覆盖 shell 生命周期相关行为。
@@ -40,7 +44,8 @@ server/src/main.rs
      -> bind_server（先占用端口）
      -> bootstrap_from_config
      -> serve_local_with_shutdown
-  -> RunningLocalService::shutdown()（Ctrl+C）
+  -> Ctrl+C：RunningLocalService::shutdown()
+  -> 服务 task 异常结束：RunningLocalService::wait() -> 非零错误
 ```
 
 固定配置位置是运行时可执行文件同目录下的 `data/config.json`。

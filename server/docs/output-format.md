@@ -86,6 +86,17 @@ WineStock Server 已停止。
 
 如果服务任务在未收到 Ctrl+C 时意外结束，应优先输出错误并以非零状态退出，不伪装成正常停止。
 
+## 更新检查输出
+
+`winestock-server --check-update` 不启动 Axum，只请求与 Desktop、Android 共用的发布清单：
+
+```text
+WineStock Server 有可用更新: 0.1.0 -> 0.1.1
+下载文件: https://tapan.top/file/winestock/WineStock-server-0.1.1-windows-x64.zip
+```
+
+没有更新时只输出当前版本。检查失败使用非零状态退出，不启动服务，也不在当前进程内安装更新。
+
 ## 错误输出
 
 错误输出使用中文，并保留底层错误链：

@@ -14,7 +14,7 @@
   Windows 使用高层 `windows` crate 的 Firewall COM 和受限 UAC helper 管理自有规则；
   `webview_compatibility.rs` 在主窗口显示前通过 WebView2 官方 Loader binding 执行 M111
   启动门禁并为原生阻断提示提供受控诊断码，`webview_privacy.rs` 通过 Tauri 高层配置和 Windows WebView2 Settings 关闭普通表单自动填充与密码自动保存；
-  `device_metadata.rs` 负责读取 Desktop 客户端元数据并生成 document-start 前端注入脚本；`update.rs` 负责固定更新清单的
+  `device_metadata.rs` 负责读取 Desktop 客户端元数据并生成 document-start 前端注入脚本；`update.rs` 负责与 Android、Server 共用发布清单的
   检查、版本比较、Windows 安装器下载、SHA-256 校验和安装器启动；
   不拥有业务路由、数据库 schema 或前端设置界面。
 - `desktop/capabilities/` 与 `permissions/`：只把主窗口绑定到具名 Shell Bridge command 和事件监听，

@@ -29,6 +29,12 @@ pub enum ServerShellError {
     /// 配置关闭了自动启动，本服务端 shell 不继续启动。
     AutoStartDisabled,
 
+    /// 注册进程退出信号监听失败。
+    ShutdownSignal {
+        /// 底层信号监听错误。
+        source: io::Error,
+    },
+
     /// 服务端 shell 不支持远端-only 运行模式。
     UnsupportedRuntimeMode(RuntimeMode),
 
@@ -57,6 +63,7 @@ impl fmt::Display for ServerShellError {
                 f,
                 "server.auto_start_server 为 false，服务端 shell 不会自动启动服务"
             ),
+            Self::ShutdownSignal { .. } => write!(f, "监听服务退出信号失败"),
             Self::UnsupportedRuntimeMode(mode) => {
                 write!(f, "服务端 shell 不支持远端客户端模式: {mode:?}")
             }
@@ -74,6 +81,7 @@ impl Error for ServerShellError {
             Self::ResolveExecutablePath { source } => Some(source),
             Self::LoadConfigFile(source) => Some(source),
             Self::PrepareStorage { source, .. } => Some(source),
+            Self::ShutdownSignal { source } => Some(source),
             Self::LocalService(source) => Some(source),
             Self::MissingExecutableDirectory { .. }
             | Self::AutoStartDisabled

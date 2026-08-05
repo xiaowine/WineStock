@@ -162,8 +162,7 @@ Current `core` API surface:
 - `build_router_with_local_service()`
 - `bootstrap_from_config()`
 - `bind_server()`
-- `OPENAPI_JSON_PATH`（仅 Debug 构建导出）
-- `SWAGGER_UI_PATH`（仅 Debug 构建且启用 Swagger UI feature 时导出）
+- `OPENAPI_JSON_PATH`、`SWAGGER_UI_PATH`（路径常量在所有构建导出；对应文档路由仅 Debug 构建注册）
 
 Current `core` HTTP surface:
 

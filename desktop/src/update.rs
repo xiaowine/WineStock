@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
 use url::Url;
 
-const UPDATE_MANIFEST_URL: &str = "https://api.ikuns.top/WineRealm/file/winestock/desktop.json";
+const UPDATE_MANIFEST_URL: &str = "https://api.ikuns.top/WineRealm/file/winestock/winestock.json";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
 
@@ -18,10 +18,20 @@ const MAX_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
 #[serde(deny_unknown_fields)]
 struct UpdateManifest {
     version: String,
-    url: String,
-    sha256: String,
+    #[serde(rename = "baseUrl")]
+    base_url: String,
+    desktop: UpdateAsset,
+    android: UpdateAsset,
+    server: UpdateAsset,
     #[serde(default)]
     notes: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UpdateAsset {
+    file: String,
+    sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -150,7 +160,7 @@ async fn download_update(
         .build()
         .map_err(|_| UpdateError::new("update_download_failed", "更新安装器下载失败"))?;
     let response = client
-        .get(&manifest.url)
+        .get(release_asset_url(manifest, &manifest.desktop)?.as_str())
         .send()
         .await
         .map_err(|_| UpdateError::new("update_download_failed", "更新安装器下载失败"))?;
@@ -180,7 +190,7 @@ async fn download_update(
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
-    if actual != manifest.sha256 {
+    if actual != manifest.desktop.sha256 {
         return Err(UpdateError::new(
             "update_integrity_failed",
             "更新安装器校验失败",
@@ -196,28 +206,62 @@ fn validate_manifest(manifest: &UpdateManifest) -> Result<(), UpdateError> {
             "更新版本格式无效",
         ));
     }
-    let url = Url::parse(&manifest.url)
-        .map_err(|_| UpdateError::new("update_manifest_invalid", "更新安装器地址无效"))?;
-    if url.scheme() != "https" || url.username() != "" || url.password().is_some() {
+    validate_asset(manifest, &manifest.desktop, "Desktop", ".exe")?;
+    validate_asset(manifest, &manifest.android, "Android", ".apk")?;
+    validate_asset(manifest, &manifest.server, "Server", ".zip")?;
+    Ok(())
+}
+
+fn validate_asset(
+    manifest: &UpdateManifest,
+    asset: &UpdateAsset,
+    shell: &str,
+    extension: &str,
+) -> Result<(), UpdateError> {
+    let url = release_asset_url(manifest, asset)?;
+    if !url.path().to_ascii_lowercase().ends_with(extension) {
         return Err(UpdateError::new(
             "update_manifest_invalid",
-            "更新安装器地址必须使用不含凭据的 HTTPS",
+            format!("{shell} 更新地址不是对应安装包"),
         ));
     }
-    if !url.path().to_ascii_lowercase().ends_with(".exe") {
-        return Err(UpdateError::new(
-            "update_manifest_invalid",
-            "Desktop 更新地址不是 Windows 安装器",
-        ));
+    if asset.sha256.len() != 64 || !asset.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(UpdateError::new("update_manifest_invalid", "更新摘要格式无效"));
     }
-    if manifest.sha256.len() != 64 || !manifest.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+    Ok(())
+}
+
+/// 由受控 baseUrl 与相对文件名拼接下载地址，拒绝绝对路径、查询参数和目录穿越。
+fn release_asset_url(manifest: &UpdateManifest, asset: &UpdateAsset) -> Result<Url, UpdateError> {
+    let base_url = Url::parse(&manifest.base_url)
+        .map_err(|_| UpdateError::new("update_manifest_invalid", "更新基础地址无效"))?;
+    if base_url.scheme() != "https"
+        || base_url.username() != ""
+        || base_url.password().is_some()
+        || base_url.query().is_some()
+        || base_url.fragment().is_some()
     {
         return Err(UpdateError::new(
             "update_manifest_invalid",
-            "更新摘要格式无效",
+            "更新基础地址必须使用不含凭据的 HTTPS",
         ));
     }
-    Ok(())
+    let file = asset.file.trim();
+    if file.is_empty()
+        || file.starts_with('/')
+        || file.contains('?')
+        || file.contains('#')
+        || file.split('/').any(|segment| matches!(segment, "." | ".."))
+    {
+        return Err(UpdateError::new(
+            "update_manifest_invalid",
+            "更新文件名无效",
+        ));
+    }
+    let base = format!("{}/", manifest.base_url.trim_end_matches('/'));
+    Url::parse(&base)
+        .and_then(|base| base.join(file))
+        .map_err(|_| UpdateError::new("update_manifest_invalid", "更新文件地址无效"))
 }
 
 fn result_from_manifest(
@@ -273,8 +317,16 @@ fn parse_version(value: &str) -> Option<[u64; 3]> {
 #[cfg(test)]
 mod tests {
     use super::{
-        compare_versions, parse_version, result_from_manifest, validate_manifest, UpdateManifest,
+        compare_versions, parse_version, result_from_manifest, validate_manifest, UpdateAsset,
+        UpdateManifest,
     };
+
+    fn asset(file: &str) -> UpdateAsset {
+        UpdateAsset {
+            file: file.to_owned(),
+            sha256: "a".repeat(64),
+        }
+    }
 
     #[test]
     fn compares_semantic_versions_numerically() {
@@ -293,8 +345,10 @@ mod tests {
     fn rejects_non_windows_update_assets() {
         let manifest = UpdateManifest {
             version: "0.1.1".to_owned(),
-            url: "https://download.example.com/WineStock-0.1.1.apk".to_owned(),
-            sha256: "a".repeat(64),
+            base_url: "https://download.example.com/winestock".to_owned(),
+            desktop: asset("WineStock-0.1.1.apk"),
+            android: asset("WineStock-0.1.1.apk"),
+            server: asset("WineStock-server-0.1.1.zip"),
             notes: String::new(),
         };
         let error = validate_manifest(&manifest).unwrap_err();
@@ -305,8 +359,10 @@ mod tests {
     fn accepts_valid_windows_update_manifest() {
         let manifest = UpdateManifest {
             version: "0.1.1".to_owned(),
-            url: "https://download.example.com/WineStock-0.1.1-setup.exe".to_owned(),
-            sha256: "a".repeat(64),
+            base_url: "https://download.example.com/winestock".to_owned(),
+            desktop: asset("WineStock-0.1.1-setup.exe"),
+            android: asset("WineStock-0.1.1.apk"),
+            server: asset("WineStock-server-0.1.1.zip"),
             notes: String::new(),
         };
         assert!(validate_manifest(&manifest).is_ok());
@@ -316,8 +372,10 @@ mod tests {
     fn keeps_runtime_current_version_separate_from_manifest_version() {
         let manifest = UpdateManifest {
             version: "0.1.0".to_owned(),
-            url: "https://download.example.com/WineStock-0.1.0-setup.exe".to_owned(),
-            sha256: "a".repeat(64),
+            base_url: "https://download.example.com/winestock".to_owned(),
+            desktop: asset("WineStock-0.1.0-setup.exe"),
+            android: asset("WineStock-0.1.0.apk"),
+            server: asset("WineStock-server-0.1.0.zip"),
             notes: String::new(),
         };
         let result = result_from_manifest(manifest, true, "0.0.1");

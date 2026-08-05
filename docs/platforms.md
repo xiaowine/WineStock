@@ -39,7 +39,7 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
 - 必要的防火墙或系统权限指引；
 - 版本化 Shell Bridge 命令、事件和 Tauri capabilities。
 
-Desktop Shell 还直接请求固定的 Desktop 更新清单，负责语义版本比较、安装器下载、SHA-256 校验和 Windows 安装器启动；
+Desktop Shell 还直接请求与 Android、Server 共用的固定发布清单，负责语义版本比较、选择 Desktop 制品、安装器下载、SHA-256 校验和 Windows 安装器启动；
 前端只通过 Shell Bridge 获取结果和启动安装，不直接访问更新域名。安装器启动后 Desktop 退出并释放本地 core。
 
 桌面 Shell 不得实现原生设置窗口，也不得代理业务 HTTP API。
@@ -106,7 +106,7 @@ Android Shell 必须处理：
 - 端口冲突提示；
 - 需要长期后台运行时的 Foreground Service 要求；
 - 限定 origin 的 Shell Bridge 消息与外部导航；
-- 固定 Android 更新清单的检查、APK 下载、SHA-256 校验和系统安装器交接；
+- 统一发布清单中的 Android 制品检查、APK 下载、SHA-256 校验和系统安装器交接；
 - `REQUEST_INSTALL_PACKAGES` 对应的未知来源安装授权、`FileProvider` 的受控 `content://` URI 和安装失败提示；
 - capability 控制的原生返回请求：同时只有一个 pending、400 ms 超时、页面 generation 失效，以及安全的 WebView/Activity fallback；
 - edge-to-edge Window 配置，并把 `systemBars | displayCutout` 发布为 CSS 安全区变量；WebView 铺满 Activity Window，前端按内容语义消费 inset。
@@ -123,7 +123,7 @@ Android 前端资源由 Android 打包，不由 Axum crate 提供。
 - `android/native` 是唯一 JNI 适配层，复用 `core -> shared`，业务调用仍为 WebView -> HTTP；
 - Android `self-hosted` 仅允许 `127.0.0.1`；Foreground Service 与通知策略完成前继续禁用 `server-mode`；
 - 当前构建和交付只支持 APK 与 `arm64-v8a`，AAB、32 位 ARM 和 x86 ABI 不属于当前阶段；
-- Android Shell 使用 `versionName` 与清单 `version` 比较，不要求清单提供 `versionCode`；正式 APK 仍必须递增内部
+- Android Shell 从根 Cargo 工作区版本派生 `versionName`，与 Desktop、Server 共享清单 `version` 比较；正式 APK 仍必须由该版本映射递增内部
   `versionCode`、保持相同签名并通过系统 Package Installer 覆盖安装；
 - Android 更新检查失败、清单无效、下载/摘要校验失败或未知来源权限缺失均通过 Shell Bridge 返回稳定错误码，前端显示可恢复提示；
 - 主机测试、ARM64 交叉构建、Debug/Release APK 构建和包级检查已完成；API 33 ARM64 真机已验证
@@ -153,6 +153,7 @@ Server Shell 不使用 WebView，也不打包前端资源。
 - 固定读取或创建可执行文件旁的 `data/config.json`；
 - 不接受配置路径参数；
 - 使用 JSON 配置启动共享服务、输出访问地址并处理 Ctrl+C 优雅关闭。
+- 通过 `winestock-server --check-update` 检查与 Desktop、Android 相同的发布清单，输出 Server 制品的下载地址；常规服务启动不联网检查，也不在进程内自更新。
 
 ## 共享 Axum 服务
 

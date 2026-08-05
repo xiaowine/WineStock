@@ -62,7 +62,7 @@ pub(crate) fn load_config(config_path: &Path) -> Result<LoadedConfig, ServerShel
 fn server_default_config() -> AppConfig {
     let mut config = AppConfig::default();
     config.server.mode = winestock_shared::RuntimeMode::ServerMode;
-    config.server.bind_host = "0.0.0.0".to_owned();
+    config.server.bind_host = "127.0.0.1".to_owned();
     // 配置文件已经位于 data/ 目录内，写入文件的默认存储路径要相对这个目录。
     config.storage.database_path = "winestock.sqlite".to_owned();
     config.storage.files_dir = "files".to_owned();

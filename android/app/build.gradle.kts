@@ -60,6 +60,44 @@ if (releaseSigningConfigured && releaseKeystore?.isFile != true) {
     throw GradleException("Android Release keystore 不存在：${releaseKeystore?.absolutePath}")
 }
 
+/**
+ * 读取 Cargo 工作区的发布版本。
+ *
+ * 根 Cargo.toml 是 Desktop、Server 与 Android 的唯一发布版本来源；这里仅识别
+ * [workspace.package] 的稳定三段数字版本，格式变更时应显式更新此受限读取器。
+ */
+fun readWorkspaceReleaseVersion(cargoManifest: File): String {
+    var inWorkspacePackage = false
+    cargoManifest.forEachLine { sourceLine ->
+        val line = sourceLine.trim()
+        if (line == "[workspace.package]") {
+            inWorkspacePackage = true
+            return@forEachLine
+        }
+        if (inWorkspacePackage && line.startsWith("[")) {
+            inWorkspacePackage = false
+        }
+        if (inWorkspacePackage) {
+            Regex("""^version\\s*=\\s*\"([0-9]+\\.[0-9]+\\.[0-9]+)\"(?:\\s*#.*)?$""")
+                .matchEntire(line)
+                ?.groupValues
+                ?.get(1)
+                ?.let { return it }
+        }
+    }
+    throw GradleException("根 Cargo.toml 的 [workspace.package] 必须声明三段数字 version")
+}
+
+/** 将共享语义版本映射为 Android Package Manager 要求的严格递增内部版本号。 */
+fun androidVersionCode(releaseVersion: String): Int {
+    val parts = releaseVersion.split('.').map(String::toInt)
+    require(parts.all { it in 0..999 }) { "发布版本每一段必须介于 0 和 999：$releaseVersion" }
+    return parts[0] * 1_000_000 + parts[1] * 1_000 + parts[2]
+}
+
+val workspaceReleaseVersion = readWorkspaceReleaseVersion(rootProject.file("../Cargo.toml"))
+val workspaceAndroidVersionCode = androidVersionCode(workspaceReleaseVersion)
+
 android {
     namespace = "winestock.xiaowine.cc"
     ndkVersion = "30.0.14904198"
@@ -71,8 +109,9 @@ android {
         applicationId = "winestock.xiaowine.cc"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // Android 只从根 Cargo 工作区派生版本，避免与 Desktop/Server 发行版本漂移。
+        versionCode = workspaceAndroidVersionCode
+        versionName = workspaceReleaseVersion
 
         ndk {
             // 当前发布面只支持真实 ARM64 设备；不生成 32 位或模拟器 ABI。

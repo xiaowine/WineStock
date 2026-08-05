@@ -105,10 +105,12 @@ class AppUpdateManager(
                 throw UpdateException("update_manifest_invalid", "更新清单格式无效")
             }
             val manifest = try {
+                val android = json.getJSONObject("android")
                 UpdateManifest(
                     version = json.getString("version").trim(),
-                    url = json.getString("url").trim(),
-                    sha256 = json.getString("sha256").trim().lowercase(),
+                    baseUrl = json.getString("baseUrl").trim(),
+                    file = android.getString("file").trim(),
+                    sha256 = android.getString("sha256").trim().lowercase(),
                     notes = json.optString("notes", ""),
                 )
             } catch (_: Exception) {
@@ -126,7 +128,7 @@ class AppUpdateManager(
     }
 
     private fun downloadApk(manifest: UpdateManifest): File {
-        val connection = openConnection(manifest.url, DOWNLOAD_TIMEOUT_MS)
+        val connection = openConnection(releaseAssetUrl(manifest), DOWNLOAD_TIMEOUT_MS)
         val directory = File(appContext.cacheDir, UPDATE_CACHE_DIRECTORY)
         val destination = File(directory, "winestock-update-${manifest.version}.apk")
         val temporary = File(directory, "${destination.name}.part")
@@ -179,13 +181,9 @@ class AppUpdateManager(
         if (!AppUpdateVersion.isValid(manifest.version)) {
             throw UpdateException("update_manifest_invalid", "更新版本格式无效")
         }
-        val uri = try {
-            URI(manifest.url)
-        } catch (_: Exception) {
+        val assetUrl = releaseAssetUrl(manifest)
+        if (!assetUrl.endsWith(".apk", ignoreCase = true)) {
             throw UpdateException("update_manifest_invalid", "更新 APK 地址无效")
-        }
-        if (uri.scheme != "https" || uri.host.isNullOrBlank() || uri.userInfo != null || !uri.path.endsWith(".apk", ignoreCase = true)) {
-            throw UpdateException("update_manifest_invalid", "更新 APK 地址必须使用不含凭据的 HTTPS")
         }
         if (manifest.sha256.length != SHA256_HEX_LENGTH || manifest.sha256.any { !it.isDigit() && it !in 'a'..'f' }) {
             throw UpdateException("update_manifest_invalid", "更新摘要格式无效")
@@ -207,6 +205,27 @@ class AppUpdateManager(
         return connection
     }
 
+    /** 由受控基础地址和相对文件名生成 APK 下载地址，禁止清单改变主机或逃逸目录。 */
+    private fun releaseAssetUrl(manifest: UpdateManifest): String {
+        val base = try {
+            URI(manifest.baseUrl)
+        } catch (_: Exception) {
+            throw UpdateException("update_manifest_invalid", "更新基础地址无效")
+        }
+        if (base.scheme != "https" || base.host.isNullOrBlank() || base.userInfo != null || base.query != null || base.fragment != null) {
+            throw UpdateException("update_manifest_invalid", "更新基础地址必须使用不含凭据的 HTTPS")
+        }
+        val file = manifest.file
+        if (file.isBlank() || file.startsWith('/') || file.contains('?') || file.contains('#') || file.split('/').any { it == "." || it == ".." }) {
+            throw UpdateException("update_manifest_invalid", "更新文件名无效")
+        }
+        return try {
+            URI("${manifest.baseUrl.trimEnd('/')}/").resolve(file).toString()
+        } catch (_: Exception) {
+            throw UpdateException("update_manifest_invalid", "更新文件地址无效")
+        }
+    }
+
     private fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
         FileInputStream(file).use { input ->
@@ -222,13 +241,14 @@ class AppUpdateManager(
 
     private data class UpdateManifest(
         val version: String,
-        val url: String,
+        val baseUrl: String,
+        val file: String,
         val sha256: String,
         val notes: String,
     )
 
     companion object {
-        const val MANIFEST_URL = "https://api.ikuns.top/WineRealm/file/winestock/android.json"
+        const val MANIFEST_URL = "https://api.ikuns.top/WineRealm/file/winestock/winestock.json"
         private const val MANIFEST_TIMEOUT_MS = 10_000
         private const val DOWNLOAD_TIMEOUT_MS = 120_000
         private const val MAX_MANIFEST_BYTES = 256 * 1024L

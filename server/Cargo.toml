@@ -11,8 +11,11 @@ swagger-ui = ["winestock-core/swagger-ui"]
 
 [dependencies]
 # server 是无前端的正式服务端平台壳，只负责进程生命周期、配置读取和状态输出。
+reqwest = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["signal"] }
+url = { workspace = true }
 winestock-core = { workspace = true }
 winestock-shared = { workspace = true }
 

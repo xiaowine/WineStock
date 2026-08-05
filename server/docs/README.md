@@ -18,4 +18,12 @@ cargo +stable run -p winestock-server --features swagger-ui
 
 正式构建不传 `swagger-ui` feature，不包含 Swagger UI。
 
+检查与 Desktop、Android 共用的发布清单时，运行：
+
+```text
+winestock-server --check-update
+```
+
+该命令只输出当前版本、可用更新和 Server ZIP 下载地址；常规服务启动不会联网检查或在进程内安装更新。
+
 后续新增仅属于 server shell 的部署、配置或运维说明时，应放在本目录，而不是堆入根 `docs/`。

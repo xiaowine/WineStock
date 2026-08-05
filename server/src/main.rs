@@ -9,6 +9,21 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() {
+    if std::env::args().skip(1).any(|argument| argument == "--check-update") {
+        match winestock_server::check_for_update().await {
+            Ok(result) if result.update_available => {
+                println!("WineStock Server 有可用更新: {} -> {}", result.current_version, result.latest_version);
+                println!("下载文件: {}", result.download_url);
+            }
+            Ok(result) => println!("WineStock Server 已是最新版本: {}", result.current_version),
+            Err(error) => {
+                eprintln!("WineStock Server 更新检查失败: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     if let Err(error) = winestock_server::run().await {
         eprintln!("WineStock server 启动失败: {error}");
         let mut source = error.source();

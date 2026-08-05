@@ -33,11 +33,9 @@ use utoipa::{
 use utoipa_swagger_ui::SwaggerUi;
 
 /// OpenAPI JSON 文档的服务路径。
-#[cfg(debug_assertions)]
 pub const OPENAPI_JSON_PATH: &str = "/api-docs/openapi.json";
 
-/// Debug 构建中 Swagger UI 的服务路径。
-#[cfg(all(debug_assertions, feature = "swagger-ui"))]
+/// Swagger UI 的服务路径；Release 构建不会注册该路径。
 pub const SWAGGER_UI_PATH: &str = "/swagger-ui";
 
 // 这里集中声明接口文档元信息，具体路径由带 #[utoipa::path] 的处理函数收集。

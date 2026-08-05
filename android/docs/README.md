@@ -49,8 +49,8 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
   loopback `/api/health`、离线冷启动、远端/本机切换、原有旋转、后台恢复、force-stop 恢复和原生返回
   浮层/路由 smoke；未发现 404、Uncaught 或 FATAL，连接明文 HTTP 远端时出现的 WebView
   mixed-content warning 属于当前安全策略下的预期提示。
-- Android Shell 直接请求固定清单地址 `https://api.ikuns.top/WineRealm/file/winestock/android.json`，使用
-  `versionName` 与清单 `version` 比较，不要求清单提供 `versionCode`；正式 APK 自身仍必须递增 `versionCode`，并保持相同
+- Android Shell 直接请求与 Desktop、Server 共用的固定清单地址 `https://api.ikuns.top/WineRealm/file/winestock/winestock.json`，选择其中的 `android` 制品，并使用从根 Cargo 工作区派生的
+  `versionName` 与清单 `version` 比较；三段语义版本会映射为递增的内部 `versionCode`，APK 仍必须保持相同
   `applicationId` 和签名证书。APK 下载到 `cacheDir/winestock-updates`，经 SHA-256 校验后通过受控 `content://` URI 启动系统安装器。
 - 安装前如果 `canRequestPackageInstalls()` 未通过，Shell 会打开当前应用的未知来源安装设置页并返回稳定的
   `update_install_permission_required`；用户授权后可从前端重试。检查、下载、校验和安装失败均通过 Shell Bridge
@@ -81,7 +81,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - Release APK 不允许无签名构建。复制 `keystore.properties.example` 为 `keystore.properties`，填入正式 keystore 路径、密码、alias 和 key 密码，或提供对应的 `WINSTOCK_ANDROID_*` 环境变量。
 - `keystore.properties`、`android/.secrets/` 和 `app/signing/` 已加入忽略规则；keystore 和密码不得提交到 Git。正式发布必须保持相同签名证书并递增 `versionCode`。
 - GitHub Actions 的 push/manual 构建读取 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS` 和 `ANDROID_KEY_PASSWORD` Secrets，关闭 Configuration Cache，并使用 `apksigner verify --verbose` 验证 Release APK。Pull Request 不读取签名 Secrets，改构建自动签名的 Debug APK。
-- 每次工作流都会根据实际 APK 生成 `android.json`，填入版本号、拼接后的制品 URL、SHA-256 和空 `notes`，并作为独立 artifact 上传；PR 生成的 Debug 清单不会影响正式发布。
+- 每次工作流都会汇总实际 NSIS、APK 和 Server ZIP，生成唯一的 `winestock.json`，其中 `baseUrl` 与三个 Shell 对应的 `file`、`sha256` 一并作为 artifact 上传；PR 生成的 Debug APK 清单不会影响正式发布。
 
 ## Rust/ARM64 APK 打包
 

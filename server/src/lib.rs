@@ -8,16 +8,21 @@
 
 mod config;
 mod error;
+mod update;
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    time::Duration,
+};
 
 #[cfg(debug_assertions)]
 use winestock_core::OPENAPI_JSON_PATH;
 #[cfg(all(debug_assertions, feature = "swagger-ui"))]
 use winestock_core::SWAGGER_UI_PATH;
-use winestock_core::{start_local_service, LocalServiceInfo};
+use winestock_core::{start_local_service, LocalServiceInfo, RunningLocalService};
 
 pub use error::ServerShellError;
+pub use update::{check_for_update, ServerUpdateCheckResult, ServerUpdateError};
 
 /// 启动无头服务端 shell。
 ///
@@ -36,21 +41,62 @@ pub async fn run() -> Result<(), ServerShellError> {
     let info = running.info();
 
     print_startup_summary(&config_path, loaded_config.created_default, info);
-    shutdown_signal().await;
-    running
-        .shutdown()
-        .await
-        .map_err(ServerShellError::LocalService)?;
-    println!();
-    println!("WineStock Server 已停止。");
+    wait_for_shutdown_or_failure(running).await?;
 
     Ok(())
 }
 
-async fn shutdown_signal() {
-    match tokio::signal::ctrl_c().await {
-        Ok(()) => println!("收到退出信号，正在关闭服务..."),
-        Err(error) => eprintln!("无法监听退出信号: {error}"),
+async fn wait_for_shutdown_or_failure(
+    running: RunningLocalService,
+) -> Result<(), ServerShellError> {
+    let mut running = Some(running);
+    let shutdown_signal = tokio::signal::ctrl_c();
+    tokio::pin!(shutdown_signal);
+
+    loop {
+        tokio::select! {
+            signal_result = &mut shutdown_signal => {
+                let running = running
+                    .take()
+                    .expect("running service should exist before shutdown");
+                match signal_result {
+                    Ok(()) => {
+                        println!("收到退出信号，正在关闭服务...");
+                        running
+                            .shutdown()
+                            .await
+                            .map_err(ServerShellError::LocalService)?;
+                        println!();
+                        println!("WineStock Server 已停止。");
+                        return Ok(());
+                    }
+                    Err(source) => {
+                        let shutdown_result = running
+                            .shutdown()
+                            .await
+                            .map_err(ServerShellError::LocalService);
+                        if let Err(error) = shutdown_result {
+                            return Err(error);
+                        }
+                        return Err(ServerShellError::ShutdownSignal { source });
+                    }
+                }
+            }
+            _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                if running
+                    .as_ref()
+                    .is_some_and(winestock_core::RunningLocalService::is_finished)
+                {
+                    let running = running
+                        .take()
+                        .expect("finished service should exist before waiting");
+                    return running
+                        .wait()
+                        .await
+                        .map_err(ServerShellError::LocalService);
+                }
+            }
+        }
     }
 }
 
