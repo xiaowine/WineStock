@@ -118,6 +118,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: 'ndk;30.0.14904198'
 
       - name: Set up Rust for Android
         uses: dtolnay/rust-toolchain@stable
