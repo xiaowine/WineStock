@@ -1,6 +1,18 @@
 <p align="center">
   <img src="brand/winestock-icon.svg" alt="WineStock" width="108">
 </p>
+<div align="center">
+
+![Release Download](https://img.shields.io/github/downloads/xiaowine/WineStock/total?style=flat-square)
+[![Release Version](https://img.shields.io/github/v/release/xiaowine/WineStock?style=flat-square)](https://github.com/xiaowine/WineStock/releases/latest)  
+[![GitHub Star](https://img.shields.io/github/stars/xiaowine/WineStock?style=flat-square)](https://github.com/xiaowine/WineStock/stargazers)
+[![GitHub Fork](https://img.shields.io/github/forks/xiaowine/WineStock?style=flat-square)](https://github.com/xiaowine/WineStock/network/members)
+![GitHub Repo size](https://img.shields.io/github/repo-size/xiaowine/WineStock?style=flat-square&color=3cb371)
+[![GitHub license](https://img.shields.io/github/license/xiaowine/WineStock?style=flat-square)](LICENSE)
+[![GitHub Repo Languages](https://img.shields.io/github/languages/top/xiaowine/WineStock?style=flat-square)](https://github.com/xiaowine/WineStock/search?l=java)  
+[![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2F577fkj%2FStatusBarLyric%2Fbadge%3Fref%3Dmain&style=flat)](https://actions-badge.atrox.dev/xiaowine/WineStock/goto?ref=main)
+
+</div>
 
 # WineStock
 
@@ -72,3 +84,7 @@ WineStock 共享同一套界面和业务流程，让不同设备之间的切换�
 - [项目文档入口](docs/README.md)
 - [运行与网络配置](docs/runtime-networking.md)
 - [平台职责](docs/platforms.md)
+
+## 项目统计
+
+[![Star History Chart](https://api.star-history.com/svg?repos=xiaowine/WineStock&type=Timeline)](https://star-history.com/#xiaowine/WineStock&Timeline)
