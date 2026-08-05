@@ -77,6 +77,11 @@ Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询�
 不会经 Shell Bridge 返回前端。首次不存在配置时，不写入配置且不启动 core；成功应用本地模式后才持久化实际
 端口并由 `DesktopRuntimeManager` 持有 `RunningLocalService` 至停止、替换或退出。
 
+Desktop 更新由 Shell 直接请求固定清单地址：
+`https://api.ikuns.top/WineRealm/file/winestock/desktop.json`。Shell 校验语义版本、HTTPS 安装器地址、
+`.exe` 类型、文件大小和 SHA-256，然后把安装器写入应用缓存、启动安装器并退出当前进程；前端只通过 Shell Bridge
+展示结果和错误，不直接请求更新地址。当前远端清单仍需替换为真实 Windows `.exe` 制品后才能执行安装 smoke。
+
 ## 实现文档
 
 - [`implementation-notes/desktop-server-mode.md`](implementation-notes/desktop-server-mode.md)：Desktop `server-mode`
@@ -93,6 +98,8 @@ Windows 应用启动时由 Rust Shell 调用 WebView2 官方 Loader API 查询�
   托盘隐藏后的 WebView 空闲回收、偏好设置、窗口重建和 Axum 持续运行方案。
 - [`implementation-notes/desktop-startup-gates-warning-remediation.md`](implementation-notes/desktop-startup-gates-warning-remediation.md)：Desktop
   WebView2 版本门卫、Shell Bridge 加载/握手门卫的故障分类、提示文案和验收方案。
+- [`../../docs/implementation-notes/shell-update-check-and-install.md`](../../docs/implementation-notes/shell-update-check-and-install.md)：Desktop 与 Android
+  更新清单、Shell Bridge、安装权限、校验和验收矩阵。
 
 ## 验证入口
 

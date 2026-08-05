@@ -8,7 +8,9 @@ publish = false
 tauri-build = { workspace = true }
 
 [dependencies]
+reqwest = { workspace = true }
 serde = { workspace = true }
+sha2 = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tauri = { workspace = true }

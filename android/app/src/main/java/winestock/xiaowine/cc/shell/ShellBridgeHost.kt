@@ -13,6 +13,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
+import java.util.concurrent.Executors
 import winestock.xiaowine.cc.core.ApplyRuntimeConfigResult
 import winestock.xiaowine.cc.core.LocalCoreRuntimeManager
 import androidx.core.net.toUri
@@ -49,6 +50,11 @@ class ShellBridgeHost(
 ) {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val updateManager = AppUpdateManager(appContext, appVersion)
+    private val updateExecutor =
+        Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "winestock-update").apply { isDaemon = true }
+        }
     private val asyncReplyGate = AsyncBridgeReplyGate()
     private val nativeBackBroker =
         NativeBackRequestBroker(
@@ -174,6 +180,7 @@ class ShellBridgeHost(
         runtimeSubscription = null
         asyncReplyGate.destroy()
         nativeBackBroker.destroy()
+        updateExecutor.shutdownNow()
     }
 
     /**
@@ -288,6 +295,7 @@ class ShellBridgeHost(
                     null -> replySuccess(proxy, id, value)
                     is BridgeException ->
                         replyError(proxy, id, error.code, error.message ?: "Shell Bridge 调用失败")
+                    is UpdateException -> replyError(proxy, id, error.code, error.message)
                     else ->
                         replyError(
                             proxy,
@@ -319,6 +327,21 @@ class ShellBridgeHost(
                 runtimeManager.stopLocalService().thenApply { snapshot -> snapshotJson(snapshot) }
             "restartLocalService" ->
                 runtimeManager.restartLocalService().thenApply { snapshot -> snapshotJson(snapshot) }
+            "checkForUpdate" ->
+                CompletableFuture.supplyAsync(
+                    { updateManager.checkForUpdate().toJson() as Any? },
+                    updateExecutor,
+                )
+            "installUpdate" -> {
+                val version = requireString(params, "version")
+                CompletableFuture.supplyAsync(
+                    {
+                        updateManager.installUpdate(version)
+                        null
+                    },
+                    updateExecutor,
+                )
+            }
             "frontendReady" -> {
                 if (!forceFrontendReadyFailure) {
                     frontendReady = true

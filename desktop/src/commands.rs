@@ -105,6 +105,22 @@ pub async fn shell_restart_local_service(
         .map_err(|error| command_error(&error.code, &error.message))
 }
 
+/// 检查 Desktop 更新清单；网络和清单解析均留在 Desktop Shell 内。
+#[tauri::command]
+pub async fn shell_check_for_update() -> CommandResult<crate::update::AppUpdateCheckResult> {
+    crate::update::check_for_update()
+        .await
+        .map_err(|error| command_error(error.code, &error.message))
+}
+
+/// 重新确认并启动 Desktop 更新安装器；安装器启动后由应用生命周期负责退出。
+#[tauri::command]
+pub async fn shell_install_update(app: AppHandle, version: String) -> CommandResult<()> {
+    crate::update::install_update(&app, &version)
+        .await
+        .map_err(|error| command_error(error.code, &error.message))
+}
+
 #[tauri::command]
 pub async fn shell_repair_firewall(
     manager: State<'_, Arc<DesktopRuntimeManager>>,

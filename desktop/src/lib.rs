@@ -11,6 +11,7 @@ pub mod lifecycle;
 pub mod preferences;
 pub mod runtime;
 pub mod tray;
+pub mod update;
 pub mod webview_compatibility;
 pub mod webview_debug;
 pub mod webview_privacy;

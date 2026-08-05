@@ -23,13 +23,18 @@ import {
   successfulServiceCheckSequence,
 } from "./service/availability";
 import {
+  checkForUpdate,
   activeApiBaseUrl,
   initializeShellRuntime,
   reportFrontendReady,
   reportShellBridgeFailure,
 } from "./shell/runtime";
+import { notice } from "./notices/notice";
 import { startTelemetryIfConsented } from "./telemetry/clarity";
 import { disposeThemeRuntime, initializeTheme } from "./theme/runtime";
+import { openAppUpdateDialog } from "./updates/appUpdate";
+import { updateCheckErrorMessage } from "./updates/messages";
+import { autoUpdateCheckEnabled } from "./updates/updatePreferences";
 
 let stopNativeBackNavigation: (() => void) | null = null;
 
@@ -87,6 +92,19 @@ async function bootstrapFrontend(): Promise<void> {
 
   createApp(App).use(router).directive("copyable", copyableDirective).mount("#app");
   installOverlayScrollbars();
+  if (autoUpdateCheckEnabled.value) {
+    void checkForUpdate()
+      .then((result) => {
+        if (!result?.latestVersion) return;
+        openAppUpdateDialog(result, "startup");
+      })
+      .catch((error: unknown) => {
+        notice.warning("暂时无法检查更新", {
+          detail: updateCheckErrorMessage(error),
+          durationMs: 6_000,
+        });
+      });
+  }
   // 按已持久化的同意偏好补启动匿名采集；未同意时该调用不发起任何请求。
   startTelemetryIfConsented();
   await nextTick();

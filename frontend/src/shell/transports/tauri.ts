@@ -7,6 +7,7 @@ import { assertDesktopPreferences } from "../contract";
 import { setSystemChromeAppearanceAdapter } from "../systemChrome";
 import type {
   ApplyRuntimeConfigResult,
+  AppUpdateCheckResult,
   DesktopPreferences,
   EditableRuntimeConfig,
   RuntimeConfigValidationResult,
@@ -63,6 +64,12 @@ export function createTauriShellBridge(): ShellBridge {
     },
     openExternal(url) {
       return openUrl(url);
+    },
+    checkForUpdate() {
+      return invokeShell<AppUpdateCheckResult>("shell_check_for_update");
+    },
+    installUpdate(version) {
+      return invokeShell<void>("shell_install_update", { version });
     },
     setWindowTheme(theme) {
       return invokeShell<void>("shell_set_window_theme", { theme });

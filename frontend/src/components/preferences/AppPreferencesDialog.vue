@@ -1,5 +1,5 @@
 <!--
-  本组件拥有账户弹层入口的「偏好设置」Dialog：承载主题、窗口行为和匿名数据收集等本机偏好。
+  本组件拥有账户弹层入口的「偏好设置」Dialog：承载主题、窗口行为、更新检测和匿名数据收集等本机偏好。
   改动即时生效并持久化；它不拥有偏好存储格式、主题运行时或采集 SDK 生命周期细节。
 -->
 <template>
@@ -29,6 +29,43 @@
             <small>在总览页和账户菜单中显示联系作者入口。</small>
           </span>
         </label>
+      </section>
+
+      <section
+        v-if="updateSupported"
+        class="app-preferences__section"
+        aria-labelledby="preferences-update-title"
+      >
+        <h3 id="preferences-update-title">应用更新</h3>
+        <label class="consent-toggle">
+          <input
+            type="checkbox"
+            name="preferences-auto-update-check"
+            :checked="autoUpdateCheckEnabled"
+            @change="handleAutoUpdateCheckChange"
+          />
+          <span class="consent-toggle__copy">
+            <strong>启动时自动检测更新</strong>
+            <small>应用启动后在后台检查新版本，发现更新时提示。</small>
+          </span>
+        </label>
+        <div class="app-update__row">
+          <div class="app-update__copy">
+            <strong>当前版本 {{ currentVersion }}</strong>
+            <small v-if="availableUpdate"> 发现新版本 {{ availableUpdate.latestVersion }}。 </small>
+            <small v-else-if="updateChecked">当前已是最新版本。</small>
+            <small v-else>检查更新不会影响当前运行中的服务。</small>
+          </div>
+          <button
+            class="secondary-button"
+            type="button"
+            :disabled="updateChecking"
+            @click="handleUpdateCheck"
+          >
+            {{ updateChecking ? "检查中…" : "检查更新" }}
+          </button>
+        </div>
+        <p v-if="updateError" class="app-update__error" role="alert">{{ updateError }}</p>
       </section>
 
       <section
@@ -213,13 +250,16 @@ import {
   saveTelemetryConsent,
 } from "../../telemetry/consent";
 import {
+  checkForUpdate,
   getDesktopPreferences,
   openExternal,
   runtimeSnapshot,
   setDesktopPreferences,
 } from "../../shell/runtime";
 import { defaultDesktopPreferences } from "../../shell/contract";
+import { resolveApiClientMetadata } from "../../api/runtime-config";
 import type {
+  AppUpdateCheckResult,
   DesktopCloseBehavior,
   DesktopPreferences,
   DesktopWebviewReclaimIdleMinutes,
@@ -227,6 +267,9 @@ import type {
 import { notice } from "../../notices/notice";
 import ThemePreferenceSelector from "./ThemePreferenceSelector.vue";
 import { contactEntryVisible, setContactEntryVisible } from "../../contact/contactPreferences";
+import { openAppUpdateDialog } from "../../updates/appUpdate";
+import { updateCheckErrorMessage } from "../../updates/messages";
+import { autoUpdateCheckEnabled, setAutoUpdateCheckEnabled } from "../../updates/updatePreferences";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
@@ -244,6 +287,15 @@ const desktopPreferencesLoading = ref(false);
 const desktopPreferencesLoaded = ref(false);
 const desktopPreferencesSaving = ref(false);
 const isDesktop = computed(() => runtimeSnapshot.value?.platform === "desktop");
+const updateSupported = computed(() => {
+  const platform = runtimeSnapshot.value?.platform;
+  return platform === "desktop" || platform === "android";
+});
+const currentVersion = ref(resolveApiClientMetadata().appVersion);
+const availableUpdate = ref<AppUpdateCheckResult | null>(null);
+const updateChecking = ref(false);
+const updateChecked = ref(false);
+const updateError = ref("");
 const desktopPreferencesUnavailable = computed(
   () =>
     desktopPreferencesLoading.value ||
@@ -264,6 +316,40 @@ watch(
 
 function handleContactVisibilityChange(): void {
   setContactEntryVisible(contactVisible.value);
+}
+
+function handleAutoUpdateCheckChange(event: Event): void {
+  const input = event.currentTarget;
+  if (input instanceof HTMLInputElement) {
+    setAutoUpdateCheckEnabled(input.checked);
+  }
+}
+
+async function handleUpdateCheck(): Promise<void> {
+  updateChecking.value = true;
+  updateError.value = "";
+  try {
+    const result = await checkForUpdate();
+    if (!result) {
+      updateError.value = "当前平台不支持应用更新";
+      notice.error("无法检查更新", { detail: updateError.value });
+      return;
+    }
+    currentVersion.value = result.currentVersion;
+    availableUpdate.value = result.latestVersion ? result : null;
+    updateChecked.value = true;
+    if (result.latestVersion) {
+      openAppUpdateDialog(result, "preferences");
+    } else {
+      notice.success("已是最新版本", { detail: `当前版本 ${result.currentVersion}。` });
+    }
+  } catch (error) {
+    availableUpdate.value = null;
+    updateError.value = updateCheckErrorMessage(error);
+    notice.error("无法检查更新", { detail: updateError.value });
+  } finally {
+    updateChecking.value = false;
+  }
 }
 
 async function loadDesktopPreferences(): Promise<void> {
@@ -393,6 +479,38 @@ function errorMessage(error: unknown): string {
   }
 }
 
+.app-update__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-update__copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.app-update__copy strong {
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 670;
+}
+
+.app-update__copy small {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.app-update__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .startup-preference--disabled {
   cursor: not-allowed;
   opacity: 0.66;
@@ -418,6 +536,10 @@ function errorMessage(error: unknown): string {
 }
 
 @media (max-width: 540px) {
+  .app-update__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .webview-reclaim-time {
     grid-template-columns: minmax(0, 1fr);
     padding-left: 0;

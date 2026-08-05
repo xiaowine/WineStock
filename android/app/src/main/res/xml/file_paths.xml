@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 只向系统安装器暴露应用缓存中的更新目录，不暴露其它应用数据。 -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="winestock_update_cache"
+        path="winestock-updates/" />
+</paths>

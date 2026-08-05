@@ -221,6 +221,32 @@ interface ShellBridge {
 }
 ```
 
+### 平台更新扩展
+
+Desktop 和 Android 各自提供更新检查与安装扩展；Web 不提供该能力。更新清单请求、下载安装包、完整性校验和平台安装器均留在对应 Shell，前端不直接访问更新域名，避免 WebView 跨域和文件权限边界泄漏。
+
+```ts
+interface AppUpdateCheckResult {
+  currentVersion: string;
+  latestVersion?: string;
+  notes?: string;
+}
+
+interface AppUpdateShellBridgeExtension {
+  checkForUpdate(): Promise<AppUpdateCheckResult>;
+  installUpdate(version: string): Promise<void>;
+}
+```
+
+`installUpdate` 只接收前端已经展示的版本号。Shell 必须在安装前重新请求自身平台的更新清单并确认版本仍可用，不能信任前端传入的下载地址。检查失败、清单无效、下载失败、摘要校验失败和 Android 安装权限缺失都必须通过稳定错误码返回，由前端显示可恢复提示；错误不得只写入原生日志，也不得把原始网络异常、文件路径或堆栈暴露给前端。
+
+当前清单地址由平台固定配置：
+
+- Android：`https://api.ikuns.top/WineRealm/file/winestock/android.json`
+- Desktop：`https://api.ikuns.top/WineRealm/file/winestock/desktop.json`
+
+更新比较使用语义版本。Android 更新清单不包含 `versionCode`，但 APK 内部的 Android `versionCode` 仍必须递增，且更新 APK 必须保持相同 `applicationId` 和签名证书。
+
 Desktop 可选扩展只承载当前设备的窗口、自启动偏好和 Windows 防火墙操作，不属于运行配置或业务 API：
 
 ```ts

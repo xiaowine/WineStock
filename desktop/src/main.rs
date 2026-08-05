@@ -179,6 +179,8 @@ fn main() {
             winestock_desktop::commands::shell_start_local_service,
             winestock_desktop::commands::shell_stop_local_service,
             winestock_desktop::commands::shell_restart_local_service,
+            winestock_desktop::commands::shell_check_for_update,
+            winestock_desktop::commands::shell_install_update,
             winestock_desktop::commands::shell_repair_firewall,
             winestock_desktop::commands::shell_get_desktop_preferences,
             winestock_desktop::commands::shell_set_desktop_preferences,

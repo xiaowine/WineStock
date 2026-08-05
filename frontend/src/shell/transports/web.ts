@@ -86,6 +86,12 @@ export function createWebShellBridge(): ShellBridge {
       const normalized = normalizeExternalUrl(url);
       window.open(normalized, "_blank", "noopener,noreferrer");
     },
+    async checkForUpdate() {
+      return { currentVersion: "web" };
+    },
+    async installUpdate() {
+      throw new Error("浏览器部署不支持安装应用更新");
+    },
     async onRuntimeStateChanged(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

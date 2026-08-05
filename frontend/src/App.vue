@@ -23,6 +23,11 @@
     />
   </template>
   <RouteProgressBar />
+  <AppUpdateDialog
+    :open="appUpdateDialogOpen"
+    :update="appUpdateDialogResult"
+    :nested="appUpdateDialogNested"
+  />
   <NoticeViewport />
 </template>
 
@@ -33,6 +38,7 @@ import { authStatus } from "./auth/session";
 import { waitForStableViewport } from "./bootstrap/viewport";
 import NoticeViewport from "./components/NoticeViewport.vue";
 import RouteProgressBar from "./components/RouteProgressBar.vue";
+import AppUpdateDialog from "./components/updates/AppUpdateDialog.vue";
 import ServiceUnavailableScreen, {
   type ServiceUnavailableVariant,
 } from "./components/ServiceUnavailableScreen.vue";
@@ -43,6 +49,11 @@ import {
   serviceAvailabilityStatus,
 } from "./service/availability";
 import { restartLocalService, runtimeSnapshot, startLocalService } from "./shell/runtime";
+import {
+  appUpdateDialogNested,
+  appUpdateDialogOpen,
+  appUpdateDialogResult,
+} from "./updates/appUpdate";
 
 const route = useRoute();
 const router = useRouter();

@@ -15,3 +15,9 @@
 local.properties
 /buildSrc/build/
 **/.kotlin
+/keystore.properties
+/.secrets/
+/app/signing/
+*.keystore
+*.p12
+*.jks

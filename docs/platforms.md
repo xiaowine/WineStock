@@ -39,6 +39,9 @@ WebView 打开 Tauri 打包的前端资源，随后前端访问以下 API 根地
 - 必要的防火墙或系统权限指引；
 - 版本化 Shell Bridge 命令、事件和 Tauri capabilities。
 
+Desktop Shell 还直接请求固定的 Desktop 更新清单，负责语义版本比较、安装器下载、SHA-256 校验和 Windows 安装器启动；
+前端只通过 Shell Bridge 获取结果和启动安装，不直接访问更新域名。安装器启动后 Desktop 退出并释放本地 core。
+
 桌面 Shell 不得实现原生设置窗口，也不得代理业务 HTTP API。
 
 桌面前端资源由 Tauri 打包，不由 Axum crate 提供。
@@ -103,6 +106,8 @@ Android Shell 必须处理：
 - 端口冲突提示；
 - 需要长期后台运行时的 Foreground Service 要求；
 - 限定 origin 的 Shell Bridge 消息与外部导航；
+- 固定 Android 更新清单的检查、APK 下载、SHA-256 校验和系统安装器交接；
+- `REQUEST_INSTALL_PACKAGES` 对应的未知来源安装授权、`FileProvider` 的受控 `content://` URI 和安装失败提示；
 - capability 控制的原生返回请求：同时只有一个 pending、400 ms 超时、页面 generation 失效，以及安全的 WebView/Activity fallback；
 - edge-to-edge Window 配置，并把 `systemBars | displayCutout` 发布为 CSS 安全区变量；WebView 铺满 Activity Window，前端按内容语义消费 inset。
 
@@ -118,6 +123,9 @@ Android 前端资源由 Android 打包，不由 Axum crate 提供。
 - `android/native` 是唯一 JNI 适配层，复用 `core -> shared`，业务调用仍为 WebView -> HTTP；
 - Android `self-hosted` 仅允许 `127.0.0.1`；Foreground Service 与通知策略完成前继续禁用 `server-mode`；
 - 当前构建和交付只支持 APK 与 `arm64-v8a`，AAB、32 位 ARM 和 x86 ABI 不属于当前阶段；
+- Android Shell 使用 `versionName` 与清单 `version` 比较，不要求清单提供 `versionCode`；正式 APK 仍必须递增内部
+  `versionCode`、保持相同签名并通过系统 Package Installer 覆盖安装；
+- Android 更新检查失败、清单无效、下载/摘要校验失败或未知来源权限缺失均通过 Shell Bridge 返回稳定错误码，前端显示可恢复提示；
 - 主机测试、ARM64 交叉构建、Debug/Release APK 构建和包级检查已完成；API 33 ARM64 真机已验证
   Debug APK 安装、JNI 加载、离线冷启动、远端/本机 HTTP、原有旋转、后台恢复、force-stop 恢复和原生返回
   浮层/路由 smoke。当前 Activity 已锁定 `sensorPortrait`，禁止切换横屏，新增锁定规则仍待真机复验；首次未初始化不启服的新漏斗仍待真机复验；其它 Android 版本、手势导航、异常注入和完整业务矩阵仍待覆盖。

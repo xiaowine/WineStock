@@ -19,12 +19,14 @@ import {
   assertCompatibleRuntimeSnapshot,
   assertDesktopFirewallShellBridgeExtension,
   assertDesktopWindowThemeShellBridgeExtension,
+  assertAppUpdateCheckResult,
   assertDesktopPreferences,
   assertNativeBackRequest,
   assertNativeBackResolutionAck,
   assertNativeBackShellBridgeExtension,
   cloneRuntimeSnapshot,
   type ApplyRuntimeConfigResult,
+  type AppUpdateCheckResult,
   type DesktopPreferences,
   type EditableRuntimeConfig,
   type RuntimeConfigValidationResult,
@@ -211,6 +213,28 @@ export async function openExternal(url: string): Promise<void> {
     throw new Error("当前平台不支持打开外部链接");
   }
   await requireBridge().openExternal(url);
+}
+
+/** 请求当前平台检查更新；Web 或旧平台桥未提供扩展时返回 null。 */
+export async function checkForUpdate(): Promise<AppUpdateCheckResult | null> {
+  const snapshot = await initializeShellRuntime();
+  const checker = requireBridge().checkForUpdate;
+  if ((snapshot.platform !== "desktop" && snapshot.platform !== "android") || !checker) {
+    return null;
+  }
+  const result = await checker();
+  assertAppUpdateCheckResult(result);
+  return result;
+}
+
+/** 请求当前平台重新确认指定版本并启动原生安装流程。 */
+export async function installUpdate(version: string): Promise<void> {
+  const snapshot = await initializeShellRuntime();
+  const installer = requireBridge().installUpdate;
+  if ((snapshot.platform !== "desktop" && snapshot.platform !== "android") || !installer) {
+    throw new Error("当前平台不支持安装更新");
+  }
+  await installer(version);
 }
 
 /** 读取 Desktop 窗口行为偏好；Web/Android 或旧桥不提供时返回 null。 */

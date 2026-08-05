@@ -253,6 +253,19 @@ export interface DesktopWindowThemeShellBridgeExtension {
   setWindowTheme(theme: "system" | "light" | "dark"): Promise<void>;
 }
 
+/** Desktop 和 Android 的平台更新能力；Web fallback 不提供安装能力。 */
+export interface AppUpdateShellBridgeExtension {
+  checkForUpdate(): Promise<AppUpdateCheckResult>;
+  installUpdate(version: string): Promise<void>;
+}
+
+/** Shell 返回给前端的更新检查结果；下载地址和临时文件路径不跨 Bridge 传递。 */
+export interface AppUpdateCheckResult {
+  currentVersion: string;
+  latestVersion?: string;
+  notes?: string;
+}
+
 /** 前端依赖的统一 Shell Bridge；平台适配层不得扩展为任意 native invoke。 */
 export interface ShellBridge {
   /** 读取当前运行配置和服务状态。 */
@@ -281,6 +294,10 @@ export interface ShellBridge {
   repairFirewall?: DesktopFirewallShellBridgeExtension["repairFirewall"];
   /** Desktop 同步原生窗口主题；非 Desktop 平台不提供。 */
   setWindowTheme?: DesktopWindowThemeShellBridgeExtension["setWindowTheme"];
+  /** Desktop/Android 检查更新；Web 不提供。 */
+  checkForUpdate?: AppUpdateShellBridgeExtension["checkForUpdate"];
+  /** Desktop/Android 重新检查并启动原生安装流程；Web 不提供。 */
+  installUpdate?: AppUpdateShellBridgeExtension["installUpdate"];
   /** 订阅配置和服务生命周期快照。 */
   onRuntimeStateChanged(
     listener: (snapshot: RuntimeSnapshot) => void,
@@ -334,6 +351,18 @@ export function assertDesktopWindowThemeShellBridgeExtension(
       "invalid_bridge_payload",
       "Desktop Shell Bridge 缺少窗口主题方法",
     );
+  }
+}
+
+/** 校验平台返回的更新结果，避免无效数据进入前端状态。 */
+export function assertAppUpdateCheckResult(value: unknown): asserts value is AppUpdateCheckResult {
+  if (
+    !isRecord(value) ||
+    typeof value.currentVersion !== "string" ||
+    (value.latestVersion !== undefined && typeof value.latestVersion !== "string") ||
+    (value.notes !== undefined && typeof value.notes !== "string")
+  ) {
+    throw new ShellBridgeContractError("invalid_bridge_payload", "Shell 返回了无效更新检查结果");
   }
 }
 

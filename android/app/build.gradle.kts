@@ -7,9 +7,57 @@ import winestock.build.RustNativeApkVerifyTask
 import winestock.build.RustNativeBuildTask
 import winestock.build.RustNativeVerifyTask
 import winestock.build.VerifyNoLegacyFrontendAssetsTask
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+}
+
+// Release APK 必须使用正式证书；凭据只从未入库的本地文件或 CI 环境读取。
+val signingPropertiesFile = rootProject.file("keystore.properties")
+val signingProperties =
+    Properties().apply {
+        if (signingPropertiesFile.isFile) {
+            signingPropertiesFile.inputStream().use(::load)
+        }
+    }
+
+fun signingValue(propertyName: String, environmentName: String): String? =
+    providers.gradleProperty(propertyName).orNull?.trim()?.takeIf { it.isNotEmpty() }
+        ?: providers.environmentVariable(environmentName).orNull?.trim()?.takeIf { it.isNotEmpty() }
+        ?: signingProperties.getProperty(propertyName)?.trim()?.takeIf { it.isNotEmpty() }
+
+val releaseKeystoreFile = signingValue("winestock.android.keystoreFile", "WINSTOCK_ANDROID_KEYSTORE_FILE")
+val releaseKeystorePassword =
+    signingValue("winestock.android.keystorePassword", "WINSTOCK_ANDROID_KEYSTORE_PASSWORD")
+val releaseKeyAlias = signingValue("winestock.android.keyAlias", "WINSTOCK_ANDROID_KEY_ALIAS")
+val releaseKeyPassword = signingValue("winestock.android.keyPassword", "WINSTOCK_ANDROID_KEY_PASSWORD")
+val releaseSigningValues =
+    listOf(releaseKeystoreFile, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword)
+val releaseSigningConfigured = releaseSigningValues.all { it != null }
+val releaseSigningPartiallyConfigured = releaseSigningValues.any { it != null } && !releaseSigningConfigured
+val releaseTaskRequested =
+    gradle.startParameter.taskNames.any { taskName ->
+        val leafTaskName = taskName.substringAfterLast(":")
+        leafTaskName.equals("assemble", ignoreCase = true) ||
+            leafTaskName.equals("build", ignoreCase = true) ||
+            leafTaskName.contains("release", ignoreCase = true)
+    }
+
+if (releaseSigningPartiallyConfigured) {
+    throw GradleException(
+        "Android Release 签名配置不完整；需要同时提供 keystoreFile、keystorePassword、keyAlias 和 keyPassword。",
+    )
+}
+if (releaseTaskRequested && !releaseSigningConfigured) {
+    throw GradleException(
+        "Android Release APK 必须签名。请复制 android/keystore.properties.example 为 " +
+            "android/keystore.properties，或通过 WINSTOCK_ANDROID_* 环境变量提供签名配置。",
+    )
+}
+val releaseKeystore = releaseKeystoreFile?.let { rootProject.file(it) }
+if (releaseSigningConfigured && releaseKeystore?.isFile != true) {
+    throw GradleException("Android Release keystore 不存在：${releaseKeystore?.absolutePath}")
 }
 
 android {
@@ -24,11 +72,22 @@ android {
         minSdk = 28
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1.0"
 
         ndk {
             // 当前发布面只支持真实 ARM64 设备；不生成 32 位或模拟器 ABI。
             abiFilters += "arm64-v8a"
+        }
+    }
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = requireNotNull(releaseKeystorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
         }
     }
 
@@ -37,6 +96,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {

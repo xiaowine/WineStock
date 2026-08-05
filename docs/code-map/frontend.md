@@ -9,7 +9,7 @@
 
 - `frontend/package.json`、`vite.config.ts`、`public/`：pnpm 脚本、共享 Web/Desktop 构建、Android 隔离构建、Node test runner 纯逻辑测试入口及从根 `brand/` 母版派生的 favicon；Android mode 隔离 `.env*`，接收 Gradle 提供的绝对输出目录并生成可校验 manifest；Desktop 通过 Tauri 运行时选择 IPC 适配，不再依赖专用 Vite mode；不固定 Node/pnpm 版本。package.json `appStage` 字段经 define 注入为品牌阶段徽标常量，空串时应用壳徽标隐藏。
 - `frontend/src/main.ts` 与 `src/bootstrap/`：在任何异步启动工作前初始化主题，再初始化 Shell 运行快照和动态 API 地址；随后按需启动健康检查、会话恢复、跨标签页同步、全局浮层滚动条和移动视口纠正，安装路由守卫后挂载 Vue，最后才报告 `frontendReady`。
-- `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条和全局 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
+- `frontend/src/App.vue`：根 `RouterView`、服务断连全屏覆盖层、路由切换顶部进度条、全局更新 Dialog 和 Notice 挂载点；服务无关的运行设置路由不受启动门或覆盖层阻塞。
 - `frontend/src/env.d.ts`：Vite 环境变量、兼容运行时注入对象和平台 Shell Bridge 注入类型。
 
 ## 路由与导航
@@ -44,6 +44,7 @@
 ## 全局反馈
 
 - `frontend/src/notices/` 与 `components/NoticeViewport.vue`：全局 Notice 状态、四种类型、限量、倒计时与暂停交互，展示中的同内容重复请求复用首条不再新增；表单提交校验由 Notice 显示首个错误原因，字段附近保留红框且不插入可见错误行改变表单尺寸。
+- `frontend/src/updates/` 与 `components/updates/`：共享应用更新 Dialog 状态、启动自动检测偏好、Shell Bridge 错误文案和更新结果展示；启动检测与偏好设置手动检测复用同一浮层，前端不请求清单或下载安装包。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，不执行 HTTP 探测。
 
 ## 遥测

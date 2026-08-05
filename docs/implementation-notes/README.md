@@ -8,6 +8,8 @@ Component-specific notes belong to `core/docs/implementation-notes/`, `frontend/
 
 ## Current notes
 
+- `shell-update-check-and-install.md`：Desktop 与 Android Shell 自主管理更新清单、版本比较、安装流程、Android 未知来源权限与 FileProvider 边界的跨组件实施报告（已实施，远端清单仍需真实发布制品）。
+
 - `desktop-tauri-shell.md`：正式 Desktop Tauri v2 基础壳、Shell Bridge、进程内 core 生命周期、配置持久化、安全边界与 Windows 最小验收记录（已实施，安装包 smoke 待执行）。
 - `json-config-and-db-auth-settings.md`：同时涉及 shared 配置边界与 core 数据库存储的历史方案。
 - `item-catalog-inventory-monitoring.md`：物品目录实时库存聚合、补货筛选、固定列表格、移动库存项目和多页物品 Dialog 的跨 core/frontend 完整实施方案。

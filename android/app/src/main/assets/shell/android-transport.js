@@ -149,6 +149,12 @@
     openExternal: function (url) {
       return call("openExternal", { url: url });
     },
+    checkForUpdate: function () {
+      return call("checkForUpdate");
+    },
+    installUpdate: function (version) {
+      return call("installUpdate", { version: version });
+    },
     resolveNativeBack: function (resolution) {
       return call("resolveNativeBack", resolution);
     },
@@ -218,6 +224,8 @@
         return Promise.resolve();
       },
       openExternal: rejected,
+      checkForUpdate: rejected,
+      installUpdate: rejected,
       resolveNativeBack: rejected,
       onRuntimeStateChanged: function () {
         return Promise.resolve(function () {});

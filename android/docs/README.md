@@ -49,6 +49,12 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
   loopback `/api/health`、离线冷启动、远端/本机切换、原有旋转、后台恢复、force-stop 恢复和原生返回
   浮层/路由 smoke；未发现 404、Uncaught 或 FATAL，连接明文 HTTP 远端时出现的 WebView
   mixed-content warning 属于当前安全策略下的预期提示。
+- Android Shell 直接请求固定清单地址 `https://api.ikuns.top/WineRealm/file/winestock/android.json`，使用
+  `versionName` 与清单 `version` 比较，不要求清单提供 `versionCode`；正式 APK 自身仍必须递增 `versionCode`，并保持相同
+  `applicationId` 和签名证书。APK 下载到 `cacheDir/winestock-updates`，经 SHA-256 校验后通过受控 `content://` URI 启动系统安装器。
+- 安装前如果 `canRequestPackageInstalls()` 未通过，Shell 会打开当前应用的未知来源安装设置页并返回稳定的
+  `update_install_permission_required`；用户授权后可从前端重试。检查、下载、校验和安装失败均通过 Shell Bridge
+  返回错误码，前端显示可恢复提示。当前远端清单仍是示例制品地址，真实设备安装 smoke 需要有效、同签名且递增 `versionCode` 的 APK。
 - `MainActivity` 通过 Manifest 的 `sensorPortrait` 锁定竖屏，允许正反竖屏传感器切换但禁止进入横屏；该规则
   尚需在代表设备上复验。其它 API 版本、手势导航、异常注入和完整业务回归仍是剩余覆盖项；JVM、lint、assemble
   和本次真机 smoke 都不能替代完整矩阵。首次未初始化不启服、选择模式后再 apply 的新漏斗尚未完成真机复验。
@@ -68,6 +74,13 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `stage<Variant>FrontendAssets` 把通过校验的产物同步到 `app/build/generated/winestockFrontendAssets/<variant>/frontend`，并通过 AGP variant API 注册。
 - `verify<Variant>FrontendPackage` 校验 APK 内的最终前端资源；当前不注册 AAB 前端校验或 bundle 挂钩。
 - `app/src/main/assets/frontend` 已废弃并受构建守卫禁止；`assets/shell/android-transport.js` 仍是 Android 平台源码资源。
+
+## APK 签名
+
+- Debug APK 使用 Android Gradle Plugin 自动生成的 debug keystore，适合本地开发和 Pull Request 构建。
+- Release APK 不允许无签名构建。复制 `keystore.properties.example` 为 `keystore.properties`，填入正式 keystore 路径、密码、alias 和 key 密码，或提供对应的 `WINSTOCK_ANDROID_*` 环境变量。
+- `keystore.properties`、`android/.secrets/` 和 `app/signing/` 已加入忽略规则；keystore 和密码不得提交到 Git。正式发布必须保持相同签名证书并递增 `versionCode`。
+- GitHub Actions 的 push/manual 构建读取 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS` 和 `ANDROID_KEY_PASSWORD` Secrets，关闭 Configuration Cache，并使用 `apksigner verify --verbose` 验证 Release APK。Pull Request 不读取签名 Secrets，改构建自动签名的 Debug APK。
 
 ## Rust/ARM64 APK 打包
 

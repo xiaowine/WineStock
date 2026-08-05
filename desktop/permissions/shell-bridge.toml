@@ -8,6 +8,8 @@ commands.allow = [
   "shell_start_local_service",
   "shell_stop_local_service",
   "shell_restart_local_service",
+  "shell_check_for_update",
+  "shell_install_update",
   "shell_repair_firewall",
   "shell_get_desktop_preferences",
   "shell_set_desktop_preferences",
