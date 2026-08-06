@@ -58,8 +58,8 @@ utoipa-swagger-ui = { version = "9", features = ["axum", "vendored"] }
 url = "2.5.8"
 rfd = "0.17.2"
 if-addrs = "0.15.0"
-webview2-com = "0.39.1"
-windows = { version = "0.62.2", features = [
+webview2-com = "0.38.2"
+windows = { version = "0.61.3", features = [
   "Win32_Foundation",
   "Win32_NetworkManagement_WindowsFirewall",
   "Win32_System_Com",
