@@ -65,12 +65,12 @@ server shell 现在同时等待 Ctrl+C 和 core 服务 task 状态。core 已提
 
 - `cargo +stable fmt --all -- --check` 通过。
 - `cargo +stable check -p winestock-server --locked` 通过。
-- `cargo +stable check -p winestock-server --features swagger-ui --locked` 通过，并编译 Swagger UI 依赖。
+- `cargo +stable check -p winestock-server --locked` 通过，并编译 Debug Swagger UI 依赖。
 - `cargo +stable build -p winestock-server --release --locked` 通过。
 - `cargo +stable test -p winestock-server --release --locked` 通过，包含 doctest。
 - Debug + Swagger OpenAPI 测试 6 项通过，包含 Swagger UI 200 响应验证。
 - server Debug 单元测试 7 项通过。
-- Release 无 feature 的依赖树不包含 `utoipa-swagger-ui`。
+- Release 不注册 Swagger UI 路由。
 
 ## 发布前最小验收顺序
 

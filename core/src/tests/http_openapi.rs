@@ -15,7 +15,7 @@ use tower::ServiceExt;
 use crate::test_support::{empty_app, error_code, json_body};
 #[cfg(debug_assertions)]
 use crate::OPENAPI_JSON_PATH;
-#[cfg(all(debug_assertions, feature = "swagger-ui"))]
+#[cfg(debug_assertions)]
 use crate::SWAGGER_UI_PATH;
 
 #[cfg(debug_assertions)]
@@ -259,7 +259,7 @@ async fn openapi_includes_bearer_auth_and_auth_paths() {
     assert_location_tree_schema(&value);
 }
 
-#[cfg(all(debug_assertions, feature = "swagger-ui"))]
+#[cfg(debug_assertions)]
 #[tokio::test]
 async fn swagger_ui_is_available_in_debug_builds() {
     let response = crate::build_router()
@@ -281,7 +281,7 @@ async fn swagger_ui_is_available_in_debug_builds() {
 }
 
 #[cfg(debug_assertions)]
-#[cfg(not(feature = "swagger-ui"))]
+#[cfg(not(debug_assertions))]
 #[tokio::test]
 async fn swagger_ui_is_not_available_without_swagger_feature() {
     let response = crate::build_router()

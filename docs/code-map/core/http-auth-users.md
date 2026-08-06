@@ -7,7 +7,7 @@
 
 - 组装文档、健康检查、auth、users 和 stock Router 并注入 `CoreState`；CORS middleware 在全部业务 Router merge 完成后挂载，确保各域路由都被覆盖。
 - 统一 `{ error: { code, message, details } }` 非 2xx JSON 契约与 404/405；`ValidatedJson`/`ValidatedPath`/`ValidatedQuery` 校验失败返回结构化 `details.fields`。
-- Debug 构建注册 OpenAPI 元信息，启用 feature 时挂载 Swagger UI，并公开 `openapi_document_json()` 供开发期契约导出（`core/examples/dump_openapi.rs`）；Release 不注册文档路由、不编译 Swagger UI 与导出函数。
+- Debug 构建注册 OpenAPI 元信息并挂载 Swagger UI，同时公开 `openapi_document_json()` 供开发期契约导出（`core/examples/dump_openapi.rs`）；Release 不注册文档路由与导出函数。
 - 无状态 `/api/health` 供服务可用性探测。
 
 ## Security 前置层（`core/src/security/`）

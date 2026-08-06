@@ -93,8 +93,7 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
   `libwinestock_android.so`；`android/native` 仍是该 JNI 适配层的源码目录。
 - 工作区 Release profile 启用 fat LTO，并显式关闭 Cargo strip；最终 Android `.so` 的符号处理仍由
   Android Gradle Plugin/NDK 打包流程负责。
-- Debug 构建启用 `debug-swagger-ui` feature 并使用 vendored Swagger UI 资源；Release 不启用该 feature，
-  不编译或链接 `utoipa-swagger-ui`，也不注册 `/api-docs/openapi.json` 或 `/swagger-ui`。
+- Debug 构建使用 vendored Swagger UI 资源；Release 不注册 `/api-docs/openapi.json` 或 `/swagger-ui`。
 - Release 构建通过 `LIBSQLITE3_FLAGS` 取消 SQLite bundled FTS3/FTS5，以移除当前业务未使用的全文索引代码。
 - Release APK 启用 R8 minify、optimize 与 resource shrink；`src/main/keepRules/rules.keep` 只保留 JNI
   入口等平台边界需要稳定二进制名称的类/方法。

@@ -51,9 +51,9 @@ Android 不负责：
 
 Server 负责：
 
-- 通过 `winestock-server --check-update` 请求统一清单；
-- 使用当前 Cargo 包版本比较清单版本；
-- 校验 `server` 制品的相对文件名、HTTPS 基础地址和 SHA-256 格式，并输出最终下载地址。
+- 通过 `winestock-server --check-update` 请求 GitHub 最新正式 Release；
+- 使用当前 Cargo 包版本比较 Release tag 版本；
+- 发现更新时输出 GitHub Release 页面地址，交由用户手动下载和部署。
 
 Server 不负责：
 
@@ -75,7 +75,7 @@ Server 不负责：
 
 ## 更新清单
 
-Desktop、Android 和 Server 使用相同的统一清单。清单不需要包含 `mandatory`，当前产品只支持普通更新提示，不支持强制升级。
+Desktop 和 Android 使用统一清单；Server 独立检查 GitHub Release。清单不需要包含 `mandatory`，当前产品只支持普通更新提示，不支持强制升级。
 
 ### 当前清单地址
 
@@ -97,10 +97,6 @@ Desktop、Android 和 Server 使用相同的统一清单。清单不需要包含
   "android": {
     "file": "WineStock-0.1.1-release.apk",
     "sha256": "十六进制 SHA-256"
-  },
-  "server": {
-    "file": "WineStock-server-0.1.1-windows-x64.zip",
-    "sha256": "十六进制 SHA-256"
   }
 }
 ```
@@ -109,7 +105,7 @@ Desktop、Android 和 Server 使用相同的统一清单。清单不需要包含
 
 - `version` 是面向用户和更新比较的语义版本；不能使用字符串字典序比较；
 - `baseUrl` 必须是不含凭据、查询参数或片段的 HTTPS 地址；
-- `desktop`、`android` 和 `server` 都必须提供相对 `file` 与 SHA-256；Shell 只下载自己的制品；
+- `desktop`、`android` 都必须提供相对 `file` 与 SHA-256；Shell 只下载自己的制品；
 - `file` 不得是绝对路径、不得包含目录穿越、查询参数或片段；下载地址固定为 `baseUrl + "/" + file`；
 - `sha256` 用于发现传输损坏或文件不完整；
 - `notes` 可以为空，但清单结构必须完整；
@@ -163,7 +159,7 @@ interface AppUpdateCheckResult {
 - `update_install_permission_required`：Android 尚未允许当前应用安装未知来源应用；
 - `update_install_failed`：平台安装器无法启动或安装过程启动失败。
 
-Server 通过 `winestock-server --check-update` 输出同一清单中 Server ZIP 的下载地址，不在常规服务启动时联网，也不执行进程内自更新。
+Server 通过 `winestock-server --check-update` 输出 GitHub Release 页面地址，不在常规服务启动时联网，也不执行进程内自更新。
 
 Shell 不应把原始网络异常、HTTP 响应体、文件路径或堆栈直接传给前端。所有失败都应映射为稳定错误码和安全的用户提示文案。
 
@@ -306,7 +302,7 @@ FLAG_ACTIVITY_NEW_TASK（从非 Activity Shell 上下文启动时）
 3. 实现 Desktop 检查、下载和安装器启动。
 4. 实现 Android 清单检查、APK 下载、未知来源授权和 FileProvider 安装流程。
 5. 在共享前端偏好设置接入统一状态展示。
-6. 从统一版本来源派生 Android `versionName` 与递增的 `versionCode`，并由 CI 一次性生成三种制品的统一清单。
+6. 从统一版本来源派生 Android `versionName` 与递增的 `versionCode`，并由 CI 生成 Desktop/Android 清单；Server 发布包由 GitHub Release 托管。
 7. 执行纯逻辑测试、Desktop 安装包 smoke 和 Android 真机安装 smoke。
 
 ## 当前未包含

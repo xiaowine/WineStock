@@ -17,7 +17,7 @@ use std::{
 
 #[cfg(debug_assertions)]
 use winestock_core::OPENAPI_JSON_PATH;
-#[cfg(all(debug_assertions, feature = "swagger-ui"))]
+#[cfg(debug_assertions)]
 use winestock_core::SWAGGER_UI_PATH;
 use winestock_core::{start_local_service, LocalServiceInfo, RunningLocalService};
 
@@ -131,10 +131,7 @@ fn print_startup_summary(
         println!();
         println!("开发文档");
         println!("  OpenAPI: {access_url}{OPENAPI_JSON_PATH}");
-        #[cfg(feature = "swagger-ui")]
         println!("  Swagger UI: {access_url}{SWAGGER_UI_PATH}");
-        #[cfg(not(feature = "swagger-ui"))]
-        println!("  Swagger UI: 未启用（使用 --features swagger-ui 启动）");
     }
     println!();
     println!("按 Ctrl+C 停止服务。");

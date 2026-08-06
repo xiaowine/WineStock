@@ -10,11 +10,6 @@ name = "winestock_android"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
-[features]
-default = []
-# Android Debug 构建使用开发期 API 文档 UI；Release 不启用，避免编译和链接 Swagger UI。
-debug-swagger-ui = ["winestock-core/swagger-ui"]
-
 [dependencies]
 jni = { workspace = true }
 log = { workspace = true }

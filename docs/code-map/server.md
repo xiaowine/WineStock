@@ -5,13 +5,13 @@
 ## 源码
 
 - `server/src/main.rs`
-  - 二进制入口；`--check-update` 检查统一发布清单，其它调用进入 `winestock_server::run()`。
+  - 二进制入口；`--check-update` 检查 GitHub 最新正式 Release，其它调用进入 `winestock_server::run()`。
   - 打印启动错误及其 source 链。
 
 - `server/src/lib.rs`
   - 编排服务端生命周期。
   - 加载配置、校验运行模式、准备存储目录，通过 core 统一运行句柄启动服务；同时等待 Ctrl+C、退出信号错误和服务 task 异常结束。
-  - Debug 构建打印 OpenAPI 地址；启用 `swagger-ui` feature 时打印 Swagger UI 地址，否则打印启用提示。
+  - Debug 构建打印 OpenAPI 和 Swagger UI 地址；Release 构建不打印文档地址。
   - 绑定所有接口时只展示 loopback URL，不把 `0.0.0.0` 作为可打开地址。
 
 - `server/src/config.rs`
@@ -24,8 +24,8 @@
   - 定义 `ServerShellError`，集中配置、存储准备和统一 local-service 运行错误。
 
 - `server/src/update.rs`
-  - 通过 `--check-update` 显式检查与 Desktop、Android 共用的发布清单，校验 Server ZIP 制品并输出下载地址。
-  - 不在常规服务启动时联网，也不在进程内执行自更新。
+  - 通过 `--check-update` 显式检查 GitHub 最新正式 Release 并输出 Release 页面地址。
+  - 不在常规服务启动时联网，也不下载或安装更新。
 
 - `server/src/tests/`
   - `lib.rs` 覆盖 shell 生命周期相关行为。

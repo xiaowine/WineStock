@@ -310,12 +310,8 @@ jobs:
           set -euo pipefail
           installer="$(find release-artifacts -type f -name '*.exe' -print -quit)"
           apk="$(find release-artifacts -type f -name '*.apk' -print -quit)"
-          server_archive="$(find release-artifacts -type f -name 'WineStock-server-*-windows-x64.zip' -print -quit)"
-          server_linux_archive="$(find release-artifacts -type f -name 'WineStock-server-*-linux-x64.zip' -print -quit)"
           test -n "$installer" || { echo '::error::Windows installer not found'; exit 1; }
           test -n "$apk" || { echo '::error::Android APK not found'; exit 1; }
-          test -n "$server_archive" || { echo '::error::Windows Server package not found'; exit 1; }
-          test -n "$server_linux_archive" || { echo '::error::Linux Server package not found'; exit 1; }
 
           version="$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "winestock-server") | .version')"
           test -n "$version" && test "$version" != 'null'
@@ -326,9 +322,7 @@ jobs:
             --arg desktop_sha256 "$(sha256sum "$installer" | cut -d ' ' -f 1)" \
             --arg android_file "$(basename "$apk")" \
             --arg android_sha256 "$(sha256sum "$apk" | cut -d ' ' -f 1)" \
-            --arg server_file "$(basename "$server_archive")" \
-            --arg server_sha256 "$(sha256sum "$server_archive" | cut -d ' ' -f 1)" \
-            '{version: $version, baseUrl: $base_url, notes: "", desktop: {file: $desktop_file, sha256: $desktop_sha256}, android: {file: $android_file, sha256: $android_sha256}, server: {file: $server_file, sha256: $server_sha256}}' \
+            '{version: $version, baseUrl: $base_url, notes: "", desktop: {file: $desktop_file, sha256: $desktop_sha256}, android: {file: $android_file, sha256: $android_sha256}}' \
             > winestock.json
 
       - name: Upload unified update manifest

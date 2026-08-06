@@ -6,7 +6,7 @@
 ## 本次结论
 
 Release core 已通过 `cfg(debug_assertions)` 完全移除 Swagger UI 与 OpenAPI JSON 路由。Android Release
-不启用 `debug-swagger-ui` feature，因此不会编译或链接 `utoipa-swagger-ui`；`/api-docs/openapi.json`
+Release 不注册 Swagger UI；`/api-docs/openapi.json`
 和 `/swagger-ui` 均返回统一 JSON 404。
 
 实际重打包后，APK 从 29,842,036 bytes（28.46 MiB）降到 12,373,642 bytes（11.80 MiB），

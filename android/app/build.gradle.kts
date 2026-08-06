@@ -285,13 +285,7 @@ androidComponents {
                 targetAbi.set("arm64-v8a")
                 minApi.set(26)
                 release.set(variant.buildType == "release")
-                cargoFeatures.set(
-                    if (variant.buildType == "release") {
-                        emptyList()
-                    } else {
-                        listOf("debug-swagger-ui")
-                    },
-                )
+                cargoFeatures.set(emptyList())
                 sqliteCompileFlags.set(
                     if (variant.buildType == "release") {
                         "-USQLITE_ENABLE_FTS3 -USQLITE_ENABLE_FTS3_PARENTHESIS -USQLITE_ENABLE_FTS5"

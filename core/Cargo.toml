@@ -10,11 +10,6 @@ name = "winestock_core"
 path = "src/lib.rs"
 crate-type = ["lib"]
 
-[features]
-default = []
-# Swagger UI 仅用于 Debug 开发调试；Release 构建不得启用该 feature。
-swagger-ui = ["dep:utoipa-swagger-ui"]
-
 [dependencies]
 # core 拥有 Axum 接口、OpenAPI 文档和仅供 Debug 使用的 Swagger UI，不拥有平台前端产物。
 axum = { workspace = true }
@@ -34,7 +29,7 @@ sqlx = { workspace = true }
 tokio = { workspace = true }
 utoipa = { workspace = true }
 utoipa-axum = { workspace = true }
-utoipa-swagger-ui = { workspace = true, optional = true }
+utoipa-swagger-ui = { workspace = true }
 url = { workspace = true }
 webpki-roots = { workspace = true }
 winestock-shared = { workspace = true }

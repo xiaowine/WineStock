@@ -171,7 +171,7 @@ http://127.0.0.1:<port>
 /swagger-ui                # 仅 Debug 构建且启用 Swagger UI feature
 ```
 
-Release 构建不注册 OpenAPI JSON 或 Swagger UI，并返回统一 JSON 404；最终制品不编译或链接 Swagger UI。
+Release 构建不注册 OpenAPI JSON 或 Swagger UI，并返回统一 JSON 404。
 
 当 `bind_host = "0.0.0.0"` 时，Server Shell 输出本机 loopback URL，不把 `0.0.0.0` 输出为可打开地址。
 

@@ -10,20 +10,20 @@ server shell 负责进程生命周期、固定配置位置、存储目录准备�
 - [`../../docs/code-map/server.md`](../../docs/code-map/server.md)：当前源码结构和启动流程。
 - [`output-format.md`](output-format.md)：启动、运行、停止和错误输出格式。
 
-Swagger UI 通过条件 feature 提供，普通构建和 Release 构建默认不编译。开发调试时使用：
+Swagger UI 在 Debug 构建中默认提供，Release 构建不注册文档路由。开发调试时使用：
 
 ```text
-cargo +stable run -p winestock-server --features swagger-ui
+cargo +stable run -p winestock-server
 ```
 
-正式构建不传 `swagger-ui` feature，不包含 Swagger UI。
+正式构建仍不注册 Swagger UI 路由。
 
-检查与 Desktop、Android 共用的发布清单时，运行：
+检查 GitHub 最新正式 Release 时，运行：
 
 ```text
 winestock-server --check-update
 ```
 
-该命令只输出当前版本、可用更新和 Server ZIP 下载地址；常规服务启动不会联网检查或在进程内安装更新。
+该命令只输出当前版本、可用更新和 GitHub Release 页面地址；常规服务启动不会联网检查或在进程内下载、安装更新。
 
 后续新增仅属于 server shell 的部署、配置或运维说明时，应放在本目录，而不是堆入根 `docs/`。

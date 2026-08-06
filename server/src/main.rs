@@ -9,11 +9,17 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() {
-    if std::env::args().skip(1).any(|argument| argument == "--check-update") {
+    if std::env::args()
+        .skip(1)
+        .any(|argument| argument == "--check-update")
+    {
         match winestock_server::check_for_update().await {
             Ok(result) if result.update_available => {
-                println!("WineStock Server 有可用更新: {} -> {}", result.current_version, result.latest_version);
-                println!("下载文件: {}", result.download_url);
+                println!(
+                    "WineStock Server 有可用更新: {} -> {}",
+                    result.current_version, result.latest_version
+                );
+                println!("请前往 GitHub 获取更新: {}", result.release_url);
             }
             Ok(result) => println!("WineStock Server 已是最新版本: {}", result.current_version),
             Err(error) => {

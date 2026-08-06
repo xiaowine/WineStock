@@ -4,11 +4,6 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
-[features]
-default = []
-# 仅 Debug 开发按需启用；Release 不传该 feature，避免编译 Swagger UI。
-swagger-ui = ["winestock-core/swagger-ui"]
-
 [dependencies]
 # server 是无前端的正式服务端平台壳，只负责进程生命周期、配置读取和状态输出。
 reqwest = { workspace = true }

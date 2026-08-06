@@ -35,6 +35,7 @@ pub use files::FileCleanupError;
 #[cfg(debug_assertions)]
 pub use http::openapi_document_json;
 pub use http::OPENAPI_JSON_PATH;
+#[cfg(debug_assertions)]
 pub use http::SWAGGER_UI_PATH;
 pub use http::{build_router, build_router_with_local_service};
 pub use local_service::{

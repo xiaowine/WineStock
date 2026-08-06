@@ -22,7 +22,6 @@ struct UpdateManifest {
     base_url: String,
     desktop: UpdateAsset,
     android: UpdateAsset,
-    server: UpdateAsset,
     #[serde(default)]
     notes: String,
 }
@@ -208,7 +207,6 @@ fn validate_manifest(manifest: &UpdateManifest) -> Result<(), UpdateError> {
     }
     validate_asset(manifest, &manifest.desktop, "Desktop", ".exe")?;
     validate_asset(manifest, &manifest.android, "Android", ".apk")?;
-    validate_asset(manifest, &manifest.server, "Server", ".zip")?;
     Ok(())
 }
 
@@ -226,7 +224,10 @@ fn validate_asset(
         ));
     }
     if asset.sha256.len() != 64 || !asset.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(UpdateError::new("update_manifest_invalid", "更新摘要格式无效"));
+        return Err(UpdateError::new(
+            "update_manifest_invalid",
+            "更新摘要格式无效",
+        ));
     }
     Ok(())
 }
@@ -348,7 +349,6 @@ mod tests {
             base_url: "https://download.example.com/winestock".to_owned(),
             desktop: asset("WineStock-0.1.1.apk"),
             android: asset("WineStock-0.1.1.apk"),
-            server: asset("WineStock-server-0.1.1.zip"),
             notes: String::new(),
         };
         let error = validate_manifest(&manifest).unwrap_err();
@@ -362,7 +362,6 @@ mod tests {
             base_url: "https://download.example.com/winestock".to_owned(),
             desktop: asset("WineStock-0.1.1-setup.exe"),
             android: asset("WineStock-0.1.1.apk"),
-            server: asset("WineStock-server-0.1.1.zip"),
             notes: String::new(),
         };
         assert!(validate_manifest(&manifest).is_ok());
@@ -375,7 +374,6 @@ mod tests {
             base_url: "https://download.example.com/winestock".to_owned(),
             desktop: asset("WineStock-0.1.0-setup.exe"),
             android: asset("WineStock-0.1.0.apk"),
-            server: asset("WineStock-server-0.1.0.zip"),
             notes: String::new(),
         };
         let result = result_from_manifest(manifest, true, "0.0.1");

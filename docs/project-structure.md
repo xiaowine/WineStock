@@ -182,8 +182,7 @@ Current `core` HTTP surface:
 - `POST /api/users/{id}/password`
 - `GET /api/permissions`
 - `GET /api-docs/openapi.json`（仅 Debug 构建）
-- Debug 构建启用 Swagger UI feature 时在 `/swagger-ui` 提供 Swagger UI；Release 构建不注册文档路由，
-  也不编译或链接 Swagger UI
+- Debug 构建在 `/swagger-ui` 提供 Swagger UI；Release 构建不注册文档路由
 
 `shared` owns the shared runtime configuration model, platform-neutral startup contracts, and primitive text validation helpers.
 It must not depend on `core`, Axum, Tauri, Android shell code, or frontend build output.

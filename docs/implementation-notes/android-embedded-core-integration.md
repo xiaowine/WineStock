@@ -1368,7 +1368,7 @@ cargo ndk -t arm64-v8a -P 26 check -p winestock-android --locked
 - Debug 使用 Cargo debug profile；Release 明确使用 `cargo ndk ... --release`，因此
   `winestock-android -> winestock-core -> winestock-shared` 整条依赖链均按 release profile 编译。
 - `utoipa-swagger-ui` 作为可选 feature 供 Debug 使用；Release core 不注册 UI 或 OpenAPI JSON 路由，
-  最终 `.so` 与 APK 不编译、链接或打包 Swagger UI 静态资源。
+  Release `.so` 与 APK 不注册 Swagger UI 路由。
 - 当前只存在 APK 包级验证，不存在自定义 AAB 校验或 bundle 挂钩。
 
 ### 22.2 已执行验证
