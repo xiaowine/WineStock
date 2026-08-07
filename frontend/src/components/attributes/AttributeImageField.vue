@@ -87,6 +87,7 @@
           v-if="pickerOpen"
           :id="pickerId"
           ref="pickerPopover"
+          v-overlay-scrollbar
           class="image-picker-popover"
           :class="{ 'image-picker-popover--above': pickerPlacement === 'above' }"
           :style="pickerStyle"

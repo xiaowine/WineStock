@@ -68,6 +68,7 @@
       </div>
 
       <div
+        v-overlay-scrollbar
         class="inbound-orders-results"
         :class="{ 'inbound-orders-results--refreshing': showRefreshing }"
         :aria-busy="requestPending"

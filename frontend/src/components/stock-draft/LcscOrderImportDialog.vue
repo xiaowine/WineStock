@@ -53,7 +53,7 @@
           </button>
         </p>
 
-        <div class="lcsc-order-import__table-wrap">
+        <div v-overlay-scrollbar class="lcsc-order-import__table-wrap">
           <table class="lcsc-order-import__table">
             <thead>
               <tr>

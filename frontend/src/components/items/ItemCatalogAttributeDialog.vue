@@ -45,7 +45,7 @@
             <strong>可选展示字段</strong>
             <span>{{ activeTemplate.fields.length }} 项</span>
           </div>
-          <div class="catalog-attribute-dialog__options">
+          <div v-overlay-scrollbar class="catalog-attribute-dialog__options">
             <label
               v-for="field in activeTemplate.fields"
               :key="field.id"

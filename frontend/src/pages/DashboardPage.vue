@@ -124,7 +124,7 @@
         </div>
 
         <template v-else>
-          <div class="dashboard-slow-moving__table-wrap">
+          <div v-overlay-scrollbar class="dashboard-slow-moving__table-wrap">
             <table class="dashboard-slow-moving__table">
               <thead>
                 <tr>

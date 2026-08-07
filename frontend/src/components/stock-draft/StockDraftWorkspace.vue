@@ -158,7 +158,12 @@
             <span>{{ texts.emptyHint }}</span>
           </section>
 
-          <section v-else class="inbound-lines" :aria-label="texts.linesAriaLabel">
+          <section
+            v-else
+            v-overlay-scrollbar
+            class="inbound-lines"
+            :aria-label="texts.linesAriaLabel"
+          >
             <table>
               <thead>
                 <tr>

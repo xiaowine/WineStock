@@ -47,6 +47,7 @@
         </div>
       </div>
       <div
+        v-overlay-scrollbar
         class="approval-results"
         :class="{ 'approval-results--refreshing': showRefreshing }"
         :aria-busy="requestPending"

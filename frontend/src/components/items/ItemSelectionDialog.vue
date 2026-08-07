@@ -51,6 +51,7 @@
       <div
         v-if="items.length > 0"
         :ref="captureList"
+        v-overlay-scrollbar
         class="item-selection-dialog__list"
         aria-label="可选择物品"
         @scroll.passive="emit('scroll-items')"

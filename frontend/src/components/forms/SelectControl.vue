@@ -34,6 +34,7 @@
           v-if="open"
           :id="listboxId"
           ref="listbox"
+          v-overlay-scrollbar
           class="select-control__options"
           role="listbox"
           :aria-label="typeof attrs['aria-label'] === 'string' ? attrs['aria-label'] : undefined"

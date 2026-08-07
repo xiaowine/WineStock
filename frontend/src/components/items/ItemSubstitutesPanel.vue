@@ -71,6 +71,7 @@
         </div>
         <div
           v-else-if="visibleCandidates.length"
+          v-overlay-scrollbar
           class="item-substitutes-panel__candidates"
           aria-label="可添加的替代物品"
         >

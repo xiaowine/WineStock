@@ -65,7 +65,7 @@
     <header>
       <strong>选择批次</strong><span>批次可用数量仅为当前快照，实际出库时仍会校验库存。</span>
     </header>
-    <div class="outbound-batches" @scroll.passive="handleScroll">
+    <div v-overlay-scrollbar class="outbound-batches" @scroll.passive="handleScroll">
       <div v-for="batch in batches" :key="batch.id" class="outbound-batch">
         <label>
           <input v-model="draft.batchId" type="radio" :value="batch.id" />

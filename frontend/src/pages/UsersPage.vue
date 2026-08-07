@@ -45,7 +45,7 @@
           正在加载用户…
         </div>
 
-        <div v-else class="users-results">
+        <div v-else v-overlay-scrollbar class="users-results">
           <template v-if="users.length > 0">
             <UserDirectoryTable
               :users="users"

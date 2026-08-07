@@ -84,6 +84,7 @@
       </div>
 
       <div
+        v-overlay-scrollbar
         class="substitutes-results"
         :class="{ 'substitutes-results--refreshing': showStableRefreshing }"
         :aria-busy="loading"

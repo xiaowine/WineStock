@@ -52,7 +52,7 @@
             <slot name="context" />
           </div>
 
-          <div class="modal-body">
+          <div v-overlay-scrollbar class="modal-body">
             <slot />
           </div>
 

@@ -3,7 +3,7 @@
   它处理强制改密和主动改密，不拥有管理员重置密码或平台凭据存储。
 -->
 <template>
-  <main class="auth-page">
+  <main v-overlay-scrollbar class="auth-page">
     <section class="auth-panel" aria-labelledby="change-password-title">
       <header class="auth-header">
         <div class="brand-lockup">

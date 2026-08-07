@@ -23,6 +23,7 @@
           />
           <div
             v-if="showSearchResults"
+            v-overlay-scrollbar
             class="substitute-network-search-results"
             role="listbox"
             aria-label="网络搜索结果"

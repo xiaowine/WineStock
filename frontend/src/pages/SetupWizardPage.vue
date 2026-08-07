@@ -4,7 +4,7 @@
   设计与文案定稿见 docs/implementation-notes/first-run-setup-wizard.md。
 -->
 <template>
-  <main class="auth-page">
+  <main v-overlay-scrollbar class="auth-page">
     <section class="auth-panel setup-wizard" aria-labelledby="setup-wizard-title">
       <header class="auth-header">
         <div class="brand-lockup">

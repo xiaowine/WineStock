@@ -92,6 +92,7 @@
     <div class="app-workspace">
       <aside
         id="app-navigation-pane"
+        v-overlay-scrollbar
         class="app-navigation-pane"
         :class="{ 'app-navigation-pane--open': navOpen }"
         aria-label="导航面板"
@@ -122,7 +123,7 @@
         />
       </aside>
 
-      <main class="app-content-pane" aria-label="主内容">
+      <main v-overlay-scrollbar class="app-content-pane" aria-label="主内容">
         <RouteContentView />
         <!-- 触底安全区占位：必须是真实节点以撑开 scrollHeight，内容可仍延伸到导航栏下。 -->
         <div class="app-content-pane__end-inset" aria-hidden="true" />

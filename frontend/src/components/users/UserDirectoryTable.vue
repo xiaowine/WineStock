@@ -3,7 +3,7 @@
   它不请求 API、不判断后端授权，只把页面提供的用户和可用操作呈现为稳定列。
 -->
 <template>
-  <div class="user-directory-table-wrap">
+  <div v-overlay-scrollbar class="user-directory-table-wrap">
     <div
       class="user-directory-table"
       role="table"

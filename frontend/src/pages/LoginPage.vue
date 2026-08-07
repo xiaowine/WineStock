@@ -3,7 +3,7 @@
   它在桌面和移动视口共用同一登录流程，不实现路由守卫或平台生命周期。
 -->
 <template>
-  <main class="auth-page">
+  <main v-overlay-scrollbar class="auth-page">
     <section class="auth-panel" aria-labelledby="login-title">
       <header class="auth-header">
         <div class="brand-lockup">

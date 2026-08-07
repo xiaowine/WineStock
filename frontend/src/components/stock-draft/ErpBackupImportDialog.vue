@@ -66,7 +66,7 @@
           </span>
         </div>
 
-        <div class="erp-backup-import__table-wrap">
+        <div v-overlay-scrollbar class="erp-backup-import__table-wrap">
           <table class="erp-backup-import__table">
             <colgroup>
               <col class="erp-backup-import__col--select" />

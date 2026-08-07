@@ -1,6 +1,6 @@
 <!-- 本页面拥有匿名认证入口的首用户状态分流；它不渲染登录或注册表单。 -->
 <template>
-  <main class="auth-page">
+  <main v-overlay-scrollbar class="auth-page">
     <section class="auth-panel" aria-labelledby="auth-entry-title">
       <header class="auth-header">
         <div class="brand-lockup">

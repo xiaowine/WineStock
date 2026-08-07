@@ -12,6 +12,7 @@ import {
 } from "./auth/session";
 import { installOverlayScrollbars } from "./bootstrap/overlayScrollbars";
 import { copyableDirective } from "./directives/copyable";
+import { overlayScrollbarDirective } from "./directives/overlayScrollbar";
 import { installNativeBackNavigation } from "./navigation/nativeBack";
 import { router } from "./router";
 import { installAuthGuards } from "./router/guards";
@@ -90,7 +91,11 @@ async function bootstrapFrontend(): Promise<void> {
     { flush: "sync" },
   );
 
-  createApp(App).use(router).directive("copyable", copyableDirective).mount("#app");
+  createApp(App)
+    .use(router)
+    .directive("copyable", copyableDirective)
+    .directive("overlay-scrollbar", overlayScrollbarDirective)
+    .mount("#app");
   installOverlayScrollbars();
   if (autoUpdateCheckEnabled.value) {
     void checkForUpdate()

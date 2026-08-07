@@ -43,6 +43,7 @@
 
     <div v-if="mode === 'existing'" class="item-workspace">
       <nav
+        v-overlay-scrollbar
         ref="workspaceNav"
         class="item-workspace__nav"
         :class="{
@@ -114,7 +115,7 @@
             </div>
           </header>
 
-          <div class="item-workspace__content">
+          <div v-overlay-scrollbar class="item-workspace__content">
             <div
               v-if="activePage === 'data' && !dataReady"
               class="dialog-state"

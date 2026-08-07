@@ -32,6 +32,7 @@
       @submit.prevent="submitPermissions"
     >
       <nav
+        v-overlay-scrollbar
         ref="groupsViewport"
         class="permission-picker__groups"
         :class="{ 'permission-picker__groups--scrollable': permissionGroups.length > 4 }"
@@ -70,7 +71,7 @@
             </button>
           </header>
 
-          <div ref="optionsViewport" class="permission-picker__options">
+          <div v-overlay-scrollbar ref="optionsViewport" class="permission-picker__options">
             <label
               v-for="permission in activeGroup.permissions"
               :key="permission.code"

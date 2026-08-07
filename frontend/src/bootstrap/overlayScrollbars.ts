@@ -1,4 +1,4 @@
-// 本文件拥有全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
+// 本文件拥有移动与触控视口的全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
 // 滑块挂在 Dialog 之上的固定层以保证可见；嵌套 Dialog 打开时隐藏被遮挡宿主的滑块，避免下层滑块穿透。
 
 type ScrollAxis = "vertical" | "horizontal";
@@ -30,7 +30,7 @@ interface VisibleRect {
   width: number;
 }
 
-const ACTIVE_MEDIA_QUERY = "all";
+const ACTIVE_MEDIA_QUERY = "(max-width: 767px), ((hover: none) and (pointer: coarse))";
 const ROOT_ID = "app-overlay-scrollbars";
 const TRACK_INSET = 3;
 const THUMB_HIT_SIZE = 12;
@@ -38,17 +38,17 @@ const MIN_THUMB_LENGTH = 32;
 const SCROLLABLE_OVERFLOW = new Set(["auto", "scroll"]);
 
 let activeMediaQuery: MediaQueryList | undefined;
-let mutationObserver: MutationObserver | undefined;
 let overlayRoot: HTMLDivElement | undefined;
 let refreshFrame = 0;
 let resizeObserver: ResizeObserver | undefined;
 const entries = new Map<HTMLElement, OverlayScrollbarEntry>();
+const registeredElements = new Set<HTMLElement>();
 
 /**
  * 安装全局浮层滚动条。
  *
- * 隐藏会占宽度的经典滚动槽，本模块为当前真实滚动宿主绘制独立滑块；
- * 响应式切换滚动容器、Dialog Teleport 和动态列表变化都会重新核对宿主。
+ * 移动布局隐藏会占宽度的经典滚动槽，本模块只为显式注册的真实滚动宿主绘制独立滑块；
+ * 动态列表和 Dialog 通过 v-overlay-scrollbar 在挂载时注册宿主。
  */
 export function installOverlayScrollbars(): void {
   if (
@@ -73,24 +73,27 @@ export function installOverlayScrollbars(): void {
   window.visualViewport?.addEventListener("resize", scheduleRefresh);
   window.visualViewport?.addEventListener("scroll", schedulePositionUpdate);
 
-  mutationObserver = new MutationObserver((records) => {
-    if (overlayRoot && records.every((record) => overlayRoot?.contains(record.target))) {
-      return;
-    }
-    scheduleRefresh();
-  });
-  mutationObserver.observe(document.body, {
-    attributes: true,
-    attributeFilter: ["class", "hidden", "style"],
-    childList: true,
-    subtree: true,
-  });
-
   if (typeof ResizeObserver !== "undefined") {
     resizeObserver = new ResizeObserver(scheduleRefresh);
+    for (const element of registeredElements) resizeObserver.observe(element);
   }
 
   scheduleRefresh();
+}
+
+/** 注册需要自绘滚动条的明确宿主，避免 resize 时扫描整个页面 DOM。 */
+export function registerOverlayScrollbar(element: HTMLElement): void {
+  registeredElements.add(element);
+  resizeObserver?.observe(element);
+  scheduleRefresh();
+}
+
+/** 动态 Dialog 或页面卸载时移除滚动宿主及其滑块。 */
+export function unregisterOverlayScrollbar(element: HTMLElement): void {
+  registeredElements.delete(element);
+  resizeObserver?.unobserve(element);
+  const entry = entries.get(element);
+  if (entry) removeEntry(entry);
 }
 
 function scheduleRefresh(): void {
@@ -122,12 +125,9 @@ function refreshEntries(): void {
   }
 
   const activeElements = new Set<HTMLElement>();
-  const scrollingElement = document.scrollingElement;
-  const candidates = Array.from(document.querySelectorAll<HTMLElement>("body *"));
-  if (scrollingElement instanceof HTMLElement) candidates.unshift(scrollingElement);
 
-  for (const element of candidates) {
-    if (overlayRoot.contains(element)) continue;
+  for (const element of registeredElements) {
+    if (!element.isConnected || overlayRoot.contains(element)) continue;
     const axes = getScrollableAxes(element);
     if (!axes.horizontal && !axes.vertical) continue;
 
@@ -168,14 +168,11 @@ function getScrollableAxes(element: HTMLElement): ScrollableAxes {
     return { horizontal: false, vertical: false };
   }
 
-  const isDocumentScroller = element === document.scrollingElement;
   return {
     horizontal:
-      element.scrollWidth > element.clientWidth + 1 &&
-      (isDocumentScroller || SCROLLABLE_OVERFLOW.has(style.overflowX)),
+      element.scrollWidth > element.clientWidth + 1 && SCROLLABLE_OVERFLOW.has(style.overflowX),
     vertical:
-      element.scrollHeight > element.clientHeight + 1 &&
-      (isDocumentScroller || SCROLLABLE_OVERFLOW.has(style.overflowY)),
+      element.scrollHeight > element.clientHeight + 1 && SCROLLABLE_OVERFLOW.has(style.overflowY),
   };
 }
 
@@ -416,7 +413,6 @@ function hideThumb(thumb?: HTMLDivElement): void {
 }
 
 function removeEntry(entry: OverlayScrollbarEntry): void {
-  resizeObserver?.unobserve(entry.element);
   entry.verticalThumb?.remove();
   entry.horizontalThumb?.remove();
   entries.delete(entry.element);

@@ -12,7 +12,7 @@
           <strong>{{ node.name }}</strong>
           <small>编号 {{ node.sku }}</small>
         </div>
-        <div class="substitute-network-detail__metrics">
+        <div v-overlay-scrollbar class="substitute-network-detail__metrics">
           <span
             ><strong>{{ incoming.length }}</strong> 个上游</span
           >
@@ -38,7 +38,7 @@
         </div>
       </div>
 
-      <div class="substitute-network-detail__relations">
+      <div v-overlay-scrollbar class="substitute-network-detail__relations">
         <section>
           <h3>上游关系</h3>
           <p v-if="!incoming.length">没有物品将它设为替代物品。</p>

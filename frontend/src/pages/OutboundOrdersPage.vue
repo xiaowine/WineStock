@@ -61,7 +61,7 @@
           </div>
         </div>
       </div>
-      <div class="inbound-orders-results" :aria-busy="pending">
+      <div v-overlay-scrollbar class="inbound-orders-results" :aria-busy="pending">
         <section v-if="!orders.length && loaded" class="inbound-orders-state">
           <strong>{{ hasFilters ? "没有符合筛选条件的出库单" : "暂无出库单" }}</strong
           ><button v-if="hasFilters" class="text-button" type="button" @click="clear">

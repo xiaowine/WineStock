@@ -53,7 +53,12 @@
         <strong>没有找到匹配的物品</strong>
         <span>请检查名称或编号后重试。</span>
       </div>
-      <div v-else class="substitute-target-picker__results" aria-label="主物品候选">
+      <div
+        v-else
+        v-overlay-scrollbar
+        class="substitute-target-picker__results"
+        aria-label="主物品候选"
+      >
         <button v-for="item in targets" :key="item.id" type="button" @click="selectTarget(item)">
           <span
             ><strong :title="item.name">{{ item.name }}</strong

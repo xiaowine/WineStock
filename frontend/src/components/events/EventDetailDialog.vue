@@ -81,7 +81,7 @@
 
       <section v-if="diffRows.length" class="event-detail__section">
         <h3>字段变化</h3>
-        <div class="event-diff-table" role="table" aria-label="操作字段变化">
+        <div v-overlay-scrollbar class="event-diff-table" role="table" aria-label="操作字段变化">
           <div class="event-diff-table__head" role="row">
             <span role="columnheader">字段</span><span role="columnheader">修改前</span
             ><span role="columnheader">修改后</span>
@@ -126,7 +126,7 @@
             复制 JSON
           </button>
         </header>
-        <pre tabindex="0">{{ rawJson }}</pre>
+        <pre v-overlay-scrollbar tabindex="0">{{ rawJson }}</pre>
       </details>
     </div>
 

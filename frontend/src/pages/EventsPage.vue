@@ -99,6 +99,7 @@
       </div>
 
       <div
+        v-overlay-scrollbar
         class="events-results"
         :class="{ 'events-results--refreshing': showStableRefreshing }"
         :aria-busy="requestPending"

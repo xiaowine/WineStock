@@ -45,7 +45,7 @@
           </div>
         </header>
 
-        <div class="location-groups__body" :aria-busy="treeLoading">
+        <div v-overlay-scrollbar class="location-groups__body" :aria-busy="treeLoading">
           <div
             v-if="treeError && !treeLoaded"
             class="location-groups__state location-groups__state--error"
@@ -183,6 +183,7 @@
         </div>
 
         <div
+          v-overlay-scrollbar
           class="locations-catalog__body"
           :class="{ 'locations-catalog__body--refreshing': showStableListRefreshing }"
           :aria-busy="locationsLoading"

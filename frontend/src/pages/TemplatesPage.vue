@@ -13,6 +13,7 @@
 
     <section class="templates-workspace">
       <div
+        v-overlay-scrollbar
         class="templates-tabs"
         role="tablist"
         aria-label="分类与模板业务域"

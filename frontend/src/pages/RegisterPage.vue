@@ -3,7 +3,7 @@
   它在桌面和移动视口共用同一注册流程，不负责后续用户管理或平台安全存储。
 -->
 <template>
-  <main class="auth-page">
+  <main v-overlay-scrollbar class="auth-page">
     <section class="auth-panel" aria-labelledby="register-title">
       <header class="auth-header">
         <div class="brand-lockup">

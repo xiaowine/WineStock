@@ -118,6 +118,7 @@
         </div>
 
         <div
+          v-overlay-scrollbar
           class="items-catalog__body"
           :class="{ 'items-catalog__body--refreshing': showStableCatalogLoading && items.length }"
           :aria-busy="catalogPending"

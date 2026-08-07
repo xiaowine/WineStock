@@ -34,7 +34,7 @@
       </button>
     </header>
 
-    <fieldset class="item-editor__content" :disabled="readOnly">
+    <fieldset v-overlay-scrollbar class="item-editor__content" :disabled="readOnly">
       <div v-if="metadataError" class="item-editor__metadata-error" role="alert">
         分类和属性模板暂不可用，仍可编辑其它字段。
       </div>
