@@ -259,13 +259,18 @@
                   <div class="locations-table__meta">
                     <span class="locations-table__meta-row">
                       <span class="locations-table__meta-label">排序：</span>
-                      <strong class="locations-table__meta-value">{{ location.sort_order }}</strong>
+                      <strong class="locations-table__meta-value" :title="String(location.sort_order)">{{
+                        location.sort_order
+                      }}</strong>
                     </span>
                     <span class="locations-table__meta-row">
                       <span class="locations-table__meta-label">更新：</span>
-                      <time class="locations-table__meta-value" :datetime="location.updated_at">{{
-                        formatDateTime(location.updated_at)
-                      }}</time>
+                      <time
+                        class="locations-table__meta-value"
+                        :datetime="location.updated_at"
+                        :title="formatDateTime(location.updated_at)"
+                        >{{ formatDateTime(location.updated_at) }}</time
+                      >
                     </span>
                   </div>
                   <span v-if="canManage" class="locations-table__actions">

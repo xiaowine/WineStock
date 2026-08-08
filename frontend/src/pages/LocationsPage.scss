@@ -309,12 +309,12 @@
 }
 
 .locations-table {
-  min-width: 740px;
+  min-width: 0;
 
   &__head,
   &__row {
     display: grid;
-    grid-template-columns: clamp(180px, 20vw, 240px) minmax(240px, 1fr) clamp(250px, 24vw, 290px);
+    grid-template-columns: clamp(180px, 20cqi, 240px) minmax(240px, 1fr) clamp(250px, 24cqi, 290px);
     align-items: center;
   }
 
@@ -698,7 +698,7 @@
   }
 }
 
-@container locations-page (max-width: 763px) {
+@include mixins.mobile {
   .locations-page {
     gap: 0;
 
@@ -835,82 +835,6 @@
       margin-right: 0;
       margin-left: 0;
     }
-  }
-
-  @include locations-catalog-card-layout;
-}
-
-@container locations-catalog (max-width: 763px) {
-  .locations-catalog__toolbar {
-    grid-template-areas:
-      "search search refresh create"
-      "group group summary summary";
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) repeat(2, 40px);
-    gap: 6px;
-    padding: 8px 0 10px;
-
-    &--readonly {
-      grid-template-areas:
-        "search search search refresh"
-        "group group summary summary";
-    }
-  }
-
-  .locations-catalog__search {
-    grid-area: search;
-  }
-
-  .locations-catalog__search > span:first-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    border: 0;
-    margin: -1px;
-    clip-path: inset(50%);
-    overflow: hidden;
-    white-space: nowrap;
-  }
-
-  .locations-catalog__context,
-  .locations-catalog__commands,
-  .locations-catalog__actions {
-    display: contents;
-  }
-
-  .locations-catalog__group-trigger {
-    display: inline-flex;
-    grid-area: group;
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .locations-catalog__context-copy {
-    display: none;
-  }
-
-  .locations-catalog__summary {
-    grid-area: summary;
-    min-width: 0;
-    min-height: 40px;
-    justify-self: end;
-  }
-
-  .locations-catalog__refresh-status {
-    display: none;
-  }
-
-  .locations-catalog__refresh {
-    grid-area: refresh;
-  }
-
-  .locations-catalog__create {
-    grid-area: create;
-  }
-
-  .locations-catalog__inline-error {
-    margin-right: 0;
-    margin-left: 0;
   }
 
   @include locations-catalog-card-layout;
