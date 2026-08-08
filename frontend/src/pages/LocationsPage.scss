@@ -465,8 +465,10 @@
 
     .locations-table__meta-value {
       min-width: 0;
+      overflow: hidden;
       color: var(--color-text);
       font-weight: 620;
+      text-overflow: ellipsis;
     }
   }
 
