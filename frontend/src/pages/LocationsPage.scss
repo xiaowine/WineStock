@@ -314,7 +314,7 @@
   &__head,
   &__row {
     display: grid;
-    grid-template-columns: clamp(180px, 20cqi, 240px) minmax(240px, 1fr) clamp(250px, 24cqi, 290px);
+    grid-template-columns: clamp(180px, 20cqi, 240px) minmax(240px, 1fr) clamp(280px, 24cqi, 290px);
     align-items: center;
   }
 
