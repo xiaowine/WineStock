@@ -1,4 +1,4 @@
-// 本文件拥有移动与触控视口的全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
+// 本文件拥有全局浮层滚动条，属于 frontend 启动层；它不改变业务滚动容器的所有权。
 // 滑块挂在 Dialog 之上的固定层以保证可见；嵌套 Dialog 打开时隐藏被遮挡宿主的滑块，避免下层滑块穿透。
 
 type ScrollAxis = "vertical" | "horizontal";
@@ -30,7 +30,7 @@ interface VisibleRect {
   width: number;
 }
 
-const ACTIVE_MEDIA_QUERY = "(max-width: 767px), ((hover: none) and (pointer: coarse))";
+const ACTIVE_MEDIA_QUERY = "all";
 const ROOT_ID = "app-overlay-scrollbars";
 const TRACK_INSET = 3;
 const THUMB_HIT_SIZE = 12;
@@ -43,11 +43,26 @@ let refreshFrame = 0;
 let resizeObserver: ResizeObserver | undefined;
 const entries = new Map<HTMLElement, OverlayScrollbarEntry>();
 const registeredElements = new Set<HTMLElement>();
+// MutationObserver 只能整组 disconnect，按宿主各建一个以便单独解绑。
+const contentObservers = new WeakMap<HTMLElement, MutationObserver>();
+
+/**
+ * 宿主内部影响布局的内容变更：新增/移除节点、文本替换，以及 style/class 切换。
+ * 高度受限的滚动容器（应用内容面板、Dialog 正文）在内容增长时自身盒子不变，
+ * ResizeObserver 不会触发，必须靠这里重建滑块。
+ */
+const HOST_CONTENT_MUTATIONS: MutationObserverInit = {
+  subtree: true,
+  childList: true,
+  characterData: true,
+  attributes: true,
+  attributeFilter: ["style", "class"],
+};
 
 /**
  * 安装全局浮层滚动条。
  *
- * 移动布局隐藏会占宽度的经典滚动槽，本模块只为显式注册的真实滚动宿主绘制独立滑块；
+ * 全局隐藏会占宽度的经典滚动槽，本模块只为显式注册的真实滚动宿主绘制独立滑块；
  * 动态列表和 Dialog 通过 v-overlay-scrollbar 在挂载时注册宿主。
  */
 export function installOverlayScrollbars(): void {
@@ -69,6 +84,8 @@ export function installOverlayScrollbars(): void {
   activeMediaQuery.addEventListener("change", scheduleRefresh);
   document.addEventListener("scroll", schedulePositionUpdate, true);
   document.addEventListener("transitionend", handleNavigationTransitionEnd, true);
+  // 图片/字体加载会改变布局高度但不产生 DOM 变更，捕获 load 事件兜底重建滑块。
+  window.addEventListener("load", scheduleRefresh, true);
   window.addEventListener("resize", scheduleRefresh);
   window.visualViewport?.addEventListener("resize", scheduleRefresh);
   window.visualViewport?.addEventListener("scroll", schedulePositionUpdate);
@@ -78,6 +95,8 @@ export function installOverlayScrollbars(): void {
     for (const element of registeredElements) resizeObserver.observe(element);
   }
 
+  for (const element of registeredElements) observeHostContent(element);
+
   scheduleRefresh();
 }
 
@@ -85,6 +104,7 @@ export function installOverlayScrollbars(): void {
 export function registerOverlayScrollbar(element: HTMLElement): void {
   registeredElements.add(element);
   resizeObserver?.observe(element);
+  observeHostContent(element);
   scheduleRefresh();
 }
 
@@ -92,8 +112,18 @@ export function registerOverlayScrollbar(element: HTMLElement): void {
 export function unregisterOverlayScrollbar(element: HTMLElement): void {
   registeredElements.delete(element);
   resizeObserver?.unobserve(element);
+  contentObservers.get(element)?.disconnect();
+  contentObservers.delete(element);
   const entry = entries.get(element);
   if (entry) removeEntry(entry);
+}
+
+/** 为宿主建立内容变更观察，检测影响滚动性的布局变化。 */
+function observeHostContent(element: HTMLElement): void {
+  if (typeof MutationObserver === "undefined" || contentObservers.has(element)) return;
+  const observer = new MutationObserver(() => scheduleRefresh());
+  observer.observe(element, HOST_CONTENT_MUTATIONS);
+  contentObservers.set(element, observer);
 }
 
 function scheduleRefresh(): void {
@@ -141,6 +171,22 @@ function refreshEntries(): void {
     syncEntryThumbs(entry, axes);
   }
 
+  // 页面级滚动同样需要浮层滑块；文档滚动器不参与指令注册，单独按需纳入。
+  const scrollingElement = document.scrollingElement;
+  if (scrollingElement instanceof HTMLElement) {
+    const axes = getScrollableAxes(scrollingElement);
+    if (axes.horizontal || axes.vertical) {
+      activeElements.add(scrollingElement);
+      let entry = entries.get(scrollingElement);
+      if (!entry) {
+        entry = { element: scrollingElement };
+        entries.set(scrollingElement, entry);
+        resizeObserver?.observe(scrollingElement);
+      }
+      syncEntryThumbs(entry, axes);
+    }
+  }
+
   for (const [element, entry] of entries) {
     if (!activeElements.has(element)) removeEntry(entry);
   }
@@ -168,11 +214,16 @@ function getScrollableAxes(element: HTMLElement): ScrollableAxes {
     return { horizontal: false, vertical: false };
   }
 
+  // 文档滚动器由浏览器按传播规则决定滚动性，无需依赖 overflow 声明。
+  const isDocumentScroller = element === document.scrollingElement;
+
   return {
     horizontal:
-      element.scrollWidth > element.clientWidth + 1 && SCROLLABLE_OVERFLOW.has(style.overflowX),
+      element.scrollWidth > element.clientWidth + 1 &&
+      (isDocumentScroller || SCROLLABLE_OVERFLOW.has(style.overflowX)),
     vertical:
-      element.scrollHeight > element.clientHeight + 1 && SCROLLABLE_OVERFLOW.has(style.overflowY),
+      element.scrollHeight > element.clientHeight + 1 &&
+      (isDocumentScroller || SCROLLABLE_OVERFLOW.has(style.overflowY)),
   };
 }
 

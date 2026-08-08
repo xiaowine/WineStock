@@ -45,12 +45,6 @@ $breakpoint-desktop: 768px;
   }
 }
 
-@mixin mobile-or-touch {
-  @media (max-width: $breakpoint-mobile), (hover: none) and (pointer: coarse) {
-    @content;
-  }
-}
-
 @mixin reduced-motion {
   @media (prefers-reduced-motion: reduce) {
     @content;
