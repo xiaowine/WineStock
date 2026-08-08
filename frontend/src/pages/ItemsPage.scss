@@ -26,6 +26,7 @@
     grid-template-columns: minmax(88px, 0.72fr) minmax(0, 2fr);
     grid-template-areas:
       "identity identity"
+      "attributes attributes"
       "details stock";
     overflow: hidden;
     padding: 12px;
@@ -44,9 +45,7 @@
     z-index: auto;
     grid-area: identity;
     grid-template-columns: 64px minmax(0, 1fr) 34px;
-    grid-template-areas:
-      "image identity actions"
-      "attributes attributes attributes";
+    grid-template-areas: "image identity actions";
     gap: 8px 10px;
     padding: 0 0 11px;
     background: transparent;
@@ -84,7 +83,7 @@
     height: 34px;
   }
 
-  .items-catalog__fixed-info .items-catalog__attributes {
+  .items-catalog__attributes {
     height: auto;
     grid-area: attributes;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -94,18 +93,18 @@
     border-top: 1px solid var(--color-border);
   }
 
-  .items-catalog__fixed-info .items-catalog__attributes > div {
+  .items-catalog__attributes > div {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     gap: 4px;
   }
 
-  .items-catalog__fixed-info .items-catalog__attributes > div:last-child:nth-child(odd),
-  .items-catalog__fixed-info .items-catalog__attributes .is-empty {
+  .items-catalog__attributes > div:last-child:nth-child(odd),
+  .items-catalog__attributes .is-empty {
     grid-column: 1 / -1;
   }
 
-  .items-catalog__fixed-info .items-catalog__attributes dt {
+  .items-catalog__attributes dt {
     max-width: 6em;
   }
 
@@ -296,7 +295,7 @@
 .items-catalog__table-head,
 .items-catalog__item {
   display: grid;
-  grid-template-columns: clamp(340px, 38vw, 410px) minmax(260px, 1fr) clamp(120px, 13vw, 145px);
+  grid-template-columns: clamp(300px, 28vw, 350px) minmax(0, 1fr) minmax(0, 1fr) clamp(120px, 13vw, 145px);
 }
 .items-catalog__table-head {
   position: sticky;
@@ -363,7 +362,7 @@
   z-index: 3;
   display: grid;
   min-width: 0;
-  grid-template-columns: 76px minmax(0, 1.1fr) minmax(0, 0.9fr) 30px;
+  grid-template-columns: 76px minmax(0, 1fr) 30px;
   align-content: center;
   align-items: center;
   gap: 10px;
@@ -416,7 +415,7 @@
   white-space: nowrap;
 }
 .items-catalog__identity-meta dt::after,
-.items-catalog__fixed-info .items-catalog__attributes dt::after {
+.items-catalog__attributes dt::after {
   content: "：";
 }
 .items-catalog__identity-meta dd {
@@ -435,7 +434,7 @@
 /* 行内图标透出当前行的悬浮或选中底色，避免保留静态白色方块。 */
 .items-catalog__row-actions {
   display: grid;
-  grid-column: 4;
+  grid-column: 3;
   grid-row: 1;
   align-self: start;
   gap: 4px;
@@ -447,32 +446,6 @@
 }
 .items-catalog__delete {
   color: var(--color-danger);
-}
-
-.items-catalog__fixed-info .items-catalog__attributes {
-  display: grid;
-  min-width: 0;
-  height: 84px;
-  grid-column: 3;
-  grid-row: 1;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: center;
-  gap: 3px;
-}
-.items-catalog__fixed-info .items-catalog__attributes > div {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-}
-.items-catalog__fixed-info .items-catalog__attributes dd {
-  min-width: 0;
-  text-align: left;
-}
-.items-catalog__fixed-info .items-catalog__attributes .is-empty {
-  align-self: center;
-}
-.items-catalog__fixed-info .items-catalog__attributes .is-empty dd {
-  text-align: left;
 }
 
 .items-catalog__attributes,
@@ -509,6 +482,32 @@
 .items-catalog__attributes .is-empty {
   grid-template-columns: minmax(0, 1fr);
   color: var(--color-subtle);
+}
+
+/* 桌面端关键属性为行级弹性单元格：单列堆叠、属性名与值同行基线对齐。 */
+.items-catalog__attributes {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 4px;
+}
+.items-catalog__attributes > div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 4px;
+}
+.items-catalog__attributes dd {
+  min-width: 0;
+  text-align: left;
+}
+.items-catalog__attributes .is-empty {
+  grid-column: 1 / -1;
+  align-self: center;
+}
+.items-catalog__attributes .is-empty dd {
+  text-align: left;
 }
 
 .items-catalog__details {
@@ -703,11 +702,11 @@
 
 @include mixins.below(359px) {
   .items-catalog__identity-meta,
-  .items-catalog__fixed-info .items-catalog__attributes {
+  .items-catalog__attributes {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .items-catalog__fixed-info .items-catalog__attributes > div:last-child:nth-child(odd) {
+  .items-catalog__attributes > div:last-child:nth-child(odd) {
     grid-column: auto;
   }
 }

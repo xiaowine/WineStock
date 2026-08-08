@@ -148,7 +148,7 @@
           <template v-else>
             <div class="items-catalog__table" role="table" aria-label="物品库存目录">
               <div class="items-catalog__table-head" role="row">
-                <span>物品 / 关键属性</span><span>库存与资料</span><span>库存判断</span>
+                <span>物品</span><span>关键属性</span><span>库存与资料</span><span>库存判断</span>
               </div>
               <article
                 v-for="item in items"
@@ -226,36 +226,44 @@
                       </svg>
                     </button>
                   </div>
-                  <dl class="items-catalog__attributes">
-                    <div v-for="attribute in item.catalog_attributes" :key="attribute.name">
-                      <dt :title="attribute.name">{{ attribute.name }}</dt>
-                      <dd :title="catalogAttributeText(attribute)">
-                        {{ catalogAttributeText(attribute) }}
-                      </dd>
-                    </div>
-                    <div v-if="!item.catalog_attributes.length" class="is-empty">
-                      <dd>未设置展示属性</dd>
-                    </div>
-                  </dl>
                 </div>
+                <dl class="items-catalog__attributes" role="cell">
+                  <div v-for="attribute in item.catalog_attributes" :key="attribute.name">
+                    <dt :title="attribute.name">{{ attribute.name }}</dt>
+                    <dd :title="catalogAttributeText(attribute)">
+                      {{ catalogAttributeText(attribute) }}
+                    </dd>
+                  </div>
+                  <div v-if="!item.catalog_attributes.length" class="is-empty">
+                    <dd>未设置展示属性</dd>
+                  </div>
+                </dl>
                 <dl class="items-catalog__details" role="cell">
                   <div>
                     <dt>库存价值</dt>
-                    <dd>{{ formatMoney(item.inventory_value) }}</dd>
+                    <dd :title="formatMoney(item.inventory_value)">
+                      {{ formatMoney(item.inventory_value) }}
+                    </dd>
                   </div>
                   <div>
                     <dt>库位 / 批次</dt>
-                    <dd>{{ item.location_count }} / {{ item.batch_count }}</dd>
+                    <dd :title="`${item.location_count} / ${item.batch_count}`">
+                      {{ item.location_count }} / {{ item.batch_count }}
+                    </dd>
                   </div>
                   <div>
                     <dt>参考单价</dt>
-                    <dd>
+                    <dd
+                      :title="item.default_price === null ? '未设置' : formatMoney(item.default_price)"
+                    >
                       {{ item.default_price === null ? "未设置" : formatMoney(item.default_price) }}
                     </dd>
                   </div>
                   <div>
                     <dt>资料更新</dt>
-                    <dd>{{ formatDateTime(item.updated_at) }}</dd>
+                    <dd :title="formatDateTime(item.updated_at)">
+                      {{ formatDateTime(item.updated_at) }}
+                    </dd>
                   </div>
                 </dl>
                 <div class="items-catalog__stock" role="cell">
