@@ -117,6 +117,7 @@
   &__head {
     min-height: 38px;
     align-items: center;
+    border-bottom: 1px solid var(--color-border-strong);
     background: var(--color-surface-raised);
     color: var(--color-muted);
     font-size: 12px;
@@ -127,7 +128,7 @@
   }
   &__row {
     min-height: 82px;
-    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
     cursor: pointer;
     &:hover {
       background: color-mix(in srgb, var(--color-surface) 97%, var(--color-text));
