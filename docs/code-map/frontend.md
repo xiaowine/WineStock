@@ -47,6 +47,20 @@
 - `frontend/src/updates/` 与 `components/updates/`：共享应用更新 Dialog 状态、启动自动检测偏好、Shell Bridge 错误文案和更新结果展示；启动检测与偏好设置手动检测复用同一浮层，前端不请求清单或下载安装包。
 - `frontend/src/components/ServiceUnavailableScreen.vue`：服务不可用时覆盖业务路由的全屏提示，不执行 HTTP 探测。
 
+## 多语言（i18n）
+
+- `frontend/src/i18n/`：共享前端 i18n 运行时与语言资源。
+  - `model.ts`：语言类型、持久化键（`winestock.i18n.locale.v1`）与 `navigator.language` 决议纯逻辑。
+  - `locales/zh-CN/` 与 `locales/en-US/`：按域拆分的消息目录（common/nav/error/validation/bridge/update
+    及业务域文件），en-US 聚合器经 `satisfies typeof zhCN` 强制键对齐；`zh-CN` 为默认与 fallback 语言。
+  - `schema.ts`、`augment.d.ts`：消息键路径联合与 `vue-i18n`/`$title` 类型增强。
+  - `index.ts`：vue-i18n 实例（`legacy: false` + `globalInjection`）、语言决议与持久化、
+    `translateTitle`/`translateMessageOrNull`、`installDocumentTitleSync`。
+  - `shell/fieldErrors.ts`：运行配置字段错误 `{code, message}` → 本地化文案（契约文件保持零依赖）。
+- 归属：UI 文案单点属于语言资源；core/shared/平台壳只产出稳定码，`message` 作兜底。
+- 门禁：`frontend/tests/i18nScan.test.mjs`（`pnpm test:i18n-scan`）禁止语言资源外硬编码中文文案，
+  并核对 core/shared 错误码在语言包的键覆盖。规范见 `frontend/docs/i18n.md`。
+
 ## 遥测
 
 - `frontend/src/telemetry/`：匿名使用数据的同意偏好持久化（`consent.ts`，版本化、默认关、不进 Shell 运行配置）与 Microsoft Clarity 按需加载（`clarity.ts`，仅 consent=true 时动态 import SDK 并初始化，项目 ID 由 Vite 的 `VITE_CLARITY_PROJECT_ID` 环境变量提供并随客户端产物公开；缺省、拒绝或未作答时零请求）。启动入口：应用装配按持久化偏好补启动，初始化向导勾选同意后立即启动。

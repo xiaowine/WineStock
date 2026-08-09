@@ -35,6 +35,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `visual-style.md`：当前视觉风格方向、颜色/圆角/阴影/密度规则和避免事项。
 - `theme-dark-mode.md`：浅色/深色主题的三态偏好、SCSS token、首屏防闪、平台联动和验收设计。
 - `ui-design-guidelines.md`：后续业务页面必须遵守的页面骨架、三段式列表、工具栏、表单、浮层、响应式和例外规则。
+- `i18n.md`：前端多语言架构、语言包键组织、翻译写作规则与防回退扫描门禁。
 - `ui-consistency-checklist.md`：按业务状态、目标视口和真实尺寸验证 UI 规范是否落实的实施与量化验收清单。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。
 - `mobile-interactions.md`：浏览器/Android WebView 安全区变量、full-bleed 背景、固定操作区和移动端验收规则。

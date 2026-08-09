@@ -27,6 +27,10 @@
   - 定义 `ConfigParseError`，区分 JSON 结构错误和字段约束错误。
   - 定义带路径和 source 链的 `ConfigFileError`，统一描述配置文件读取、解析和缺失初始化失败。
 
+- `shared/src/garde_code.rs`
+  - 定义 garde 校验消息 → 稳定错误码的映射（自定义码直通 + 内置规则模板前缀映射 + `invalid_field` 兜底）。
+  - 供 shared `validation_issues()` 与 core HTTP 字段校验 details 共用，保证跨层码一致。
+
 - `shared/src/config_validation.rs`
   - 定义配置实体内部使用的 `garde` 自定义校验函数。
   - 只保存内置规则无法直接表达的项目语义。

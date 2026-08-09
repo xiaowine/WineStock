@@ -300,6 +300,15 @@ interface RuntimeConfigFieldError {
 }
 ```
 
+实施记录（i18n 整改落地，2026-08）：三端 `fieldErrors` 已从 `string[]` 对齐为
+`{ code, message }[]`（`field` 即 map 键，不再重复）——`frontend/src/shell/contract.ts`
+结构校验与 `localizeRuntimeFieldErrors`、`desktop/src/contract.rs`、`android/native`
+与 Kotlin `RuntimeConfig.kt` 在同一改动内同步；`shared::ConfigValidationIssue` 增加稳定
+`code`（garde 消息 → 码映射见 `shared/src/garde_code.rs`），desktop/Android 校验问题按码透传。
+该结构变更属内部开发期契约（三端同仓库同发布），不 bump 协议版本；若未来出现外部旧客户端，
+再按 `bridge_version_mismatch` 处理。前端展示按 `bridge.<code>` → `validation.<code>` →
+`message` 顺序兜底，文案键覆盖由 `pnpm test:i18n-scan` 门禁核对。
+
 ### 本地模式应用流程
 
 本地配置采用“验证并激活成功后提交”的策略：
