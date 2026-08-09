@@ -49,6 +49,20 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
 
+      # 前端 .env 不入库，构建前从仓库变量写入；未设置的变量留空，等价于不配置。
+      - name: Write frontend build environment
+        shell: bash
+        env:
+          VITE_CLARITY_PROJECT_ID: ${{ vars.VITE_CLARITY_PROJECT_ID }}
+          VITE_DONATION_WECHAT_CONTENT: ${{ vars.VITE_DONATION_WECHAT_CONTENT }}
+          VITE_DONATION_ALIPAY_CONTENT: ${{ vars.VITE_DONATION_ALIPAY_CONTENT }}
+        run: |
+          cat > frontend/.env <<EOF
+          VITE_CLARITY_PROJECT_ID=$VITE_CLARITY_PROJECT_ID
+          VITE_DONATION_WECHAT_CONTENT=$VITE_DONATION_WECHAT_CONTENT
+          VITE_DONATION_ALIPAY_CONTENT=$VITE_DONATION_ALIPAY_CONTENT
+          EOF
+
       - name: Build Windows NSIS installer
         run: pnpm --dir frontend run desktop:build
 
@@ -207,6 +221,20 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
+
+      # 前端 .env 不入库，构建前从仓库变量写入；未设置的变量留空，等价于不配置。
+      - name: Write frontend build environment
+        shell: bash
+        env:
+          VITE_CLARITY_PROJECT_ID: ${{ vars.VITE_CLARITY_PROJECT_ID }}
+          VITE_DONATION_WECHAT_CONTENT: ${{ vars.VITE_DONATION_WECHAT_CONTENT }}
+          VITE_DONATION_ALIPAY_CONTENT: ${{ vars.VITE_DONATION_ALIPAY_CONTENT }}
+        run: |
+          cat > frontend/.env <<EOF
+          VITE_CLARITY_PROJECT_ID=$VITE_CLARITY_PROJECT_ID
+          VITE_DONATION_WECHAT_CONTENT=$VITE_DONATION_WECHAT_CONTENT
+          VITE_DONATION_ALIPAY_CONTENT=$VITE_DONATION_ALIPAY_CONTENT
+          EOF
 
       - name: Prepare Android release signing
         if: github.event_name != 'pull_request'
