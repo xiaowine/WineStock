@@ -10,18 +10,32 @@ import java.net.URI
 object RemoteRuntimeConfigFallbackValidator {
 
     fun validate(config: EditableRuntimeConfig): RuntimeConfigValidationResult {
-        val errors = linkedMapOf<String, List<String>>()
+        val errors = linkedMapOf<String, List<RuntimeConfigFieldError>>()
         if (!RuntimeModes.isRemote(config.mode)) {
-            errors[RuntimeConfigFields.MODE] = listOf("本地服务组件不可用，请改用远端连接模式")
+            errors[RuntimeConfigFields.MODE] =
+                listOf(
+                    RuntimeConfigFieldError(
+                        code = "local_component_unavailable",
+                        message = "本地服务组件不可用，请改用远端连接模式",
+                    ),
+                )
         }
         val automaticSelfHostedPort =
             config.mode == RuntimeModes.SELF_HOSTED && config.port == 0
         if (config.port !in 1..65535 && !automaticSelfHostedPort) {
-            errors[RuntimeConfigFields.PORT] = listOf("端口必须是 1 到 65535 之间的整数")
+            errors[RuntimeConfigFields.PORT] =
+                listOf(
+                    RuntimeConfigFieldError(
+                        code = "invalid_port",
+                        message = "端口必须是 1 到 65535 之间的整数",
+                    ),
+                )
         }
         val normalized = normalizeApiBaseUrl(config.remoteBaseUrl)
         if (RuntimeModes.isRemote(config.mode) && normalized == null) {
-            errors[RuntimeConfigFields.REMOTE_BASE_URL] = listOf(remoteUrlError(config.remoteBaseUrl))
+            val (code, message) = remoteUrlError(config.remoteBaseUrl)
+            errors[RuntimeConfigFields.REMOTE_BASE_URL] =
+                listOf(RuntimeConfigFieldError(code = code, message = message))
         }
         return RuntimeConfigValidationResult(
             fieldErrors = errors,
@@ -60,15 +74,17 @@ object RemoteRuntimeConfigFallbackValidator {
         return uri.rawUserInfo == null && !isUnspecifiedHost(host)
     }
 
-    private fun remoteUrlError(value: String): String {
-        if (value.isBlank()) return "请输入远端服务 API 地址"
-        val uri = parseHttpUri(value) ?: return "远端服务地址必须使用 http 或 https"
-        if (uri.host == null) return "远端服务地址必须包含主机"
-        if (isUnspecifiedHost(uri.host)) return "全接口监听地址不能作为前端访问地址"
-        if (uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null) {
-            return "远端服务地址不能包含凭据、查询参数或 hash"
+    private fun remoteUrlError(value: String): Pair<String, String> {
+        if (value.isBlank()) return "remote_url_blank" to "请输入远端服务 API 地址"
+        val uri = parseHttpUri(value) ?: return "remote_url_invalid" to "远端服务地址必须使用 http 或 https"
+        if (uri.host == null) return "remote_url_host_missing" to "远端服务地址必须包含主机"
+        if (isUnspecifiedHost(uri.host)) {
+            return "remote_url_unspecified_host" to "全接口监听地址不能作为前端访问地址"
         }
-        return "远端服务地址无效"
+        if (uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null) {
+            return "remote_url_credentials" to "远端服务地址不能包含凭据、查询参数或 hash"
+        }
+        return "remote_url_invalid" to "远端服务地址无效"
     }
 
     private fun parseHttpUri(value: String): URI? =

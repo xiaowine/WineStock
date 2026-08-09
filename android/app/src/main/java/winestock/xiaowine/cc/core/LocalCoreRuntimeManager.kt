@@ -12,6 +12,7 @@ import winestock.xiaowine.cc.shell.AndroidRuntimeSnapshot
 import winestock.xiaowine.cc.shell.DEFAULT_RUNTIME_CONFIG
 import winestock.xiaowine.cc.shell.EditableRuntimeConfig
 import winestock.xiaowine.cc.shell.RemoteRuntimeConfigFallbackValidator
+import winestock.xiaowine.cc.shell.RuntimeConfigFieldError
 import winestock.xiaowine.cc.shell.RuntimeConfigFields
 import winestock.xiaowine.cc.shell.RuntimeConfigRepository
 import winestock.xiaowine.cc.shell.RuntimeConfigStore
@@ -644,7 +645,14 @@ class LocalCoreRuntimeManager(
 
     private fun validationForError(error: ShellRuntimeError): RuntimeConfigValidationResult {
         val field = error.field ?: RuntimeConfigFields.MODE
-        return RuntimeConfigValidationResult(mapOf(field to listOf(error.message)))
+        return RuntimeConfigValidationResult(
+            mapOf(field to listOf(
+                RuntimeConfigFieldError(
+                    code = error.code,
+                    message = error.message
+                )
+            )),
+        )
     }
 
     private fun localRunningSnapshot(

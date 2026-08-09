@@ -185,6 +185,16 @@ pub struct RuntimeSnapshot {
     pub capabilities: RuntimeCapabilities,
 }
 
+/// 单条运行配置字段错误；code 为稳定码，前端按 `bridge.<code>` 或 `validation.<code>` 本地化。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeConfigFieldError {
+    /// 稳定错误码，与 shared garde 码或 desktop 自定义码一致。
+    pub code: String,
+    /// 默认提示文案；前端未命中码时兜底展示。
+    pub message: String,
+}
+
 /// 配置校验返回的字段错误集合。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -192,7 +202,7 @@ pub struct RuntimeConfigValidationResult {
     /// 全部字段是否通过校验。
     pub valid: bool,
     /// 按稳定字段名称聚合的错误。
-    pub field_errors: BTreeMap<String, Vec<String>>,
+    pub field_errors: BTreeMap<String, Vec<RuntimeConfigFieldError>>,
     /// 校验通过后由 Shell 规范化的配置。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub normalized_config: Option<EditableRuntimeConfig>,
@@ -205,7 +215,7 @@ pub struct ApplyRuntimeConfigResult {
     /// 全部字段是否通过校验。
     pub valid: bool,
     /// 按稳定字段名称聚合的错误。
-    pub field_errors: BTreeMap<String, Vec<String>>,
+    pub field_errors: BTreeMap<String, Vec<RuntimeConfigFieldError>>,
     /// Shell 是否成功激活并持久化配置。
     pub applied: bool,
     /// 成功或失败后 Shell 的权威快照。

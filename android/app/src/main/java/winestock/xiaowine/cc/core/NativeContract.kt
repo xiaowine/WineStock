@@ -3,6 +3,7 @@ package winestock.xiaowine.cc.core
 import java.net.URI
 import org.json.JSONObject
 import winestock.xiaowine.cc.shell.EditableRuntimeConfig
+import winestock.xiaowine.cc.shell.RuntimeConfigFieldError
 import winestock.xiaowine.cc.shell.ShellErrorCodes
 import winestock.xiaowine.cc.shell.ShellRuntimeError
 
@@ -20,7 +21,7 @@ data class NativeStoragePaths(
 
 data class NativeValidationResult(
     val valid: Boolean,
-    val fieldErrors: Map<String, List<String>>,
+    val fieldErrors: Map<String, List<RuntimeConfigFieldError>>,
     val normalizedConfig: EditableRuntimeConfig?,
 )
 
@@ -61,14 +62,18 @@ object NativeContract {
     fun parseValidation(raw: String?): NativeCallResult<NativeValidationResult> =
         parse(raw) { result ->
             val fieldErrorsJson = result.optJSONObject("fieldErrors") ?: JSONObject()
-            val fieldErrors = linkedMapOf<String, List<String>>()
+            val fieldErrors = linkedMapOf<String, List<RuntimeConfigFieldError>>()
             for (field in fieldErrorsJson.keys()) {
-                val messages = fieldErrorsJson.optJSONArray(field) ?: continue
+                val errors = fieldErrorsJson.optJSONArray(field) ?: continue
                 fieldErrors[field] =
                     buildList {
-                        for (index in 0 until messages.length()) {
-                            val message = messages.optString(index)
-                            if (message.isNotBlank()) add(message)
+                        for (index in 0 until errors.length()) {
+                            val entry = errors.optJSONObject(index) ?: continue
+                            val code = entry.optString("code")
+                            val message = entry.optString("message")
+                            if (code.isNotBlank()) {
+                                add(RuntimeConfigFieldError(code = code, message = message))
+                            }
                         }
                     }
             }

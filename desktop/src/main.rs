@@ -15,6 +15,7 @@ use winestock_desktop::runtime::{
 };
 use winestock_desktop::{
     lifecycle::{self, AppLifecycleState},
+    native_i18n,
     preferences::{CloseBehavior, DesktopPreferencesState},
     tray, webview_compatibility, webview_debug,
 };
@@ -61,42 +62,14 @@ fn main() {
                     webview.version,
                     cfg!(debug_assertions)
                 );
-                let (title, description) = match failure {
-                    webview_compatibility::WebViewRuntimeFailure::Missing => {
-                        (
-                            "无法启动 WineStock",
-                            "未检测到 WineStock 所需的 WebView2 Runtime。请重新安装 WineStock，安装器会补全所需组件。确认后 WineStock 将退出。",
-                        )
-                    }
-                    webview_compatibility::WebViewRuntimeFailure::VersionTooOld => {
-                        (
-                            "WineStock 运行组件版本过低",
-                            "当前 WebView2 Runtime 版本低于 WineStock 的最低要求（M111）。请重新安装 WineStock，安装器会补全满足要求的组件。确认后 WineStock 将退出。",
-                        )
-                    }
-                    webview_compatibility::WebViewRuntimeFailure::VersionInvalid => {
-                        (
-                            "无法检查 WineStock 运行组件",
-                            "无法正确读取 WebView2 Runtime 版本。请重新安装 WineStock，安装器会重新配置所需组件。确认后 WineStock 将退出。",
-                        )
-                    }
-                    webview_compatibility::WebViewRuntimeFailure::VersionCheckFailed => {
-                        (
-                            "无法检查 WineStock 运行组件",
-                            "WineStock 无法确认 WebView2 Runtime 是否可用。请重新安装 WineStock，安装器会重新配置所需组件。确认后 WineStock 将退出。",
-                        )
-                    }
-                    webview_compatibility::WebViewRuntimeFailure::ForcedBlock => {
-                        (
-                            "WebView2 门卫测试",
-                            "当前为 Debug 测试配置，已模拟 WebView2 版本不满足要求。确认后 WineStock 将退出。",
-                        )
-                    }
-                };
-                let description = append_diagnostic_code(description, failure.diagnostic_code());
+                // 门禁弹窗按系统 UI 语言选择文案；诊断码不随语言变化。
+                let locale = native_i18n::system_locale();
+                let strings = native_i18n::gate_dialog_strings(locale, failure.into());
+                let description =
+                    native_i18n::append_diagnostic_code(locale, strings.description, failure.diagnostic_code());
                 MessageDialog::new()
                     .set_level(MessageLevel::Error)
-                    .set_title(title)
+                    .set_title(strings.title)
                     .set_description(description)
                     .set_buttons(MessageButtons::Ok)
                     .show();
@@ -217,21 +190,4 @@ fn main() {
                 });
             }
         });
-}
-
-fn append_diagnostic_code(description: &str, diagnostic_code: &str) -> String {
-    format!("{description}\n错误代码：{diagnostic_code}")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::append_diagnostic_code;
-
-    #[test]
-    fn appends_diagnostic_code_on_a_separate_line() {
-        assert_eq!(
-            append_diagnostic_code("加载失败。", "SHELL_BRIDGE_READY_FAILED"),
-            "加载失败。\n错误代码：SHELL_BRIDGE_READY_FAILED"
-        );
-    }
 }

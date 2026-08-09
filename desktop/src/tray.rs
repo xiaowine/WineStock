@@ -8,7 +8,7 @@ use tauri::{
     App, AppHandle, Manager,
 };
 
-use crate::{lifecycle::AppLifecycleState, window::show_main_window_by_label};
+use crate::{lifecycle::AppLifecycleState, native_i18n, window::show_main_window_by_label};
 
 const OPEN_MENU_ID: &str = "open";
 const QUIT_MENU_ID: &str = "quit";
@@ -19,8 +19,10 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
         return Ok(());
     };
 
-    let open = MenuItemBuilder::with_id(OPEN_MENU_ID, "打开 WineStock").build(app)?;
-    let quit = MenuItemBuilder::with_id(QUIT_MENU_ID, "退出 WineStock").build(app)?;
+    // 托盘菜单按系统 UI 语言构建一次；系统语言变更后重启应用生效。
+    let strings = native_i18n::tray_strings(native_i18n::system_locale());
+    let open = MenuItemBuilder::with_id(OPEN_MENU_ID, strings.open).build(app)?;
+    let quit = MenuItemBuilder::with_id(QUIT_MENU_ID, strings.quit).build(app)?;
     let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
 
     TrayIconBuilder::new()

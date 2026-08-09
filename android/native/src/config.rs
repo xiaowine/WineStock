@@ -10,7 +10,7 @@ use winestock_shared::{AppConfig, RuntimeMode, ServerConfig, StorageConfig};
 
 use crate::{
     contract::{
-        EditableRuntimeConfig, NativeValidationResult, RuntimeConfigRequest,
+        EditableRuntimeConfig, NativeFieldError, NativeValidationResult, RuntimeConfigRequest,
         NATIVE_PROTOCOL_VERSION,
     },
     error::NativeError,
@@ -58,7 +58,7 @@ pub fn require_runtime_config(
 
 enum PrepareResult {
     Valid(PreparedRuntimeConfig),
-    Invalid(BTreeMap<String, Vec<String>>),
+    Invalid(BTreeMap<String, Vec<NativeFieldError>>),
 }
 
 fn prepare_runtime_config(request: &RuntimeConfigRequest) -> Result<PrepareResult, NativeError> {
@@ -67,7 +67,7 @@ fn prepare_runtime_config(request: &RuntimeConfigRequest) -> Result<PrepareResul
     }
     validate_storage_paths(request)?;
 
-    let mut field_errors = BTreeMap::<String, Vec<String>>::new();
+    let mut field_errors = BTreeMap::<String, Vec<NativeFieldError>>::new();
     let mode = parse_mode(&request.config.mode, &mut field_errors);
     let port = validate_port(request.config.port, mode, &mut field_errors);
     let bind_host = request.config.bind_host.trim().to_owned();
@@ -78,12 +78,15 @@ fn prepare_runtime_config(request: &RuntimeConfigRequest) -> Result<PrepareResul
         Some(RuntimeMode::ServerMode) => push_error(
             &mut field_errors,
             "mode",
+            "server_mode_unsupported",
             "当前 Android 版本尚未支持 server-mode",
         ),
         Some(RuntimeMode::ClientOnly | RuntimeMode::ConnectToRemote) => {
             match normalize_remote_url(&normalized_remote) {
                 Ok(value) => normalized_remote = value,
-                Err(message) => push_error(&mut field_errors, "remoteBaseUrl", message),
+                Err((code, message)) => {
+                    push_error(&mut field_errors, "remoteBaseUrl", code, message)
+                }
             }
         }
         None => {}
@@ -116,24 +119,12 @@ fn prepare_runtime_config(request: &RuntimeConfigRequest) -> Result<PrepareResul
         },
     };
 
-    let shared_issues = app_config.validation_issues();
-    for issue in shared_issues {
-        match issue.path.as_str() {
-            "server.bind_host" => push_error(
-                &mut field_errors,
-                "bindHost",
-                "监听地址必须是有效的 IP 地址",
-            ),
-            "server.port" => push_error(
-                &mut field_errors,
-                "port",
-                "端口必须是 1 到 65535 之间的整数",
-            ),
-            "server.remote_base_url" => push_error(
-                &mut field_errors,
-                "remoteBaseUrl",
-                "远端服务地址必须使用 http 或 https",
-            ),
+    // shared 校验问题已带稳定码，直接透传；未知字段路径回退整体配置错误。
+    for issue in app_config.validation_issues() {
+        let field = match issue.path.as_str() {
+            "server.bind_host" => "bindHost",
+            "server.port" => "port",
+            "server.remote_base_url" => "remoteBaseUrl",
             "storage.database_path" | "storage.files_dir" => {
                 return Err(NativeError::new(
                     "storage_unavailable",
@@ -141,7 +132,8 @@ fn prepare_runtime_config(request: &RuntimeConfigRequest) -> Result<PrepareResul
                 ));
             }
             _ => return Err(NativeError::new("config_invalid", "运行配置校验失败")),
-        }
+        };
+        push_error(&mut field_errors, field, &issue.code, &issue.message);
     }
 
     if field_errors.is_empty() {
@@ -171,7 +163,7 @@ fn validate_storage_paths(request: &RuntimeConfigRequest) -> Result<(), NativeEr
 
 fn parse_mode(
     value: &str,
-    field_errors: &mut BTreeMap<String, Vec<String>>,
+    field_errors: &mut BTreeMap<String, Vec<NativeFieldError>>,
 ) -> Option<RuntimeMode> {
     match value.trim() {
         "self-hosted" => Some(RuntimeMode::SelfHosted),
@@ -179,7 +171,7 @@ fn parse_mode(
         "connect-to-remote" => Some(RuntimeMode::ConnectToRemote),
         "server-mode" => Some(RuntimeMode::ServerMode),
         _ => {
-            push_error(field_errors, "mode", "请选择有效的运行方式");
+            push_error(field_errors, "mode", "invalid_mode", "请选择有效的运行方式");
             None
         }
     }
@@ -188,50 +180,65 @@ fn parse_mode(
 fn validate_port(
     value: i64,
     mode: Option<RuntimeMode>,
-    field_errors: &mut BTreeMap<String, Vec<String>>,
+    field_errors: &mut BTreeMap<String, Vec<NativeFieldError>>,
 ) -> Option<u16> {
     match u16::try_from(value) {
         Ok(port) if port > 0 || mode == Some(RuntimeMode::SelfHosted) => Some(port),
         _ => {
-            push_error(field_errors, "port", "端口必须是 1 到 65535 之间的整数");
+            push_error(
+                field_errors,
+                "port",
+                "invalid_port",
+                "端口必须是 1 到 65535 之间的整数",
+            );
             None
         }
     }
 }
 
-fn validate_android_loopback(value: &str, field_errors: &mut BTreeMap<String, Vec<String>>) {
+fn validate_android_loopback(value: &str, field_errors: &mut BTreeMap<String, Vec<NativeFieldError>>) {
     match value.parse::<IpAddr>() {
         Ok(IpAddr::V4(ip)) if ip.is_loopback() && ip.octets() == [127, 0, 0, 1] => {}
         _ => push_error(
             field_errors,
             "bindHost",
+            "invalid_bind_host_loopback",
             "当前 Android self-hosted 仅支持 127.0.0.1",
         ),
     }
 }
 
-fn normalize_remote_url(value: &str) -> Result<String, &'static str> {
+fn normalize_remote_url(value: &str) -> Result<String, (&'static str, &'static str)> {
     if value.trim().is_empty() {
-        return Err("请输入远端服务 API 地址");
+        return Err(("remote_url_blank", "请输入远端服务 API 地址"));
     }
-    let parsed = Url::parse(value.trim()).map_err(|_| "远端服务地址无效")?;
+    let parsed = Url::parse(value.trim()).map_err(|_| ("remote_url_invalid", "远端服务地址无效"))?;
     if parsed.scheme() != "http" && parsed.scheme() != "https" {
-        return Err("远端服务地址必须使用 http 或 https");
+        return Err(("remote_url_scheme", "远端服务地址必须使用 http 或 https"));
     }
     if !parsed.username().is_empty()
         || parsed.password().is_some()
         || parsed.query().is_some()
         || parsed.fragment().is_some()
     {
-        return Err("远端服务地址不能包含凭据、查询参数或 hash");
+        return Err((
+            "remote_url_credentials",
+            "远端服务地址不能包含凭据、查询参数或 hash",
+        ));
     }
     match parsed.host() {
-        None => return Err("远端服务地址必须包含主机"),
+        None => return Err(("remote_url_host_missing", "远端服务地址必须包含主机")),
         Some(Host::Ipv4(ip)) if ip.is_unspecified() => {
-            return Err("全接口监听地址不能作为前端访问地址")
+            return Err((
+                "remote_url_unspecified_host",
+                "全接口监听地址不能作为前端访问地址",
+            ))
         }
         Some(Host::Ipv6(ip)) if ip.is_unspecified() => {
-            return Err("全接口监听地址不能作为前端访问地址")
+            return Err((
+                "remote_url_unspecified_host",
+                "全接口监听地址不能作为前端访问地址",
+            ))
         }
         _ => {}
     }
@@ -239,9 +246,17 @@ fn normalize_remote_url(value: &str) -> Result<String, &'static str> {
     Ok(parsed.to_string().trim_end_matches('/').to_owned())
 }
 
-fn push_error(field_errors: &mut BTreeMap<String, Vec<String>>, field: &str, message: &str) {
-    let messages = field_errors.entry(field.to_owned()).or_default();
-    if !messages.iter().any(|existing| existing == message) {
-        messages.push(message.to_owned());
+fn push_error(
+    field_errors: &mut BTreeMap<String, Vec<NativeFieldError>>,
+    field: &str,
+    code: &str,
+    message: &str,
+) {
+    let errors = field_errors.entry(field.to_owned()).or_default();
+    if !errors.iter().any(|existing| existing.code == code) {
+        errors.push(NativeFieldError {
+            code: code.to_owned(),
+            message: message.to_owned(),
+        });
     }
 }

@@ -107,9 +107,15 @@ object RuntimeConfigFields {
     const val REMOTE_BASE_URL = "remoteBaseUrl"
 }
 
+/** 单条运行配置字段错误；code 为稳定码，前端按 `bridge.<code>` 或 `validation.<code>` 本地化。 */
+data class RuntimeConfigFieldError(
+    val code: String,
+    val message: String,
+)
+
 /** Shell Bridge v1 字段校验结果。 */
 data class RuntimeConfigValidationResult(
-    val fieldErrors: Map<String, List<String>>,
+    val fieldErrors: Map<String, List<RuntimeConfigFieldError>>,
     val normalizedConfig: EditableRuntimeConfig? = null,
 ) {
     val valid: Boolean get() = fieldErrors.isEmpty()

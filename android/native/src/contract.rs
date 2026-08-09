@@ -53,6 +53,16 @@ pub struct RuntimeConfigRequest {
     pub storage: NativeStoragePaths,
 }
 
+/// 单条运行配置字段错误；code 为稳定码，前端按 `bridge.<code>` 或 `validation.<code>` 本地化。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeFieldError {
+    /// 稳定错误码，与 shared garde 码或 Android 自定义码一致。
+    pub code: String,
+    /// 默认提示文案；前端未命中码时兜底展示。
+    pub message: String,
+}
+
 /// shared/native 权威配置校验结果。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,8 +70,8 @@ pub struct NativeValidationResult {
     /// 所有字段和 Android 平台策略是否通过。
     pub valid: bool,
 
-    /// Shell Bridge v1 字段名到用户可见错误说明的映射。
-    pub field_errors: BTreeMap<String, Vec<String>>,
+    /// Shell Bridge v1 字段名到稳定字段错误的映射。
+    pub field_errors: BTreeMap<String, Vec<NativeFieldError>>,
 
     /// 校验通过后由 native 规范化的配置。
     #[serde(skip_serializing_if = "Option::is_none")]

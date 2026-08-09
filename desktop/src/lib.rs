@@ -8,6 +8,7 @@ pub mod device_metadata;
 pub mod firewall;
 pub(crate) mod lan_access;
 pub mod lifecycle;
+pub mod native_i18n;
 pub mod preferences;
 pub mod runtime;
 pub mod tray;

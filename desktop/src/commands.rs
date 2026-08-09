@@ -15,6 +15,7 @@ use crate::{
     contract::{
         ApplyRuntimeConfigResult, EditableRuntimeConfig, RuntimeConfigValidationResult, WindowTheme,
     },
+    native_i18n,
     preferences::{validate_desktop_preferences, DesktopPreferences, DesktopPreferencesState},
     runtime::DesktopRuntimeManager,
 };
@@ -276,8 +277,10 @@ pub fn shell_frontend_failed(
     if FRONTEND_FAILURE_REPORTED.swap(true, Ordering::AcqRel) {
         return Ok(());
     }
-    let (title, description) = frontend_failure_message(reason);
-    let description = append_diagnostic_code(description, frontend_failure_diagnostic_code(reason));
+    let locale = native_i18n::system_locale();
+    let strings = native_i18n::gate_dialog_strings(locale, frontend_failure_kind(reason));
+    let description =
+        native_i18n::append_diagnostic_code(locale, strings.description, frontend_failure_diagnostic_code(reason));
     eprintln!(
         "WineStock Desktop 启动门卫失败：gate=shell_bridge reason={reason} debug={}",
         cfg!(debug_assertions)
@@ -291,7 +294,7 @@ pub fn shell_frontend_failed(
     }
     MessageDialog::new()
         .set_level(MessageLevel::Error)
-        .set_title(title)
+        .set_title(strings.title)
         .set_description(description)
         .set_buttons(MessageButtons::Ok)
         .show();
@@ -326,21 +329,18 @@ pub fn show_frontend_load_timeout(app: &AppHandle, generation: u64) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
-    let description = append_diagnostic_code(
-        "页面未能在规定时间内完成加载。请重新启动 WineStock；问题仍存在时请重新安装软件。确认后 WineStock 将退出。",
-        "FRONTEND_LOAD_TIMEOUT",
-    );
+    let locale = native_i18n::system_locale();
+    let strings =
+        native_i18n::gate_dialog_strings(locale, native_i18n::GateFailureKind::FrontendLoadTimeout);
+    let description =
+        native_i18n::append_diagnostic_code(locale, strings.description, "FRONTEND_LOAD_TIMEOUT");
     MessageDialog::new()
         .set_level(MessageLevel::Error)
-        .set_title("WineStock 页面加载超时")
+        .set_title(strings.title)
         .set_description(description)
         .set_buttons(MessageButtons::Ok)
         .show();
     app.exit(1);
-}
-
-fn append_diagnostic_code(description: &str, diagnostic_code: &str) -> String {
-    format!("{description}\n错误代码：{diagnostic_code}")
 }
 
 fn frontend_failure_diagnostic_code(code: &str) -> &'static str {
@@ -357,28 +357,20 @@ fn frontend_failure_diagnostic_code(code: &str) -> &'static str {
     }
 }
 
-fn frontend_failure_message(code: &str) -> (&'static str, &'static str) {
+/// 把前端失败类别映射为门禁文案种类；文案随系统语言变化，诊断码不变。
+fn frontend_failure_kind(code: &str) -> native_i18n::GateFailureKind {
     match code {
-        "frontend_load_timeout" => (
-            "WineStock 页面加载超时",
-            "页面未能在规定时间内完成加载。请重新启动 WineStock；问题仍存在时请重新安装软件。确认后 WineStock 将退出。",
-        ),
-        "shell_bridge_snapshot_invalid" | "shell_bridge_version_mismatch" => (
-            "WineStock 无法加载",
-            "当前界面与桌面运行组件版本不匹配。请重新安装同一版本的 WineStock。确认后 WineStock 将退出。",
-        ),
-        "shell_bridge_method_missing" | "shell_bridge_extension_invalid" => (
-            "WineStock 无法加载",
-            "桌面运行组件缺少必要能力。请重新安装 WineStock。确认后 WineStock 将退出。",
-        ),
-        "shell_bridge_event_subscription_failed" | "shell_bridge_ready_failed" => (
-            "WineStock 页面加载失败",
-            "WineStock 页面无法完成启动握手。请重新启动软件；问题仍存在时请重新安装软件。确认后 WineStock 将退出。",
-        ),
-        _ => (
-            "WineStock 无法连接桌面组件",
-            "桌面运行组件没有正常响应。请重新启动 WineStock；问题仍存在时请修复或重新安装软件。确认后 WineStock 将退出。",
-        ),
+        "frontend_load_timeout" => native_i18n::GateFailureKind::FrontendLoadTimeout,
+        "shell_bridge_snapshot_invalid" | "shell_bridge_version_mismatch" => {
+            native_i18n::GateFailureKind::ShellBridgeMismatch
+        }
+        "shell_bridge_method_missing" | "shell_bridge_extension_invalid" => {
+            native_i18n::GateFailureKind::ShellBridgeMissingCapability
+        }
+        "shell_bridge_event_subscription_failed" | "shell_bridge_ready_failed" => {
+            native_i18n::GateFailureKind::ShellBridgeHandshakeFailed
+        }
+        _ => native_i18n::GateFailureKind::ShellBridgeUnavailable,
     }
 }
 
@@ -399,8 +391,9 @@ fn normalize_frontend_failure_code(code: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::{
-        frontend_failure_diagnostic_code, frontend_failure_message, normalize_frontend_failure_code,
+        frontend_failure_diagnostic_code, frontend_failure_kind, normalize_frontend_failure_code,
     };
+    use crate::native_i18n::{gate_dialog_strings, system_locale, GateFailureKind};
 
     #[test]
     fn keeps_known_failure_codes_and_sanitizes_unknown_values() {
@@ -419,23 +412,47 @@ mod tests {
     }
 
     #[test]
-    fn maps_startup_failure_codes_to_actionable_exit_messages() {
-        let (title, description) = frontend_failure_message("shell_bridge_ready_failed");
-        assert_eq!(title, "WineStock 页面加载失败");
-        assert!(description.contains("重新启动"));
-        assert!(description.contains("将退出"));
+    fn maps_startup_failure_codes_to_actionable_exit_dialogs() {
+        let locale = system_locale();
+        let dialog = gate_dialog_strings(locale, frontend_failure_kind("shell_bridge_ready_failed"));
+        assert_eq!(dialog.title, "WineStock 页面加载失败");
+        assert!(dialog.description.contains("重新启动"));
+        assert!(dialog.description.contains("将退出"));
 
-        let (title, description) = frontend_failure_message("shell_bridge_version_mismatch");
-        assert_eq!(title, "WineStock 无法加载");
-        assert!(description.contains("重新安装同一版本"));
-        assert!(description.contains("将退出"));
+        let dialog =
+            gate_dialog_strings(locale, frontend_failure_kind("shell_bridge_version_mismatch"));
+        assert_eq!(dialog.title, "WineStock 无法加载");
+        assert!(dialog.description.contains("重新安装同一版本"));
+        assert!(dialog.description.contains("将退出"));
 
-        let (title, description) = frontend_failure_message("frontend_load_timeout");
-        assert_eq!(title, "WineStock 页面加载超时");
-        assert!(description.contains("重新启动"));
+        let dialog = gate_dialog_strings(locale, frontend_failure_kind("frontend_load_timeout"));
+        assert_eq!(dialog.title, "WineStock 页面加载超时");
+        assert!(dialog.description.contains("重新启动"));
         assert_eq!(
             frontend_failure_diagnostic_code("shell_bridge_ready_failed"),
             "SHELL_BRIDGE_READY_FAILED"
         );
+    }
+
+    #[test]
+    fn every_failure_kind_has_localized_copy_in_both_languages() {
+        for kind in [
+            GateFailureKind::WebView2Missing,
+            GateFailureKind::WebView2VersionTooOld,
+            GateFailureKind::WebView2VersionInvalid,
+            GateFailureKind::WebView2VersionCheckFailed,
+            GateFailureKind::WebView2ForcedBlock,
+            GateFailureKind::FrontendLoadTimeout,
+            GateFailureKind::ShellBridgeMismatch,
+            GateFailureKind::ShellBridgeMissingCapability,
+            GateFailureKind::ShellBridgeHandshakeFailed,
+            GateFailureKind::ShellBridgeUnavailable,
+        ] {
+            let zh = gate_dialog_strings(crate::native_i18n::NativeLocale::Zh, kind);
+            let en = gate_dialog_strings(crate::native_i18n::NativeLocale::En, kind);
+            assert!(!zh.title.is_empty() && !zh.description.is_empty());
+            assert!(!en.title.is_empty() && !en.description.is_empty());
+            assert_ne!(zh.title, en.title, "zh/en 标题不应相同: {:?}", kind);
+        }
     }
 }

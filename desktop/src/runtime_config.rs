@@ -13,8 +13,8 @@ use url::Url;
 use winestock_shared::{AppConfig, ServerConfig, StorageConfig};
 
 use crate::contract::{
-    EditableRuntimeConfig, RuntimeConfigValidationResult, RuntimeMode, ShellRuntimeError,
-    ERROR_CONFIG_UNAVAILABLE, ERROR_STORAGE_UNAVAILABLE,
+    EditableRuntimeConfig, RuntimeConfigFieldError, RuntimeConfigValidationResult, RuntimeMode,
+    ShellRuntimeError, ERROR_CONFIG_UNAVAILABLE, ERROR_STORAGE_UNAVAILABLE,
 };
 
 const DATABASE_FILE_NAME: &str = "winestock.sqlite";
@@ -195,12 +195,12 @@ pub(crate) fn prepare_config(
     request: &EditableRuntimeConfig,
     storage_paths: &StoragePaths,
 ) -> Result<PreparedConfig, RuntimeConfigValidationResult> {
-    let mut field_errors = BTreeMap::<String, Vec<String>>::new();
+    let mut field_errors = BTreeMap::<String, Vec<RuntimeConfigFieldError>>::new();
 
     let mode = match parse_mode(&request.mode) {
         Some(mode) => mode,
         None => {
-            push_error(&mut field_errors, "mode", "运行模式无效");
+            push_error(&mut field_errors, "mode", "invalid_mode", "运行模式无效");
             return Err(validation_result(field_errors, Some(request.clone())));
         }
     };
@@ -210,6 +210,7 @@ pub(crate) fn prepare_config(
         push_error(
             &mut field_errors,
             "bindHost",
+            "invalid_bind_host_loopback",
             "本机模式只允许使用 127.0.0.1 或 ::1 作为监听地址",
         );
     }
@@ -218,8 +219,8 @@ pub(crate) fn prepare_config(
     let remote_base_url = if mode.is_remote() {
         match normalize_remote_url(&request.remote_base_url) {
             Ok(value) => value,
-            Err(message) => {
-                push_error(&mut field_errors, "remoteBaseUrl", &message);
+            Err((code, message)) => {
+                push_error(&mut field_errors, "remoteBaseUrl", code, &message);
                 request.remote_base_url.trim().to_owned()
             }
         }
@@ -245,19 +246,26 @@ pub(crate) fn prepare_config(
         auto_migrate: true,
     };
 
+    // shared 校验问题已带稳定码，直接透传给前端本地化；未知字段路径回退整体校验失败。
     for issue in app_config.validation_issues() {
-        let (field, message) = match issue.path.as_str() {
-            "server.bind_host" => ("bindHost", "监听地址必须是有效的 IP 地址"),
-            "server.port" => ("port", "端口必须是 1 到 65535 之间的整数"),
-            "server.remote_base_url" => ("remoteBaseUrl", "远端服务地址必须使用 http 或 https"),
+        let field = match issue.path.as_str() {
+            "server.bind_host" => "bindHost",
+            "server.port" => "port",
+            "server.remote_base_url" => "remoteBaseUrl",
             _ => {
                 return Err(validation_result(
-                    BTreeMap::from([("mode".to_owned(), vec!["运行配置校验失败".to_owned()])]),
+                    BTreeMap::from([(
+                        "mode".to_owned(),
+                        vec![RuntimeConfigFieldError {
+                            code: "config_validation_failed".to_owned(),
+                            message: "运行配置校验失败".to_owned(),
+                        }],
+                    )]),
                     Some(request.clone()),
                 ));
             }
         };
-        push_error(&mut field_errors, field, message);
+        push_error(&mut field_errors, field, &issue.code, &issue.message);
     }
 
     if !field_errors.is_empty() {
@@ -300,7 +308,7 @@ fn shared_config(
 }
 
 fn validation_result(
-    field_errors: BTreeMap<String, Vec<String>>,
+    field_errors: BTreeMap<String, Vec<RuntimeConfigFieldError>>,
     normalized_config: Option<EditableRuntimeConfig>,
 ) -> RuntimeConfigValidationResult {
     RuntimeConfigValidationResult {
@@ -310,11 +318,18 @@ fn validation_result(
     }
 }
 
-fn push_error(errors: &mut BTreeMap<String, Vec<String>>, field: &str, message: &str) {
-    errors
-        .entry(field.to_owned())
-        .or_default()
-        .push(message.to_owned());
+fn push_error(
+    errors: &mut BTreeMap<String, Vec<RuntimeConfigFieldError>>,
+    field: &str,
+    code: &str,
+    message: &str,
+) {
+    errors.entry(field.to_owned()).or_default().push(
+        RuntimeConfigFieldError {
+            code: code.to_owned(),
+            message: message.to_owned(),
+        },
+    );
 }
 
 pub(crate) fn parse_mode(value: &str) -> Option<RuntimeMode> {
@@ -340,14 +355,19 @@ pub(crate) fn mode_string(mode: RuntimeMode) -> String {
 fn validate_port(
     port: i64,
     mode: RuntimeMode,
-    errors: &mut BTreeMap<String, Vec<String>>,
+    errors: &mut BTreeMap<String, Vec<RuntimeConfigFieldError>>,
 ) -> Option<u16> {
     if port == 0 && mode != RuntimeMode::SelfHosted {
-        push_error(errors, "port", "该模式必须使用 1 到 65535 之间的端口");
+        push_error(
+            errors,
+            "port",
+            "port_zero_not_allowed",
+            "该模式必须使用 1 到 65535 之间的端口",
+        );
         return None;
     }
     if !(1..=65535).contains(&port) && port != 0 {
-        push_error(errors, "port", "端口必须是 1 到 65535 之间的整数");
+        push_error(errors, "port", "invalid_port", "端口必须是 1 到 65535 之间的整数");
         return None;
     }
     u16::try_from(port).ok()
@@ -363,21 +383,31 @@ fn is_loopback_host(host: &str) -> bool {
     )
 }
 
-/// 校验并规范化远端 URL：http/https、无凭据、无查询/hash。
-fn normalize_remote_url(value: &str) -> Result<String, String> {
+/// 校验并规范化远端 URL：http/https、无凭据、无查询/hash；失败返回 (稳定码, 默认文案)。
+fn normalize_remote_url(value: &str) -> Result<String, (&'static str, String)> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err("远端服务地址不能为空".to_owned());
+        return Err(("remote_url_blank", "远端服务地址不能为空".to_owned()));
     }
-    let url = Url::parse(trimmed).map_err(|_| "远端服务地址必须是合法 URL".to_owned())?;
+    let url = Url::parse(trimmed)
+        .map_err(|_| ("remote_url_invalid", "远端服务地址必须是合法 URL".to_owned()))?;
     if !matches!(url.scheme(), "http" | "https") {
-        return Err("远端服务地址必须使用 http 或 https".to_owned());
+        return Err((
+            "remote_url_scheme",
+            "远端服务地址必须使用 http 或 https".to_owned(),
+        ));
     }
     if !url.username().is_empty() || url.password().is_some() {
-        return Err("远端服务地址不能包含用户凭据".to_owned());
+        return Err((
+            "remote_url_credentials",
+            "远端服务地址不能包含用户凭据".to_owned(),
+        ));
     }
     if url.query().is_some() || url.fragment().is_some() {
-        return Err("远端服务地址不能包含查询参数或片段".to_owned());
+        return Err((
+            "remote_url_query_fragment",
+            "远端服务地址不能包含查询参数或片段".to_owned(),
+        ));
     }
     let trimmed_path = url.path().trim_end_matches('/').to_owned();
     let mut normalized = url;

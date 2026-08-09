@@ -23,6 +23,7 @@ url = { workspace = true }
 whoami = { workspace = true }
 rfd = { workspace = true }
 if-addrs = { workspace = true }
+sys-locale = { workspace = true }
 webview2-com = { workspace = true }
 windows = { workspace = true }
 winestock-core = { workspace = true }

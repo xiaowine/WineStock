@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WineStock</string>
+    <string name="webview_compatibility_title">WineStock cannot start</string>
+    <string name="webview_compatibility_title_provider_unavailable">System WebView unavailable</string>
+    <string name="webview_compatibility_title_version_unreadable">Cannot confirm WebView status</string>
+    <string name="webview_compatibility_title_version_too_old">System WebView is too old</string>
+    <string name="webview_compatibility_title_features_missing">WebView capabilities are incompatible</string>
+    <string name="webview_compatibility_title_shell_bridge_unavailable">WineStock failed to load</string>
+    <string name="webview_compatibility_message_provider_unavailable">No usable WebView provider is installed; the system component may be disabled or the device environment is unusual. Re-enable Android System WebView or Chrome and retry.</string>
+    <string name="webview_compatibility_message_version_unreadable">WineStock could not read the system WebView version; the system component may be broken or the device implementation differs. Re-check; if the issue persists, report the diagnostic information.</string>
+    <string name="webview_compatibility_message_version_too_old">The installed WebView version is below WineStock\'s minimum requirement. Update Android System WebView or Chrome and retry.</string>
+    <string name="webview_compatibility_message_features_missing">The current WebView lacks the secure communication interfaces WineStock requires; this may relate to the WebView version, system implementation or app compatibility. Update first and retry; if it still fails, report the diagnostic information.</string>
+    <string name="webview_compatibility_message_shell_bridge_unavailable">The WineStock bridge to the system WebView failed to start; this may be an app resource, app version or system compatibility issue. Reopen the app; if it still fails, update the app or report the diagnostic information.</string>
+    <string name="webview_compatibility_diagnostic_code">Error code: %1$s</string>
+    <string name="webview_compatibility_result_provider_unavailable">Result: no system WebView detected</string>
+    <string name="webview_compatibility_result_version_unreadable">Result: could not read WebView information</string>
+    <string name="webview_compatibility_result_version_too_old">Result: system WebView version is too old</string>
+    <string name="webview_compatibility_result_features_missing">Result: WebView capabilities are incompatible</string>
+    <string name="webview_compatibility_result_shell_bridge_unavailable">Result: WineStock bridge failed to start</string>
+    <string name="webview_compatibility_current_provider_label">Current WebView</string>
+    <string name="webview_compatibility_current_provider_value">%1$s\n%2$s</string>
+    <string name="webview_compatibility_provider_unavailable">No WebView provider detected</string>
+    <string name="webview_compatibility_unknown">Unknown version</string>
+    <string name="webview_compatibility_requirement_label">System component requirement</string>
+    <string name="webview_compatibility_requirement_value">Chromium/WebView 111 or higher with the required WebView interfaces</string>
+    <string name="webview_compatibility_failure_stage_label">Failure stage</string>
+    <string name="webview_compatibility_failure_stage_value">The WineStock Shell Bridge could not initialize; the frontend page was not reached</string>
+    <string name="webview_compatibility_retry">Re-check</string>
+</resources>

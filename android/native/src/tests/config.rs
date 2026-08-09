@@ -7,7 +7,8 @@ use tempfile::tempdir;
 use crate::{
     config::{require_runtime_config, validate_runtime_request},
     contract::{
-        EditableRuntimeConfig, NativeStoragePaths, RuntimeConfigRequest, NATIVE_PROTOCOL_VERSION,
+        EditableRuntimeConfig, NativeFieldError, NativeStoragePaths, RuntimeConfigRequest,
+        NATIVE_PROTOCOL_VERSION,
     },
 };
 
@@ -89,7 +90,10 @@ fn normalizes_remote_url_and_rejects_credentials() {
         validation.field_errors,
         BTreeMap::from([(
             "remoteBaseUrl".to_owned(),
-            vec!["远端服务地址不能包含凭据、查询参数或 hash".to_owned()],
+            vec![NativeFieldError {
+                code: "remote_url_credentials".to_owned(),
+                message: "远端服务地址不能包含凭据、查询参数或 hash".to_owned(),
+            }],
         )])
     );
 }

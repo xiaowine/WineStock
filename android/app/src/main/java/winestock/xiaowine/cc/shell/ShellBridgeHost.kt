@@ -520,8 +520,16 @@ class ShellBridgeHost(
 
     private fun validationResultJson(result: RuntimeConfigValidationResult): JSONObject {
         val fieldErrors = JSONObject()
-        for ((field, messages) in result.fieldErrors) {
-            fieldErrors.put(field, org.json.JSONArray(messages))
+        for ((field, errors) in result.fieldErrors) {
+            val entries = org.json.JSONArray()
+            for (entry in errors) {
+                entries.put(
+                    JSONObject()
+                        .put("code", entry.code)
+                        .put("message", entry.message),
+                )
+            }
+            fieldErrors.put(field, entries)
         }
         return JSONObject()
             .put("valid", result.valid)
