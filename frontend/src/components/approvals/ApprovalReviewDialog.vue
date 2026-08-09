@@ -9,11 +9,11 @@
     @close="requestClose"
   >
     <section v-if="detailLoading" class="approval-detail-state" aria-busy="true">
-      正在加载完整单据…
+      {{ $t('approvals.loadingFullOrder') }}
     </section>
     <section v-else-if="detailError" class="approval-detail-state approval-detail-state--error">
-      <strong>无法加载审核资料</strong><span>{{ detailError }}</span
-      ><button class="secondary-button" type="button" @click="emit('reload')">重试</button>
+      <strong>{{ $t('approvals.loadReviewFailed') }}</strong><span>{{ detailError }}</span
+      ><button class="secondary-button" type="button" @click="emit('reload')">{{ $t('common.retry') }}</button>
     </section>
     <template v-else-if="record">
       <section
@@ -23,10 +23,10 @@
         role="status"
       >
         <strong>{{
-          confirmAction === "approve" ? "确认通过这张单据？" : "确认拒绝这张单据？"
+          confirmAction === "approve" ? $t('approvals.confirmApprove') : $t('approvals.confirmReject')
         }}</strong>
         <p>
-          {{ confirmAction === "approve" ? catalog.approveConsequence : catalog.rejectConsequence }}
+          {{ confirmAction === "approve" ? $t(catalog.approveConsequence) : $t(catalog.rejectConsequence) }}
         </p>
         <span>{{ title }}</span>
       </section>
@@ -36,39 +36,39 @@
             <header>
               <span class="approval-status">{{ statusLabel }}</span>
               <strong>{{
-                record.kind === "inbound" ? "通过后将增加库存" : "通过后将扣减库存"
+                record.kind === "inbound" ? $t('approvals.stockWillIncrease') : $t('approvals.stockWillDecrease')
               }}</strong>
               <time :datetime="record.order.created_at"
-                >提交于 {{ formatDate(record.order.created_at) }}</time
+                >{{ $t('approvals.submittedAt', { time: formatDate(record.order.created_at) }) }}</time
               >
             </header>
-            <p>{{ catalog.approveConsequence }}</p>
+            <p>{{ $t(catalog.approveConsequence) }}</p>
           </section>
 
           <section class="approval-review__section">
-            <h3>单据信息</h3>
+            <h3>{{ $t('approvals.orderInfo') }}</h3>
             <dl class="approval-detail-summary">
               <div>
-                <dt>{{ catalog.contextLabel }}</dt>
+                <dt>{{ $t(catalog.contextLabel) }}</dt>
                 <dd>{{ approvalContext(record) }}</dd>
               </div>
               <div>
-                <dt>创建时间</dt>
+                <dt>{{ $t('approvals.createdAt') }}</dt>
                 <dd>{{ formatDate(record.order.created_at) }}</dd>
               </div>
               <div>
-                <dt>创建人</dt>
+                <dt>{{ $t('approvals.createdBy') }}</dt>
                 <dd>
                   {{
                     record.order.created_by_user_id
-                      ? `用户 #${record.order.created_by_user_id}`
-                      : "系统或未知用户"
+                      ? $t('approvals.userRef', { n: record.order.created_by_user_id })
+                      : $t('approvals.systemOrUnknown')
                   }}
                 </dd>
               </div>
               <div>
-                <dt>备注</dt>
-                <dd>{{ record.order.notes || "暂无备注" }}</dd>
+                <dt>{{ $t('common.remark') }}</dt>
+                <dd>{{ record.order.notes || $t('approvals.noRemark') }}</dd>
               </div>
             </dl>
           </section>
@@ -90,7 +90,7 @@
           :disabled="actionBusy"
           @click="confirmAction = null"
         >
-          返回检查
+          {{ $t('approvals.backToReview') }}
         </button>
         <button
           :class="
@@ -102,12 +102,18 @@
           :disabled="actionBusy"
           @click="emit('act', confirmAction)"
         >
-          {{ actionBusy ? "正在处理…" : confirmAction === "approve" ? "确认通过" : "确认拒绝" }}
+          {{
+            actionBusy
+              ? $t('approvals.processing')
+              : confirmAction === "approve"
+                ? $t('approvals.confirmApproveAction')
+                : $t('approvals.confirmRejectAction')
+          }}
         </button>
       </template>
       <template v-else>
         <button class="secondary-button" type="button" :disabled="actionBusy" @click="requestClose">
-          关闭
+          {{ $t('common.close') }}
         </button>
         <button
           class="secondary-button approval-reject-button"
@@ -115,7 +121,7 @@
           :disabled="!actionsEnabled"
           @click="confirmAction = 'reject'"
         >
-          拒绝
+          {{ $t('approvals.rejectAction') }}
         </button>
         <button
           class="primary-button"
@@ -123,7 +129,7 @@
           :disabled="!actionsEnabled"
           @click="confirmAction = 'approve'"
         >
-          通过
+          {{ $t('approvals.approveAction') }}
         </button>
       </template>
     </template>
@@ -132,6 +138,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { InboundOrderResponse } from "../../api/inboundOrders";
 import type { OutboundOrderResponse } from "../../api/outboundOrders";
 import {
@@ -159,15 +166,21 @@ const emit = defineEmits<{
   act: [action: "approve" | "reject"];
 }>();
 const confirmAction = ref<"approve" | "reject" | null>(null);
+const { t } = useI18n();
 const title = computed(() =>
   props.record
-    ? `${props.record.kind === "inbound" ? "入库单" : "出库单"} #${approvalId(props.record)}`
-    : "审核单据",
+    ? t("approvals.orderTitle", {
+        label: t(
+          props.record.kind === "inbound" ? "approvals.inboundOrder" : "approvals.outboundOrder",
+        ),
+        n: approvalId(props.record),
+      })
+    : t("approvals.reviewOrder"),
 );
 const description = computed(() =>
   props.record?.kind === "inbound"
-    ? "核对待审批入库单的库存影响与业务明细。"
-    : "核对待审批出库单的库存影响与业务明细。",
+    ? t("approvals.reviewInboundDescription")
+    : t("approvals.reviewOutboundDescription"),
 );
 const inboundOrder = computed<InboundOrderResponse | null>(() =>
   props.record?.kind === "inbound" ? props.record.order : null,
@@ -186,10 +199,10 @@ const actionsEnabled = computed(() =>
 );
 const statusLabel = computed(() =>
   props.record?.order.status === "pending"
-    ? "待审批"
+    ? t("approvals.pending")
     : props.record?.order.status === "approved"
-      ? "已处理"
-      : "已拒绝",
+      ? t("approvals.processed")
+      : t("approvals.rejected"),
 );
 
 watch(

@@ -11,13 +11,13 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="login-title">{{ $route.meta.title }}</h1>
-          <p>使用 WineStock 账号连接当前配置的库存服务。</p>
+          <h1 id="login-title">{{ $title($route.meta.title) }}</h1>
+          <p>{{ $t("auth.loginSubtitle") }}</p>
         </div>
       </header>
 
       <p v-if="checkingBootstrapStatus" class="auth-runtime-note" role="status">
-        正在检查服务状态…
+        {{ $t("auth.checkingService") }}
       </p>
 
       <form v-else class="auth-form" novalidate @submit.prevent="submitLogin">
@@ -27,7 +27,7 @@
 
         <FormInput
           v-model="username"
-          label="用户名"
+          :label="$t('auth.username')"
           validation-key="username"
           :error="usernameError"
           name="username"
@@ -38,7 +38,7 @@
         />
 
         <FormField
-          label="密码"
+          :label="$t('auth.password')"
           control-id="login-password"
           validation-key="password"
           :error="passwordError"
@@ -57,15 +57,15 @@
         </FormField>
 
         <button class="primary-button primary-button--full" type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? "正在登录…" : "登录" }}
+          {{ isSubmitting ? $t('auth.loggingIn') : $t('auth.login') }}
         </button>
       </form>
 
       <p v-if="!checkingBootstrapStatus" class="auth-runtime-note">
-        当前服务：<code>{{ activeApiBaseUrl ?? "尚未配置" }}</code>
+        {{ $t('auth.currentService') }}<code>{{ activeApiBaseUrl ?? $t('auth.notConfigured') }}</code>
         ·
         <RouterLink :to="{ name: 'runtime-settings', query: { returnTo: route.fullPath } }">
-          更改
+          {{ $t('auth.change') }}
         </RouterLink>
       </p>
     </section>
@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { getAuthBootstrapStatus, login } from "../api/auth";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import { resolveApiClientMetadata } from "../api/runtime-config";
@@ -91,6 +92,7 @@ import { activeApiBaseUrl } from "../shell/runtime";
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const username = ref("");
 const password = ref("");
 const isSubmitting = ref(false);
@@ -102,7 +104,7 @@ useFormValidation(fieldErrors);
 const usernameError = computed(() => fieldErrors.value.username?.[0]);
 const passwordError = computed(() => fieldErrors.value.password?.[0]);
 const logoutWarning = computed(() =>
-  route.query.logout === "local_only" ? "本机已退出，但服务端会话吊销未确认" : "",
+  route.query.logout === "local_only" ? t("auth.logoutLocalOnlyWarning") : "",
 );
 
 onMounted(async () => {
@@ -124,8 +126,8 @@ async function submitLogin(): Promise<void> {
   errorMessage.value = "";
   fieldErrors.value = validateLoginInput(username.value, password.value);
   if (Object.keys(fieldErrors.value).length > 0) {
-    notice.warning("请检查登录信息", {
-      detail: Object.values(fieldErrors.value)[0]?.[0] ?? "请检查用户名和密码",
+    notice.warning(t("auth.checkLoginInfo"), {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? t("auth.checkUsernameAndPassword"),
     });
     return;
   }
@@ -143,7 +145,7 @@ async function submitLogin(): Promise<void> {
 
     establishAuthSession(response);
     await router.replace(resolvePostLoginLocation(router, route.query.redirect));
-    notice.success("登录成功");
+    notice.success(t("auth.loginSuccess"));
   } catch (error) {
     applyLoginError(error);
   } finally {
@@ -157,17 +159,17 @@ function validateLoginInput(
 ): Readonly<Record<string, readonly string[]>> {
   const errors: Record<string, string[]> = {};
   if (!usernameValue.trim()) {
-    errors.username = ["请输入用户名"];
+    errors.username = [t("auth.usernameRequired")];
   }
   if (!passwordValue) {
-    errors.password = ["请输入密码"];
+    errors.password = [t("auth.passwordRequired")];
   }
   return errors;
 }
 
 function applyLoginError(error: unknown): void {
   if (error instanceof AuthPersistenceError) {
-    errorMessage.value = "登录成功，但无法保存登录状态，请检查浏览器存储权限";
+    errorMessage.value = t("auth.loginPersistenceFailed");
     notice.error(errorMessage.value);
     return;
   }
@@ -175,13 +177,13 @@ function applyLoginError(error: unknown): void {
     if (error.code === "invalid_credentials") {
       fieldErrors.value = {};
       errorMessage.value = "";
-      notice.error("用户名或密码错误");
+      notice.error(t("error.invalid_credentials"));
       return;
     }
 
     fieldErrors.value = error.fieldErrors;
     const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
-    errorMessage.value = hasFieldErrors ? "请检查输入内容" : error.message;
+    errorMessage.value = hasFieldErrors ? t("auth.checkInput") : error.message;
     notice.error(errorMessage.value, {
       detail: hasFieldErrors ? Object.values(error.fieldErrors)[0]?.[0] : undefined,
     });
@@ -193,17 +195,17 @@ function applyLoginError(error: unknown): void {
     return;
   }
   if (error instanceof ApiNetworkError) {
-    errorMessage.value = "无法连接到 WineStock 服务，请检查服务地址和运行状态";
+    errorMessage.value = t("auth.networkConnectFailed");
     notice.error(errorMessage.value);
     return;
   }
   if (error instanceof ApiResponseError) {
-    errorMessage.value = "服务响应格式无效，请检查服务版本";
+    errorMessage.value = t("auth.responseInvalidFormat");
     notice.error(errorMessage.value);
     return;
   }
 
-  errorMessage.value = "登录失败，请稍后重试";
+  errorMessage.value = t("auth.loginFailed");
   notice.error(errorMessage.value);
 }
 </script>

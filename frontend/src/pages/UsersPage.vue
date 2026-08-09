@@ -6,8 +6,8 @@
   <section class="route-page users-page">
     <header class="content-header users-page__header">
       <div>
-        <h1>{{ $route.meta.title }}</h1>
-        <p>查看账号状态，并按权限执行创建、启停、删除、权限分配和临时密码操作。</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t("users.subtitle") }}</p>
       </div>
     </header>
 
@@ -26,9 +26,9 @@
       />
 
       <section v-if="loadError" class="page-state page-state--error" role="alert">
-        <h2>无法加载用户</h2>
+        <h2>{{ $t("users.loadFailed") }}</h2>
         <p>{{ loadError }}</p>
-        <button class="secondary-button" type="button" @click="resetAndLoadUsers">重试</button>
+        <button class="secondary-button" type="button" @click="resetAndLoadUsers">{{ $t("common.retry") }}</button>
       </section>
 
       <section
@@ -42,9 +42,8 @@
           class="page-state"
           role="status"
         >
-          正在加载用户…
+          {{ $t("users.loadingUsers") }}
         </div>
-
         <div v-else v-overlay-scrollbar class="users-results">
           <template v-if="users.length > 0">
             <UserDirectoryTable
@@ -75,7 +74,9 @@
 
           <div ref="loadMoreSentinel" class="users-load-more" aria-live="polite">
             <Transition name="user-count" mode="out-in">
-              <span v-if="loadingMore" key="loading" role="status">正在加载更多用户…</span>
+              <span v-if="loadingMore" key="loading" role="status">{{
+                $t("users.loadingMoreUsers")
+              }}</span>
               <button
                 v-else-if="loadMoreError"
                 key="error"
@@ -83,10 +84,12 @@
                 type="button"
                 @click="loadNextPage"
               >
-                加载失败，点击重试
+                {{ $t("users.loadMoreFailedRetry") }}
               </button>
-              <span v-else-if="hasMoreUsers" key="more">继续向下滚动加载</span>
-              <span v-else :key="`loaded-${total}`">已加载全部 {{ total }} 个用户</span>
+              <span v-else-if="hasMoreUsers" key="more">{{ $t("users.scrollToLoadMore") }}</span>
+              <span v-else :key="`loaded-${total}`">{{
+                $t("users.loadedAllUsers", { n: total })
+              }}</span>
             </Transition>
           </div>
         </div>
@@ -164,6 +167,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { getCurrentUser } from "../api/auth";
 import {
   deleteUser,
@@ -179,6 +183,7 @@ import {
   type UserStatus,
 } from "../api/users";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
+import { translateMessageOrNull } from "../i18n";
 import { hasPermission, userPermissions } from "../auth/permissions";
 import {
   authSession,
@@ -201,6 +206,7 @@ import { notice } from "../notices/notice";
 const PAGE_SIZE = 20;
 
 const router = useRouter();
+const { t } = useI18n();
 const users = ref<UserAdminResponse[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -321,7 +327,7 @@ async function loadUsers(targetPage: number, append = false): Promise<boolean> {
     }
     const message = userManagementErrorMessage(
       error,
-      shouldAppend ? "加载更多用户失败" : "加载用户失败",
+      shouldAppend ? t("users.loadMoreUsersFailed") : t("users.loadUsersFailed"),
     );
     if (shouldAppend) {
       loadMoreError.value = message;
@@ -352,7 +358,7 @@ async function resetAndLoadUsers(): Promise<boolean> {
 async function refreshUsers(): Promise<void> {
   const refreshed = await resetAndLoadUsers();
   if (refreshed) {
-    notice.success("用户列表已刷新");
+    notice.success(t("users.listRefreshed"));
   }
 }
 
@@ -496,9 +502,11 @@ async function saveUsername(username: string): Promise<void> {
       replaceCurrentSessionUser(await getCurrentUser());
     }
     usernameUser.value = null;
-    notice.success("用户名已更新", { detail: `当前登录用户名为 ${updated.username}。` });
+    notice.success(t("users.usernameUpdated"), {
+      detail: t("users.usernameUpdatedDetail", { username: updated.username }),
+    });
   } catch (error) {
-    actionError.value = userManagementErrorMessage(error, "修改用户名失败");
+    actionError.value = userManagementErrorMessage(error, t("users.updateUsernameFailed"));
     actionFieldErrors.value = userManagementFieldErrors(error);
     notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   } finally {
@@ -514,8 +522,8 @@ async function createUser(request: { username: string; password: string }): Prom
   try {
     await registerUser(request);
     createDialogOpen.value = false;
-    notice.success("用户已创建", {
-      detail: `${request.username} 当前默认没有权限。`,
+    notice.success(t("users.userCreated"), {
+      detail: t("users.userCreatedDetail", { username: request.username }),
     });
     searchInput.value = "";
     statusInput.value = "";
@@ -523,7 +531,7 @@ async function createUser(request: { username: string; password: string }): Prom
     activeStatus.value = "";
     await resetAndLoadUsers();
   } catch (error) {
-    actionError.value = userManagementErrorMessage(error, "创建用户失败");
+    actionError.value = userManagementErrorMessage(error, t("users.createFailed"));
     actionFieldErrors.value = userManagementFieldErrors(error);
     notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   } finally {
@@ -544,7 +552,10 @@ async function loadPermissionDefinitions(): Promise<void> {
     if (error instanceof DOMException && error.name === "AbortError") {
       return;
     }
-    permissionsLoadError.value = userManagementErrorMessage(error, "加载权限定义失败");
+    permissionsLoadError.value = userManagementErrorMessage(
+      error,
+      t("users.loadPermissionDefinitionsFailed"),
+    );
     notice.error(permissionsLoadError.value, { onClick: () => void loadPermissionDefinitions() });
   } finally {
     if (permissionsAbortController === controller) {
@@ -569,14 +580,14 @@ async function savePermissions(permissions: string[]): Promise<void> {
     replaceUser(updated);
     replaceCurrentSessionPermissions(updated.id, updated.permissions);
     permissionsUser.value = null;
-    notice.success("权限已更新", {
-      detail: `用户 ${updated.username} 的页面导航和操作权限已按新设置生效。`,
+    notice.success(t("users.permissionsUpdated"), {
+      detail: t("users.permissionsUpdatedDetail", { username: updated.username }),
     });
     if (isCurrentUser(updated) && !updated.permissions.includes(userPermissions.read)) {
       await router.replace({ name: "dashboard" });
     }
   } catch (error) {
-    actionError.value = userManagementErrorMessage(error, "保存权限失败");
+    actionError.value = userManagementErrorMessage(error, t("users.savePermissionsFailed"));
     notice.error(actionError.value);
   } finally {
     actionSubmitting.value = false;
@@ -596,11 +607,11 @@ async function saveTemporaryPassword(password: string): Promise<void> {
     await resetUserPassword(target.id, { password });
     replaceUser({ ...target, password_change_required: true });
     passwordUser.value = null;
-    notice.success("临时密码已设置", {
-      detail: `${target.username} 下次登录后必须修改密码。`,
+    notice.success(t("users.temporaryPasswordSet"), {
+      detail: t("users.temporaryPasswordSetDetail", { username: target.username }),
     });
   } catch (error) {
-    actionError.value = userManagementErrorMessage(error, "设置临时密码失败");
+    actionError.value = userManagementErrorMessage(error, t("users.setTemporaryPasswordFailed"));
     actionFieldErrors.value = userManagementFieldErrors(error);
     notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   } finally {
@@ -620,11 +631,12 @@ async function saveStatus(): Promise<void> {
     const updated = await updateUserStatus(target.id, { status: nextStatus.value });
     statusUser.value = null;
     await resetAndLoadUsers();
-    notice.success(`用户已${updated.status === "active" ? "启用" : "停用"}`, {
-      detail: updated.username,
-    });
+    notice.success(
+      updated.status === "active" ? t("users.enabledNotice") : t("users.disabledNotice"),
+      { detail: updated.username },
+    );
   } catch (error) {
-    actionError.value = userManagementErrorMessage(error, "更新用户状态失败");
+    actionError.value = userManagementErrorMessage(error, t("users.updateStatusFailed"));
     notice.error(actionError.value);
   } finally {
     actionSubmitting.value = false;
@@ -643,11 +655,11 @@ async function confirmDeleteUser(): Promise<void> {
     await deleteUser(target.id);
     deleteUserTarget.value = null;
     await resetAndLoadUsers();
-    notice.success("用户已删除", {
-      detail: `${target.username} 已退出登录，且无法再次使用该账号。`,
+    notice.success(t("users.userDeleted"), {
+      detail: t("users.userDeletedDetail", { username: target.username }),
     });
   } catch (error) {
-    actionError.value = userManagementErrorMessage(error, "删除用户失败");
+    actionError.value = userManagementErrorMessage(error, t("users.deleteFailed"));
     notice.error(actionError.value);
   } finally {
     actionSubmitting.value = false;
@@ -673,34 +685,18 @@ function isCurrentUser(user: UserAdminResponse): boolean {
 
 function userManagementErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
-    if (error.code === "last_permission_manager_required") {
-      return "至少需要保留一个已启用且可以管理权限的用户";
-    }
-    if (error.code === "username_taken") {
-      return "用户名已存在";
-    }
-    if (error.code === "permission_denied") {
-      return "当前账号没有执行此操作的权限";
-    }
-    if (error.code === "user_not_found") {
-      return "用户不存在或已被删除";
-    }
-    if (error.code === "self_user_delete_forbidden") {
-      return "不能删除当前登录账号";
-    }
-    if (error.code === "permission_not_found") {
-      return "权限定义已变化，请重新加载后再试";
-    }
-    return Object.keys(error.fieldErrors).length > 0 ? "请检查输入内容" : error.message;
+    return Object.keys(error.fieldErrors).length > 0
+      ? t("users.checkInput")
+      : (translateMessageOrNull(`error.${error.code}`) ?? error.message);
   }
   if (error instanceof ApiConfigurationError) {
     return error.message;
   }
   if (error instanceof ApiNetworkError) {
-    return "无法连接到 WineStock 服务";
+    return t("error.network_unavailable");
   }
   if (error instanceof ApiResponseError) {
-    return "服务响应格式无效，请检查前后端版本";
+    return t("users.responseInvalidFormat");
   }
   return fallback;
 }
@@ -720,7 +716,7 @@ function userManagementFieldErrors(error: unknown): Record<string, string> {
             : "";
     if (field && messages[0]) mapped[field] = messages[0];
   }
-  if (error.code === "username_taken") mapped.username ??= "用户名已存在";
+  if (error.code === "username_taken") mapped.username ??= t("error.username_taken");
   return mapped;
 }
 </script>

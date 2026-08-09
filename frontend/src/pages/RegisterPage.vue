@@ -12,26 +12,26 @@
         </div>
         <div>
           <h1 id="register-title">
-            {{ localBootstrapMode ? "创建本机账户" : $route.meta.title }}
+            {{ localBootstrapMode ? $t('auth.registerLocalAccount') : $title($route.meta.title) }}
           </h1>
           <p>
             {{
               localBootstrapMode
-                ? "设置一个用于识别本机账户的用户名。"
-                : "首个用户无需登录即可创建，并会自动获得全部内置权限。"
+                ? $t('auth.registerLocalUsernameHint')
+                : $t('auth.registerFirstUserHint')
             }}
           </p>
         </div>
       </header>
 
       <p v-if="checkingBootstrapStatus" class="auth-runtime-note" role="status">
-        正在检查服务状态…
+        {{ $t('auth.checkingService') }}
       </p>
 
       <form v-else class="auth-form" novalidate @submit.prevent="submitRegistration">
         <FormInput
           v-model="username"
-          label="用户名"
+          :label="$t('auth.username')"
           validation-key="username"
           :error="usernameError"
           name="username"
@@ -44,7 +44,7 @@
 
         <FormField
           v-if="!localBootstrapMode"
-          label="密码"
+          :label="$t('auth.password')"
           control-id="register-password"
           validation-key="password"
           :error="passwordError"
@@ -64,7 +64,7 @@
 
         <FormField
           v-if="!localBootstrapMode"
-          label="确认密码"
+          :label="$t('auth.confirmPassword')"
           control-id="register-password-confirmation"
           validation-key="password_confirmation"
           :error="passwordConfirmationError"
@@ -83,15 +83,15 @@
         </FormField>
 
         <button class="primary-button primary-button--full" type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? "正在创建…" : "创建并进入 WineStock" }}
+          {{ isSubmitting ? $t('auth.creatingAccount') : $t('auth.createAndEnter') }}
         </button>
       </form>
 
       <p v-if="!checkingBootstrapStatus" class="auth-runtime-note">
         {{
           localBootstrapMode
-            ? "创建后会自动进入 WineStock。"
-            : "注册成功后会使用同一组凭据自动登录当前服务。"
+            ? $t('auth.registerLocalSuccess')
+            : $t('auth.registerAutoLoginHint')
         }}
       </p>
     </section>
@@ -101,6 +101,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import {
   getAuthBootstrapStatus,
   login,
@@ -116,6 +117,7 @@ import {
 } from "../auth/session";
 import { AuthPersistenceError } from "../auth/storage";
 import BrandMark from "../components/BrandMark.vue";
+import { translateMessageOrNull } from "../i18n";
 import { notice } from "../notices/notice";
 import PasswordInput from "../components/PasswordInput.vue";
 import FormField from "../components/forms/FormField.vue";
@@ -125,6 +127,7 @@ import { runtimeSnapshot } from "../shell/runtime";
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const username = ref("");
 const password = ref("");
 const passwordConfirmation = ref("");
@@ -169,8 +172,8 @@ async function submitRegistration(): Promise<void> {
     localBootstrapMode.value,
   );
   if (Object.keys(fieldErrors.value).length > 0) {
-    notice.warning("请检查注册信息", {
-      detail: Object.values(fieldErrors.value)[0]?.[0] ?? "请检查注册信息",
+    notice.warning(t("auth.checkRegistrationInfo"), {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? t("auth.checkRegistrationInfo"),
     });
     return;
   }
@@ -183,7 +186,7 @@ async function submitRegistration(): Promise<void> {
       await establishLocalInitialUser(normalizedUsername);
       markAuthBootstrapInitialized();
       await router.replace({ name: "dashboard" });
-      notice.success("本机账户已创建并进入 WineStock");
+      notice.success(t("auth.localAccountCreated"));
       return;
     }
     await registerInitialUser({
@@ -204,7 +207,7 @@ async function submitRegistration(): Promise<void> {
 
     establishAuthSession(response);
     await router.replace({ name: "dashboard" });
-    notice.success("首个用户已创建并登录");
+    notice.success(t("auth.firstUserCreated"));
   } catch (error) {
     await applyRegistrationError(error, registrationCompleted);
   } finally {
@@ -220,15 +223,15 @@ function validateRegistrationInput(
 ): Readonly<Record<string, readonly string[]>> {
   const errors: Record<string, string[]> = {};
   if (!usernameValue.trim()) {
-    errors.username = ["请输入用户名"];
+    errors.username = [t("auth.usernameRequired")];
   }
   if (!localMode && !passwordValue) {
-    errors.password = ["请输入密码"];
+    errors.password = [t("auth.passwordRequired")];
   }
   if (!localMode && !passwordConfirmationValue) {
-    errors.password_confirmation = ["请再次输入密码"];
+    errors.password_confirmation = [t("auth.passwordConfirmationRequired")];
   } else if (passwordValue !== passwordConfirmationValue) {
-    errors.password_confirmation = ["两次输入的密码不一致"];
+    errors.password_confirmation = [t("auth.passwordMismatch")];
   }
   return errors;
 }
@@ -238,12 +241,12 @@ async function applyRegistrationError(
   registrationCompleted: boolean,
 ): Promise<void> {
   if (registrationCompleted && error instanceof AuthPersistenceError) {
-    errorMessage.value = "用户已创建，但无法保存登录状态，请检查浏览器存储权限后返回登录";
+    errorMessage.value = t("auth.registrationPersistenceFailed");
     notice.error(errorMessage.value);
     return;
   }
   if (registrationCompleted) {
-    errorMessage.value = "用户已创建，但自动登录失败，请返回登录页手动登录";
+    errorMessage.value = t("auth.registrationAutoLoginFailed");
     notice.error(errorMessage.value);
     return;
   }
@@ -255,16 +258,13 @@ async function applyRegistrationError(
       error.code === "invalid_access_token" ||
       error.code === "permission_denied"
     ) {
-      errorMessage.value = "当前服务已经存在用户，请返回登录页";
-      notice.error("首个账户已创建，请使用登录");
+      errorMessage.value = translateMessageOrNull(`error.${error.code}`) ?? error.message;
+      notice.error(errorMessage.value);
       await router.replace({ name: "login", query: route.query });
       return;
-    } else if (error.code === "username_taken") {
-      errorMessage.value = "该用户名已存在，请更换用户名或返回登录";
-    } else {
-      const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
-      errorMessage.value = hasFieldErrors ? "请检查输入内容" : error.message;
     }
+    const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
+    errorMessage.value = hasFieldErrors ? t("auth.checkInput") : error.message;
     notice.error(errorMessage.value, {
       detail: Object.values(error.fieldErrors)[0]?.[0],
     });
@@ -276,17 +276,17 @@ async function applyRegistrationError(
     return;
   }
   if (error instanceof ApiNetworkError) {
-    errorMessage.value = "无法连接到 WineStock 服务，请检查服务地址和运行状态";
+    errorMessage.value = t("auth.networkConnectFailed");
     notice.error(errorMessage.value);
     return;
   }
   if (error instanceof ApiResponseError) {
-    errorMessage.value = "服务响应格式无效，请检查服务版本";
+    errorMessage.value = t("auth.responseInvalidFormat");
     notice.error(errorMessage.value);
     return;
   }
 
-  errorMessage.value = "创建用户失败，请稍后重试";
+  errorMessage.value = t("auth.registrationFailed");
   notice.error(errorMessage.value);
 }
 </script>

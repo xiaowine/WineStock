@@ -5,7 +5,7 @@
 <template>
   <ModalDialog
     :open="Boolean(user)"
-    title="配置权限"
+    :title="$t('users.configurePermissions')"
     :busy="submitting"
     wide
     @close="emit('close')"
@@ -13,17 +13,17 @@
     <template #context>
       <div v-if="user" class="permission-picker__context">
         <div>
-          <span>目标用户</span>
+          <span>{{ $t("users.targetUser") }}</span>
           <strong :title="user.username">{{ user.username }}</strong>
         </div>
         <div class="permission-picker__total">
-          <span>已选权限</span>
+          <span>{{ $t("users.selectedPermissions") }}</span>
           <strong>{{ selectedPermissions.length }} / {{ permissions.length }}</strong>
         </div>
       </div>
     </template>
 
-    <div v-if="loading" class="dialog-state" role="status">正在加载权限…</div>
+    <div v-if="loading" class="dialog-state" role="status">{{ $t("users.loadingPermissions") }}</div>
     <form
       v-else-if="!loadError"
       id="user-permissions-form"
@@ -36,7 +36,7 @@
         ref="groupsViewport"
         class="permission-picker__groups"
         :class="{ 'permission-picker__groups--scrollable': permissionGroups.length > 4 }"
-        aria-label="权限分类"
+        :aria-label="$t('users.permissionCategories')"
       >
         <button
           v-for="group in permissionGroups"
@@ -57,8 +57,12 @@
             <div>
               <h3>{{ activeGroup.name }}</h3>
               <p>
-                已选 {{ selectedCount(activeGroup.permissions) }} 项，共
-                {{ activeGroup.permissions.length }} 项
+                {{
+                  $t("users.groupSelectedSummary", {
+                    n: selectedCount(activeGroup.permissions),
+                    m: activeGroup.permissions.length,
+                  })
+                }}
               </p>
             </div>
             <button
@@ -67,7 +71,11 @@
               :disabled="submitting || !hasEditablePermissions(activeGroup.permissions)"
               @click="toggleGroup(activeGroup.permissions)"
             >
-              {{ isGroupFullySelected(activeGroup.permissions) ? "取消全选" : "全选" }}
+              {{
+                isGroupFullySelected(activeGroup.permissions)
+                  ? $t("users.deselectAll")
+                  : $t("users.selectAll")
+              }}
             </button>
           </header>
 
@@ -94,7 +102,7 @@
                   v-if="isPermissionLocked(permission.code)"
                   class="permission-picker__lock-hint"
                 >
-                  当前账号关键权限，不可修改
+                  {{ $t("users.lockedPermissionHint") }}
                 </small>
               </span>
             </label>
@@ -104,14 +112,12 @@
     </form>
 
     <template v-if="editingCurrentUser" #notice>
-      <p class="form-warning">
-        当前账号的权限管理和权限定义读取能力已锁定；其它权限保存后会立即生效。
-      </p>
+      <p class="form-warning">{{ $t("users.editingCurrentUserNotice") }}</p>
     </template>
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t("common.cancel") }}
       </button>
       <button
         class="primary-button"
@@ -119,7 +125,7 @@
         form="user-permissions-form"
         :disabled="submitting || loading || Boolean(loadError)"
       >
-        {{ submitting ? "正在保存…" : "保存权限" }}
+        {{ submitting ? $t("users.saving") : $t("users.savePermissions") }}
       </button>
     </template>
   </ModalDialog>
@@ -127,6 +133,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { PermissionResponse, UserAdminResponse } from "../../api/users";
 import { userPermissions } from "../../auth/permissions";
 import ModalDialog from "../ModalDialog.vue";
@@ -163,16 +170,18 @@ const selfProtectedPermissions = new Set<string>([
   userPermissions.readPermissionDefinitions,
 ]);
 
+const { t } = useI18n();
+
 const permissionGroups = computed<PermissionGroup[]>(() => {
   const groups = new Map<string, PermissionResponse[]>();
   for (const permission of props.permissions) {
     const name = permission.code.startsWith("user.")
-      ? "用户管理"
+      ? t("users.permissionGroupUsers")
       : permission.code.startsWith("stock.")
-        ? "库存业务"
+        ? t("users.permissionGroupStock")
         : permission.code.startsWith("audit.")
-          ? "审计"
-          : "其它";
+          ? t("users.permissionGroupAudit")
+          : t("users.permissionGroupOther");
     const entries = groups.get(name) ?? [];
     entries.push(permission);
     groups.set(name, entries);

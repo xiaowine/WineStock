@@ -29,13 +29,14 @@
       @animationend="focusRing = null"
     />
     <div v-if="setupVisible" class="barcode-camera__pending" role="status">
-      正在启动摄像头与识别引擎…
+      {{ $t("misc.barcodeCameraStarting") }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { decodeQrCameraFrame, loadBarcodeReader, type DecodedQrCode } from "../../barcode/decoder";
 import { useStablePendingIndicator } from "../../composables/useStablePendingIndicator";
 
@@ -49,6 +50,8 @@ const props = defineProps<{
   /** 取景是否活跃；关闭时停止取流并复位状态。 */
   active: boolean;
 }>();
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   /** 每个新识别到的二维码原文触发一次；相同内容 2 秒内去重。 */
@@ -248,7 +251,12 @@ function cycleCamera(): void {
   const next = availableCameras[nextIndex];
   selectedDeviceId.value = next.deviceId;
   localStorage.setItem(CAMERA_DEVICE_STORAGE_KEY, next.deviceId);
-  emit("hint", `已切换到 ${next.label || `摄像头 ${nextIndex + 1}`}`);
+  emit(
+    "hint",
+    t("misc.barcodeCameraSwitched", {
+      name: next.label || t("misc.barcodeCameraOrdinal", { n: nextIndex + 1 }),
+    }),
+  );
   if (!props.active) return;
   stopCamera();
   void startCamera();
@@ -379,16 +387,16 @@ function triggerFlash(): void {
 function cameraErrorMessage(error: unknown): string {
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError") {
-      return "摄像头权限被拒绝，可在系统或浏览器设置中重新允许，或使用下方图片识别。";
+      return t("misc.barcodeCameraPermissionDenied");
     }
     if (error.name === "NotFoundError" || error.name === "OverconstrainedError") {
-      return "没有找到可用摄像头，请使用下方图片识别。";
+      return t("misc.barcodeCameraNotFound");
     }
     if (error.name === "NotReadableError") {
-      return "摄像头被其它应用占用，请关闭后重试或使用下方图片识别。";
+      return t("misc.barcodeCameraInUse");
     }
   }
-  return "摄像头启动失败，请使用下方图片识别。";
+  return t("misc.barcodeCameraStartFailed");
 }
 </script>
 

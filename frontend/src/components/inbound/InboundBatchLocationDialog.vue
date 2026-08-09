@@ -5,31 +5,33 @@
 <template>
   <ModalDialog
     :open="open"
-    title="批量设置库位"
-    :description="`将为 ${count} 条尚未选择库位的明细设置同一库位；已选库位的明细不受影响。`"
+    :title="$t('stockDraft.batchSetLocation')"
+    :description="$t('stockDraft.batchLocationDescription', { n: count })"
     compact
     @close="emit('close')"
   >
     <label class="inbound-batch-location__field">
-      <span>入库库位</span>
+      <span>{{ $t('stockDraft.inboundLocationField') }}</span>
       <SelectControl v-model="locationId" name="inbound_batch_location" compact>
-        <option :value="null">请选择</option>
+        <option :value="null">{{ $t('stockDraft.pleaseSelect') }}</option>
         <optgroup v-for="group in locationGroups" :key="group.name" :label="group.name">
           <option v-for="location in group.locations" :key="location.id" :value="location.id">
-            {{ location.name }}{{ location.is_default ? "（默认）" : "" }}
+            {{ location.name }}{{ location.is_default ? $t('stockDraft.defaultSuffix') : "" }}
           </option>
         </optgroup>
       </SelectControl>
     </label>
     <template #actions>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t('common.cancel') }}
+      </button>
       <button
         class="primary-button"
         type="button"
         :disabled="locationId === null"
         @click="confirm"
       >
-        应用到 {{ count }} 条明细
+        {{ $t('stockDraft.applyToLines', { n: count }) }}
       </button>
     </template>
   </ModalDialog>

@@ -1,7 +1,7 @@
 <!-- 本组件拥有运行方式的三项选择呈现；它不校验配置、不保存草稿或启动本地服务。 -->
 <template>
   <fieldset class="runtime-mode-selector" :disabled="disabled">
-    <legend>运行模式</legend>
+    <legend>{{ $t("runtime.runtimeMode") }}</legend>
     <label
       v-for="option in options"
       :key="option.value"
@@ -31,7 +31,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { RuntimeMode } from "../../shell/contract";
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -52,29 +55,27 @@ const emit = defineEmits<{
 const options = computed(() => [
   {
     value: "self-hosted" as const,
-    label: "本机自用",
-    description: "服务和数据运行在这台设备上，适合个人或单设备使用。",
+    label: t("runtime.localModeLabel"),
+    description: t("runtime.localModeDescription"),
     selected: props.modelValue === "self-hosted",
     disabled: false,
     unavailableReason: "",
   },
   {
     value: "client-only" as const,
-    label: "连接远端",
-    description: "不启动本地服务，连接已经部署好的 WineStock 服务。",
+    label: t("runtime.remoteModeLabel"),
+    description: t("runtime.remoteModeDescription"),
     selected: props.modelValue === "client-only" || props.modelValue === "connect-to-remote",
     disabled: false,
     unavailableReason: "",
   },
   {
     value: "server-mode" as const,
-    label: "共享服务",
-    description: "在这台设备运行服务，允许其他设备连接使用。",
+    label: t("runtime.serverModeLabel"),
+    description: t("runtime.serverModeDescription"),
     selected: props.modelValue === "server-mode",
     disabled: !props.serverModeAvailable,
-    unavailableReason: props.serverModeAvailable
-      ? ""
-      : "当前平台暂不支持自动配置防火墙，请手动配置。",
+    unavailableReason: props.serverModeAvailable ? "" : t("runtime.firewallManualConfig"),
   },
 ]);
 

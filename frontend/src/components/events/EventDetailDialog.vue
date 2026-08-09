@@ -3,26 +3,26 @@
   <ModalDialog
     :open="event !== null"
     :title="dialogTitle"
-    description="操作详情来自操作发生时的服务端记录。"
+    :description="$t('events.detailDescription')"
     wide
     @close="emit('close')"
   >
     <template v-if="event" #context>
       <dl class="event-detail-context">
         <div>
-          <dt>事件</dt>
+          <dt>{{ $t('events.detailEvent') }}</dt>
           <dd>#{{ event.id }}</dd>
         </div>
         <div>
-          <dt>操作时间</dt>
+          <dt>{{ $t('events.detailTimestamp') }}</dt>
           <dd>{{ formatLocalTimestamp(event.timestamp) }}</dd>
         </div>
         <div>
-          <dt>操作人</dt>
+          <dt>{{ $t('events.detailActor') }}</dt>
           <dd>{{ actorLabel(event) }}</dd>
         </div>
         <div>
-          <dt>业务对象</dt>
+          <dt>{{ $t('events.detailEntity') }}</dt>
           <dd>{{ entityTargetLabel(event) }}</dd>
         </div>
       </dl>
@@ -30,61 +30,62 @@
 
     <div v-if="event" class="event-detail">
       <section class="event-detail__section">
-        <h3>事件信息</h3>
+        <h3>{{ $t('events.detailEventInfo') }}</h3>
         <dl class="event-detail__metadata">
           <div>
-            <dt>原始 UTC</dt>
+            <dt>{{ $t('events.detailRawUtc') }}</dt>
             <dd>{{ event.timestamp }}</dd>
           </div>
           <div>
-            <dt>实体类型</dt>
+            <dt>{{ $t('events.detailEntityType') }}</dt>
             <dd>
               <code>{{ event.entity_type }}</code>
             </dd>
           </div>
           <div>
-            <dt>动作</dt>
+            <dt>{{ $t('events.detailAction') }}</dt>
             <dd>
               <code>{{ event.action }}</code>
             </dd>
           </div>
           <div>
-            <dt>用户 ID</dt>
-            <dd>{{ event.user_id === null ? "无记录" : `#${event.user_id}` }}</dd>
+            <dt>{{ $t('events.detailUserId') }}</dt>
+            <dd>{{ event.user_id === null ? $t('events.valueNone') : `#${event.user_id}` }}</dd>
           </div>
         </dl>
       </section>
 
       <section v-if="permissionChanges" class="event-detail__section">
-        <h3>权限变化</h3>
+        <h3>{{ $t('events.permissionChangesTitle') }}</h3>
         <div class="event-permission-diff">
           <div>
-            <strong>新增权限 · {{ permissionChanges.added.length }}</strong>
+            <strong>{{ $t('events.permissionAdded', { n: permissionChanges.added.length }) }}</strong>
             <ul v-if="permissionChanges.added.length">
               <li v-for="permission in permissionChanges.added" :key="permission">
                 <code>{{ permission }}</code>
               </li>
             </ul>
-            <span v-else>无新增权限</span>
+            <span v-else>{{ $t('events.permissionAddedNone') }}</span>
           </div>
           <div>
-            <strong>移除权限 · {{ permissionChanges.removed.length }}</strong>
+            <strong>{{ $t('events.permissionRemoved', { n: permissionChanges.removed.length }) }}</strong>
             <ul v-if="permissionChanges.removed.length">
               <li v-for="permission in permissionChanges.removed" :key="permission">
                 <code>{{ permission }}</code>
               </li>
             </ul>
-            <span v-else>无移除权限</span>
+            <span v-else>{{ $t('events.permissionRemovedNone') }}</span>
           </div>
         </div>
       </section>
 
       <section v-if="diffRows.length" class="event-detail__section">
-        <h3>字段变化</h3>
-        <div v-overlay-scrollbar class="event-diff-table" role="table" aria-label="操作字段变化">
+        <h3>{{ $t('events.fieldChangesTitle') }}</h3>
+        <div v-overlay-scrollbar class="event-diff-table" role="table" :aria-label="$t('events.fieldChangesAria')">
           <div class="event-diff-table__head" role="row">
-            <span role="columnheader">字段</span><span role="columnheader">修改前</span
-            ><span role="columnheader">修改后</span>
+            <span role="columnheader">{{ $t('events.fieldColumnField') }}</span
+            ><span role="columnheader">{{ $t('events.fieldColumnBefore') }}</span
+            ><span role="columnheader">{{ $t('events.fieldColumnAfter') }}</span>
           </div>
           <div v-for="row in diffRows" :key="row.key" class="event-diff-table__row" role="row">
             <strong role="cell">{{ row.label }}</strong>
@@ -95,7 +96,7 @@
       </section>
 
       <section v-if="previousSnapshot.length" class="event-detail__section">
-        <h3>删除前快照</h3>
+        <h3>{{ $t('events.previousSnapshotTitle') }}</h3>
         <dl class="event-detail__entries">
           <div v-for="entry in previousSnapshot" :key="entry.key">
             <dt>{{ entry.label }}</dt>
@@ -105,7 +106,7 @@
       </section>
 
       <section v-if="detailEntries.length" class="event-detail__section">
-        <h3>结构化详情</h3>
+        <h3>{{ $t('events.structuredDetailsTitle') }}</h3>
         <dl class="event-detail__entries">
           <div v-for="entry in detailEntries" :key="entry.key">
             <dt>{{ entry.label }}</dt>
@@ -115,15 +116,15 @@
       </section>
 
       <details class="event-detail__section event-detail__raw">
-        <summary>原始详情</summary>
+        <summary>{{ $t('events.rawDetailsTitle') }}</summary>
         <header>
-          <span>完整服务端 JSON</span>
+          <span>{{ $t('events.rawJsonLabel') }}</span>
           <button
-            v-copyable="{ text: rawJson, label: '操作详情 JSON' }"
+            v-copyable="{ text: rawJson, label: $t('events.copyJsonLabel') }"
             class="secondary-button"
             type="button"
           >
-            复制 JSON
+            {{ $t('events.copyJson') }}
           </button>
         </header>
         <pre v-overlay-scrollbar tabindex="0">{{ rawJson }}</pre>
@@ -131,14 +132,14 @@
     </div>
 
     <template #actions>
-      <button class="secondary-button" type="button" @click="emit('close')">关闭</button>
+      <button class="secondary-button" type="button" @click="emit('close')">{{ $t('common.close') }}</button>
       <button
         v-if="event?.entity_id !== null"
         class="primary-button"
         type="button"
         @click="emitRelated"
       >
-        查看相关事件
+        {{ $t('events.viewRelatedEvents') }}
       </button>
     </template>
   </ModalDialog>
@@ -146,6 +147,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { EventLogResponse } from "../../api/events";
 import {
   eventDetailEntries,
@@ -160,11 +162,15 @@ import ModalDialog from "../ModalDialog.vue";
 
 const props = defineProps<{ event: EventLogResponse | null }>();
 const emit = defineEmits<{ close: []; related: [event: EventLogResponse] }>();
+const { t } = useI18n();
 
 const dialogTitle = computed(() =>
   props.event
-    ? `${eventActionLabel(props.event.action)}${eventEntityLabel(props.event.entity_type)}`
-    : "操作详情",
+    ? t("events.detailTitleWithEntity", {
+        action: eventActionLabel(props.event.action),
+        entity: eventEntityLabel(props.event.entity_type),
+      })
+    : t("events.detailTitle"),
 );
 const diffRows = computed(() => (props.event ? eventDiffRows(props.event.details) : []));
 const permissionChanges = computed(() =>
@@ -194,11 +200,13 @@ function formatLocalTimestamp(value: string): string {
 function actorLabel(event: EventLogResponse): string {
   if (event.username)
     return event.user_id === null ? event.username : `${event.username} · #${event.user_id}`;
-  return event.user_id === null ? "系统/未知操作人" : `用户 #${event.user_id}`;
+  return event.user_id === null
+    ? t("events.systemUnknownActor")
+    : t("events.userActor", { id: event.user_id });
 }
 
 function entityTargetLabel(event: EventLogResponse): string {
-  const id = event.entity_id === null ? "无实体编号" : `#${event.entity_id}`;
+  const id = event.entity_id === null ? t("events.noEntityId") : `#${event.entity_id}`;
   return `${eventEntityLabel(event.entity_type)} · ${id}`;
 }
 

@@ -8,7 +8,7 @@
       tag="section"
       name="notice-list"
       class="notice-viewport"
-      aria-label="通知"
+      :aria-label="$t('components.notifications')"
       aria-live="polite"
     >
       <article
@@ -37,8 +37,8 @@
           <button
             class="notice-toast__close"
             type="button"
-            title="关闭通知"
-            aria-label="关闭通知"
+            :title="$t('components.closeNotification')"
+            :aria-label="$t('components.closeNotification')"
             @click.stop="dismissNotice(item.id)"
             @keydown.stop
           >
@@ -54,6 +54,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import {
   activateNotice,
   dismissNotice,
@@ -64,21 +65,23 @@ import {
   type NoticeTone,
 } from "../notices/notice";
 
+const { t } = useI18n();
+
 function progress(item: NoticeItem): number {
   return Math.max(0, Math.min(1, item.remainingMs / item.durationMs));
 }
 
 function toneLabel(tone: NoticeTone): string {
-  if (tone === "success") {
-    return "成功";
+  switch (tone) {
+    case "success":
+      return t("components.toneSuccess");
+    case "warning":
+      return t("components.toneWarning");
+    case "error":
+      return t("components.toneError");
+    default:
+      return t("components.toneInfo");
   }
-  if (tone === "warning") {
-    return "警告";
-  }
-  if (tone === "error") {
-    return "错误";
-  }
-  return "提示";
 }
 
 function handleFocusOut(id: string, event: FocusEvent): void {

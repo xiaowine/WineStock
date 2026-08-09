@@ -3,19 +3,19 @@
   <section class="lcsc-candidate" aria-live="polite">
     <strong>{{ candidate.name }}</strong>
     <span>
-      立创商品编号 {{ candidate.product_code
+      {{ $t('items.lcscProductCode') }} {{ candidate.product_code
       }}<template v-if="candidate.manufacturer"> · {{ candidate.manufacturer }}</template>
     </span>
-    <p>是否使用查询结果填写当前表单？查询结果中的有效字段将覆盖当前内容。</p>
+    <p>{{ $t('items.lcscFillPrompt') }}</p>
     <FormSelect
       :id="`${panelId}-template`"
       v-model="templateId"
       class="lcsc-candidate__template"
-      label="属性模板"
+      :label="$t('items.attributeTemplate')"
       match-trigger-width
       name="lcsc_template_id"
     >
-      <option :value="null">不使用模板</option>
+      <option :value="null">{{ $t('items.noTemplate') }}</option>
       <option v-for="template in templates" :key="template.id" :value="template.id">
         {{ template.name }}
       </option>

@@ -5,36 +5,57 @@ import {
   ApiNetworkError,
   ApiResponseError,
 } from "../../api/errors";
+import { translateMessageOrNull } from "../../i18n";
 
 export function inboundSubmitErrorMessage(error: unknown): { title: string; detail?: string } {
   if (error instanceof ApiError) {
-    const messages: Record<string, string> = {
-      permission_denied: "当前账号没有创建入库单的权限",
-      item_not_found: "某条明细的物品已失效，请移除后重新选择",
-      location_not_found: "某条明细的库位已失效，请重新选择",
-      invalid_request: "入库单字段不符合服务端校验规则",
-    };
-    return {
-      title: messages[error.code] ?? "提交入库单失败",
-      detail: messages[error.code] ? error.message : `${error.message}（${error.code}）`,
-    };
+    // 后端稳定码优先走 error.<code> 语言包；未命中时回退已本地化的 error.message。
+    const title = translateMessageOrNull(`error.${error.code}`) ?? error.message;
+    return { title, detail: error.message };
   }
   if (error instanceof ApiNetworkError)
-    return { title: "无法连接到 WineStock 服务", detail: "草稿仍保存在本机，请恢复连接后重试。" };
+    return {
+      title: translateMessageOrNull("error.network_unavailable") ?? "error.network_unavailable",
+      detail:
+        translateMessageOrNull("stockDraft.draftSavedRetryConnect") ??
+        "stockDraft.draftSavedRetryConnect",
+    };
   if (error instanceof ApiResponseError)
-    return { title: "服务响应版本不匹配", detail: "请确认前后端版本一致后重试。" };
+    return {
+      title:
+        translateMessageOrNull("stockDraft.responseVersionMismatch") ??
+        "stockDraft.responseVersionMismatch",
+      detail:
+        translateMessageOrNull("stockDraft.checkVersionConsistency") ??
+        "stockDraft.checkVersionConsistency",
+    };
   if (error instanceof ApiConfigurationError)
-    return { title: "服务地址配置无效", detail: error.message };
-  return { title: "提交入库单失败", detail: "草稿仍保存在本机，请稍后重试。" };
+    return {
+      title:
+        translateMessageOrNull("stockDraft.serviceConfigInvalid") ??
+        "stockDraft.serviceConfigInvalid",
+      detail: error.message,
+    };
+  return {
+    title: translateMessageOrNull("stockDraft.submitInboundFailed") ?? "stockDraft.submitInboundFailed",
+    detail:
+      translateMessageOrNull("stockDraft.draftSavedRetryLater") ?? "stockDraft.draftSavedRetryLater",
+  };
 }
 
-export function itemErrorMessage(error: unknown, fallback = "加载物品失败"): string {
+export function itemErrorMessage(error: unknown, fallback = "stockDraft.loadItemsFailed"): string {
   if (error instanceof ApiError)
-    return error.code === "permission_denied" ? "当前账号没有执行此操作的权限" : error.message;
+    return translateMessageOrNull(`error.${error.code}`) ?? error.message;
   if (error instanceof ApiConfigurationError) return error.message;
-  if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
-  if (error instanceof ApiResponseError) return "服务响应格式无效，请检查前后端版本";
-  return fallback;
+  if (error instanceof ApiNetworkError)
+    return translateMessageOrNull("error.network_unavailable") ?? translateMessageOrNull(fallback) ?? fallback;
+  if (error instanceof ApiResponseError)
+    return (
+      translateMessageOrNull("stockDraft.responseInvalidCheckVersions") ??
+      translateMessageOrNull(fallback) ??
+      fallback
+    );
+  return translateMessageOrNull(fallback) ?? fallback;
 }
 
 export function formatMoney(value: number): string {

@@ -60,7 +60,7 @@ export function emptyItemDraft(): ItemDraft {
     image: null,
     imageTemporary: true,
     obsoleteImageFileId: null,
-    unit: "个",
+    unit: "\u4e2a", // 个
     description: "",
     defaultPrice: null,
     reorderPoint: null,
@@ -82,13 +82,13 @@ export function applyLcscLookupToDraft(
     draft.defaultPrice = lookup.default_price;
   }
 
-  upsertLookupAttribute(draft, "型号", "text", lookup.manufacturer_part);
-  upsertLookupAttribute(draft, "品牌", "text", lookup.manufacturer);
-  upsertLookupAttribute(draft, "封装", "text", lookup.footprint);
-  upsertLookupAttribute(draft, "数据手册", "url", lookup.datasheet_url);
+  upsertLookupAttribute(draft, "\u578b\u53f7", "text", lookup.manufacturer_part); // 型号
+  upsertLookupAttribute(draft, "\u54c1\u724c", "text", lookup.manufacturer); // 品牌
+  upsertLookupAttribute(draft, "\u5c01\u88c5", "text", lookup.footprint); // 封装
+  upsertLookupAttribute(draft, "\u6570\u636e\u624b\u518c", "url", lookup.datasheet_url); // 数据手册
   upsertLookupAttribute(
     draft,
-    "参数",
+    "\u53c2\u6570", // 参数
     "text",
     lookup.parameters.map((parameter) => `${parameter.name}：${parameter.value}`).join("\n"),
   );
@@ -172,7 +172,7 @@ export function draftFromItem(
     image: {
       kind: "file",
       fileId: item.image_file_id,
-      name: `${item.name} 主图`,
+      name: `${item.name} \u4e3b\u56fe`, // 主图
       mimeType: "image/*",
       sizeBytes: 0,
       status: "uploaded",
@@ -199,7 +199,7 @@ export function draftFromItem(
           ? {
               kind: "file",
               fileId: (attribute.value as FileAttributeReference).file_id,
-              name: `图片 #${(attribute.value as FileAttributeReference).file_id}`,
+              name: `\u56fe\u7247 #${(attribute.value as FileAttributeReference).file_id}`, // 图片 #id
               mimeType: "image/*",
               sizeBytes: 0,
               status: "uploaded",
@@ -253,7 +253,9 @@ export function applyAttributeTemplate(
       .filter((field) => customNames.has(field.field_name.toLowerCase()))
       .map((field) => field.field_name);
     if (conflicts.length > 0)
-      throw new Error(`自定义属性与目标模板字段重名：${conflicts.join("、")}`);
+      throw new Error(
+        `Custom attributes conflict with target template fields: ${conflicts.join(", ")}`,
+      );
   }
   const sameTemplate = template !== null && draft.attributeTemplateId === template.id;
   const existingTemplateAttributes = sameTemplate
@@ -344,21 +346,21 @@ export function validateItemDraft(
   templates: ItemAttributeTemplateResponse[],
 ): ItemDraftValidationResult | null {
   const errors: Record<string, string> = {};
-  if (!draft.name.trim()) errors.name = "请填写物品名称。";
-  if (!draft.sku.trim()) errors.sku = "请填写编号。";
-  if (!draft.unit.trim()) errors.unit = "请填写计量单位。";
-  if (!draft.image) errors.image = "请选择物品主图。";
+  if (!draft.name.trim()) errors.name = "items.validationNameRequired";
+  if (!draft.sku.trim()) errors.sku = "items.validationSkuRequired";
+  if (!draft.unit.trim()) errors.unit = "items.validationUnitRequired";
+  if (!draft.image) errors.image = "items.validationImageRequired";
   if (
     draft.defaultPrice !== null &&
     (!Number.isFinite(draft.defaultPrice) || draft.defaultPrice < 0)
   ) {
-    errors.defaultPrice = "参考单价必须是大于或等于 0 的有效数字。";
+    errors.defaultPrice = "items.validationDefaultPriceInvalid";
   }
   if (
     draft.reorderPoint !== null &&
     (!Number.isFinite(draft.reorderPoint) || draft.reorderPoint < 0)
   ) {
-    errors.reorderPoint = "再订货点必须是大于或等于 0 的有效数字。";
+    errors.reorderPoint = "items.validationReorderPointInvalid";
   }
 
   const template = templates.find((candidate) => candidate.id === draft.attributeTemplateId);
@@ -368,13 +370,14 @@ export function validateItemDraft(
     const name = attribute.fieldName.trim();
     const normalizedName = name.toLowerCase();
     const prefix = `attribute.${attribute.key}`;
-    if (attribute.custom && !name) errors[`${prefix}.name`] = "请填写属性名称。";
-    if (name && !names.add(normalizedName)) errors[`${prefix}.name`] = `属性名称“${name}”重复。`;
+    if (attribute.custom && !name) errors[`${prefix}.name`] = "items.validationAttributeNameRequired";
+    if (name && !names.add(normalizedName))
+      errors[`${prefix}.name`] = "items.validationAttributeNameDuplicate";
 
     const field =
       attribute.definitionId === null ? undefined : templateFields.get(attribute.definitionId);
     if ((attribute.custom || field?.required) && !hasAttributeValue(attribute.value)) {
-      errors[`${prefix}.value`] = `请填写“${name || field?.field_name || "未命名属性"}”的值。`;
+      errors[`${prefix}.value`] = "items.validationAttributeValueRequired";
     }
     if (
       attribute.fieldType === "number" &&
@@ -382,7 +385,7 @@ export function validateItemDraft(
       attribute.value !== undefined
     ) {
       const value = Number(attribute.value);
-      if (!Number.isFinite(value)) errors[`${prefix}.value`] = "请输入有效数字。";
+      if (!Number.isFinite(value)) errors[`${prefix}.value`] = "items.validationNumberInvalid";
     }
     if (
       attribute.fieldType === "url" &&
@@ -392,9 +395,9 @@ export function validateItemDraft(
       try {
         const url = new URL(attribute.value);
         if (!["http:", "https:"].includes(url.protocol))
-          errors[`${prefix}.value`] = "请输入 HTTP 或 HTTPS 地址。";
+          errors[`${prefix}.value`] = "items.validationUrlProtocolInvalid";
       } catch {
-        errors[`${prefix}.value`] = "请输入有效网址。";
+        errors[`${prefix}.value`] = "items.validationUrlInvalid";
       }
     }
     if (attribute.custom && attribute.fieldType === "select") {
@@ -404,18 +407,18 @@ export function validateItemDraft(
         typeof attribute.value === "string" &&
         !attribute.options.map((option) => option.trim()).includes(attribute.value)
       ) {
-        errors[`${prefix}.value`] = "属性值必须来自候选项。";
+        errors[`${prefix}.value`] = "items.validationSelectValueInvalid";
       }
     }
     if (attribute.custom && attribute.fieldType === "number") {
       if (attribute.unitMode === "fixed" && !attribute.fixedUnit.trim()) {
-        errors[`${prefix}.unitSettings`] = "请设置指定单位。";
+        errors[`${prefix}.unitSettings`] = "items.validationFixedUnitRequired";
       }
       if (attribute.unitMode === "select") {
         const optionsError = validateOptionList(attribute.unitOptions);
         if (optionsError) errors[`${prefix}.unitSettings`] = optionsError;
         if (!attribute.unit || !attribute.unitOptions.includes(attribute.unit)) {
-          errors[`${prefix}.unitValue`] = "请选择实际单位。";
+          errors[`${prefix}.unitValue`] = "items.validationUnitValueRequired";
         }
       }
     }
@@ -429,23 +432,23 @@ export function itemDraftValidationFromApiError(
   error: ApiError,
   draft: ItemDraft,
 ): ItemDraftValidationResult | null {
+  const errors: Record<string, string> = {};
   if (error.code === "sku_taken") {
-    return { errors: { sku: "编号已存在，请更换。" }, firstMessage: "编号已存在，请更换。" };
+    errors.sku = "items.validationSkuTaken";
   }
 
-  const errors: Record<string, string> = {};
-  const baseFields: Record<string, { key: string; message: string }> = {
-    name: { key: "name", message: "请检查物品名称。" },
-    sku: { key: "sku", message: "请检查编号。" },
-    unit: { key: "unit", message: "请检查计量单位。" },
-    image_file_id: { key: "image", message: "请重新选择物品主图。" },
-    default_price: { key: "defaultPrice", message: "请检查参考单价。" },
-    reorder_point: { key: "reorderPoint", message: "请检查再订货点。" },
+  const baseFields: Record<string, string> = {
+    name: "name",
+    sku: "sku",
+    unit: "unit",
+    image_file_id: "image",
+    default_price: "defaultPrice",
+    reorder_point: "reorderPoint",
   };
-  for (const path of Object.keys(error.fieldErrors)) {
+  for (const [path, messages] of Object.entries(error.fieldErrors)) {
     const baseField = baseFields[path];
     if (baseField) {
-      errors[baseField.key] = baseField.message;
+      errors[baseField] = messages[0] ?? "";
       continue;
     }
 
@@ -459,12 +462,7 @@ export function itemDraftValidationFromApiError(
         : attributePath[3] === "unit"
           ? "unitValue"
           : "value";
-    errors[`attribute.${attribute.key}.${field}`] =
-      attributePath[3] === "field_name"
-        ? "请检查属性名称。"
-        : attributePath[3] === "unit"
-          ? "请检查属性单位。"
-          : "请检查属性值。";
+    errors[`attribute.${attribute.key}.${field}`] = messages[0] ?? "";
   }
 
   const firstMessage = Object.values(errors)[0];
@@ -477,12 +475,12 @@ function hasAttributeValue(value: ItemAttributeDraft["value"]): boolean {
 }
 
 function validateOptionList(options: string[]): string | null {
-  if (options.length === 0) return "至少添加一个候选项。";
+  if (options.length === 0) return "items.validationOptionsRequired";
   const names = new Set<string>();
   for (const option of options) {
     const normalized = option.trim().toLowerCase();
-    if (!normalized) return "候选项不能为空。";
-    if (!names.add(normalized)) return "候选项忽略大小写后不能重复。";
+    if (!normalized) return "items.validationOptionBlank";
+    if (!names.add(normalized)) return "items.validationOptionDuplicate";
   }
   return null;
 }

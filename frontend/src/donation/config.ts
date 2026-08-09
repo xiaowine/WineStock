@@ -4,7 +4,6 @@ export type DonationMethodId = "wechat" | "alipay";
 
 export interface DonationMethod {
   id: DonationMethodId;
-  label: string;
   content: string;
 }
 
@@ -18,12 +17,8 @@ export const donationConfig = {
 } as const;
 
 export const donationMethods: readonly DonationMethod[] = [
-  donationConfig.wechatContent
-    ? { id: "wechat", label: "微信", content: donationConfig.wechatContent }
-    : null,
-  donationConfig.alipayContent
-    ? { id: "alipay", label: "支付宝", content: donationConfig.alipayContent }
-    : null,
+  donationConfig.wechatContent ? { id: "wechat", content: donationConfig.wechatContent } : null,
+  donationConfig.alipayContent ? { id: "alipay", content: donationConfig.alipayContent } : null,
 ].filter((method): method is DonationMethod => method !== null);
 
 /** 没有任何公开捐赠内容时，入口和自动提示都必须关闭。 */

@@ -5,13 +5,13 @@
 <template>
   <ModalDialog
     :open="Boolean(user)"
-    :title="nextStatus === 'disabled' ? '停用用户' : '启用用户'"
+    :title="nextStatus === 'disabled' ? $t('users.disableUser') : $t('users.enableUser')"
     :busy="submitting"
     @close="emit('close')"
   >
     <template #context>
       <div v-if="user" class="dialog-account-context">
-        <span>目标用户</span>
+        <span>{{ $t("users.targetUser") }}</span>
         <strong :title="user.username">{{ user.username }}</strong>
       </div>
     </template>
@@ -20,18 +20,24 @@
       <p class="confirmation-copy">
         {{
           nextStatus === "disabled"
-            ? "停用后，该用户将在所有已登录设备上退出，并且无法再次登录，直到账号重新启用。"
-            : "启用后，该用户可以重新登录。"
+            ? $t("users.disableUserDescription")
+            : $t("users.enableUserDescription")
         }}
       </p>
     </div>
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t("common.cancel") }}
       </button>
       <button class="primary-button" type="button" :disabled="submitting" @click="emit('submit')">
-        {{ submitting ? "正在保存…" : nextStatus === "disabled" ? "确认停用" : "确认启用" }}
+        {{
+          submitting
+            ? $t("users.saving")
+            : nextStatus === "disabled"
+              ? $t("users.confirmDisable")
+              : $t("users.confirmEnable")
+        }}
       </button>
     </template>
   </ModalDialog>

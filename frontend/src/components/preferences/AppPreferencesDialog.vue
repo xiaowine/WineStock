@@ -5,18 +5,28 @@
 <template>
   <ModalDialog
     :open="open"
-    title="偏好设置"
-    description="只影响这台设备上的使用体验，更改立即保存。"
+    :title="$t('components.preferences')"
+    :description="$t('components.preferencesDescription')"
     @close="emit('close')"
   >
     <div class="app-preferences">
       <section class="app-preferences__section" aria-labelledby="preferences-appearance-title">
-        <h3 id="preferences-appearance-title">外观</h3>
+        <h3 id="preferences-appearance-title">{{ $t('components.appearance') }}</h3>
         <ThemePreferenceSelector />
       </section>
 
+      <section class="app-preferences__section" aria-labelledby="preferences-language-title">
+        <h3 id="preferences-language-title">语言 / Language</h3>
+        <SegmentedPreferenceSelector
+          :options="localeChoices"
+          :model-value="selectedLocale"
+          :ariaLabel="localeAriaLabel"
+          @change="handleLocaleChange"
+        />
+      </section>
+
       <section class="app-preferences__section" aria-labelledby="preferences-contact-title">
-        <h3 id="preferences-contact-title">联系与反馈</h3>
+        <h3 id="preferences-contact-title">{{ $t('components.contactFeedback') }}</h3>
         <label class="consent-toggle">
           <input
             v-model="contactVisible"
@@ -25,8 +35,8 @@
             @change="handleContactVisibilityChange"
           />
           <span class="consent-toggle__copy">
-            <strong>显示联系与反馈入口</strong>
-            <small>在总览页和账户菜单中显示联系作者入口。</small>
+            <strong>{{ $t('components.showContactEntry') }}</strong>
+            <small>{{ $t('components.contactEntryHint') }}</small>
           </span>
         </label>
       </section>
@@ -36,7 +46,7 @@
         class="app-preferences__section"
         aria-labelledby="preferences-update-title"
       >
-        <h3 id="preferences-update-title">应用更新</h3>
+        <h3 id="preferences-update-title">{{ $t('components.appUpdates') }}</h3>
         <label class="consent-toggle">
           <input
             type="checkbox"
@@ -45,16 +55,18 @@
             @change="handleAutoUpdateCheckChange"
           />
           <span class="consent-toggle__copy">
-            <strong>启动时自动检测更新</strong>
-            <small>应用启动后在后台检查新版本，发现更新时提示。</small>
+            <strong>{{ $t('components.autoUpdateCheck') }}</strong>
+            <small>{{ $t('components.autoUpdateCheckHint') }}</small>
           </span>
         </label>
         <div class="app-update__row">
           <div class="app-update__copy">
-            <strong>当前版本 {{ currentVersion }}</strong>
-            <small v-if="availableUpdate"> 发现新版本 {{ availableUpdate.latestVersion }}。 </small>
-            <small v-else-if="updateChecked">当前已是最新版本。</small>
-            <small v-else>检查更新不会影响当前运行中的服务。</small>
+            <strong>{{ $t('components.currentVersion', { version: currentVersion }) }}</strong>
+            <small v-if="availableUpdate">
+              {{ $t('components.newVersionFound', { version: availableUpdate.latestVersion }) }}
+            </small>
+            <small v-else-if="updateChecked">{{ $t('components.upToDateChecked') }}</small>
+            <small v-else>{{ $t('components.updateCheckIdleHint') }}</small>
           </div>
           <button
             class="secondary-button"
@@ -62,7 +74,7 @@
             :disabled="updateChecking"
             @click="handleUpdateCheck"
           >
-            {{ updateChecking ? "检查中…" : "检查更新" }}
+            {{ updateChecking ? $t('components.updateChecking') : $t('components.updateCheck') }}
           </button>
         </div>
         <p v-if="updateError" class="app-update__error" role="alert">{{ updateError }}</p>
@@ -73,14 +85,14 @@
         class="app-preferences__section"
         aria-labelledby="preferences-window-title"
       >
-        <h3 id="preferences-window-title">窗口</h3>
+        <h3 id="preferences-window-title">{{ $t('components.windowSection') }}</h3>
         <fieldset
           class="window-close-preference"
           :disabled="
             desktopPreferencesLoading || desktopPreferencesSaving || !desktopPreferencesLoaded
           "
         >
-          <legend>关闭窗口时</legend>
+          <legend>{{ $t('components.onCloseWindow') }}</legend>
           <label
             class="window-close-preference__option"
             :class="{
@@ -98,8 +110,8 @@
             />
             <span class="window-close-preference__indicator" aria-hidden="true"></span>
             <span class="window-close-preference__copy">
-              <strong>最小化到系统托盘</strong>
-              <small>应用继续运行，可从系统托盘重新打开。</small>
+              <strong>{{ $t('components.minimizeToTray') }}</strong>
+              <small>{{ $t('components.minimizeToTrayHint') }}</small>
             </span>
           </label>
           <label
@@ -119,8 +131,8 @@
             />
             <span class="window-close-preference__indicator" aria-hidden="true"></span>
             <span class="window-close-preference__copy">
-              <strong>退出应用</strong>
-              <small>关闭窗口时停止本机服务并退出 WineStock。</small>
+              <strong>{{ $t('components.exitApp') }}</strong>
+              <small>{{ $t('components.exitAppHint') }}</small>
             </span>
           </label>
         </fieldset>
@@ -131,7 +143,7 @@
         class="app-preferences__section"
         aria-labelledby="preferences-startup-title"
       >
-        <h3 id="preferences-startup-title">启动</h3>
+        <h3 id="preferences-startup-title">{{ $t('components.startupSection') }}</h3>
         <label
           class="consent-toggle startup-preference"
           :class="{ 'startup-preference--disabled': desktopPreferencesUnavailable }"
@@ -144,8 +156,8 @@
             @change="handleDesktopPreferencesChange"
           />
           <span class="consent-toggle__copy">
-            <strong>开机自启</strong>
-            <small>系统登录后自动启动 WineStock。</small>
+            <strong>{{ $t('components.launchAtLogin') }}</strong>
+            <small>{{ $t('components.launchAtLoginHint') }}</small>
           </span>
         </label>
         <label
@@ -162,8 +174,8 @@
             @change="handleDesktopPreferencesChange"
           />
           <span class="consent-toggle__copy">
-            <strong>静默启动</strong>
-            <small>随系统启动时保持窗口隐藏，可从系统托盘重新打开。</small>
+            <strong>{{ $t('components.silentStart') }}</strong>
+            <small>{{ $t('components.silentStartHint') }}</small>
           </span>
         </label>
         <label
@@ -178,8 +190,8 @@
             @change="handleDesktopPreferencesChange"
           />
           <span class="consent-toggle__copy">
-            <strong>空闲时回收 WebView</strong>
-            <small>窗口隐藏到系统托盘一段时间后释放页面内存，再次打开时重新加载。</small>
+            <strong>{{ $t('components.reclaimWebview') }}</strong>
+            <small>{{ $t('components.reclaimWebviewHint') }}</small>
           </span>
         </label>
         <div
@@ -190,7 +202,7 @@
           }"
         >
           <label class="webview-reclaim-time__label" for="preferences-webview-reclaim-time">
-            回收等待时间
+            {{ $t('components.reclaimWaitTime') }}
           </label>
           <SelectControl
             id="preferences-webview-reclaim-time"
@@ -200,18 +212,18 @@
             match-trigger-width
             @change="handleDesktopPreferencesChange"
           >
-            <option :value="5">5 分钟</option>
-            <option :value="15">15 分钟</option>
-            <option :value="30">30 分钟</option>
-            <option :value="60">1 小时</option>
-            <option :value="120">2 小时</option>
-            <option :value="240">4 小时</option>
+            <option :value="5">{{ $t('components.minutes', { n: 5 }) }}</option>
+            <option :value="15">{{ $t('components.minutes', { n: 15 }) }}</option>
+            <option :value="30">{{ $t('components.minutes', { n: 30 }) }}</option>
+            <option :value="60">{{ $t('components.hours', { n: 1 }) }}</option>
+            <option :value="120">{{ $t('components.hours', { n: 2 }) }}</option>
+            <option :value="240">{{ $t('components.hours', { n: 4 }) }}</option>
           </SelectControl>
         </div>
       </section>
 
-      <section class="app-preferences__section" aria-label="数据收集">
-        <h3>数据收集</h3>
+      <section class="app-preferences__section" :aria-label="$t('components.dataCollection')">
+        <h3>{{ $t('components.dataCollection') }}</h3>
         <label class="consent-toggle">
           <input
             v-model="telemetryEnabled"
@@ -220,27 +232,27 @@
             @change="handleTelemetryChange"
           />
           <span class="consent-toggle__copy">
-            <strong>发送匿名使用数据</strong>
-            <small
-              >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
-              Microsoft Clarity 提供。</small
-            >
+            <strong>{{ $t('components.sendAnonymousData') }}</strong>
+            <small>{{ $t('components.telemetryHint') }}</small>
           </span>
         </label>
         <p class="app-preferences__policy">
-          <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
+          <a href="#" @click.prevent="openTelemetryPolicy">{{ $t('components.microsoftPrivacy') }}</a>
         </p>
       </section>
     </div>
 
     <template #actions>
-      <button class="secondary-button" type="button" @click="emit('close')">关闭</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t('common.close') }}
+      </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import ModalDialog from "../ModalDialog.vue";
 import SelectControl from "../forms/SelectControl.vue";
 import { startTelemetryIfConsented, stopTelemetry } from "../../telemetry/clarity";
@@ -266,6 +278,9 @@ import type {
 } from "../../shell/contract";
 import { notice } from "../../notices/notice";
 import ThemePreferenceSelector from "./ThemePreferenceSelector.vue";
+import SegmentedPreferenceSelector from "./SegmentedPreferenceSelector.vue";
+import { appLocale, setAppLocale } from "../../i18n";
+import type { AppLocale } from "../../i18n";
 import { contactEntryVisible, setContactEntryVisible } from "../../contact/contactPreferences";
 import { openAppUpdateDialog } from "../../updates/appUpdate";
 import { updateCheckErrorMessage } from "../../updates/messages";
@@ -274,8 +289,24 @@ import { autoUpdateCheckEnabled, setAutoUpdateCheckEnabled } from "../../updates
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 
+const { t } = useI18n();
 const telemetryEnabled = ref(false);
 const contactVisible = ref(contactEntryVisible.value);
+// 语言切换即时生效并持久化；跨标签页变更经 appLocale 同步回本 Dialog。
+const selectedLocale = ref<AppLocale>(appLocale.value);
+const localeChoices = computed<readonly { value: AppLocale; label: string }[]>(() => [
+  { value: "zh-CN", label: "简体中文" },
+  { value: "en-US", label: "English" },
+]);
+const localeAriaLabel = computed(() =>
+  selectedLocale.value === "zh-CN" ? "应用语言" : "App language",
+);
+function handleLocaleChange(value: string): void {
+  setAppLocale(value as AppLocale);
+}
+watch(appLocale, (value) => {
+  selectedLocale.value = value;
+});
 const closeBehavior = ref<DesktopCloseBehavior>(defaultDesktopPreferences.closeBehavior);
 const autostartEnabled = ref(defaultDesktopPreferences.autostartEnabled);
 const autostartSilent = ref(defaultDesktopPreferences.autostartSilent);
@@ -331,8 +362,8 @@ async function handleUpdateCheck(): Promise<void> {
   try {
     const result = await checkForUpdate();
     if (!result) {
-      updateError.value = "当前平台不支持应用更新";
-      notice.error("无法检查更新", { detail: updateError.value });
+      updateError.value = t("components.updateNotSupported");
+      notice.error(t("components.updateCheckFailed"), { detail: updateError.value });
       return;
     }
     currentVersion.value = result.currentVersion;
@@ -341,12 +372,14 @@ async function handleUpdateCheck(): Promise<void> {
     if (result.latestVersion) {
       openAppUpdateDialog(result, "preferences");
     } else {
-      notice.success("已是最新版本", { detail: `当前版本 ${result.currentVersion}。` });
+      notice.success(t("components.upToDate"), {
+        detail: t("components.currentVersionDetail", { version: result.currentVersion }),
+      });
     }
   } catch (error) {
     availableUpdate.value = null;
     updateError.value = updateCheckErrorMessage(error);
-    notice.error("无法检查更新", { detail: updateError.value });
+    notice.error(t("components.updateCheckFailed"), { detail: updateError.value });
   } finally {
     updateChecking.value = false;
   }
@@ -368,7 +401,7 @@ async function loadDesktopPreferences(): Promise<void> {
     desktopPreferencesLoaded.value = true;
   } catch (error) {
     if (request !== desktopPreferencesRequest) return;
-    notice.error("无法读取桌面偏好", { detail: errorMessage(error) });
+    notice.error(t("components.desktopPreferencesLoadFailed"), { detail: errorMessage(error) });
   } finally {
     if (request === desktopPreferencesRequest) {
       desktopPreferencesLoading.value = false;
@@ -382,8 +415,8 @@ async function handleCloseBehaviorChange(): Promise<void> {
     preferences?.closeBehavior === "exit-application" &&
     runtimeSnapshot.value?.config.mode === "server-mode"
   ) {
-    notice.warning("关闭窗口将停止服务", {
-      detail: "当前运行方式允许他人连接，关闭窗口后将无法连接。",
+    notice.warning(t("components.closingStopsService"), {
+      detail: t("components.closingStopsServiceDetail"),
     });
   }
 }
@@ -412,7 +445,7 @@ async function saveDesktopPreferences(): Promise<DesktopPreferences | null> {
     }
     return preferences;
   } catch (error) {
-    notice.error("无法保存桌面偏好", { detail: errorMessage(error) });
+    notice.error(t("components.desktopPreferencesSaveFailed"), { detail: errorMessage(error) });
     await loadDesktopPreferences();
     return null;
   } finally {
@@ -436,7 +469,7 @@ function openTelemetryPolicy(): void {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "请稍后重试";
+  return error instanceof Error ? error.message : t("components.retryLater");
 }
 </script>
 

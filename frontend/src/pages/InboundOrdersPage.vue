@@ -3,8 +3,8 @@
   <section class="route-page inbound-orders-page">
     <header class="content-header inbound-orders-page__header">
       <div>
-        <h1>{{ $route.meta.title }}</h1>
-        <p>查询入库记录、状态与每条收货明细。</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t("orders.inboundSubtitle") }}</p>
       </div>
       <button
         v-if="canCreate"
@@ -12,28 +12,28 @@
         type="button"
         @click="router.push({ name: 'inbound' })"
       >
-        新建入库
+        {{ $t("orders.createInbound") }}
       </button>
     </header>
 
-    <section class="inbound-orders-workspace" aria-label="入库单列表">
+    <section class="inbound-orders-workspace" :aria-label="$t('orders.inboundListLabel')">
       <div class="inbound-orders-toolbar">
         <SearchField
           v-model="searchInput"
-          label="搜索入库单"
+          :label="$t('orders.searchInbound')"
           name="inbound_order_search"
-          placeholder="搜索单号、来源、物品或批次"
+          :placeholder="$t('orders.searchInboundPlaceholder')"
           hide-label
           @search="applySearch"
         />
         <div class="inbound-orders-toolbar__meta">
-          <span class="inbound-orders-count">{{ total }} 条</span>
+          <span class="inbound-orders-count">{{ $t("orders.count", { n: total }) }}</span>
           <div class="inbound-orders-toolbar__actions">
             <button
               class="icon-button inbound-orders-toolbar__filter"
               type="button"
-              title="筛选入库单"
-              aria-label="筛选入库单"
+              :title="$t('orders.filterInbound')"
+              :aria-label="$t('orders.filterInbound')"
               :aria-expanded="filterDialogOpen"
               @click="filterDialogOpen = true"
             >
@@ -44,7 +44,7 @@
               class="icon-button inbound-orders-toolbar__refresh"
               :class="{ 'inbound-orders-refresh--pending': showRefreshing }"
               type="button"
-              title="刷新入库单"
+              :title="$t('orders.refreshInbound')"
               :disabled="requestPending"
               @click="refreshCurrent"
             >
@@ -57,8 +57,8 @@
               v-if="canCreate"
               class="icon-button icon-button--primary inbound-orders-toolbar__create"
               type="button"
-              title="新建入库"
-              aria-label="新建入库"
+              :title="$t('orders.createInbound')"
+              :aria-label="$t('orders.createInbound')"
               @click="router.push({ name: 'inbound' })"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -77,20 +77,24 @@
           v-if="loadError && !loaded"
           class="inbound-orders-state inbound-orders-state--error"
         >
-          <strong>无法加载入库单</strong><span>{{ loadError }}</span
-          ><button class="secondary-button" type="button" @click="loadCurrentPage">重试</button>
+          <strong>{{ $t("orders.loadFailed") }}</strong><span>{{ loadError }}</span
+          ><button class="secondary-button" type="button" @click="loadCurrentPage">
+            {{ $t("orders.retry") }}
+          </button>
         </section>
         <section
           v-else-if="showInitialLoading && !loaded"
           class="inbound-orders-state"
           role="status"
         >
-          正在加载入库单…
+          {{ $t("orders.loadingInbound") }}
         </section>
         <section v-else-if="!orders.length" class="inbound-orders-state">
-          <strong>{{ hasFilters ? "没有符合筛选条件的入库单" : "暂无入库单" }}</strong
+          <strong>{{
+            hasFilters ? $t("orders.noFilteredResults") : $t("orders.noResults")
+          }}</strong
           ><button v-if="hasFilters" class="text-button" type="button" @click="clearFilters">
-            清除筛选
+            {{ $t("orders.clearFilters") }}
           </button>
         </section>
         <template v-else>
@@ -107,17 +111,17 @@
             @open="openDetail"
           />
           <div ref="loadMoreSentinel" class="inbound-orders-load-more" aria-live="polite">
-            <span v-if="loadingMore" role="status">正在加载更多入库单…</span>
+            <span v-if="loadingMore" role="status">{{ $t("orders.loadingMoreInbound") }}</span>
             <button
               v-else-if="loadMoreError"
               class="secondary-button"
               type="button"
               @click="loadNextPage"
             >
-              加载失败，点击重试
+              {{ $t("orders.loadMoreFailedRetry") }}
             </button>
-            <span v-else-if="hasMoreOrders">继续向下滚动加载</span>
-            <span v-else>已加载全部 {{ total }} 条入库单</span>
+            <span v-else-if="hasMoreOrders">{{ $t("orders.scrollToLoad") }}</span>
+            <span v-else>{{ $t("orders.loadedAllInbound", { n: total }) }}</span>
           </div>
         </template>
       </div>
@@ -132,103 +136,108 @@
     <ModalDialog
       :open="selected !== null"
       wide
-      :title="selected ? `入库单 #${selected.id}` : ''"
+      :title="selected ? $t('orders.inboundOrderTitle', { id: selected.id }) : ''"
       :busy="detailLoading"
       @close="closeDetail"
     >
       <template #context
         ><div v-if="selected" class="dialog-account-context">
           <span>{{ statusLabel(selected.status) }}</span
-          ><strong v-copyable="{ text: selected.source, label: '入库来源' }">{{
+          ><strong v-copyable="{ text: selected.source, label: $t('orders.inboundSource') }">{{
             selected.source
           }}</strong>
         </div></template
       >
       <section v-if="detailError" class="inbound-detail-error">
         <strong>{{ detailError }}</strong
-        ><button class="secondary-button" type="button" @click="loadDetail">重试</button>
+        ><button class="secondary-button" type="button" @click="loadDetail">
+          {{ $t("orders.retry") }}
+        </button>
       </section>
       <section v-else-if="detailLoading" class="inbound-detail-loading">
-        正在加载入库单详情…
+        {{ $t("orders.loadingInboundDetail") }}
       </section>
       <template v-else-if="selected"
         ><dl class="inbound-detail-summary">
           <div>
-            <dt>创建时间</dt>
+            <dt>{{ $t("orders.createdAt") }}</dt>
             <dd>{{ formatDate(selected.created_at) }}</dd>
           </div>
           <div>
-            <dt>状态</dt>
+            <dt>{{ $t("orders.status") }}</dt>
             <dd>{{ statusLabel(selected.status) }}</dd>
           </div>
           <div>
-            <dt>备注</dt>
-            <dd>{{ selected.notes || "暂无备注" }}</dd>
+            <dt>{{ $t("orders.remark") }}</dt>
+            <dd>{{ selected.notes || $t("orders.noRemark") }}</dd>
           </div>
           <div>
-            <dt>审批记录</dt>
+            <dt>{{ $t("orders.approvalRecord") }}</dt>
             <dd>{{ approvalLabel(selected) }}</dd>
           </div>
         </dl>
         <section class="inbound-detail-items">
           <h3>
-            入库物品 <span>{{ selected.items.length }} 条</span>
+            {{ $t("orders.inboundItems") }}
+            <span>{{ $t("orders.itemCount", { n: selected.items.length }) }}</span>
           </h3>
           <article v-for="item in selected.items" :key="item.id">
             <header class="inbound-detail-item__header">
               <AuthenticatedImage
                 :file-id="item.item_image_file_id"
-                :alt="`${item.item_name} 主图`"
+                :alt="$t('orders.mainImageAlt', { name: item.item_name })"
                 :size="52"
                 previewable
               />
               <div>
-                <strong v-copyable="{ text: item.item_name, label: '物品名称' }">{{
+                <strong v-copyable="{ text: item.item_name, label: $t('orders.itemName') }">{{
                   item.item_name
                 }}</strong
                 ><small
-                  ><span v-copyable="{ text: item.item_sku, label: '物品编号' }">{{
+                  ><span v-copyable="{ text: item.item_sku, label: $t('orders.itemSkuLabel') }">{{
                     item.item_sku
                   }}</span>
-                  · {{ item.item_unit }} · 物品 #{{ item.item_id }}</small
+                  · {{ item.item_unit }} · {{ $t("orders.itemRef", { id: item.item_id }) }}</small
                 >
               </div>
               <span>¥{{ money(item.quantity * item.unit_price) }}</span>
             </header>
             <dl>
               <div>
-                <dt>数量</dt>
+                <dt>{{ $t("orders.amount") }}</dt>
                 <dd>{{ item.quantity }} {{ item.item_unit }}</dd>
               </div>
               <div>
-                <dt>单价</dt>
+                <dt>{{ $t("orders.unitPrice") }}</dt>
                 <dd>¥{{ money(item.unit_price) }}</dd>
               </div>
               <div>
-                <dt>库位</dt>
+                <dt>{{ $t("orders.location") }}</dt>
                 <dd>{{ item.location_name }}</dd>
               </div>
               <div>
-                <dt>批次</dt>
-                <dd>{{ item.batch_no || "自动生成" }}</dd>
+                <dt>{{ $t("orders.batch") }}</dt>
+                <dd>{{ item.batch_no || $t("orders.autoGenerated") }}</dd>
               </div>
               <div>
-                <dt>有效期</dt>
-                <dd>{{ item.expires_at || "未设置" }}</dd>
+                <dt>{{ $t("orders.expiry") }}</dt>
+                <dd>{{ item.expires_at || $t("orders.notSet") }}</dd>
               </div>
             </dl>
           </article>
         </section></template
       >
       <template #actions
-        ><button class="secondary-button" type="button" @click="closeDetail">关闭</button
+        ><button class="secondary-button" type="button" @click="closeDetail">
+          {{ $t("orders.close") }}
+        </button
         ><button
           v-if="canApprove && selected?.status === 'pending'"
           class="primary-button"
           type="button"
           @click="router.push({ name: 'inbound-approvals' })"
         >
-          前往入库审批
+          {{ $t("orders.goToInboundApprovals") }}
         </button></template
       >
     </ModalDialog>
@@ -237,6 +246,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import {
   getInboundOrder,
@@ -259,6 +269,7 @@ import "./InboundOrdersPage.scss";
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 const orders = ref<InboundOrderResponse[]>([]);
 const total = ref(0);
 const totalPages = ref(0);
@@ -373,7 +384,7 @@ async function loadOrders(targetPage: number, append = false): Promise<boolean> 
     return true;
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") return false;
-    const message = cause instanceof ApiError ? cause.message : "请检查服务连接后重试";
+    const message = cause instanceof ApiError ? cause.message : t("orders.connectionCheckRetry");
     if (shouldAppend) loadMoreError.value = message;
     else loadError.value = message;
     return false;
@@ -439,7 +450,7 @@ function applyFilters(value: InboundOrderFilterValue): void {
     (value.dateTo && !dateTo) ||
     (dateFrom && dateTo && dateFrom > dateTo)
   ) {
-    loadError.value = "请输入有效的创建时间范围";
+    loadError.value = t("orders.invalidDateRange");
     return;
   }
   filterDialogOpen.value = false;
@@ -479,7 +490,7 @@ async function loadDetail(): Promise<void> {
       detailController === request &&
       !(cause instanceof DOMException && cause.name === "AbortError")
     )
-      detailError.value = cause instanceof ApiError ? cause.message : "无法加载详情";
+      detailError.value = cause instanceof ApiError ? cause.message : t("orders.detailLoadFailed");
   } finally {
     if (detailController === request) detailLoading.value = false;
   }
@@ -507,7 +518,11 @@ function isoToLocalInput(value: string): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 19);
 }
 function statusLabel(status: InboundOrderStatus): string {
-  return { pending: "待审批", approved: "已入库", rejected: "已拒绝" }[status];
+  return {
+    pending: t("orders.statusPending"),
+    approved: t("orders.statusApprovedInbound"),
+    rejected: t("orders.statusRejected"),
+  }[status];
 }
 function money(value: number): string {
   return new Intl.NumberFormat("zh-CN", {
@@ -520,8 +535,11 @@ function totalAmount(order: InboundOrderResponse): number {
 }
 function quantityLabel(order: InboundOrderResponse): string {
   const units = new Set(order.items.map((item) => item.item_unit).filter(Boolean));
-  if (units.size !== 1) return "按明细分别计量";
-  return `合计 ${order.items.reduce((sum, item) => sum + item.quantity, 0)} ${Array.from(units)[0]}`;
+  if (units.size !== 1) return t("orders.mixedUnits");
+  return t("orders.totalQuantity", {
+    n: order.items.reduce((sum, item) => sum + item.quantity, 0),
+    unit: Array.from(units)[0],
+  });
 }
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -538,6 +556,8 @@ function statusTime(order: InboundOrderResponse): string | null {
 }
 function approvalLabel(order: InboundOrderResponse): string {
   const time = statusTime(order);
-  return time ? `${statusLabel(order.status)}于 ${formatDate(time)}` : "等待审批，库存尚未增加";
+  return time
+    ? t("orders.approvalTime", { status: statusLabel(order.status), time: formatDate(time) })
+    : t("orders.waitingApprovalNoStock");
 }
 </script>

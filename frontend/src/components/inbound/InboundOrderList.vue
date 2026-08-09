@@ -2,7 +2,8 @@
 <template>
   <div class="inbound-orders-table" role="table">
     <div class="inbound-orders-table__head" role="row">
-      <span>单据与来源</span><span>入库明细</span><span>状态与操作</span>
+      <span>{{ $t("orders.documentAndSource") }}</span><span>{{ $t("orders.inboundDetails") }}</span
+      ><span>{{ $t("orders.statusAndActions") }}</span>
     </div>
     <article
       v-for="order in orders"
@@ -15,15 +16,15 @@
       @keydown.space.prevent="emit('open', order)"
     >
       <div role="cell">
-        <strong>入库单 #{{ order.id }}</strong
-        ><span>{{ order.source || "未记录来源" }}</span
+        <strong>{{ $t("orders.inboundOrderTitle", { id: order.id }) }}</strong
+        ><span>{{ order.source || $t("orders.noSource") }}</span
         ><time :datetime="order.created_at">{{ formatDate(order.created_at) }}</time>
       </div>
       <div role="cell">
         <div class="inbound-order-item-summary">
           <AuthenticatedImage
             :file-id="order.items[0].item_image_file_id"
-            :alt="`${order.items[0].item_name} 主图`"
+            :alt="$t('orders.mainImageAlt', { name: order.items[0].item_name })"
             :size="34"
             previewable
             @click.stop
@@ -34,7 +35,7 @@
             ><small>{{ itemSummary(order) }}</small>
           </div>
         </div>
-        <span>{{ order.items.length }} 条明细 · {{ quantityLabel(order) }}</span
+        <span>{{ $t("orders.itemsCount", { n: order.items.length }) }} · {{ quantityLabel(order) }}</span
         ><strong>¥{{ money(totalAmount(order)) }}</strong>
       </div>
       <div class="inbound-orders-table__decision" role="cell">
@@ -47,8 +48,12 @@
         ><button
           class="icon-button"
           type="button"
-          title="查看入库单详情"
-          :aria-label="`查看入库单详情：${order.source || `入库单 #${order.id}`}`"
+          :title="$t('orders.viewInboundDetail')"
+          :aria-label="
+            $t('orders.viewInboundDetailAria', {
+              subject: order.source || $t('orders.inboundOrderTitle', { id: order.id }),
+            })
+          "
           @click.stop="emit('open', order)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -72,15 +77,19 @@
       @keydown.space.prevent="emit('open', order)"
     >
       <header>
-        <strong>入库单 #{{ order.id }}</strong>
+        <strong>{{ $t("orders.inboundOrderTitle", { id: order.id }) }}</strong>
         <span class="inbound-status" :class="`inbound-status--${order.status}`">{{
           statusLabel(order.status)
         }}</span>
         <button
           class="icon-button"
           type="button"
-          title="查看入库单详情"
-          :aria-label="`查看入库单详情：${order.source || `入库单 #${order.id}`}`"
+          :title="$t('orders.viewInboundDetail')"
+          :aria-label="
+            $t('orders.viewInboundDetailAria', {
+              subject: order.source || $t('orders.inboundOrderTitle', { id: order.id }),
+            })
+          "
           @click.stop="emit('open', order)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -89,12 +98,12 @@
           </svg>
         </button>
       </header>
-      <p class="inbound-orders-mobile-list__source">{{ order.source || "未记录来源" }}</p>
+      <p class="inbound-orders-mobile-list__source">{{ order.source || $t("orders.noSource") }}</p>
       <time :datetime="order.created_at">{{ formatDate(order.created_at) }}</time>
       <div class="inbound-orders-mobile-list__item-summary">
         <AuthenticatedImage
           :file-id="order.items[0].item_image_file_id"
-          :alt="`${order.items[0].item_name} 主图`"
+          :alt="$t('orders.mainImageAlt', { name: order.items[0].item_name })"
           :size="38"
           previewable
           @click.stop
@@ -106,7 +115,7 @@
         </div>
       </div>
       <div class="inbound-orders-mobile-list__metrics">
-        <span>{{ order.items.length }} 条明细 · {{ quantityLabel(order) }}</span
+        <span>{{ $t("orders.itemsCount", { n: order.items.length }) }} · {{ quantityLabel(order) }}</span
         ><strong>¥{{ money(totalAmount(order)) }}</strong>
       </div>
       <p class="inbound-orders-mobile-list__status-time">{{ statusHint(order) }}</p>
@@ -116,8 +125,11 @@
 
 <script setup lang="ts">
 import type { InboundOrderResponse, InboundOrderStatus } from "../../api/inboundOrders";
+import { useI18n } from "vue-i18n";
 import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 import "./InboundOrderList.scss";
+
+const { t } = useI18n();
 
 defineProps<{
   orders: InboundOrderResponse[];
@@ -134,6 +146,8 @@ const emit = defineEmits<{ open: [order: InboundOrderResponse] }>();
 
 function itemSummary(order: InboundOrderResponse): string {
   const item = order.items[0];
-  return `${item.item_sku} · ${item.quantity} ${item.item_unit}${order.items.length > 1 ? ` · 等 ${order.items.length} 项` : ""}`;
+  return `${item.item_sku} · ${item.quantity} ${item.item_unit}${
+    order.items.length > 1 ? t("orders.andMoreItems", { n: order.items.length }) : ""
+  }`;
 }
 </script>

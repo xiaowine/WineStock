@@ -1,6 +1,7 @@
 // 本文件拥有桌面与移动应用壳共用的退出编排；它不保存 token，也不实现平台专用会话清理。
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { AuthPersistenceError } from "../auth/storage";
 import { isLoggingOut, logoutAuthSession, type LogoutResult } from "../auth/session";
 import { notice } from "../notices/notice";
@@ -11,6 +12,7 @@ import { notice } from "../notices/notice";
  */
 export function useShellLogout() {
   const router = useRouter();
+  const { t } = useI18n();
   const logoutError = ref("");
 
   async function handleLogout(): Promise<void> {
@@ -22,8 +24,8 @@ export function useShellLogout() {
     } catch (error) {
       logoutError.value =
         error instanceof AuthPersistenceError
-          ? "无法清除本地登录状态，请检查浏览器存储权限后重试"
-          : "退出失败，请稍后重试";
+          ? t("auth.logoutPersistenceFailed")
+          : t("auth.logoutFailed");
       notice.error(logoutError.value);
       return;
     }
@@ -34,9 +36,9 @@ export function useShellLogout() {
       query: result === "local_only" ? { logout: "local_only" } : undefined,
     });
     if (result === "local_only") {
-      notice.warning("本机已退出，但服务端会话吊销未确认");
+      notice.warning(t("auth.logoutLocalOnlyWarning"));
     } else {
-      notice.success("已退出登录");
+      notice.success(t("auth.loggedOut"));
     }
   }
 

@@ -4,22 +4,22 @@
 -->
 <template>
   <div class="dashboard-trend-chart" :aria-busy="loading">
-    <div class="dashboard-trend-chart__legend" aria-label="趋势图图例">
+    <div class="dashboard-trend-chart__legend" :aria-label="$t('dashboard.chartLegend')">
       <span
         ><i
           class="dashboard-trend-chart__legend-line dashboard-trend-chart__legend-line--inbound"
-        />入库</span
+        />{{ $t('dashboard.inbound') }}</span
       >
       <span
         ><i
           class="dashboard-trend-chart__legend-line dashboard-trend-chart__legend-line--outbound"
-        />出库</span
+        />{{ $t('dashboard.outbound') }}</span
       >
     </div>
 
     <div v-if="daily.length === 0" class="dashboard-trend-chart__empty">
-      <strong>{{ loading ? "正在加载趋势…" : "暂无趋势数据" }}</strong>
-      <span>{{ loading ? "数据返回后会自动更新。" : "服务暂未返回每日趋势。" }}</span>
+      <strong>{{ loading ? $t('dashboard.loadingTrends') : $t('dashboard.noTrendData') }}</strong>
+      <span>{{ loading ? $t('dashboard.trendsAutoUpdate') : $t('dashboard.noDailyTrends') }}</span>
     </div>
 
     <div
@@ -32,7 +32,7 @@
         :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
         :style="{ height: `${chartHeight}px` }"
         role="img"
-        :aria-label="`近 ${days} 天入库和出库数量曲线图`"
+        :aria-label="$t('dashboard.chartAriaLabel', { n: days })"
         tabindex="0"
         @keydown="handleKeydown"
         @pointerdown="handlePointerDown"
@@ -97,8 +97,8 @@
         :style="{ left: `${tooltipLeftPercent}%` }"
       >
         <strong>{{ formatFullDate(hoveredPoint.item.date) }}</strong>
-        <span>入库 {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span>
-        <span>出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span>
+        <span>{{ $t('dashboard.inbound') }} {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span>
+        <span>{{ $t('dashboard.outbound') }} {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span>
       </div>
 
       <div
@@ -110,12 +110,12 @@
         <span
           ><i
             class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--inbound"
-          />入库 {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span
+          />{{ $t('dashboard.inbound') }} {{ formatNumber(hoveredPoint.item.inbound_quantity) }}</span
         >
         <span
           ><i
             class="dashboard-trend-chart__detail-dot dashboard-trend-chart__detail-dot--outbound"
-          />出库 {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span
+          />{{ $t('dashboard.outbound') }} {{ formatNumber(hoveredPoint.item.outbound_quantity) }}</span
         >
       </div>
     </div>

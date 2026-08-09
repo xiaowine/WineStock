@@ -1,5 +1,7 @@
 // 本文件把版本不固定的审计详情 JSON 转换为安全展示模型；它不请求当前业务对象覆盖历史快照。
 import type { EventLogResponse } from "../../api/events";
+import { i18n, translateMessageOrNull } from "../../i18n";
+import type { MessageKeyPath } from "../../i18n/schema";
 import { eventFieldLabel } from "./catalog";
 
 export interface EventDetailEntry {
@@ -18,6 +20,16 @@ export interface EventDiffRow {
 export interface PermissionChanges {
   added: string[];
   removed: string[];
+}
+
+/** 按消息键取文案并插值；键缺失时回退键名，避免暴露未翻译的原始文本。 */
+function localize(key: string, params?: Record<string, unknown>): string {
+  if (!i18n.global.te(key)) {
+    return key;
+  }
+  return params
+    ? i18n.global.t(key as MessageKeyPath, params)
+    : i18n.global.t(key as MessageKeyPath);
 }
 
 export function isJsonObject(value: unknown): value is Record<string, unknown> {
@@ -94,67 +106,93 @@ export function eventPreviousSnapshot(details: unknown): EventDetailEntry[] {
 export function eventSummary(event: EventLogResponse): string {
   const details = event.details;
   if (!isJsonObject(details)) {
-    if (details === null) return "暂无结构化详情";
-    if (Array.isArray(details)) return `包含 ${details.length} 项详情`;
+    if (details === null) return localize("events.summaryNoStructuredDetails");
+    if (Array.isArray(details)) return localize("events.summaryDetailCount", { n: details.length });
     return formatJsonValue(details);
   }
 
   if (event.entity_type === "item" && event.action === "created") {
     const name = stringValue(details.name);
     const unit = stringValue(details.unit);
-    return [name ? `创建“${name}”` : "创建物品", unit ? `单位 ${unit}` : ""]
-      .filter(Boolean)
-      .join("，");
+    if (unit) {
+      return name
+        ? localize("events.summaryItemCreatedWithUnit", { name, unit })
+        : localize("events.summaryItemCreatedFallbackWithUnit", { unit });
+    }
+    return name
+      ? localize("events.summaryItemCreated", { name })
+      : localize("events.summaryItemCreatedFallback");
   }
   if (event.entity_type === "user" && details.field === "permissions") {
     const changes = eventPermissionChanges(details);
     if (changes)
-      return `新增 ${changes.added.length} 项权限，移除 ${changes.removed.length} 项权限`;
+      return localize("events.summaryPermissionChanges", {
+        added: changes.added.length,
+        removed: changes.removed.length,
+      });
   }
   if (event.entity_type === "location_transfer") {
     const batch = idValue(details.batch_id);
     const from = idValue(details.from_location_id);
     const to = idValue(details.to_location_id);
     const quantity = details.quantity;
-    return `批次 ${batch} 从库位 ${from} 移至 ${to}${quantity === undefined ? "" : `，数量 ${formatJsonValue(quantity)}`}`;
+    const moved = localize("events.summaryBatchMoved", { batch, from, to });
+    return quantity === undefined
+      ? moved
+      : `${moved}${localize("events.summaryQuantity", { quantity: formatJsonValue(quantity) })}`;
   }
   if (
     ["inbound", "outbound"].includes(event.entity_type) &&
     typeof details.item_count === "number"
   ) {
     const prefix =
-      event.action === "approved" ? "审批" : event.action === "rejected" ? "驳回" : "包含";
-    return `${prefix} ${details.item_count} 条明细`;
+      event.action === "approved"
+        ? localize("events.summaryApproved")
+        : event.action === "rejected"
+          ? localize("events.summaryRejected")
+          : localize("events.summaryContains");
+    return localize("events.summaryLineCount", { prefix, n: details.item_count });
   }
 
   const diff = eventDiffRows(details);
-  if (diff.length > 0)
-    return `${diff
+  if (diff.length > 0) {
+    const fields = diff
       .slice(0, 2)
       .map((row) => row.label)
-      .join("、")}${diff.length > 2 ? `等 ${diff.length} 项` : ""}发生变化`;
+      .join(localize("events.listSeparator"));
+    return diff.length > 2
+      ? localize("events.summaryDiffChangedMore", { fields, n: diff.length })
+      : localize("events.summaryDiffChanged", { fields });
+  }
   const entries = eventDetailEntries(details);
   if (entries.length > 0) {
     return entries
       .slice(0, 2)
-      .map((entry) => `${entry.label}：${formatJsonValue(entry.value)}`)
+      .map((entry) =>
+        localize("events.summaryEntryValue", {
+          label: entry.label,
+          value: formatJsonValue(entry.value),
+        }),
+      )
       .join(" · ");
   }
-  return `包含 ${Object.keys(details).length} 个详情字段`;
+  return localize("events.summaryFieldCount", { n: Object.keys(details).length });
 }
 
 /** 把任意 JSON 值转换为不执行 HTML 的紧凑文本。 */
 export function formatJsonValue(value: unknown): string {
-  if (value === undefined) return "无记录";
-  if (value === null) return "未设置";
-  if (typeof value === "boolean") return value ? "是" : "否";
-  if (typeof value === "string") return value || "空字符串";
+  if (value === undefined) return localize("events.valueNone");
+  if (value === null) return localize("events.valueUnset");
+  if (typeof value === "boolean") return value ? localize("common.yes") : localize("common.no");
+  if (typeof value === "string") return value || localize("events.valueEmptyString");
   if (typeof value === "number") return String(value);
   if (
     Array.isArray(value) &&
     value.every((item) => item === null || ["string", "number", "boolean"].includes(typeof item))
   ) {
-    return value.length > 0 ? value.map((item) => formatJsonValue(item)).join("、") : "空列表";
+    return value.length > 0
+      ? value.map((item) => formatJsonValue(item)).join(localize("events.listSeparator"))
+      : localize("events.valueEmptyList");
   }
   return safeJsonStringify(value, 0);
 }
@@ -163,7 +201,7 @@ export function safeJsonStringify(value: unknown, spacing = 2): string {
   try {
     return JSON.stringify(value, null, spacing) ?? "null";
   } catch {
-    return "无法序列化当前详情";
+    return localize("events.serializeFailed");
   }
 }
 
@@ -182,5 +220,5 @@ function stringValue(value: unknown): string | null {
 }
 
 function idValue(value: unknown): string {
-  return typeof value === "number" ? `#${value}` : "未知";
+  return typeof value === "number" ? `#${value}` : translateMessageOrNull("common.unknown") ?? "";
 }

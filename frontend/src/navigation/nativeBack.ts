@@ -18,7 +18,7 @@ export type {
 
 const nativeBackRegistry = createNativeBackRegistry({
   onHandlerError: (registration, error) => {
-    console.warn(`原生返回 handler 执行失败：${registration.id}`, error);
+    console.warn(`Native back handler failed: ${registration.id}`, error);
   },
 });
 
@@ -45,7 +45,7 @@ export async function installNativeBackNavigation(router: Router): Promise<() =>
     resolve: resolveNativeBack,
     navigateBack: () => router.back(),
     onResolutionError: (request, error) => {
-      console.warn(`无法结算原生返回请求 ${request.requestId}`, error);
+      console.warn(`Failed to resolve native back request ${request.requestId}`, error);
     },
   });
 }

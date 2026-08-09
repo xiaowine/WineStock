@@ -34,7 +34,7 @@ export function loadPersistedRefreshToken(): string | null {
   try {
     serialized = storage.getItem(STORAGE_KEY);
   } catch (error) {
-    throw new AuthPersistenceError("无法读取本地登录状态", error);
+    throw new AuthPersistenceError("Failed to read local login state", error);
   }
 
   if (!serialized) {
@@ -67,7 +67,7 @@ export function rebindPersistedRefreshTokenApiBaseUrl(
   try {
     serialized = storage.getItem(STORAGE_KEY);
   } catch (error) {
-    throw new AuthPersistenceError("无法读取本地登录状态", error);
+    throw new AuthPersistenceError("Failed to read local login state", error);
   }
   if (!serialized) {
     return false;
@@ -90,7 +90,7 @@ export function rebindPersistedRefreshTokenApiBaseUrl(
     storage.setItem(STORAGE_KEY, JSON.stringify(rebound));
     return true;
   } catch (error) {
-    throw new AuthPersistenceError("无法更新本地登录状态", error);
+    throw new AuthPersistenceError("Failed to update local login state", error);
   }
 }
 
@@ -106,7 +106,7 @@ export function persistRefreshToken(refreshToken: string): void {
   try {
     resolveLocalStorage().setItem(STORAGE_KEY, JSON.stringify(record));
   } catch (error) {
-    throw new AuthPersistenceError("无法保存登录状态", error);
+    throw new AuthPersistenceError("Failed to save login state", error);
   }
 }
 
@@ -115,7 +115,7 @@ export function clearPersistedRefreshToken(): void {
   try {
     resolveLocalStorage().removeItem(STORAGE_KEY);
   } catch (error) {
-    throw new AuthPersistenceError("无法清除本地登录状态", error);
+    throw new AuthPersistenceError("Failed to clear local login state", error);
   }
 }
 
@@ -129,7 +129,7 @@ export function clearPersistedRefreshTokenIfMatches(expectedRefreshToken: string
   try {
     serialized = storage.getItem(STORAGE_KEY);
   } catch (error) {
-    throw new AuthPersistenceError("无法读取待清除的本地登录状态", error);
+    throw new AuthPersistenceError("Failed to read local login state to clear", error);
   }
 
   if (!serialized) {
@@ -155,7 +155,7 @@ export function clearPersistedRefreshTokenIfMatches(expectedRefreshToken: string
     storage.removeItem(STORAGE_KEY);
     return true;
   } catch (error) {
-    throw new AuthPersistenceError("无法清除失效的本地登录状态", error);
+    throw new AuthPersistenceError("Failed to clear expired local login state", error);
   }
 }
 
@@ -193,7 +193,7 @@ export function subscribePersistedRefreshTokenRemoval(
 
 function resolveLocalStorage(): Storage {
   if (typeof window === "undefined" || !window.localStorage) {
-    throw new AuthPersistenceError("当前运行环境不支持 localStorage");
+    throw new AuthPersistenceError("localStorage is not available in the current environment");
   }
   return window.localStorage;
 }
@@ -230,6 +230,6 @@ function removeInvalidRecord(storage: Storage): void {
   try {
     storage.removeItem(STORAGE_KEY);
   } catch (error) {
-    throw new AuthPersistenceError("无法清除损坏的本地登录状态", error);
+    throw new AuthPersistenceError("Failed to clear corrupted local login state", error);
   }
 }

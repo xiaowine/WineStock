@@ -1,0 +1,22 @@
+// 应用壳一级页面与认证/启动路由的标题；值即路由 meta.title 的消息键来源。
+export const nav = {
+  dashboard: "库存总览",
+  items: "物品管理",
+  inbound: "新建入库",
+  "inbound-orders": "入库记录",
+  outbound: "新建出库",
+  "outbound-orders": "出库记录",
+  "inbound-approvals": "入库审批",
+  "outbound-approvals": "出库审批",
+  locations: "库位管理",
+  templates: "分类与模板",
+  substitutes: "替代关系",
+  events: "操作日志",
+  users: "用户管理",
+  setupWizard: "欢迎使用 WineStock",
+  runtimeSettings: "运行模式",
+  authEntry: "准备连接",
+  login: "登录",
+  register: "创建首个用户",
+  changePassword: "修改密码",
+};

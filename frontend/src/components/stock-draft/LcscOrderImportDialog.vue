@@ -6,8 +6,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="导入立创订单"
-    description="选择立创商城「订单详情」导出的表格，命中物品将按订购数量与单价加入入库明细。"
+    :title="$t('stockDraft.importLcscOrderTitle')"
+    :description="$t('stockDraft.importLcscOrderDescription')"
     workspace
     :busy="matching"
     @close="requestClose"
@@ -15,7 +15,7 @@
     <div class="lcsc-order-import">
       <div class="lcsc-order-import__file-row">
         <label class="secondary-button lcsc-order-import__file">
-          {{ fileName ? "重新选择文件" : "选择订单表格" }}
+          {{ fileName ? $t('stockDraft.reselectFile') : $t('stockDraft.selectOrderFile') }}
           <input
             type="file"
             accept=".xls,.xlsx"
@@ -29,27 +29,34 @@
       </div>
 
       <p v-if="parseError" class="lcsc-order-import__error" role="alert">{{ parseError }}</p>
-      <p v-else-if="parsing" class="lcsc-order-import__hint" role="status">正在解析表格…</p>
+      <p v-else-if="parsing" class="lcsc-order-import__hint" role="status">
+        {{ $t('stockDraft.parsingTable') }}
+      </p>
       <p v-else-if="matching" class="lcsc-order-import__hint" role="status" aria-live="polite">
-        正在一次性匹配本地物品 {{ matchCompleted }}/{{ matchTotal }}…
+        {{ $t('stockDraft.matchingItemsProgress', { done: matchCompleted, total: matchTotal }) }}
       </p>
       <p v-if="matchError" class="lcsc-order-import__error" role="alert">
         {{ matchError }}
-        <button class="text-button" type="button" @click="retryFailed">重试失败项</button>
+        <button class="text-button" type="button" @click="retryFailed">
+          {{ $t('stockDraft.retryFailedItems') }}
+        </button>
       </p>
 
       <template v-else-if="rows.length > 0">
         <p class="lcsc-order-import__summary" role="status">
-          <template v-if="orderNo">
-            订单 <strong>{{ orderNo }}</strong
-            >，
-          </template>
-          共 {{ rows.length }} 行：可导入 <strong>{{ matchedCount }}</strong> 行<template
-            v-if="missingCount > 0"
-            >，未命中 {{ missingCount }} 行</template
-          ><template v-if="excludedCount > 0">，跳过 {{ excludedCount }} 行</template>。
+          <template v-if="orderNo">{{
+            $t('stockDraft.orderLabel', { order: orderNo })
+          }}</template>
+          {{ $t('stockDraft.rowsImportedSummary', { rows: rows.length, matched: matchedCount }) }}
+          <template v-if="missingCount > 0">{{
+            $t('stockDraft.missingSummary', { missing: missingCount })
+          }}</template
+          ><template v-if="excludedCount > 0">{{
+            $t('stockDraft.excludedSummary', { excluded: excludedCount })
+          }}</template
+          >。
           <button v-if="failedCount > 0" class="text-button" type="button" @click="retryFailed">
-            重试匹配
+            {{ $t('stockDraft.retryMatch') }}
           </button>
         </p>
 
@@ -65,15 +72,15 @@
                     :checked="allCreatableSelected"
                     :indeterminate.prop="someCreatableSelected"
                     :disabled="batchRunning"
-                    aria-label="全选待创建物品"
+                    :aria-label="$t('stockDraft.selectAllCreatableItems')"
                     @change="toggleSelectAllCreatable(($event.target as HTMLInputElement).checked)"
                   />
                 </th>
                 <th scope="col">#</th>
-                <th scope="col">商品编号</th>
-                <th scope="col">数量</th>
-                <th scope="col">单价</th>
-                <th scope="col">状态</th>
+                <th scope="col">{{ $t('stockDraft.productCode') }}</th>
+                <th scope="col">{{ $t('common.amount') }}</th>
+                <th scope="col">{{ $t('stockDraft.unitPrice') }}</th>
+                <th scope="col">{{ $t('common.status') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -85,7 +92,7 @@
                     type="checkbox"
                     class="lcsc-order-import__select"
                     :disabled="batchRunning"
-                    :aria-label="`选择 ${row.productCode}`"
+                    :aria-label="$t('stockDraft.selectRowAria', { code: row.productCode })"
                   />
                 </td>
                 <td>{{ row.rowLabel }}</td>
@@ -98,29 +105,35 @@
                       {{ row.item?.name }}
                     </span>
                   </template>
-                  <template v-else-if="row.status === 'matching'">匹配中…</template>
-                  <template v-else-if="row.status === 'lookup'">查询立创资料…</template>
-                  <template v-else-if="row.status === 'creating'">创建中…</template>
+                  <template v-else-if="row.status === 'matching'"
+                    >{{ $t('stockDraft.matching') }}</template
+                  >
+                  <template v-else-if="row.status === 'lookup'"
+                    >{{ $t('stockDraft.lookupLcscData') }}</template
+                  >
+                  <template v-else-if="row.status === 'creating'"
+                    >{{ $t('stockDraft.creating') }}</template
+                  >
                   <template v-else-if="row.status === 'missing'">
-                    <span>库中没有该编号</span>
+                    <span>{{ $t('stockDraft.codeNotFoundInStock') }}</span>
                     <button
                       v-if="canCreateItem"
                       class="text-button"
                       type="button"
                       @click="openCreateFor(row)"
                     >
-                      新建
+                      {{ $t('stockDraft.createNew') }}
                     </button>
                   </template>
                   <template v-else-if="row.status === 'create-failed'">
-                    <span :title="row.reason">{{ row.reason }}</span>
+                    <span :title="rowReason(row)">{{ rowReason(row) }}</span>
                     <button
                       class="text-button"
                       type="button"
                       :disabled="batchRunning"
                       @click="retryBatchCreate(row)"
                     >
-                      重试
+                      {{ $t('common.retry') }}
                     </button>
                     <button
                       class="text-button"
@@ -128,10 +141,10 @@
                       :disabled="batchRunning"
                       @click="openCreateFor(row)"
                     >
-                      手动新建
+                      {{ $t('stockDraft.manualCreate') }}
                     </button>
                   </template>
-                  <span v-else :title="row.reason">{{ row.reason }}</span>
+                  <span v-else :title="rowReason(row)">{{ rowReason(row) }}</span>
                 </td>
               </tr>
             </tbody>
@@ -140,12 +153,12 @@
 
         <label v-if="orderNo && !sourceFilled" class="lcsc-order-import__source">
           <input v-model="applySource" type="checkbox" />
-          <span>将本单来源填为“立创 {{ orderNo }}”</span>
+          <span>{{ $t('stockDraft.setSourceAs', { order: orderNo }) }}</span>
         </label>
       </template>
 
       <p v-else class="lcsc-order-import__hint">
-        表格中的收货、金额等其余信息不会导入；库位在导入后按明细逐条补齐。
+        {{ $t('stockDraft.importHint') }}
       </p>
     </div>
 
@@ -161,12 +174,12 @@
           batchRunning
             ? `${batch.progressLabel.value}…`
             : batch.metadataLoading.value
-              ? "准备中…"
-              : `创建选中的 ${selectedCreatableCount} 个物品`
+              ? $t('stockDraft.preparing')
+              : $t('stockDraft.createSelectedItems', { n: selectedCreatableCount })
         }}
       </button>
       <button class="secondary-button" type="button" :disabled="matching" @click="requestClose">
-        取消
+        {{ $t('common.cancel') }}
       </button>
       <button
         class="primary-button"
@@ -174,7 +187,11 @@
         :disabled="matchedCount === 0 || matching || batchRunning"
         @click="confirmImport"
       >
-        {{ matching ? "正在匹配…" : `加入 ${matchedCount} 条明细` }}
+        {{
+          matching
+            ? $t('stockDraft.matchingInProgress')
+            : $t('stockDraft.addMatchedLines', { n: matchedCount })
+        }}
       </button>
     </template>
   </ModalDialog>
@@ -199,18 +216,18 @@
 
   <ModalDialog
     :open="closeConfirmOpen"
-    title="停止批量创建？"
-    description="关闭后将停止尚未完成的创建；已经创建的物品会保留。"
+    :title="$t('stockDraft.stopBatchCreateTitle')"
+    :description="$t('stockDraft.stopBatchCreateDescription')"
     compact
     nested
     @close="closeConfirmOpen = false"
   >
     <template #actions>
       <button class="secondary-button" type="button" @click="closeConfirmOpen = false">
-        继续创建
+        {{ $t('stockDraft.continueCreating') }}
       </button>
       <button class="danger-button" type="button" @click="confirmCloseWhileCreating">
-        停止并关闭
+        {{ $t('stockDraft.stopAndClose') }}
       </button>
     </template>
   </ModalDialog>
@@ -236,8 +253,10 @@ export interface LcscOrderImportPayload {
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { lookupItemOptions } from "../../api/items";
 import { parseLcscOrderFile } from "../../lcsc/orderExportFile";
+import { translateMessageOrNull } from "../../i18n";
 import BatchLcscCreateOptionsDialog from "../items/BatchLcscCreateOptionsDialog.vue";
 import ItemCreateDialog from "../items/ItemCreateDialog.vue";
 import {
@@ -263,7 +282,10 @@ interface PreviewRow {
   quantity: number | null;
   unitPrice: number | null;
   status: PreviewStatus;
+  /** 消息键或已翻译文本；为消息键时渲染期经 rowReason 翻译并插值。 */
   reason: string;
+  /** 消息键的插值参数。 */
+  params?: Record<string, string>;
   item: ItemOptionResponse | null;
   /** 是否被勾选参与一键批量创建；仅对可创建行有意义，默认全选。 */
   selected: boolean;
@@ -299,6 +321,18 @@ const matchTotal = ref(0);
 const matchCompleted = ref(0);
 const matchError = ref("");
 const fileRunId = ref(0);
+
+const { t } = useI18n();
+
+/** 行原因以消息键存储（解析层产出或本组件构造）；渲染期翻译，带 {param} 占位时插值。 */
+function rowReason(row: PreviewRow): string {
+  const template = translateMessageOrNull(row.reason) ?? row.reason;
+  const params = row.params;
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name) =>
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match,
+  );
+}
 
 const matchedCount = computed(() => rows.value.filter((row) => row.status === "matched").length);
 const missingCount = computed(
@@ -383,7 +417,8 @@ async function handleFileChange(event: Event): Promise<void> {
   if (runId !== fileRunId.value) return;
   parsing.value = false;
   if (!result.ok) {
-    parseError.value = result.error;
+    // 解析层返回消息键，这里翻译后展示。
+    parseError.value = translateMessageOrNull(result.error) ?? result.error;
     return;
   }
   orderNo.value = result.orderNo;
@@ -399,7 +434,7 @@ async function handleFileChange(event: Event): Promise<void> {
       quantity: line.quantity,
       unitPrice: line.unitPrice,
       status: duplicated || inDraft ? "excluded" : "matching",
-      reason: duplicated ? "与前面的行重复" : inDraft ? "已在草稿中" : "",
+      reason: duplicated ? "stockDraft.duplicatedRow" : inDraft ? "stockDraft.alreadyInDraft" : "",
       item: null,
       selected: true,
     };
@@ -413,6 +448,7 @@ async function handleFileChange(event: Event): Promise<void> {
       unitPrice: null,
       status: "excluded",
       reason: line.reason,
+      params: line.params,
       item: null,
       selected: false,
     })),
@@ -461,7 +497,7 @@ async function matchPendingRows(runId: number): Promise<void> {
       return {
         ...row,
         status: "missing",
-        reason: result?.error === "not_found" ? "库中没有该编号" : "",
+        reason: result?.error === "not_found" ? "stockDraft.codeNotFoundInStock" : "",
       };
     });
     matchCompleted.value = codes.length;
@@ -470,11 +506,13 @@ async function matchPendingRows(runId: number): Promise<void> {
     if (controller.signal.aborted || runId !== fileRunId.value) return;
     rows.value = rows.value.map((row) =>
       row.status === "matching"
-        ? { ...row, status: "failed", reason: "查询失败，可重试匹配" }
+        ? { ...row, status: "failed", reason: "stockDraft.lookupFailedRetryMatch" }
         : row,
     );
     matchError.value =
-      error instanceof Error ? `本地物品匹配失败：${error.message}` : "本地物品匹配失败，请重试。";
+      error instanceof Error
+        ? t("stockDraft.matchFailedDetail", { message: error.message })
+        : t("stockDraft.matchFailed");
   }
 }
 

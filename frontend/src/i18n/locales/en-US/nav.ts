@@ -1,0 +1,22 @@
+// English copy mirroring zh-CN/nav.ts; keys must match the zh baseline exactly.
+export const nav = {
+  dashboard: "Inventory Overview",
+  items: "Items",
+  inbound: "New Inbound",
+  "inbound-orders": "Inbound Records",
+  outbound: "New Outbound",
+  "outbound-orders": "Outbound Records",
+  "inbound-approvals": "Inbound Approvals",
+  "outbound-approvals": "Outbound Approvals",
+  locations: "Locations",
+  templates: "Categories & Templates",
+  substitutes: "Substitutes",
+  events: "Activity Log",
+  users: "Users",
+  setupWizard: "Welcome to WineStock",
+  runtimeSettings: "Runtime Mode",
+  authEntry: "Getting Ready",
+  login: "Sign In",
+  register: "Create First User",
+  changePassword: "Change Password",
+};

@@ -3,22 +3,25 @@
   它不调用密码重置 API，也不持久化任何密码。
 -->
 <template>
-  <ModalDialog :open="Boolean(user)" title="设置临时密码" :busy="submitting" @close="emit('close')">
+  <ModalDialog
+    :open="Boolean(user)"
+    :title="$t('users.setTemporaryPassword')"
+    :busy="submitting"
+    @close="emit('close')"
+  >
     <template #context>
       <div v-if="user" class="dialog-account-context">
-        <span>目标用户</span>
+        <span>{{ $t("users.targetUser") }}</span>
         <strong :title="user.username">{{ user.username }}</strong>
       </div>
     </template>
 
     <div class="dialog-content">
-      <p class="confirmation-copy">
-        设置后，该用户将在所有已登录设备上退出；下次登录时必须修改密码。
-      </p>
+      <p class="confirmation-copy">{{ $t("users.temporaryPasswordDescription") }}</p>
 
       <form id="user-password-reset-form" class="dialog-form" novalidate @submit.prevent="submit">
         <FormField
-          label="临时密码"
+          :label="$t('users.temporaryPassword')"
           control-id="user-temporary-password"
           validation-key="password"
           :error="fieldErrors.password"
@@ -39,7 +42,7 @@
         </FormField>
 
         <FormField
-          label="确认临时密码"
+          :label="$t('users.confirmTemporaryPassword')"
           control-id="user-temporary-password-confirmation"
           validation-key="confirmation"
           :error="fieldErrors.confirmation"
@@ -61,7 +64,7 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t("common.cancel") }}
       </button>
       <button
         class="primary-button"
@@ -69,7 +72,7 @@
         form="user-password-reset-form"
         :disabled="submitting"
       >
-        {{ submitting ? "正在设置…" : "设置临时密码" }}
+        {{ submitting ? $t("users.settingTemporaryPassword") : $t("users.setTemporaryPassword") }}
       </button>
     </template>
   </ModalDialog>
@@ -77,12 +80,15 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { UserAdminResponse } from "../../api/users";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
 import ModalDialog from "../ModalDialog.vue";
 import PasswordInput from "../PasswordInput.vue";
 import FormField from "../forms/FormField.vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   user: UserAdminResponse | null;
@@ -123,18 +129,18 @@ watch(
 function submit(): void {
   const errors: Record<string, string> = {};
   if (!password.value) {
-    errors.password = "请输入临时密码";
+    errors.password = t("users.temporaryPasswordRequired");
   } else if (password.value.length < 8) {
-    errors.password = "密码至少需要 8 个字符";
+    errors.password = t("users.passwordMinLength");
   }
   if (!confirmation.value) {
-    errors.confirmation = "请再次输入临时密码";
+    errors.confirmation = t("users.confirmTemporaryPasswordRequired");
   } else if (confirmation.value !== password.value) {
-    errors.confirmation = "两次输入的密码不一致";
+    errors.confirmation = t("users.passwordMismatch");
   }
   fieldErrors.value = errors;
   if (Object.keys(errors).length > 0) {
-    notice.warning("请检查临时密码", { detail: Object.values(errors)[0] });
+    notice.warning(t("users.checkTemporaryPassword"), { detail: Object.values(errors)[0] });
     return;
   }
   emit("submit", password.value);

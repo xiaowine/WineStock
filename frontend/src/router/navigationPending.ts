@@ -2,6 +2,7 @@
 import { computed, effectScope, ref, watch, type EffectScope } from "vue";
 import { isNavigationFailure, NavigationFailureType, type Router } from "vue-router";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
+import { translateMessageOrNull } from "../i18n";
 import { notice } from "../notices/notice";
 
 /** 路由切换等待提示复用异步状态切换规范的默认计时。 */
@@ -64,21 +65,26 @@ export function installNavigationPendingTracking(router: Router): void {
   router.onError((error, to) => {
     navigationPending.value = false;
     if (!isModuleLoadError(error)) {
-      console.error("路由切换失败", error);
+      console.error("Route navigation failed", error);
       return;
     }
 
     const targetPath = to.fullPath;
-    notice.error("页面加载失败", {
-      detail: "网络不稳定，未能下载页面资源。点击此处重试。",
-      durationMs: 8_000,
-      onClick: () => {
-        // Chromium 会缓存失败的模块请求，重新 push 可能立即再次失败；
-        // 整页刷新保证重新拉取资源，hash history 下先写入目标路径。
-        window.location.hash = targetPath;
-        window.location.reload();
+    notice.error(
+      translateMessageOrNull("components.pageLoadFailed") ?? "Page failed to load",
+      {
+        detail:
+          translateMessageOrNull("components.pageLoadFailedDetail") ??
+          "Network is unstable; page resources could not be downloaded. Click here to retry.",
+        durationMs: 8_000,
+        onClick: () => {
+          // Chromium 会缓存失败的模块请求，重新 push 可能立即再次失败；
+          // 整页刷新保证重新拉取资源，hash history 下先写入目标路径。
+          window.location.hash = targetPath;
+          window.location.reload();
+        },
       },
-    });
+    );
   });
 }
 

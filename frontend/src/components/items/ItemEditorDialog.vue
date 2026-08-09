@@ -7,7 +7,7 @@
     :open="open"
     :title="title"
     :description="
-      readOnly && activePage === 'data' ? '你拥有查看权限，物品资料不可修改。' : undefined
+      readOnly && activePage === 'data' ? $t('items.readOnlyDescription') : undefined
     "
     :busy="saving || substitutesSaving"
     :wide="mode === 'create'"
@@ -17,26 +17,26 @@
     <template v-if="mode === 'existing'" #context>
       <div class="item-workspace__context">
         <div>
-          <span>当前物品</span>
+          <span>{{ $t('items.currentItem') }}</span>
           <strong
             v-if="draft.name || itemName"
-            v-copyable="{ text: draft.name || itemName, label: '物品名称' }"
+            v-copyable="{ text: draft.name || itemName, label: $t('items.itemName') }"
             :title="draft.name || itemName"
           >
             {{ draft.name || itemName }}
           </strong>
-          <strong v-else>未命名物品</strong>
+          <strong v-else>{{ $t('items.unnamedItem') }}</strong>
         </div>
         <div class="item-workspace__identity">
-          <span>编号</span>
+          <span>{{ $t('items.sku') }}</span>
           <strong
             v-if="draft.sku || itemSku"
-            v-copyable="{ text: draft.sku || itemSku, label: '物品编号' }"
+            v-copyable="{ text: draft.sku || itemSku, label: $t('items.itemSkuLabel') }"
             :title="draft.sku || itemSku"
           >
             {{ draft.sku || itemSku }}
           </strong>
-          <strong v-else>未设置</strong>
+          <strong v-else>{{ $t('items.notSet') }}</strong>
         </div>
       </div>
     </template>
@@ -50,7 +50,7 @@
           'item-workspace__nav--two': itemPageCount === 2,
           'item-workspace__nav--scrollable': itemPageCount > 4,
         }"
-        aria-label="物品页面"
+        :aria-label="$t('items.itemPagesAria')"
       >
         <button
           type="button"
@@ -58,7 +58,7 @@
           :aria-pressed="activePage === 'data'"
           @click="selectPage('data')"
         >
-          <span>物品资料</span>
+          <span>{{ $t('items.itemData') }}</span>
         </button>
         <button
           type="button"
@@ -66,7 +66,7 @@
           :aria-pressed="activePage === 'inventory'"
           @click="selectPage('inventory')"
         >
-          <span>库存详情</span>
+          <span>{{ $t('items.inventoryDetails') }}</span>
         </button>
         <button
           v-if="canViewSubstitutes"
@@ -75,7 +75,7 @@
           :aria-pressed="activePage === 'substitutes'"
           @click="selectPage('substitutes')"
         >
-          <span>替代关系</span>
+          <span>{{ $t('items.substituteRelations') }}</span>
         </button>
       </nav>
 
@@ -83,23 +83,27 @@
         <section :key="activePage" class="item-workspace__panel">
           <header class="item-workspace__panel-header">
             <div v-if="activePage === 'data'">
-              <strong>物品资料</strong>
-              <span>基础资料与物品属性</span>
+              <strong>{{ $t('items.itemData') }}</strong>
+              <span>{{ $t('items.basicInfoAndAttributes') }}</span>
             </div>
             <template v-else-if="activePage === 'inventory'">
               <div>
-                <strong>库存详情</strong>
+                <strong>{{ $t('items.inventoryDetails') }}</strong>
                 <span v-if="inventory"
-                  >{{ inventory.locations.length }} 个库位 ·
-                  {{ inventory.batch_count }} 个批次</span
+                  >{{
+                    $t('items.locationsBatchesSummary', {
+                      locations: inventory.locations.length,
+                      batches: inventory.batch_count,
+                    })
+                  }}</span
                 >
               </div>
               <button
                 class="icon-button"
                 :class="{ 'is-pending': inventoryPending }"
                 type="button"
-                title="刷新库存详情"
-                aria-label="刷新库存详情"
+                :title="$t('items.refreshInventory')"
+                :aria-label="$t('items.refreshInventory')"
                 :disabled="inventoryPending"
                 @click="loadInventory(true)"
               >
@@ -110,8 +114,8 @@
               </button>
             </template>
             <div v-else>
-              <strong>替代关系</strong>
-              <span>按优先级使用可替代物品</span>
+              <strong>{{ $t('items.substituteRelations') }}</strong>
+              <span>{{ $t('items.substitutePriorityHint') }}</span>
             </div>
           </header>
 
@@ -122,14 +126,16 @@
               :class="{ 'dialog-state--error': dataError }"
               :role="dataError ? 'alert' : 'status'"
             >
-              <span>{{ dataLoading ? "正在加载物品资料…" : dataError || "物品资料尚未加载" }}</span>
+              <span>{{
+                dataLoading ? $t('items.loadingItemData') : dataError || $t('items.itemDataNotLoaded')
+              }}</span>
               <button
                 v-if="!dataLoading"
                 class="secondary-button"
                 type="button"
                 @click="emit('request-data')"
               >
-                重试
+                {{ $t('items.retry') }}
               </button>
             </div>
             <ItemEditor
@@ -161,7 +167,7 @@
               >
                 <span>{{ inventoryError }}</span>
                 <button class="secondary-button" type="button" @click="loadInventory(true)">
-                  重试
+                  {{ $t('items.retry') }}
                 </button>
               </div>
               <template v-else-if="inventory">
@@ -170,25 +176,25 @@
                 </p>
                 <div class="item-inventory__summary">
                   <div>
-                    <span>当前库存</span
+                    <span>{{ $t('items.currentStock') }}</span
                     ><strong
                       >{{ formatQuantity(inventory.current_quantity) }} {{ inventory.unit }}</strong
                     >
                   </div>
                   <div>
-                    <span>库存价值</span
+                    <span>{{ $t('items.inventoryValue') }}</span
                     ><strong>{{ formatMoney(inventory.inventory_value) }}</strong>
                   </div>
                   <div>
-                    <span>补货点</span
+                    <span>{{ $t('items.reorderPointShort') }}</span
                     ><strong>{{
                       inventory.reorder_point === null
-                        ? "未设置"
+                        ? $t('items.notSet')
                         : `${formatQuantity(inventory.reorder_point)} ${inventory.unit}`
                     }}</strong>
                   </div>
                   <div>
-                    <span>库存状态</span
+                    <span>{{ $t('items.stockStateLabel') }}</span
                     ><strong :class="`stock-state stock-state--${inventory.stock_state}`">{{
                       stockStateLabel(inventory.stock_state)
                     }}</strong>
@@ -196,7 +202,7 @@
                 </div>
 
                 <section class="item-inventory__section">
-                  <h3>库位分布</h3>
+                  <h3>{{ $t('items.locationDistribution') }}</h3>
                   <div v-if="inventory.locations.length" class="item-inventory__locations">
                     <div v-for="location in inventory.locations" :key="location.location_id">
                       <span
@@ -204,16 +210,20 @@
                       >
                       <span>{{ formatQuantity(location.quantity) }} {{ inventory.unit }}</span>
                       <small
-                        >{{ location.batch_count }} 个批次 ·
-                        {{ formatMoney(location.value) }}</small
+                        >{{
+                          $t('items.batchesValue', {
+                            n: location.batch_count,
+                            value: formatMoney(location.value),
+                          })
+                        }}</small
                       >
                     </div>
                   </div>
-                  <p v-else class="item-inventory__empty">暂无在库库位</p>
+                  <p v-else class="item-inventory__empty">{{ $t('items.noStockLocations') }}</p>
                 </section>
 
                 <section class="item-inventory__section">
-                  <h3>当前批次</h3>
+                  <h3>{{ $t('items.currentBatches') }}</h3>
                   <div v-if="batches.length" class="item-inventory__batches">
                     <div v-for="batch in batches" :key="batch.id">
                       <span
@@ -224,14 +234,24 @@
                         >{{ formatQuantity(batch.remaining_quantity) }} {{ inventory.unit }}</span
                       >
                       <small
-                        >{{ formatMoney(batch.unit_cost) }}/{{ inventory.unit }} ·
+                        >{{
+                          $t('items.batchUnitCost', {
+                            cost: formatMoney(batch.unit_cost),
+                            unit: inventory.unit,
+                          })
+                        }}
+                        ·
                         {{
-                          batch.expires_at ? `有效期 ${formatDate(batch.expires_at)}` : "无有效期"
+                          batch.expires_at
+                            ? $t('items.expiryDate', { date: formatDate(batch.expires_at) })
+                            : $t('items.noExpiry')
                         }}</small
                       >
                     </div>
                   </div>
-                  <p v-else-if="!batchesPending" class="item-inventory__empty">暂无有效批次</p>
+                  <p v-else-if="!batchesPending" class="item-inventory__empty">
+                    {{ $t('items.noValidBatches') }}
+                  </p>
                   <div class="item-inventory__more">
                     <span v-if="batchesError" role="alert">{{ batchesError }}</span>
                     <button
@@ -240,7 +260,7 @@
                       type="button"
                       @click="loadBatchPage(batchPage || 1)"
                     >
-                      重试本页
+                      {{ $t('items.retryPage') }}
                     </button>
                     <button
                       v-else-if="batchPage < batchTotalPages"
@@ -249,12 +269,14 @@
                       :disabled="batchesPending"
                       @click="loadBatchPage(batchPage + 1)"
                     >
-                      {{ batchesPending ? "正在加载…" : "加载更多批次" }}
+                      {{
+                        batchesPending ? $t('items.loading') : $t('items.loadMoreBatches')
+                      }}
                     </button>
                   </div>
                 </section>
               </template>
-              <div v-else class="dialog-state" role="status">正在加载库存详情…</div>
+              <div v-else class="dialog-state" role="status">{{ $t('items.loadingInventory') }}</div>
             </div>
           </div>
         </section>
@@ -283,7 +305,7 @@
         :disabled="saving"
         @click="openManualLookup"
       >
-        编号填写
+        {{ $t('items.codeEntry') }}
       </button>
       <button
         v-if="allowLcscLookup && mode === 'create' && !readOnly"
@@ -292,7 +314,7 @@
         :disabled="saving"
         @click="openScanDialog"
       >
-        扫码填写
+        {{ $t('items.scanEntry') }}
       </button>
       <button
         class="secondary-button"
@@ -300,7 +322,7 @@
         :disabled="saving || substitutesSaving"
         @click="emit('close')"
       >
-        {{ activePage !== "data" || readOnly ? "关闭" : "取消" }}
+        {{ activePage !== "data" || readOnly ? $t('items.close') : $t('items.cancel') }}
       </button>
       <button
         v-if="activePage === 'data' && !readOnly"
@@ -308,9 +330,9 @@
         type="submit"
         :form="formId"
         :disabled="saving || dataLoading || substitutesDirty"
-        :title="substitutesDirty ? '请先保存替代关系' : undefined"
+        :title="substitutesDirty ? $t('items.saveSubstitutesFirst') : undefined"
       >
-        {{ saving ? "保存中…" : "保存物品" }}
+        {{ saving ? $t('items.saving') : $t('items.saveItem') }}
       </button>
     </template>
   </ModalDialog>
@@ -326,8 +348,8 @@
   <BarcodeScanDialog
     :open="open && scanDialogOpen"
     nested
-    title="扫码填写立创资料"
-    description="对准立创料袋上的二维码。"
+    :title="$t('items.scanLcscTitle')"
+    :description="$t('items.scanLcscDescription')"
     :status-text="scanStatusText"
     @close="scanDialogOpen = false"
     @detect="handleScanDetect"
@@ -337,7 +359,7 @@
     :open="open && lcscFlowOpen"
     :product-code="lcscFlowCode"
     :templates="templates"
-    :dismiss-label="lcscFlowFromScan ? '返回扫码' : '取消'"
+    :dismiss-label="lcscFlowFromScan ? $t('items.backToScan') : $t('items.cancel')"
     @apply="applyFlowCandidate"
     @dismiss="dismissFlow"
   />
@@ -345,6 +367,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemCategoryResponse } from "../../api/itemCategories";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import {
@@ -418,6 +441,7 @@ const emit = defineEmits<{
   "substitutes-dirty": [dirty: boolean];
   "apply-lcsc": [candidate: LcscItemLookupResponse, templateId: number | null];
 }>();
+const { t } = useI18n();
 const formId = `item-editor-${useId()}`;
 const activePage = ref<ItemDialogPage>("data");
 const workspaceNav = ref<HTMLElement | null>(null);
@@ -441,7 +465,7 @@ const itemPageCount = computed(() => 2 + (props.canViewSubstitutes ? 1 : 0));
 let inventoryController: AbortController | null = null;
 let batchController: AbortController | null = null;
 
-const title = computed(() => (props.mode === "create" ? "新建物品" : "物品详情"));
+const title = computed(() => (props.mode === "create" ? t("items.createItem") : t("items.itemDetails")));
 
 watch(
   () => props.open,
@@ -518,7 +542,7 @@ function openScanDialog(): void {
 function handleScanDetect(text: string): void {
   const bagCode = parseLcscBagCode(text);
   if (!bagCode) {
-    scanStatusText.value = "识别到的内容不是立创料袋码，已忽略。";
+    scanStatusText.value = t("items.notBagCode");
     return;
   }
   scanStatusText.value = "";
@@ -539,7 +563,7 @@ function dismissFlow(): void {
   lcscFlowOpen.value = false;
   if (lcscFlowFromScan.value) {
     lcscFlowFromScan.value = false;
-    scanStatusText.value = "未填写该结果，可继续扫码。";
+    scanStatusText.value = t("items.scanContinueHint");
     scanDialogOpen.value = true;
   }
 }
@@ -602,10 +626,10 @@ function abortRequests(): void {
 
 function stockStateLabel(state: ItemStockState): string {
   return {
-    out_of_stock: "缺货",
-    reorder_due: "待补货",
-    needs_configuration: "需配置",
-    normal: "库存正常",
+    out_of_stock: t("items.stockStateOutOfStock"),
+    reorder_due: t("items.stockStateReorderDue"),
+    needs_configuration: t("items.stockStateNeedsConfiguration"),
+    normal: t("items.stockStateNormal"),
   }[state];
 }
 
@@ -626,7 +650,7 @@ function formatDate(value: string): string {
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : "无法连接到 WineStock 服务";
+  return error instanceof ApiError ? error.message : t("error.network_unavailable");
 }
 
 function mergeBatches(

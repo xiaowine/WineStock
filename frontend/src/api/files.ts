@@ -2,6 +2,7 @@
 // DTO 通过 contract.ts 别名映射到生成 schema；签名预检常量与规则仍由前端拥有。
 import { apiClient, type ApiUploadProgress } from "./client";
 import type { ApiResponse, ApiSchema } from "./contract";
+import { translateMessageOrNull } from "../i18n";
 
 /** 单张模板图片最大字节数，与服务端固定规则一致。 */
 export const maxImageBytes = 15 * 1024 * 1024;
@@ -38,12 +39,22 @@ export function deleteImage(fileId: number) {
 /** 前端不信任扩展名，选择后读取文件头并与浏览器 MIME 声明交叉校验。 */
 export async function validateImageFile(file: File): Promise<string | null> {
   if (!allowedImageTypes.includes(file.type as (typeof allowedImageTypes)[number])) {
-    return "仅支持 PNG、JPEG 或 WebP 图片";
+    return (
+      translateMessageOrNull("components.imageTypeNotSupported") ??
+      "Only PNG, JPEG or WebP images are supported"
+    );
   }
-  if (file.size > maxImageBytes) return "图片大小不能超过 15MB";
+  if (file.size > maxImageBytes) {
+    return translateMessageOrNull("components.imageSizeTooLarge") ?? "Image size must not exceed 15MB";
+  }
   const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const detected = detectMime(header);
-  if (detected !== file.type) return "文件内容与图片类型不匹配";
+  if (detected !== file.type) {
+    return (
+      translateMessageOrNull("components.imageContentMismatch") ??
+      "File content does not match the image type"
+    );
+  }
   return null;
 }
 

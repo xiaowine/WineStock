@@ -8,6 +8,7 @@ import {
   SHELL_BRIDGE_PROTOCOL_VERSION,
   type EditableRuntimeConfig,
   type RuntimeConfigField,
+  type RuntimeConfigFieldError,
   type RuntimeConfigValidationResult,
   type RuntimeSnapshot,
   type ShellBridge,
@@ -53,7 +54,7 @@ export function createWebShellBridge(): ShellBridge {
           snapshot: cloneRuntimeSnapshot(snapshot),
           error: {
             code: "config_unavailable",
-            message: "浏览器无法保存运行配置，请检查本地存储权限",
+            message: "The browser could not persist the runtime config; check local storage permissions",
           },
         };
       }
@@ -90,7 +91,7 @@ export function createWebShellBridge(): ShellBridge {
       return { currentVersion: "web" };
     },
     async installUpdate() {
-      throw new Error("浏览器部署不支持安装应用更新");
+      throw new Error("Web deployment does not support installing app updates");
     },
     async onRuntimeStateChanged(listener) {
       listeners.add(listener);
@@ -121,7 +122,7 @@ function loadInitialSnapshot(): RuntimeSnapshot {
         phase: "stopped",
         error: {
           code: "config_invalid",
-          message: "已保存的运行配置无效，请修正后重新应用",
+          message: "The persisted runtime config is invalid; fix and re-apply it",
         },
       },
       capabilities: createWebCapabilities(),
@@ -140,7 +141,7 @@ function loadInitialSnapshot(): RuntimeSnapshot {
         phase: "stopped",
         error: {
           code: "config_invalid",
-          message: "已保存的运行配置无法解析，请重新应用默认配置",
+          message: "The persisted runtime config could not be parsed; re-apply the default config",
         },
       },
       capabilities: createWebCapabilities(),
@@ -208,13 +209,13 @@ function createWebCapabilities(): RuntimeSnapshot["capabilities"] {
 }
 
 function validateRuntimeConfig(config: EditableRuntimeConfig): RuntimeConfigValidationResult {
-  const fieldErrors: Partial<Record<RuntimeConfigField, string[]>> = {};
-  const addError = (field: RuntimeConfigField, message: string) => {
-    fieldErrors[field] = [...(fieldErrors[field] ?? []), message];
+  const fieldErrors: Partial<Record<RuntimeConfigField, RuntimeConfigFieldError[]>> = {};
+  const addError = (field: RuntimeConfigField, code: string, message: string) => {
+    fieldErrors[field] = [...(fieldErrors[field] ?? []), { code, message }];
   };
 
   if (!["self-hosted", "client-only", "connect-to-remote", "server-mode"].includes(config.mode)) {
-    addError("mode", "请选择有效的运行方式");
+    addError("mode", "invalid_mode", "Choose a valid runtime mode");
   }
   const automaticSelfHostedPort = config.mode === "self-hosted" && config.port === 0;
   if (
@@ -223,27 +224,28 @@ function validateRuntimeConfig(config: EditableRuntimeConfig): RuntimeConfigVali
     config.port > 65535 ||
     (config.port === 0 && !automaticSelfHostedPort)
   ) {
-    addError("port", "端口必须是 1 到 65535 之间的整数");
+    addError("port", "invalid_port", "Port must be an integer between 1 and 65535");
   }
 
   const remote = isRemoteRuntimeMode(config.mode);
   if (remote) {
     if (!config.remoteBaseUrl.trim()) {
-      addError("remoteBaseUrl", "请输入远程服务 API 地址");
+      addError("remoteBaseUrl", "remote_url_blank", "Enter a remote service API address");
     } else {
       try {
         normalizeApiBaseUrl(config.remoteBaseUrl);
       } catch (error) {
         addError(
           "remoteBaseUrl",
-          error instanceof ApiConfigurationError ? error.message : "远程服务地址无效",
+          "remote_url_invalid",
+          error instanceof ApiConfigurationError ? error.message : "Invalid remote service address",
         );
       }
     }
   } else if (!config.bindHost.trim()) {
-    addError("bindHost", "请输入本地服务监听地址");
+    addError("bindHost", "bind_host_blank", "Enter a local service listen address");
   } else if (!isIpAddress(config.bindHost.trim())) {
-    addError("bindHost", "监听地址必须是有效的 IPv4 或 IPv6 地址");
+    addError("bindHost", "invalid_bind_host", "Listen address must be a valid IPv4 or IPv6 address");
   }
 
   return {
@@ -316,7 +318,7 @@ function unsupportedLocalServiceOperation(): RuntimeSnapshot {
       ...snapshot.service,
       error: {
         code: "unsupported_runtime_mode",
-        message: "浏览器模式不能直接管理本地 WineStock 服务",
+        message: "Browser mode cannot manage a local WineStock service directly",
       },
     },
   });
@@ -351,10 +353,10 @@ function normalizeExternalUrl(value: string): string {
   try {
     url = new URL(value);
   } catch (error) {
-    throw new ApiConfigurationError(`外部链接无效：${String(error)}`);
+    throw new ApiConfigurationError(`Invalid external link: ${String(error)}`);
   }
   if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
-    throw new ApiConfigurationError("外部链接必须使用不含凭据的 http 或 https 地址");
+    throw new ApiConfigurationError("External links must use an http or https URL without credentials");
   }
   return url.toString();
 }

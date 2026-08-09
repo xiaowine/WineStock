@@ -8,19 +8,19 @@
     <template v-if="node">
       <div class="substitute-network-detail__summary">
         <div class="substitute-network-detail__identity">
-          <span>当前节点</span>
+          <span>{{ $t('substitutes.currentNode') }}</span>
           <strong>{{ node.name }}</strong>
-          <small>编号 {{ node.sku }}</small>
+          <small>{{ $t('substitutes.skuLabel') }} {{ node.sku }}</small>
         </div>
         <div v-overlay-scrollbar class="substitute-network-detail__metrics">
           <span
-            ><strong>{{ incoming.length }}</strong> 个上游</span
+            ><strong>{{ incoming.length }}</strong> {{ $t('substitutes.upstreamUnit') }}</span
           >
           <span
-            ><strong>{{ outgoing.length }}</strong> 个直接替代</span
+            ><strong>{{ outgoing.length }}</strong> {{ $t('substitutes.directSubstituteUnit') }}</span
           >
           <span
-            ><strong>{{ reachableCount }}</strong> 个可到达</span
+            ><strong>{{ reachableCount }}</strong> {{ $t('substitutes.reachableUnit') }}</span
           >
         </div>
         <div class="substitute-network-detail__actions">
@@ -30,33 +30,43 @@
             :aria-expanded="expanded"
             @click="expanded = !expanded"
           >
-            {{ expanded ? "收起详情" : "关系详情" }}
+            {{ expanded ? $t('substitutes.collapseDetails') : $t('substitutes.relationDetails') }}
           </button>
           <button v-if="canManage" class="primary-button" type="button" @click="emit('edit', node)">
-            维护关系
+            {{ $t('substitutes.maintainRelations') }}
           </button>
         </div>
       </div>
 
       <div v-overlay-scrollbar class="substitute-network-detail__relations">
         <section>
-          <h3>上游关系</h3>
-          <p v-if="!incoming.length">没有物品将它设为替代物品。</p>
+          <h3>{{ $t('substitutes.upstreamTitle') }}</h3>
+          <p v-if="!incoming.length">{{ $t('substitutes.noUpstream') }}</p>
           <ul v-else>
             <li v-for="relation in incoming" :key="relation.edge.id">
               <strong>{{ relation.node.name }}</strong>
-              <span>{{ relation.node.sku }} · 优先级 {{ relation.edge.priority }} → 当前物品</span>
+              <span>{{
+                $t('substitutes.upstreamRelationLine', {
+                  sku: relation.node.sku,
+                  priority: relation.edge.priority,
+                })
+              }}</span>
               <small v-if="relation.edge.notes">{{ relation.edge.notes }}</small>
             </li>
           </ul>
         </section>
         <section>
-          <h3>直接替代</h3>
-          <p v-if="!outgoing.length">当前物品没有配置直接替代项。</p>
+          <h3>{{ $t('substitutes.directSubstituteTitle') }}</h3>
+          <p v-if="!outgoing.length">{{ $t('substitutes.noOutgoing') }}</p>
           <ul v-else>
             <li v-for="relation in outgoing" :key="relation.edge.id">
               <strong>{{ relation.node.name }}</strong>
-              <span>当前物品 → {{ relation.node.sku }} · 优先级 {{ relation.edge.priority }}</span>
+              <span>{{
+                $t('substitutes.outgoingRelationLine', {
+                  sku: relation.node.sku,
+                  priority: relation.edge.priority,
+                })
+              }}</span>
               <small v-if="relation.edge.notes">{{ relation.edge.notes }}</small>
             </li>
           </ul>

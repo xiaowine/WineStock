@@ -2,8 +2,8 @@
 <template>
   <ModalDialog
     :open="open && Boolean(update)"
-    title="发现新版本"
-    description="有新的 WineStock 版本可用。"
+    :title="$t('misc.updateDialogTitle')"
+    :description="$t('misc.updateDescription')"
     :busy="installing"
     :nested="nested"
     compact
@@ -12,12 +12,12 @@
   >
     <div v-if="update" class="app-update-dialog">
       <section class="app-update-dialog__notes" aria-labelledby="app-update-notes-title">
-        <h3 id="app-update-notes-title">更新内容</h3>
-        <p>{{ update.notes || "暂无更新说明。" }}</p>
+        <h3 id="app-update-notes-title">{{ $t("misc.updateReleaseNotesTitle") }}</h3>
+        <p>{{ update.notes || $t("misc.updateNoNotes") }}</p>
       </section>
       <div class="app-update-dialog__version-summary">
-        <span class="app-update-dialog__version-label">版本</span>
-        <div class="app-update-dialog__version-flow" aria-label="版本变化">
+        <span class="app-update-dialog__version-label">{{ $t("misc.updateVersionLabel") }}</span>
+        <div class="app-update-dialog__version-flow" :aria-label="$t('misc.updateVersionChange')">
           <span class="app-update-dialog__version app-update-dialog__version--current">
             {{ update.currentVersion }}
           </span>
@@ -32,10 +32,10 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="installing" @click="handleClose">
-        稍后处理
+        {{ $t("misc.updateLater") }}
       </button>
       <button class="primary-button" type="button" :disabled="installing" @click="handleInstall">
-        {{ installing ? "准备安装…" : "立即安装" }}
+        {{ installing ? $t("misc.updatePreparingInstall") : $t("misc.updateInstallNow") }}
       </button>
     </template>
   </ModalDialog>
@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import ModalDialog from "../ModalDialog.vue";
 import { installUpdate } from "../../shell/runtime";
 import type { AppUpdateCheckResult } from "../../shell/contract";
@@ -58,6 +59,7 @@ const props = defineProps<{
 
 const installing = ref(false);
 const installError = ref("");
+const { t } = useI18n();
 
 watch(
   () => [props.open, props.update?.latestVersion] as const,
@@ -76,11 +78,11 @@ async function handleInstall(): Promise<void> {
   installError.value = "";
   try {
     await installUpdate(version);
-    notice.success("更新安装器已启动", { detail: "应用将按平台安装流程继续。" });
+    notice.success(t("misc.updateInstallerStarted"), { detail: t("misc.updateInstallerContinues") });
     closeAppUpdateDialog();
   } catch (error) {
     installError.value = updateInstallErrorMessage(error);
-    notice.error("无法安装更新", { detail: installError.value });
+    notice.error(t("misc.updateInstallFailed"), { detail: installError.value });
   } finally {
     installing.value = false;
   }

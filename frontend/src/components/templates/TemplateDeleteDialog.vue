@@ -8,38 +8,57 @@
   >
     <template #context>
       <div v-if="target" class="dialog-account-context dialog-account-context--danger">
-        <span>删除目标</span>
+        <span>{{ $t('templates.deleteTargetLabel') }}</span>
         <strong>{{ target.name }}</strong>
       </div>
     </template>
     <div class="template-delete-copy">
       <template v-if="target?.kind === 'category'">
-        <p>分类将从活动列表移除。已有物品可能继续保存该分类 ID，但不会自动改到其他分类。</p>
+        <p>{{ $t('templates.categoryDeleteWarning') }}</p>
       </template>
       <template v-else-if="target">
-        <p><strong>此操作会造成物品属性数据丢失：</strong></p>
+        <p><strong>{{ $t('templates.templateDeleteDangerIntro') }}</strong></p>
         <ul>
-          <li>已有物品与该模板的关联会被解除。</li>
-          <li>由该模板字段定义的物品属性值会被删除。</li>
-          <li>此操作无法从当前界面恢复。</li>
+          <li>{{ $t('templates.templateDeleteDetach') }}</li>
+          <li>{{ $t('templates.templateDeleteValues') }}</li>
+          <li>{{ $t('templates.templateDeleteIrreversible') }}</li>
         </ul>
       </template>
-      <section v-if="target" class="template-delete-copy__impact" aria-label="删除影响范围">
-        <strong>影响范围</strong>
+      <section
+        v-if="target"
+        class="template-delete-copy__impact"
+        :aria-label="$t('templates.deleteImpactAria')"
+      >
+        <strong>{{ $t('templates.impactScope') }}</strong>
         <p v-if="target.itemUsageCount !== null && target.itemUsageCount > 0">
-          当前有 {{ target.itemUsageCount }} 个有效物品使用此{{
-            target.kind === "category" ? "分类" : "模板"
-          }}。
+          {{
+            $t('templates.affectedItemsSummary', {
+              n: target.itemUsageCount,
+              subject: target.kind === 'category' ? $t('templates.subjectCategory') : $t('templates.subjectTemplate'),
+            })
+          }}
         </p>
-        <p v-else>当前没有有效物品使用此{{ target.kind === "category" ? "分类" : "模板" }}。</p>
+        <p v-else>
+          {{
+            $t('templates.noAffectedItemsSummary', {
+              subject: target.kind === 'category' ? $t('templates.subjectCategory') : $t('templates.subjectTemplate'),
+            })
+          }}
+        </p>
       </section>
     </div>
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t('common.cancel') }}
       </button>
       <button class="danger-button" type="button" :disabled="submitting" @click="emit('submit')">
-        {{ submitting ? "正在删除…" : target?.kind === "item" ? "删除模板及属性" : "确认删除" }}
+        {{
+          submitting
+            ? $t('templates.deletingNow')
+            : target?.kind === 'item'
+              ? $t('templates.deleteTemplateAndAttributes')
+              : $t('templates.confirmDelete')
+        }}
       </button>
     </template>
   </ModalDialog>
@@ -47,6 +66,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { TemplateDomain } from "../../pages/templates/model";
 import ModalDialog from "../ModalDialog.vue";
 
@@ -69,7 +89,11 @@ const emit = defineEmits<{
   submit: [];
 }>();
 
+const { t } = useI18n();
+
 const dialogTitle = computed(() =>
-  props.target?.kind === "category" ? "删除物品分类" : "删除物品属性模板",
+  props.target?.kind === "category"
+    ? t("templates.deleteCategoryTitle")
+    : t("templates.deleteTemplateTitle"),
 );
 </script>

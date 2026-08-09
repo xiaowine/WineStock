@@ -8,13 +8,13 @@
     <header class="content-header inbound-draft-page__header">
       <div class="inbound-page-title">
         <div>
-          <h1>{{ $route.meta.title }}</h1>
+          <h1>{{ $title($route.meta.title) }}</h1>
         </div>
       </div>
       <div
         v-if="flow.lines.value.length > 0"
         class="content-summary inbound-draft-summary"
-        :aria-label="texts.summaryAriaLabel"
+        :aria-label="translate(texts.summaryAriaLabel)"
       >
         <slot name="summary" />
       </div>
@@ -25,7 +25,7 @@
           :disabled="!flow.hasDraft.value || flow.submitting.value"
           @click="requestClear"
         >
-          清空草稿
+          {{ $t('stockDraft.clearDraftButton') }}
         </button>
         <template v-if="flow.lines.value.length > 0">
           <button
@@ -36,10 +36,10 @@
           >
             {{
               flow.submitting.value
-                ? "正在提交…"
+                ? $t('stockDraft.submitting')
                 : flow.canDirect.value
-                  ? texts.submitButtonDirect
-                  : texts.submitButtonPending
+                  ? translate(texts.submitButtonDirect)
+                  : translate(texts.submitButtonPending)
             }}
           </button>
         </template>
@@ -50,8 +50,8 @@
       <section class="inbound-step inbound-draft-step" aria-labelledby="stock-draft-step-title">
         <header class="inbound-step__header">
           <div>
-            <h2 id="stock-draft-step-title">{{ texts.workspaceTitle }}</h2>
-            <p>添加后立即配置该物品；再次添加会先返回未完成明细。</p>
+            <h2 id="stock-draft-step-title">{{ translate(texts.workspaceTitle) }}</h2>
+            <p>{{ $t('stockDraft.addThenConfigureHint') }}</p>
           </div>
           <div class="inbound-step__actions">
             <!-- 领域附加入口（如入库的订单导入）排在通用入口之前。 -->
@@ -59,31 +59,31 @@
             <button
               class="secondary-button inbound-add-item-button inbound-scan-button"
               type="button"
-              title="扫描立创料袋二维码添加物品"
-              aria-label="扫码添加物品"
+              :title="$t('stockDraft.scanAddTitle')"
+              :aria-label="$t('stockDraft.scanAdd')"
               @click="openScan"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M8 20H4v-4" />
                 <path d="M9 9h6v6H9z" />
               </svg>
-              <span>扫码添加</span>
+              <span>{{ $t('stockDraft.scanAdd') }}</span>
             </button>
             <button
               class="primary-button inbound-add-item-button inbound-select-item-button"
               type="button"
-              title="选择物品并配置明细"
+              :title="$t('stockDraft.selectItemTitle')"
               @click="openPicker"
             >
-              选择物品
+              {{ $t('stockDraft.selectItem') }}
             </button>
           </div>
         </header>
 
         <div class="inbound-order__body" :inert="selectedLine !== null ? true : undefined">
-          <section class="inbound-order-meta" :aria-label="texts.metaAriaLabel">
+          <section class="inbound-order-meta" :aria-label="translate(texts.metaAriaLabel)">
             <label class="inbound-order-meta__source">
-              <span>{{ texts.sourceLabel }} *</span>
+              <span>{{ translate(texts.sourceLabel) }} *</span>
               <input
                 ref="sourceInput"
                 v-model="flow.source.value"
@@ -101,20 +101,20 @@
                 "
                 :title="
                   flow.validationAttempted.value && !flow.source.value.trim()
-                    ? `请填写${texts.sourceLabel}`
+                    ? $t('stockDraft.fillRequired', { field: translate(texts.sourceLabel) })
                     : undefined
                 "
                 type="text"
                 :name="texts.sourceName"
                 maxlength="128"
-                :placeholder="texts.sourcePlaceholder"
+                :placeholder="translate(texts.sourcePlaceholder)"
               />
               <span
                 v-if="flow.validationAttempted.value && !flow.source.value.trim()"
                 id="stock-draft-source-error"
                 class="visually-hidden"
                 role="alert"
-                >请填写{{ texts.sourceLabel }}</span
+                >{{ $t('stockDraft.fillRequired', { field: translate(texts.sourceLabel) }) }}</span
               >
             </label>
             <button
@@ -139,13 +139,13 @@
               id="stock-draft-notes"
               class="inbound-order-meta__notes"
             >
-              <span>备注</span>
+              <span>{{ $t('common.remark') }}</span>
               <input
                 v-model="flow.notes.value"
                 type="text"
                 :name="texts.notesName"
                 maxlength="1024"
-                :placeholder="texts.notesPlaceholder"
+                :placeholder="translate(texts.notesPlaceholder)"
               />
             </label>
           </section>
@@ -154,22 +154,24 @@
             v-if="flow.lines.value.length === 0"
             class="inbound-panel-state inbound-lines-empty"
           >
-            <strong>{{ texts.emptyTitle }}</strong>
-            <span>{{ texts.emptyHint }}</span>
+            <strong>{{ translate(texts.emptyTitle) }}</strong>
+            <span>{{ translate(texts.emptyHint) }}</span>
           </section>
 
           <section
             v-else
             v-overlay-scrollbar
             class="inbound-lines"
-            :aria-label="texts.linesAriaLabel"
+            :aria-label="translate(texts.linesAriaLabel)"
           >
             <table>
               <thead>
                 <tr>
-                  <th scope="col">物品</th>
-                  <th v-for="column in texts.columns" :key="column" scope="col">{{ column }}</th>
-                  <th scope="col"><span class="visually-hidden">操作</span></th>
+                  <th scope="col">{{ $t('stockDraft.item') }}</th>
+                  <th v-for="column in texts.columns" :key="column" scope="col">
+                    {{ translate(column) }}
+                  </th>
+                  <th scope="col"><span class="visually-hidden">{{ $t('common.actions') }}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -182,11 +184,11 @@
                   @keydown.enter="selectLine(line.lineId)"
                   @keydown.space.prevent="selectLine(line.lineId)"
                 >
-                  <td data-label="物品">
+                  <td :data-label="$t('stockDraft.item')">
                     <div class="inbound-line__identity">
                       <AuthenticatedImage
                         :file-id="line.item.image_file_id"
-                        :alt="line.item.name + ' 主图'"
+                        :alt="$t('stockDraft.itemImageAlt', { name: line.item.name })"
                         :size="34"
                         previewable
                         @click.stop
@@ -199,14 +201,14 @@
                     </div>
                   </td>
                   <slot name="line-cells" :line="line" />
-                  <td data-label="操作">
+                  <td :data-label="$t('common.actions')">
                     <div class="inbound-line__actions">
                       <button
                         class="icon-button inbound-line__edit"
                         type="button"
                         :data-line-action="line.lineId"
                         :aria-label="flow.lineEditLabel(line)"
-                        :title="'编辑 ' + line.item.name"
+                        :title="$t('stockDraft.editItem', { name: line.item.name })"
                         @click.stop="selectLine(line.lineId)"
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -219,8 +221,8 @@
                         type="button"
                         :data-line-id="line.lineId"
                         data-field="remove"
-                        :aria-label="'移除 ' + line.item.name"
-                        :title="'移除 ' + line.item.name"
+                        :aria-label="$t('stockDraft.removeItem', { name: line.item.name })"
+                        :title="$t('stockDraft.removeItem', { name: line.item.name })"
                         @click.stop="flow.removeLine(line.lineId)"
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -239,8 +241,8 @@
 
     <ModalDialog
       :open="selectedLine !== null"
-      :title="texts.editorTitle"
-      :description="texts.editorDescription"
+      :title="translate(texts.editorTitle)"
+      :description="translate(texts.editorDescription)"
       :workspace="!texts.editorWide"
       :wide="texts.editorWide"
       @close="stashAndCloseEditor"
@@ -250,18 +252,18 @@
         <div class="inbound-line-editor-context">
           <AuthenticatedImage
             :file-id="selectedLine.item.image_file_id"
-            :alt="selectedLine.item.name + ' 主图'"
+            :alt="$t('stockDraft.itemImageAlt', { name: selectedLine.item.name })"
             :size="34"
             previewable
           />
           <div>
             <strong
-              v-copyable="{ text: selectedLine.item.name, label: '物品名称' }"
+              v-copyable="{ text: selectedLine.item.name, label: $t('stockDraft.itemNameLabel') }"
               :title="selectedLine.item.name"
               >{{ selectedLine.item.name }}</strong
             >
             <span>
-              <span v-copyable="{ text: selectedLine.item.sku, label: '物品编号' }">{{
+              <span v-copyable="{ text: selectedLine.item.sku, label: $t('stockDraft.itemCodeLabel') }">{{
                 selectedLine.item.sku
               }}</span>
               · {{ selectedLine.item.unit }}
@@ -276,22 +278,22 @@
           type="button"
           @click="stashAndCloseEditor"
         >
-          暂存并关闭
+          {{ $t('stockDraft.stashAndClose') }}
         </button>
         <button
           class="primary-button inbound-line-editor-action"
           type="button"
           @click="completeEditorAndContinue"
         >
-          完成并继续添加
+          {{ $t('stockDraft.completeAndContinue') }}
         </button>
       </template>
     </ModalDialog>
 
     <ItemSelectionDialog
       :open="itemPickerOpen"
-      :title="texts.pickerTitle"
-      description="选择一项后进入明细配置。"
+      :title="translate(texts.pickerTitle)"
+      :description="$t('stockDraft.pickerHint')"
       :search-name="texts.pickerSearchName"
       :items="items"
       :search-input="searchInput"
@@ -320,7 +322,11 @@
       @close="cancelConfirmation"
     >
       <slot v-if="confirmMode === 'submit'" name="submit-summary" />
-      <p v-else>{{ confirmMode === "clear" ? "此操作无法撤销。" : texts.leaveBody }}</p>
+      <p v-else>
+        {{
+          confirmMode === "clear" ? $t('stockDraft.clearIrreversible') : translate(texts.leaveBody)
+        }}
+      </p>
       <template #actions>
         <button
           class="secondary-button"
@@ -328,7 +334,7 @@
           :disabled="flow.submitting.value"
           @click="cancelConfirmation"
         >
-          {{ confirmMode === "submit" ? "返回检查" : "取消" }}
+          {{ confirmMode === "submit" ? $t('stockDraft.backToCheck') : $t('common.cancel') }}
         </button>
         <button
           :class="confirmMode === 'clear' ? 'danger-button' : 'primary-button'"
@@ -343,8 +349,8 @@
 
     <BarcodeScanDialog
       :open="scanOpen"
-      title="扫码添加物品"
-      description="对准立创料袋上的二维码，识别后进入该物品的明细配置。"
+      :title="$t('stockDraft.scanAdd')"
+      :description="$t('stockDraft.scanDialogDescription')"
       :status-text="scanStatusText"
       @close="closeScan"
       @detect="handleScanDetect"
@@ -357,6 +363,7 @@
 
 <script setup lang="ts" generic="L extends StockDraftLineBase">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { onBeforeRouteLeave } from "vue-router";
 import { listItemOptions, type ItemOptionResponse } from "../../api/items";
 import {
@@ -373,6 +380,7 @@ import ModalDialog from "../ModalDialog.vue";
 import { useStockItemCatalog } from "../../composables/useStockItemCatalog";
 import { notice } from "../../notices/notice";
 import { trackTelemetryEvent } from "../../telemetry/clarity";
+import { translateMessageOrNull } from "../../i18n";
 import type {
   StockDraftFlow,
   StockDraftLineBase,
@@ -398,6 +406,12 @@ defineSlots<{
 
 type ConfirmMode = "clear" | "leave" | "submit" | null;
 
+/** 工作台文案（texts）以消息键注入；渲染期翻译，键缺失时原样回退。 */
+function translate(text: string): string {
+  return translateMessageOrNull(text) ?? text;
+}
+
+const { t } = useI18n();
 const selectedLineId = ref<string | null>(null);
 const itemPickerOpen = ref(false);
 const confirmMode = ref<ConfirmMode>(null);
@@ -436,32 +450,32 @@ const incompleteLine = computed(
 );
 const notesToggleLabel = computed(() =>
   props.flow.notesOpen.value
-    ? "收起备注"
+    ? t("stockDraft.collapseNotes")
     : props.flow.notes.value.trim()
-      ? "备注已填写"
-      : "添加备注",
+      ? t("stockDraft.notesFilled")
+      : t("stockDraft.addNotes"),
 );
 const confirmTitle = computed(() => {
-  if (confirmMode.value === "clear") return props.texts.clearTitle;
-  if (confirmMode.value === "leave") return "离开当前页面？";
+  if (confirmMode.value === "clear") return translate(props.texts.clearTitle);
+  if (confirmMode.value === "leave") return t("stockDraft.leavePageTitle");
   return props.flow.canDirect.value
-    ? props.texts.submitTitleDirect
-    : props.texts.submitTitlePending;
+    ? translate(props.texts.submitTitleDirect)
+    : translate(props.texts.submitTitlePending);
 });
 const confirmDescription = computed(() => {
-  if (confirmMode.value === "clear") return props.texts.clearDescription;
-  if (confirmMode.value === "leave") return "当前草稿已自动保存在本机，离开后仍可恢复。";
+  if (confirmMode.value === "clear") return translate(props.texts.clearDescription);
+  if (confirmMode.value === "leave") return t("stockDraft.draftSavedLocally");
   return props.flow.canDirect.value
-    ? props.texts.submitDescriptionDirect
-    : props.texts.submitDescriptionPending;
+    ? translate(props.texts.submitDescriptionDirect)
+    : translate(props.texts.submitDescriptionPending);
 });
 const confirmActionLabel = computed(() => {
-  if (props.flow.submitting.value) return "正在提交…";
-  if (confirmMode.value === "clear") return "确认清空";
-  if (confirmMode.value === "leave") return "确认离开";
+  if (props.flow.submitting.value) return t("stockDraft.submitting");
+  if (confirmMode.value === "clear") return t("stockDraft.confirmClear");
+  if (confirmMode.value === "leave") return t("stockDraft.confirmLeave");
   return props.flow.canDirect.value
-    ? props.texts.submitConfirmDirect
-    : props.texts.submitConfirmPending;
+    ? translate(props.texts.submitConfirmDirect)
+    : translate(props.texts.submitConfirmPending);
 });
 
 onMounted(() => {
@@ -491,11 +505,16 @@ onBeforeRouteLeave(() => {
 
 function pickerErrorMessage(error: unknown): string {
   if (error instanceof ApiError)
-    return error.status === 403 ? "当前账号没有读取物品的权限" : error.message;
+    return translateMessageOrNull(`error.${error.code}`) ?? error.message;
   if (error instanceof ApiConfigurationError) return error.message;
-  if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
-  if (error instanceof ApiResponseError) return "服务响应格式无效，请检查前后端版本";
-  return "加载物品失败，请重试";
+  if (error instanceof ApiNetworkError)
+    return translateMessageOrNull("error.network_unavailable") ?? "error.network_unavailable";
+  if (error instanceof ApiResponseError)
+    return (
+      translateMessageOrNull("stockDraft.responseInvalidCheckVersions") ??
+      "stockDraft.responseInvalidCheckVersions"
+    );
+  return translateMessageOrNull("stockDraft.loadItemsFailedRetry") ?? "stockDraft.loadItemsFailedRetry";
 }
 
 function openPicker(): void {
@@ -524,8 +543,8 @@ function closeScan(): void {
 function focusIncompleteLine(): boolean {
   if (!incompleteLine.value) return false;
   selectLine(incompleteLine.value.lineId);
-  notice.warning("请先完成当前明细", {
-    detail: `已重新打开“${incompleteLine.value.item.name}”的配置界面。`,
+  notice.warning(t("stockDraft.finishCurrentLine"), {
+    detail: t("stockDraft.reopenedLineConfig", { name: incompleteLine.value.item.name }),
   });
   return true;
 }
@@ -535,7 +554,7 @@ async function handleScanDetect(text: string): Promise<void> {
   if (scanLookupBusy) return;
   const bagCode = parseLcscBagCode(text);
   if (!bagCode) {
-    scanStatusText.value = "识别到的内容不是立创料袋码，已忽略。";
+    scanStatusText.value = t("stockDraft.notBagCodeIgnored");
     return;
   }
   const sku = bagCode.productCode;
@@ -543,14 +562,16 @@ async function handleScanDetect(text: string): Promise<void> {
     (line) => line.item.sku.trim().toUpperCase() === sku,
   );
   if (existing) {
-    notice.info(`“${existing.item.name}”已在草稿中`, { detail: "已打开该行明细。" });
+    notice.info(t("stockDraft.itemAlreadyInDraft", { name: existing.item.name }), {
+      detail: t("stockDraft.lineOpened"),
+    });
     scanOpen.value = false;
     selectLine(existing.lineId);
     return;
   }
 
   scanLookupBusy = true;
-  scanStatusText.value = `正在查找 ${sku}…`;
+  scanStatusText.value = t("stockDraft.searchingSku", { sku });
   try {
     const response = await listItemOptions(sku, 1, 20);
     const item =
@@ -560,18 +581,18 @@ async function handleScanDetect(text: string): Promise<void> {
         scanStatusText.value = "";
         scanOpen.value = false;
       } else {
-        scanStatusText.value = `库中没有编号 ${sku} 的物品。`;
+        scanStatusText.value = t("stockDraft.skuNotFound", { sku });
       }
       return;
     }
     const line = props.flow.addItem(item, { silent: true });
     props.flow.onScanItemAdded?.(line, bagCode);
     trackTelemetryEvent("bag_scan_matched");
-    scanStatusText.value = `已添加 ${item.name}，可继续扫下一袋。`;
+    scanStatusText.value = t("stockDraft.addedContinueScan", { name: item.name });
     scanOpen.value = false;
     selectLine(line.lineId);
   } catch (error) {
-    scanStatusText.value = `${pickerErrorMessage(error)}，请再扫一次。`;
+    scanStatusText.value = t("stockDraft.scanAgain", { message: pickerErrorMessage(error) });
   } finally {
     scanLookupBusy = false;
   }

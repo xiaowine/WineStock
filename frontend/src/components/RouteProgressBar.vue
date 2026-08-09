@@ -6,7 +6,7 @@
   <Transition name="route-progress">
     <div v-if="routeNavigationIndicatorVisible" class="route-progress" role="status">
       <span class="route-progress__bar" aria-hidden="true" />
-      <span class="visually-hidden">页面加载中</span>
+      <span class="visually-hidden">{{ $t('components.pageLoading') }}</span>
     </div>
   </Transition>
 </template>

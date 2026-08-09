@@ -1,9 +1,9 @@
 <!-- 本组件拥有审批队列的桌面三段式和移动单列呈现；它不请求数据或执行审批。 -->
 <template>
-  <div class="approval-queue-table" role="table" aria-label="待审批单据">
+  <div class="approval-queue-table" role="table" :aria-label="$t('approvals.pendingOrders')">
     <div class="approval-queue-table__head" role="row">
-      <span>单据与{{ catalog.contextLabel }}</span
-      ><span>物品与库存规则</span><span>等待与操作</span>
+      <span>{{ $t('approvals.orderAndContext', { context: $t(catalog.contextLabel) }) }}</span
+      ><span>{{ $t('approvals.itemsAndStockRules') }}</span><span>{{ $t('approvals.waitingAndActions') }}</span>
     </div>
     <article
       v-for="record in records"
@@ -24,7 +24,7 @@
         <div class="approval-queue-item">
           <AuthenticatedImage
             :file-id="firstItem(record).item_image_file_id"
-            :alt="`${firstItem(record).item_name} 主图`"
+            :alt="$t('approvals.itemMainImage', { name: firstItem(record).item_name })"
             :size="38"
             previewable
             @click.stop
@@ -35,10 +35,10 @@
             ><small>{{ firstItem(record).item_sku }} · {{ itemSummary(record) }}</small>
           </div>
         </div>
-        <span>{{ record.order.items.length }} 条明细 · {{ ruleSummary(record) }}</span>
+        <span>{{ $t('approvals.itemLines', { n: record.order.items.length }) }} · {{ ruleSummary(record) }}</span>
       </div>
       <div class="approval-queue-table__decision" role="cell">
-        <span class="approval-status">待审批</span
+        <span class="approval-status">{{ $t('approvals.pending') }}</span
         ><span>{{ waitingLabel(record.order.created_at) }}</span
         ><button
           class="secondary-button approval-detail-button"
@@ -51,7 +51,7 @@
             <circle cx="12" cy="12" r="8" />
             <path d="M12 11v5M12 8h.01" />
           </svg>
-          <span>查看详情</span>
+          <span>{{ $t('approvals.viewDetails') }}</span>
         </button>
       </div>
     </article>
@@ -69,7 +69,7 @@
     >
       <header>
         <strong>{{ orderLabel(record) }} #{{ record.order.id }}</strong
-        ><span class="approval-status">待审批</span
+        ><span class="approval-status">{{ $t('approvals.pending') }}</span
         ><button
           class="secondary-button approval-detail-button"
           type="button"
@@ -81,7 +81,7 @@
             <circle cx="12" cy="12" r="8" />
             <path d="M12 11v5M12 8h.01" />
           </svg>
-          <span>查看详情</span>
+          <span>{{ $t('approvals.viewDetails') }}</span>
         </button>
       </header>
       <p>{{ approvalContext(record) }}</p>
@@ -92,7 +92,7 @@
       <div class="approval-queue-item">
         <AuthenticatedImage
           :file-id="firstItem(record).item_image_file_id"
-          :alt="`${firstItem(record).item_name} 主图`"
+          :alt="$t('approvals.itemMainImage', { name: firstItem(record).item_name })"
           :size="38"
           previewable
           @click.stop
@@ -100,7 +100,7 @@
         />
         <div>
           <strong>{{ firstItem(record).item_name }}</strong
-          ><small>{{ record.order.items.length }} 条明细 · {{ ruleSummary(record) }}</small>
+          ><small>{{ $t('approvals.itemLines', { n: record.order.items.length }) }} · {{ ruleSummary(record) }}</small>
         </div>
       </div>
     </article>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 import {
   approvalContext,
@@ -117,15 +118,22 @@ import {
 
 defineProps<{ records: ApprovalRecord[]; catalog: ApprovalCatalog }>();
 const emit = defineEmits<{ open: [record: ApprovalRecord] }>();
+const { t } = useI18n();
 
 function orderLabel(record: ApprovalRecord): string {
-  return record.kind === "inbound" ? "入库单" : "出库单";
+  return record.kind === "inbound" ? t("approvals.inboundOrder") : t("approvals.outboundOrder");
 }
 function detailButtonTitle(record: ApprovalRecord): string {
-  return `查看${record.kind === "inbound" ? "入库" : "出库"}审批详情`;
+  return t("approvals.viewApprovalDetail", {
+    kind: t(record.kind === "inbound" ? "approvals.inbound" : "approvals.outbound"),
+  });
 }
 function detailButtonAriaLabel(record: ApprovalRecord): string {
-  return `${detailButtonTitle(record)}：${orderLabel(record)} #${record.order.id}`;
+  return t("approvals.viewDetailAria", {
+    title: detailButtonTitle(record),
+    order: orderLabel(record),
+    n: record.order.id,
+  });
 }
 function firstItem(record: ApprovalRecord) {
   return record.order.items[0];
@@ -136,15 +144,17 @@ function itemSummary(record: ApprovalRecord): string {
 }
 function ruleSummary(record: ApprovalRecord): string {
   if (record.kind === "inbound")
-    return record.order.items.length === 1 ? record.order.items[0].location_name : "按明细写入库位";
-  return record.order.items.some((item) => item.batch_id !== null) ? "含指定批次" : "审批时按 FIFO";
+    return record.order.items.length === 1 ? record.order.items[0].location_name : t("approvals.writePerLine");
+  return record.order.items.some((item) => item.batch_id !== null)
+    ? t("approvals.withSpecifiedBatch")
+    : t("approvals.fifoAtApproval");
 }
 function waitingLabel(value: string): string {
   const elapsed = Date.now() - new Date(value).getTime();
-  if (!Number.isFinite(elapsed) || elapsed < 60_000) return "刚刚提交";
-  if (elapsed < 3_600_000) return `等待 ${Math.floor(elapsed / 60_000)} 分钟`;
-  if (elapsed < 86_400_000) return `等待 ${Math.floor(elapsed / 3_600_000)} 小时`;
-  return `等待 ${Math.floor(elapsed / 86_400_000)} 天`;
+  if (!Number.isFinite(elapsed) || elapsed < 60_000) return t("approvals.justSubmitted");
+  if (elapsed < 3_600_000) return t("approvals.waitMinutes", { n: Math.floor(elapsed / 60_000) });
+  if (elapsed < 86_400_000) return t("approvals.waitHours", { n: Math.floor(elapsed / 3_600_000) });
+  return t("approvals.waitDays", { n: Math.floor(elapsed / 86_400_000) });
 }
 function formatDate(value: string): string {
   const date = new Date(value);

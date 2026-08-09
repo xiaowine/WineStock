@@ -6,8 +6,8 @@
   <section class="route-page locations-page">
     <header class="content-header locations-page__header">
       <div>
-        <h1>{{ $route.meta.title }}</h1>
-        <p>维护库位分组和入库、库存批次实际使用的存放位置。</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t('locations.subtitle') }}</p>
       </div>
     </header>
 
@@ -15,20 +15,20 @@
       <aside
         class="location-groups"
         :class="{ 'location-groups--open': groupPanelOpen }"
-        aria-label="库位分组面板"
+        :aria-label="$t('locations.groupPanel')"
       >
         <header class="location-groups__header">
           <div>
-            <span>分组导航</span>
-            <strong>库位分组</strong>
+            <span>{{ $t('locations.groupNav') }}</span>
+            <strong>{{ $t('locations.group') }}</strong>
           </div>
           <div class="location-groups__header-actions">
             <button
               v-if="canManage"
               class="icon-button"
               type="button"
-              title="新建根分组"
-              aria-label="新建根分组"
+              :title="$t('locations.createRootGroup')"
+              :aria-label="$t('locations.createRootGroup')"
               @click="openCreateGroup(null)"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -36,8 +36,8 @@
             <button
               class="icon-button location-groups__close"
               type="button"
-              title="关闭分组面板"
-              aria-label="关闭分组面板"
+              :title="$t('locations.closeGroupPanel')"
+              :aria-label="$t('locations.closeGroupPanel')"
               @click="closeGroupPanel"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
@@ -52,24 +52,26 @@
             role="alert"
           >
             <span>{{ treeError }}</span>
-            <button class="text-button" type="button" @click="loadTree">重试</button>
+            <button class="text-button" type="button" @click="loadTree">
+              {{ $t('locations.retry') }}
+            </button>
           </div>
           <div
             v-else-if="showTreeLoading && !treeLoaded"
             class="location-groups__state"
             role="status"
           >
-            正在加载分组…
+            {{ $t('locations.loadingGroups') }}
           </div>
           <div v-else-if="!groupTree.length" class="location-groups__state">
-            <span>暂无库位分组</span>
+            <span>{{ $t('locations.noGroups') }}</span>
             <button
               v-if="canManage"
               class="text-button"
               type="button"
               @click="openCreateGroup(null)"
             >
-              新建根分组
+              {{ $t('locations.createRootGroup') }}
             </button>
           </div>
           <template v-else>
@@ -95,11 +97,11 @@
         v-if="groupPanelOpen"
         class="location-groups-backdrop"
         type="button"
-        aria-label="关闭分组面板"
+        :aria-label="$t('locations.closeGroupPanel')"
         @click="closeGroupPanel"
       ></button>
 
-      <section class="locations-catalog" aria-label="库位列表">
+      <section class="locations-catalog" :aria-label="$t('locations.listAria')">
         <div
           class="locations-catalog__toolbar"
           :class="{ 'locations-catalog__toolbar--readonly': !canManage }"
@@ -107,9 +109,9 @@
           <SearchField
             v-model="searchInput"
             class="locations-catalog__search"
-            label="搜索库位"
+            :label="$t('locations.searchLabel')"
             name="location_search"
-            placeholder="搜索名称或备注"
+            :placeholder="$t('locations.searchPlaceholder')"
             :disabled="locationsLoading && !locationsLoaded"
             @search="applySearch"
           />
@@ -119,12 +121,20 @@
               ref="groupPanelTrigger"
               class="secondary-button locations-catalog__group-trigger"
               type="button"
-              :title="`选择分组，当前${
-                selectedGroupPath.length ? selectedGroupPath.join(' / ') : '全部库位'
-              }`"
-              :aria-label="`选择分组，当前${
-                selectedGroupPath.length ? selectedGroupPath.join(' / ') : '全部库位'
-              }`"
+              :title="
+                $t('locations.selectGroupTitle', {
+                  current: selectedGroupPath.length
+                    ? selectedGroupPath.join(' / ')
+                    : $t('locations.allLocations'),
+                })
+              "
+              :aria-label="
+                $t('locations.selectGroupTitle', {
+                  current: selectedGroupPath.length
+                    ? selectedGroupPath.join(' / ')
+                    : $t('locations.allLocations'),
+                })
+              "
               @click="groupPanelOpen = true"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -133,22 +143,24 @@
                 <rect x="3" y="18" width="6" height="4" rx="1" />
                 <rect x="15" y="18" width="6" height="4" rx="1" />
               </svg>
-              <span>{{ selectedGroup?.name ?? "全部库位" }}</span>
+              <span>{{ selectedGroup?.name ?? $t('locations.allLocations') }}</span>
             </button>
             <div class="locations-catalog__context-copy">
-              <span>库位分组</span>
-              <strong>{{ selectedGroup?.name ?? "全部库位" }}</strong>
+              <span>{{ $t('locations.group') }}</span>
+              <strong>{{ selectedGroup?.name ?? $t('locations.allLocations') }}</strong>
             </div>
           </div>
 
           <div class="locations-catalog__commands">
             <div class="locations-catalog__summary">
-              <span class="locations-catalog__count">{{ locations.length }} 个库位</span>
+              <span class="locations-catalog__count">{{
+                $t('locations.count', { n: locations.length })
+              }}</span>
               <span
                 v-if="showStableListRefreshing"
                 class="locations-catalog__refresh-status"
                 role="status"
-                >正在刷新</span
+                >{{ $t('locations.refreshing') }}</span
               >
             </div>
             <div class="locations-catalog__actions">
@@ -156,8 +168,8 @@
                 class="icon-button locations-catalog__refresh"
                 :class="{ 'locations-catalog__refresh--pending': showStableRefreshing }"
                 type="button"
-                title="刷新库位数据"
-                aria-label="刷新库位数据"
+                :title="$t('locations.refreshData')"
+                :aria-label="$t('locations.refreshData')"
                 :aria-busy="treeLoading || locationsLoading"
                 :disabled="treeLoading || locationsLoading"
                 @click="refreshAll"
@@ -171,8 +183,8 @@
                 v-if="canManage"
                 class="icon-button icon-button--primary locations-catalog__create"
                 type="button"
-                title="新建库位"
-                aria-label="新建库位"
+                :title="$t('locations.createLocation')"
+                :aria-label="$t('locations.createLocation')"
                 :disabled="groupOptions.length === 0"
                 @click="openCreateLocation"
               >
@@ -194,28 +206,34 @@
             role="alert"
           >
             <span>{{ locationError }}</span>
-            <button class="secondary-button" type="button" @click="loadLocationList">重试</button>
+            <button class="secondary-button" type="button" @click="loadLocationList">
+              {{ $t('locations.retry') }}
+            </button>
           </div>
           <div
             v-else-if="showLocationLoading && !locationsLoaded"
             class="locations-catalog__state"
             role="status"
           >
-            正在加载库位…
+            {{ $t('locations.loadingLocations') }}
           </div>
           <div v-else-if="!locations.length" class="locations-catalog__state">
             <strong>{{
-              activeSearch ? "没有匹配的库位" : selectedGroup ? "当前分组暂无库位" : "暂无库位"
+              activeSearch
+                ? $t('locations.noMatchingLocations')
+                : selectedGroup
+                  ? $t('locations.noLocationsInGroup')
+                  : $t('locations.noLocations')
             }}</strong>
             <span>{{
               activeSearch
-                ? "可以清除搜索或切换分组。"
+                ? $t('locations.clearSearchOrSwitchHint')
                 : canManage
-                  ? "可以从工具栏新建库位。"
-                  : "当前没有可查看的库位。"
+                  ? $t('locations.createFromToolbarHint')
+                  : $t('locations.nothingToViewHint')
             }}</span>
             <button v-if="activeSearch" class="text-button" type="button" @click="clearSearch">
-              清除搜索
+              {{ $t('locations.clearSearch') }}
             </button>
           </div>
           <template v-else>
@@ -226,12 +244,12 @@
               class="locations-table"
               :class="{ 'locations-table--readonly': !canManage }"
               role="table"
-              aria-label="库位主数据"
+              :aria-label="$t('locations.mainDataAria')"
             >
               <div class="locations-table__head" role="row">
-                <span role="columnheader">库位</span>
-                <span role="columnheader">备注</span>
-                <span role="columnheader">排序与操作</span>
+                <span role="columnheader">{{ $t('locations.location') }}</span>
+                <span role="columnheader">{{ $t('locations.remark') }}</span>
+                <span role="columnheader">{{ $t('locations.sortAndActions') }}</span>
               </div>
               <article
                 v-for="location in locations"
@@ -243,7 +261,7 @@
                   <strong :title="location.name"
                     >{{ location.name
                     }}<em v-if="location.is_default" class="locations-table__default-badge"
-                      >默认</em
+                      >{{ $t('locations.default') }}</em
                     ></strong
                   >
                   <span :title="location.group_name">{{ location.group_name }}</span>
@@ -253,18 +271,18 @@
                   role="cell"
                   :title="location.notes ?? undefined"
                 >
-                  {{ location.notes || "暂无备注" }}
+                  {{ location.notes || $t('locations.noNotes') }}
                 </div>
                 <div class="locations-table__decision" role="cell">
                   <div class="locations-table__meta">
                     <span class="locations-table__meta-row">
-                      <span class="locations-table__meta-label">排序：</span>
+                      <span class="locations-table__meta-label">{{ $t('locations.sortOrderLabel') }}</span>
                       <strong class="locations-table__meta-value" :title="String(location.sort_order)">{{
                         location.sort_order
                       }}</strong>
                     </span>
                     <span class="locations-table__meta-row">
-                      <span class="locations-table__meta-label">更新：</span>
+                      <span class="locations-table__meta-label">{{ $t('locations.updatedLabel') }}</span>
                       <time
                         class="locations-table__meta-value"
                         :datetime="location.updated_at"
@@ -278,11 +296,11 @@
                       class="icon-button"
                       :class="{ 'locations-table__default-active': location.is_default }"
                       type="button"
-                      :title="location.is_default ? '取消默认库位' : '设为默认库位'"
+                      :title="location.is_default ? $t('locations.unsetDefault') : $t('locations.setDefault')"
                       :aria-label="
                         location.is_default
-                          ? `取消默认库位 ${location.name}`
-                          : `设为默认库位 ${location.name}`
+                          ? $t('locations.unsetDefaultNamed', { name: location.name })
+                          : $t('locations.setDefaultNamed', { name: location.name })
                       "
                       :aria-pressed="location.is_default"
                       :disabled="defaultUpdatingId !== null"
@@ -297,8 +315,8 @@
                     <button
                       class="icon-button"
                       type="button"
-                      title="编辑库位"
-                      :aria-label="`编辑库位 ${location.name}`"
+                      :title="$t('locations.editLocation')"
+                      :aria-label="$t('locations.editLocationNamed', { name: location.name })"
                       @click="openEditLocation(location)"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -309,8 +327,8 @@
                     <button
                       class="icon-button locations-table__delete"
                       type="button"
-                      title="删除库位"
-                      :aria-label="`删除库位 ${location.name}`"
+                      :title="$t('locations.deleteLocation')"
+                      :aria-label="$t('locations.deleteLocationNamed', { name: location.name })"
                       @click="openDeleteLocation(location)"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -322,7 +340,7 @@
               </article>
             </div>
 
-            <div class="locations-mobile-list" aria-label="库位主数据">
+            <div class="locations-mobile-list" :aria-label="$t('locations.mainDataAria')">
               <article
                 v-for="location in locations"
                 :key="location.id"
@@ -333,7 +351,7 @@
                     <div class="locations-mobile-list__title">
                       <strong :title="location.name">{{ location.name }}</strong>
                       <em v-if="location.is_default" class="locations-table__default-badge"
-                        >默认</em
+                        >{{ $t('locations.default') }}</em
                       >
                     </div>
                     <span :title="location.group_name">{{ location.group_name }}</span>
@@ -343,11 +361,11 @@
                       class="icon-button"
                       :class="{ 'locations-table__default-active': location.is_default }"
                       type="button"
-                      :title="location.is_default ? '取消默认库位' : '设为默认库位'"
+                      :title="location.is_default ? $t('locations.unsetDefault') : $t('locations.setDefault')"
                       :aria-label="
                         location.is_default
-                          ? `取消默认库位 ${location.name}`
-                          : `设为默认库位 ${location.name}`
+                          ? $t('locations.unsetDefaultNamed', { name: location.name })
+                          : $t('locations.setDefaultNamed', { name: location.name })
                       "
                       :aria-pressed="location.is_default"
                       :disabled="defaultUpdatingId !== null"
@@ -362,8 +380,8 @@
                     <button
                       class="icon-button"
                       type="button"
-                      title="编辑库位"
-                      :aria-label="`编辑库位 ${location.name}`"
+                      :title="$t('locations.editLocation')"
+                      :aria-label="$t('locations.editLocationNamed', { name: location.name })"
                       @click="openEditLocation(location)"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -374,8 +392,8 @@
                     <button
                       class="icon-button locations-table__delete"
                       type="button"
-                      title="删除库位"
-                      :aria-label="`删除库位 ${location.name}`"
+                      :title="$t('locations.deleteLocation')"
+                      :aria-label="$t('locations.deleteLocationNamed', { name: location.name })"
                       @click="openDeleteLocation(location)"
                     >
                       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -386,11 +404,11 @@
                 </header>
                 <dl>
                   <div>
-                    <dt>更新时间</dt>
+                    <dt>{{ $t('locations.updatedAt') }}</dt>
                     <dd>{{ formatDateTime(location.updated_at) }}</dd>
                   </div>
                   <div v-if="location.notes" class="locations-mobile-list__notes">
-                    <dt>备注</dt>
+                    <dt>{{ $t('locations.remark') }}</dt>
                     <dd>{{ location.notes }}</dd>
                   </div>
                 </dl>
@@ -461,9 +479,13 @@ import type { LocationDeleteTarget, LocationGroupOption } from "../components/lo
 import SearchField from "../components/SearchField.vue";
 import { useNativeBackHandler } from "../composables/useNativeBackHandler";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
+import { translateMessageOrNull } from "../i18n";
+import { useI18n } from "vue-i18n";
 import { NativeBackPriority } from "../navigation/nativeBack";
 import { notice } from "../notices/notice";
 import "./LocationsPage.scss";
+
+const { t } = useI18n();
 
 const MAX_LOCATION_GROUP_DEPTH = 10;
 
@@ -580,7 +602,7 @@ async function loadTree(): Promise<boolean> {
     return true;
   } catch (error) {
     if (isAbortError(error)) return false;
-    treeError.value = locationManagementErrorMessage(error, "加载库位分组失败");
+    treeError.value = locationManagementErrorMessage(error, t("locations.loadGroupsFailed"));
     notice.error(treeError.value);
     return false;
   } finally {
@@ -610,7 +632,7 @@ async function loadLocationList(): Promise<boolean> {
     return true;
   } catch (error) {
     if (isAbortError(error)) return false;
-    locationError.value = locationManagementErrorMessage(error, "加载库位失败");
+    locationError.value = locationManagementErrorMessage(error, t("locations.loadLocationsFailed"));
     notice.error(locationError.value);
     return false;
   } finally {
@@ -624,7 +646,7 @@ async function loadLocationList(): Promise<boolean> {
 async function refreshAll(): Promise<void> {
   const treeSucceeded = await loadTree();
   const locationsSucceeded = await loadLocationList();
-  if (treeSucceeded && locationsSucceeded) notice.success("库位数据已刷新");
+  if (treeSucceeded && locationsSucceeded) notice.success(t("locations.dataRefreshed"));
 }
 
 function selectGroup(groupId: number | null): void {
@@ -663,7 +685,7 @@ function openCreateGroup(parent: LocationGroupTreeNode | null): void {
     parent &&
     (findGroupPath(groupTree.value, parent.id)?.length ?? 0) >= MAX_LOCATION_GROUP_DEPTH
   ) {
-    notice.warning("无法新建子分组", { detail: "库位分组最多只能有 10 层" });
+    notice.warning(t("locations.cannotCreateChildGroup"), { detail: t("locations.maxDepthHint") });
     return;
   }
   closeDialogs();
@@ -713,12 +735,15 @@ async function toggleDefaultLocation(location: LocationResponse): Promise<void> 
       if (entry.id === updated.id) return updated;
       return updated.is_default && entry.is_default ? { ...entry, is_default: false } : entry;
     });
-    notice.success(updated.is_default ? `已将「${updated.name}」设为默认库位` : "已取消默认库位", {
-      detail: updated.is_default ? "入库明细无历史库位时将预填该库位。" : undefined,
-    });
+    notice.success(
+      updated.is_default
+        ? t("locations.setDefaultSuccess", { name: updated.name })
+        : t("locations.unsetDefaultSuccess"),
+      { detail: updated.is_default ? t("locations.setDefaultDetail") : undefined },
+    );
   } catch (error) {
-    notice.error("默认库位设置失败", {
-      detail: locationManagementErrorMessage(error, "请稍后重试。"),
+    notice.error(t("locations.setDefaultFailed"), {
+      detail: locationManagementErrorMessage(error, t("locations.retryLater")),
     });
   } finally {
     defaultUpdatingId.value = null;
@@ -760,9 +785,9 @@ async function saveGroup(request: LocationGroupUpdateRequest): Promise<void> {
     selectedGroupId.value = saved.id;
     closeDialogsAfterSubmit();
     await Promise.all([loadTree(), loadLocationList()]);
-    notice.success(wasEditing ? "库位分组已更新" : "库位分组已创建");
+    notice.success(wasEditing ? t("locations.groupUpdated") : t("locations.groupCreated"));
   } catch (error) {
-    applyActionError(error, "保存库位分组失败");
+    applyActionError(error, t("locations.saveGroupFailed"));
   } finally {
     actionSubmitting.value = false;
   }
@@ -779,9 +804,9 @@ async function saveLocation(request: LocationUpdateRequest): Promise<void> {
       : createLocation(request));
     closeDialogsAfterSubmit();
     await Promise.all([loadTree(), loadLocationList()]);
-    notice.success(wasEditing ? "库位已更新" : "库位已创建");
+    notice.success(wasEditing ? t("locations.locationUpdated") : t("locations.locationCreated"));
   } catch (error) {
-    applyActionError(error, "保存库位失败");
+    applyActionError(error, t("locations.saveLocationFailed"));
   } finally {
     actionSubmitting.value = false;
   }
@@ -802,9 +827,12 @@ async function confirmDelete(): Promise<void> {
     }
     closeDialogsAfterSubmit();
     await Promise.all([loadTree(), loadLocationList()]);
-    notice.success(target.kind === "group" ? "库位分组已删除" : "库位已删除");
+    notice.success(target.kind === "group" ? t("locations.groupDeleted") : t("locations.locationDeleted"));
   } catch (error) {
-    applyActionError(error, target.kind === "group" ? "删除库位分组失败" : "删除库位失败");
+    applyActionError(
+      error,
+      target.kind === "group" ? t("locations.deleteGroupFailed") : t("locations.deleteLocationFailed"),
+    );
   } finally {
     actionSubmitting.value = false;
   }
@@ -885,39 +913,28 @@ function locationManagementError(
   fallback: string,
 ): { message: string; fieldErrors: Record<string, string> } {
   if (error instanceof ApiError) {
-    const messages: Record<string, string> = {
-      location_group_name_taken: "同一上级分组下已经存在同名分组",
-      location_group_cycle: "不能把分组移动到自身或子分组下",
-      location_group_depth_exceeded: "库位分组最多只能有 10 层",
-      location_group_in_use: "该分组仍包含子分组或有效库位，请先移动或删除子项",
-      location_group_not_found: "所选库位分组不存在或已被删除",
-      location_name_taken: "该库位名称已被使用",
-      location_in_use: "该库位仍有当前库存批次引用，请先移库或清空库存",
-      location_not_found: "目标库位不存在或已被删除",
-      invalid_request: "提交的库位信息无效，请检查后重试",
-    };
+    const message = translateMessageOrNull(`error.${error.code}`) ?? error.message;
     const fieldErrors = Object.fromEntries(
       Object.entries(error.fieldErrors).map(([path, values]) => [
         path.split(".").at(-1) ?? path,
-        values[0] ?? error.message,
+        values[0] ?? message,
       ]),
     );
-    if (error.code === "location_group_name_taken") fieldErrors.name = messages[error.code];
-    if (error.code === "location_group_cycle") fieldErrors.parent_id = messages[error.code];
-    if (error.code === "location_group_depth_exceeded")
-      fieldErrors.parent_id = messages[error.code];
-    if (error.code === "location_name_taken") fieldErrors.name = messages[error.code];
+    if (error.code === "location_group_name_taken") fieldErrors.name = message;
+    if (error.code === "location_group_cycle") fieldErrors.parent_id = message;
+    if (error.code === "location_group_depth_exceeded") fieldErrors.parent_id = message;
+    if (error.code === "location_name_taken") fieldErrors.name = message;
     if (error.code === "location_group_not_found") {
-      fieldErrors[groupDialogOpen.value ? "parent_id" : "group_id"] = messages[error.code];
+      fieldErrors[groupDialogOpen.value ? "parent_id" : "group_id"] = message;
     }
-    return { message: messages[error.code] ?? error.message ?? fallback, fieldErrors };
+    return { message, fieldErrors };
   }
   return { message: locationManagementErrorMessage(error, fallback), fieldErrors: {} };
 }
 
 function locationManagementErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message || fallback;
-  if (error instanceof ApiNetworkError) return "无法连接服务，请检查服务状态后重试";
+  if (error instanceof ApiNetworkError) return t("locations.networkError");
   if (error instanceof ApiConfigurationError || error instanceof ApiResponseError)
     return error.message;
   return fallback;

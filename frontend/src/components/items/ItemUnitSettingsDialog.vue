@@ -2,16 +2,20 @@
 <template>
   <ModalDialog
     :open="open"
-    title="设置单位"
-    :description="attributeName ? `配置“${attributeName}”的单位规则` : '配置当前数字属性的单位规则'"
+    :title="$t('items.unitSettings')"
+    :description="
+      attributeName
+        ? $t('items.unitSettingsDescriptionNamed', { name: attributeName })
+        : $t('items.unitSettingsDescription')
+    "
     compact
     nested
     @close="close"
   >
     <div class="item-unit-settings">
       <fieldset class="item-unit-settings__mode">
-        <legend>单位规则</legend>
-        <div class="item-unit-settings__segments" role="radiogroup" aria-label="单位规则">
+        <legend>{{ $t('items.unitRules') }}</legend>
+        <div class="item-unit-settings__segments" role="radiogroup" :aria-label="$t('items.unitRules')">
           <button
             v-for="option in modeOptions"
             :key="option.value"
@@ -30,12 +34,12 @@
       <FormInput
         v-if="mode === 'fixed'"
         v-model="fixedUnit"
-        label="单位名称"
+        :label="$t('items.unitName')"
         validation-key="fixedUnit"
         :error="fieldErrors.fixedUnit"
         name="unit_setting_fixed"
         maxlength="32"
-        placeholder="例如：kg"
+        :placeholder="$t('items.unitNamePlaceholder')"
         required
       />
 
@@ -49,15 +53,15 @@
           <header class="item-unit-settings__options-header">
             <div>
               <h3 id="unit-options-heading">
-                单位候选 <span>{{ options.length }}/32</span>
+                {{ $t('items.unitCandidates') }} <span>{{ options.length }}/32</span>
               </h3>
-              <p>名称不能为空，忽略大小写不能重复。</p>
+              <p>{{ $t('items.unitOptionsHint') }}</p>
             </div>
             <button
               type="button"
               class="icon-button item-unit-settings__add"
-              title="添加单位"
-              aria-label="添加单位"
+              :title="$t('items.addUnit')"
+              :aria-label="$t('items.addUnit')"
               :disabled="options.length >= 32"
               @click="addOption"
             >
@@ -76,8 +80,8 @@
                 v-model="options[index]"
                 :name="`unit_setting_option_${index}`"
                 maxlength="32"
-                :placeholder="`候选单位 ${index + 1}`"
-                :aria-label="`候选单位 ${index + 1}`"
+                :placeholder="$t('items.candidateUnit', { n: index + 1 })"
+                :aria-label="$t('items.candidateUnit', { n: index + 1 })"
                 :aria-invalid="invalid || undefined"
                 :aria-describedby="describedBy"
               />
@@ -85,7 +89,7 @@
             <button
               type="button"
               class="icon-button"
-              :aria-label="`删除候选单位 ${index + 1}`"
+              :aria-label="$t('items.deleteCandidateUnit', { n: index + 1 })"
               @click="removeOption(index)"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -93,20 +97,23 @@
               </svg>
             </button>
           </div>
-          <p v-if="options.length === 0" class="item-unit-settings__empty">尚未添加候选单位</p>
+          <p v-if="options.length === 0" class="item-unit-settings__empty">
+            {{ $t('items.noUnitCandidates') }}
+          </p>
         </section>
       </FormField>
     </div>
 
     <template #actions>
-      <button type="button" class="secondary-button" @click="close">取消</button>
-      <button type="button" class="primary-button" @click="save">应用设置</button>
+      <button type="button" class="secondary-button" @click="close">{{ $t('items.cancel') }}</button>
+      <button type="button" class="primary-button" @click="save">{{ $t('items.applySettings') }}</button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemAttributeUnitMode } from "../../api/itemAttributeTemplates";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
@@ -125,6 +132,7 @@ const emit = defineEmits<{
   close: [];
   save: [settings: { mode: ItemAttributeUnitMode; fixedUnit: string; options: string[] }];
 }>();
+const { t } = useI18n();
 
 const mode = ref<ItemAttributeUnitMode>("none");
 const fixedUnit = ref("");
@@ -132,9 +140,9 @@ const options = ref<string[]>([]);
 const fieldErrors = ref<Record<string, string>>({});
 const { clearErrors } = useFormValidation(fieldErrors);
 const modeOptions: Array<{ value: ItemAttributeUnitMode; label: string }> = [
-  { value: "none", label: "无单位" },
-  { value: "fixed", label: "指定单位" },
-  { value: "select", label: "选择单位" },
+  { value: "none", label: t("items.unitModeNone") },
+  { value: "fixed", label: t("items.unitModeFixed") },
+  { value: "select", label: t("items.unitModeSelect") },
 ];
 
 watch(
@@ -172,22 +180,22 @@ function save(): void {
   const normalizedOptions = options.value.map((option) => option.trim());
   const errors: Record<string, string> = {};
   if (mode.value === "fixed" && !normalizedFixed) {
-    errors.fixedUnit = "请输入单位名称。";
+    errors.fixedUnit = t("items.validationUnitNameRequired");
   }
   if (mode.value === "select") {
     const names = new Set<string>();
-    if (normalizedOptions.length === 0) errors.options = "至少添加一个候选单位。";
+    if (normalizedOptions.length === 0) errors.options = t("items.validationUnitOptionsRequired");
     normalizedOptions.forEach((option, index) => {
       if (!option) {
-        errors[`option.${index}`] = "请输入候选单位。";
+        errors[`option.${index}`] = t("items.validationUnitOptionBlank");
         return;
       }
-      if (!names.add(option.toLowerCase())) errors[`option.${index}`] = "候选单位不能重复。";
+      if (!names.add(option.toLowerCase())) errors[`option.${index}`] = t("items.validationUnitOptionDuplicate");
     });
   }
   if (Object.keys(errors).length > 0) {
     fieldErrors.value = errors;
-    notice.warning("请检查单位设置", { detail: Object.values(errors)[0] });
+    notice.warning(t("items.checkUnitSettings"), { detail: Object.values(errors)[0] });
     return;
   }
   emit("save", {

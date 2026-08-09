@@ -18,10 +18,14 @@
           <!-- 第 1 页：欢迎 + 使用方式 -->
           <div v-if="step === 'mode'" key="mode" class="setup-wizard__step">
             <div class="setup-wizard__head">
-              <h1 id="setup-wizard-title">欢迎使用 WineStock</h1>
-              <p>先选择这台设备的使用方式，稍后可以随时在设置中更改。</p>
+              <h1 id="setup-wizard-title">{{ $t("startup.wizardWelcomeTitle") }}</h1>
+              <p>{{ $t("startup.wizardModeIntro") }}</p>
             </div>
-            <div class="choice-card-group" role="radiogroup" aria-label="使用方式">
+            <div
+              class="choice-card-group"
+              role="radiogroup"
+              :aria-label="$t('startup.wizardUsageAriaLabel')"
+            >
               <label
                 v-for="option in modeOptions"
                 :key="option.value"
@@ -37,7 +41,9 @@
                 />
                 <strong>
                   {{ option.label }}
-                  <span v-if="option.recommended" class="choice-card__badge">推荐</span>
+                  <span v-if="option.recommended" class="choice-card__badge">{{
+                    $t("startup.recommended")
+                  }}</span>
                 </strong>
                 <span>{{ option.description }}</span>
               </label>
@@ -47,16 +53,16 @@
           <!-- 第 2 页：服务器地址（条件页） -->
           <div v-else-if="step === 'server'" key="server" class="setup-wizard__step">
             <div class="setup-wizard__head">
-              <h1 id="setup-wizard-title">连接服务器</h1>
-              <p>输入服务器地址，通常由部署 WineStock 的人提供。</p>
+              <h1 id="setup-wizard-title">{{ $t("startup.serverTitle") }}</h1>
+              <p>{{ $t("startup.serverIntro") }}</p>
             </div>
             <form class="auth-form" novalidate @submit.prevent="goForward">
               <FormInput
                 v-model="serverUrl"
-                label="服务器地址"
+                :label="$t('startup.serverAddressLabel')"
                 validation-key="remoteBaseUrl"
                 :error="serverUrlError"
-                hint="示例：http://192.168.1.10:17890"
+                :hint="$t('startup.serverAddressHint')"
                 name="server-url"
                 type="url"
                 autocomplete="off"
@@ -69,35 +75,34 @@
           <!-- 第 3 页：本机偏好 -->
           <div v-else-if="step === 'consent'" key="consent" class="setup-wizard__step">
             <div class="setup-wizard__head">
-              <h1 id="setup-wizard-title">偏好设置</h1>
-              <p>这些选项只影响当前设备，稍后可以随时更改。</p>
+              <h1 id="setup-wizard-title">{{ $t("startup.consentTitle") }}</h1>
+              <p>{{ $t("startup.consentIntro") }}</p>
             </div>
             <div class="setup-wizard__preferences">
               <section
                 class="setup-wizard__preference-section"
                 aria-labelledby="setup-appearance-title"
               >
-                <h2 id="setup-appearance-title">外观</h2>
+                <h2 id="setup-appearance-title">{{ $t("startup.appearanceTitle") }}</h2>
                 <ThemePreferenceSelector />
               </section>
               <section
                 class="setup-wizard__preference-section"
                 aria-labelledby="setup-telemetry-title"
               >
-                <h2 id="setup-telemetry-title">数据收集</h2>
+                <h2 id="setup-telemetry-title">{{ $t("startup.telemetryTitle") }}</h2>
                 <label class="consent-toggle">
                   <input v-model="telemetryConsent" type="checkbox" name="telemetry-consent" />
                   <span class="consent-toggle__copy">
-                    <strong>发送匿名使用数据</strong>
-                    <small
-                      >帮助开发者定位和排查问题；不包含库存内容与账户信息，仅在联网时生效。分析服务由
-                      Microsoft Clarity 提供。</small
-                    >
+                    <strong>{{ $t("startup.telemetryConsentLabel") }}</strong>
+                    <small>{{ $t("startup.telemetryConsentDescription") }}</small>
                   </span>
                 </label>
                 <p class="auth-runtime-note setup-wizard__consent-note">
-                  默认开启，可取消。
-                  <a href="#" @click.prevent="openTelemetryPolicy">查看 Microsoft 隐私声明</a>
+                  {{ $t("startup.telemetryDefaultNote") }}
+                  <a href="#" @click.prevent="openTelemetryPolicy">{{
+                    $t("startup.telemetryPolicyLink")
+                  }}</a>
                 </p>
               </section>
             </div>
@@ -107,15 +112,15 @@
           <div v-else key="applying" class="setup-wizard__step setup-wizard__step--applying">
             <div v-if="!applyError" class="setup-wizard__applying" role="status">
               <span class="setup-wizard__spinner" aria-hidden="true"></span>
-              <p>加载中…</p>
+              <p>{{ $t("startup.applyingLoading") }}</p>
             </div>
             <div v-else class="setup-wizard__apply-error">
               <div class="auth-page-actions">
                 <button class="secondary-button" type="button" @click="restartWizard">
-                  返回修改
+                  {{ $t("startup.backToEdit") }}
                 </button>
                 <button class="primary-button" type="button" @click="applyConfiguration">
-                  重试
+                  {{ $t("startup.retry") }}
                 </button>
               </div>
             </div>
@@ -129,10 +134,10 @@
       >
         <div class="auth-page-actions setup-wizard__actions">
           <button v-if="!isFirstStep" class="secondary-button" type="button" @click="goBack">
-            上一步
+            {{ $t("startup.previous") }}
           </button>
           <button class="primary-button" type="button" @click="goForward">
-            {{ isLastChoiceStep ? "完成" : "下一步" }}
+            {{ isLastChoiceStep ? $t("startup.finish") : $t("startup.next") }}
           </button>
         </div>
         <div class="setup-wizard__dots" aria-hidden="true">
@@ -150,6 +155,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import BrandMark from "../components/BrandMark.vue";
 import FormInput from "../components/forms/FormInput.vue";
 import ThemePreferenceSelector from "../components/preferences/ThemePreferenceSelector.vue";
@@ -157,6 +163,7 @@ import { startTelemetryIfConsented } from "../telemetry/clarity";
 import { TELEMETRY_POLICY_URL, saveTelemetryConsent } from "../telemetry/consent";
 import { notice } from "../notices/notice";
 import type { EditableRuntimeConfig } from "../shell/contract";
+import { localizeRuntimeFieldErrors } from "../shell/fieldErrors";
 import {
   applyRuntimeConfig,
   openExternal,
@@ -170,6 +177,7 @@ type SetupStep = "mode" | "server" | "consent" | "applying";
 const CONNECTION_TEST_TIMEOUT_MS = 4_000;
 
 const router = useRouter();
+const { t } = useI18n();
 
 /**
  * 纯网页端只有「连接远端」一种能力：使用方式页没有可做的决策，
@@ -186,18 +194,18 @@ const telemetryConsent = ref(true);
 const applying = ref(false);
 const applyError = ref("");
 
-const modeOptions = [
+const modeOptions = computed(() => [
   {
     value: "local" as const,
-    label: "本机自用",
-    description: "服务和数据运行在这台设备上，适合个人或单设备使用。",
+    label: t("startup.modeLocalLabel"),
+    description: t("startup.modeLocalDescription"),
     recommended: true,
     disabled: false,
   },
   {
     value: "server" as const,
-    label: "共享服务",
-    description: "在这台设备运行服务，允许其他设备连接使用。",
+    label: t("startup.modeServerLabel"),
+    description: t("startup.modeServerDescription"),
     recommended: false,
     disabled:
       runtimeSnapshot.value?.platform !== "desktop" ||
@@ -205,12 +213,12 @@ const modeOptions = [
   },
   {
     value: "remote" as const,
-    label: "连接远端",
-    description: "不启动本地服务，连接已经部署好的 WineStock 服务。",
+    label: t("startup.modeRemoteLabel"),
+    description: t("startup.modeRemoteDescription"),
     recommended: false,
     disabled: false,
   },
-];
+]);
 
 /** 决策步骤序列（不含完成态）；本机路径跳过服务器页，纯网页端跳过使用方式页。 */
 const stepSequence = computed<readonly SetupStep[]>(() => {
@@ -261,15 +269,16 @@ function goBack(): void {
 async function advanceFromServerStep(): Promise<void> {
   serverUrlError.value = "";
   const validation = await validateRuntimeConfig(buildCandidateConfig());
-  const fieldError = validation.fieldErrors.remoteBaseUrl?.[0];
+  const localized = localizeRuntimeFieldErrors(validation.fieldErrors);
+  const fieldError = localized.remoteBaseUrl?.[0];
   if (!validation.valid && fieldError) {
     serverUrlError.value = fieldError;
-    notice.warning("请检查服务器地址", { detail: fieldError });
+    notice.warning(t("startup.checkServerAddress"), { detail: fieldError });
     return;
   }
   if (!validation.valid) {
-    serverUrlError.value = "服务器地址无效，请检查后重试";
-    notice.warning("请检查服务器地址", { detail: serverUrlError.value });
+    serverUrlError.value = t("startup.serverAddressInvalid");
+    notice.warning(t("startup.checkServerAddress"), { detail: serverUrlError.value });
     return;
   }
   step.value = "consent";
@@ -297,9 +306,9 @@ async function testRemoteConnection(): Promise<boolean> {
   } catch (error) {
     const detail =
       error instanceof DOMException && error.name === "AbortError"
-        ? "连接超时，请检查服务器地址和网络连接。"
-        : "暂时无法连接，请检查服务器地址和网络连接。";
-    notice.error("远端连接测试失败", { detail });
+        ? t("startup.remoteTestTimeout")
+        : t("startup.remoteTestUnreachable");
+    notice.error(t("startup.remoteTestFailed"), { detail });
     return false;
   } finally {
     window.clearTimeout(timeout);
@@ -332,7 +341,7 @@ async function applyConfiguration(): Promise<void> {
   applyError.value = "";
   try {
     if (mode.value === "remote" && !(await testRemoteConnection())) {
-      applyError.value = "远端连接测试失败，请返回修改服务器地址或检查网络连接";
+      applyError.value = t("startup.remoteTestFailedApply");
       return;
     }
     const result = await applyRuntimeConfig(buildCandidateConfig());
@@ -340,17 +349,18 @@ async function applyConfiguration(): Promise<void> {
       await router.replace({ name: "auth-entry" });
       return;
     }
+    const localizedFieldError = Object.values(
+      localizeRuntimeFieldErrors(result.fieldErrors),
+    )[0]?.[0];
     applyError.value =
-      result.error?.message ??
-      Object.values(result.fieldErrors)[0]?.[0] ??
-      "无法应用当前配置，请返回修改后重试";
-    notice.error("应用运行配置失败", {
+      result.error?.message ?? localizedFieldError ?? t("startup.applyConfigFailedRetry");
+    notice.error(t("startup.applyConfigFailedTitle"), {
       detail: applyError.value,
       onClick: () => void applyConfiguration(),
     });
   } catch (error) {
-    applyError.value = error instanceof Error ? error.message : "无法应用当前配置，请稍后重试";
-    notice.error("应用运行配置失败", {
+    applyError.value = error instanceof Error ? error.message : t("startup.applyConfigFailedLater");
+    notice.error(t("startup.applyConfigFailedTitle"), {
       detail: applyError.value,
       onClick: () => void applyConfiguration(),
     });

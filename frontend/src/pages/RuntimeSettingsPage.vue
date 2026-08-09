@@ -7,11 +7,11 @@
 <template>
   <ModalDialog
     :open="true"
-    title="运行模式"
+    :title="$t('runtime.runtimeMode')"
     :description="
       setupFinished
-        ? '选择 WineStock 在这台设备上的运行方式，或连接已有服务。'
-        : '先选择这台设备的运行方式，保存后继续。'
+        ? $t('runtime.settingsDescriptionFinished')
+        : $t('runtime.settingsDescriptionFirstTime')
     "
     :busy="applying"
     wide
@@ -21,7 +21,7 @@
       <section
         class="runtime-next-status"
         :class="`runtime-next-status--${statusTone}`"
-        aria-label="当前服务状态"
+        :aria-label="$t('runtime.serviceStatusAriaLabel')"
       >
         <span class="runtime-next-status__dot" aria-hidden="true"></span>
         <div class="runtime-next-status__copy">
@@ -35,7 +35,7 @@
           :disabled="checkingActiveService"
           @click="retryActiveService"
         >
-          {{ checkingActiveService ? "检查中…" : "重试" }}
+          {{ checkingActiveService ? $t("runtime.checking") : $t("runtime.retry") }}
         </button>
       </section>
 
@@ -46,7 +46,7 @@
         @submit.prevent="requestApply"
       >
         <div>
-          <fieldset class="runtime-next-tabs" :disabled="applying" aria-label="运行模式">
+          <fieldset class="runtime-next-tabs" :disabled="applying" :aria-label="$t('runtime.runtimeMode')">
             <label
               v-for="option in modeOptions"
               :key="option.value"
@@ -69,24 +69,24 @@
             </label>
           </fieldset>
           <p v-if="isPureWebPlatform" class="runtime-next__tabs-note">
-            浏览器无法在本机启动服务，仅支持连接远端。
+            {{ $t("runtime.webModeNote") }}
           </p>
         </div>
 
         <section class="runtime-next__config" aria-labelledby="runtime-next-config-title">
           <div class="runtime-next__config-heading">
             <h2 id="runtime-next-config-title">{{ modeTitle }}</h2>
-            <span v-if="!setupFinished">请保存以确认运行方式</span>
-            <span v-else-if="dirty">有未保存的更改</span>
+            <span v-if="!setupFinished">{{ $t("runtime.saveToConfirmMode") }}</span>
+            <span v-else-if="dirty">{{ $t("runtime.unsavedChanges") }}</span>
           </div>
 
           <template v-if="remoteMode">
             <FormInput
               v-model="draft.remoteBaseUrl"
-              label="服务器地址"
+              :label="$t('runtime.serverAddress')"
               validation-key="remoteBaseUrl"
               :error="fieldError('remoteBaseUrl')"
-              hint="例如：https://server.example.com:17890"
+              :hint="$t('runtime.serverAddressHint')"
               name="runtime_next_remote_base_url"
               type="url"
               inputmode="url"
@@ -96,13 +96,13 @@
               required
             />
             <div v-if="usesInsecureRemoteHttp" class="form-warning" role="status">
-              这个地址没有使用 HTTPS，请只在可信网络中使用。
+              {{ $t("runtime.insecureHttpWarning") }}
             </div>
           </template>
 
           <template v-else>
             <p v-if="!serverMode" class="runtime-next__note">
-              打开应用时，本机服务会自动启动并选择可用端口。
+              {{ $t("runtime.localAutoStartNote") }}
             </p>
             <button
               v-if="canRepairFirewall"
@@ -114,13 +114,13 @@
               {{ firewallRepairButtonLabel }}
             </button>
             <details v-if="serverMode" class="runtime-next__advanced">
-              <summary>高级设置</summary>
+              <summary>{{ $t("runtime.advancedSettings") }}</summary>
               <FormInput
                 v-model="draft.port"
-                label="服务端口"
+                :label="$t('runtime.servicePort')"
                 validation-key="port"
                 :error="fieldError('port')"
-                hint="一般无需修改。"
+                :hint="$t('runtime.portHint')"
                 name="runtime_next_port"
                 type="number"
                 inputmode="numeric"
@@ -131,7 +131,7 @@
               />
               <FormInput
                 v-model="draft.bindHost"
-                label="监听地址"
+                :label="$t('runtime.listenAddress')"
                 validation-key="bindHost"
                 :error="fieldError('bindHost')"
                 :hint="bindHostHint"
@@ -157,7 +157,7 @@
         type="button"
         @click="leaveRuntimeSettings"
       >
-        取消
+        {{ $t("runtime.cancel") }}
       </button>
       <button
         class="primary-button"
@@ -167,19 +167,19 @@
       >
         {{
           testingRemote
-            ? "正在测试连接…"
+            ? $t("runtime.testingConnection")
             : applying
-              ? "正在保存…"
+              ? $t("runtime.saving")
               : remoteMode
-                ? "测试并保存"
-                : "保存设置"
+                ? $t("runtime.testAndSave")
+                : $t("runtime.saveSettings")
         }}
       </button>
     </template>
 
     <ModalDialog
       :open="confirmationOpen"
-      :title="enablingLanAccess ? '启用共享服务？' : '切换运行模式？'"
+      :title="enablingLanAccess ? $t('runtime.enableLanTitle') : $t('runtime.switchModeTitle')"
       :description="confirmationDescription"
       :busy="applying"
       compact
@@ -194,10 +194,10 @@
           :disabled="applying"
           @click="confirmationOpen = false"
         >
-          取消
+          {{ $t("runtime.cancel") }}
         </button>
         <button class="primary-button" type="button" :disabled="applying" @click="applyConfirmed">
-          {{ applying ? "正在保存…" : "确认" }}
+          {{ applying ? $t("runtime.saving") : $t("runtime.confirm") }}
         </button>
       </template>
     </ModalDialog>
@@ -219,7 +219,7 @@
           :disabled="firewallRepairing"
           @click="firewallRecoveryOpen = false"
         >
-          继续使用
+          {{ $t("runtime.continueAnyway") }}
         </button>
         <button
           class="primary-button"
@@ -227,26 +227,26 @@
           :disabled="firewallRepairing"
           @click="repairFirewall"
         >
-          {{ firewallRepairing ? "正在重试…" : firewallRepairActionLabel }}
+          {{ firewallRepairing ? $t("runtime.repairing") : firewallRepairActionLabel }}
         </button>
       </template>
     </ModalDialog>
 
     <ModalDialog
       :open="passwordGateOpen"
-      title="先设置当前用户密码"
-      description="开放给其他设备连接前，需要为当前用户设置真实密码；其他设备将用当前用户名登录。"
+      :title="$t('runtime.passwordGateTitle')"
+      :description="$t('runtime.passwordGateDescription')"
       :busy="gateSubmitting"
       compact
       nested
       @close="closePasswordGate"
     >
       <FormField
-        label="当前用户密码"
+        :label="$t('runtime.currentUserPassword')"
         control-id="runtime_next_gate_password"
         validation-key="gatePassword"
         :error="gateFieldError"
-        hint="至少 8 个字符。"
+        :hint="$t('runtime.passwordMinHint')"
         required
         v-slot="{ describedBy, invalid }"
       >
@@ -262,7 +262,7 @@
         />
       </FormField>
       <FormField
-        label="确认密码"
+        :label="$t('runtime.confirmPassword')"
         control-id="runtime_next_gate_password_confirm"
         validation-key="gatePasswordConfirm"
         :error="gateConfirmError"
@@ -286,7 +286,7 @@
           :disabled="gateSubmitting"
           @click="closePasswordGate"
         >
-          取消
+          {{ $t("runtime.cancel") }}
         </button>
         <button
           class="primary-button"
@@ -294,7 +294,7 @@
           :disabled="gateSubmitting"
           @click="submitPasswordGate"
         >
-          {{ gateSubmitting ? "正在设置…" : "设置并继续" }}
+          {{ gateSubmitting ? $t("runtime.settingUp") : $t("runtime.setAndContinue") }}
         </button>
       </template>
     </ModalDialog>
@@ -304,6 +304,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { changeOwnPassword, getLocalSessionStatus } from "../api/auth";
 import { authSession, authStatus, localSilentAuthActive } from "../auth/session";
 import FormField from "../components/forms/FormField.vue";
@@ -329,6 +330,7 @@ import {
   type RuntimeConfigField,
   type RuntimeMode,
 } from "../shell/contract";
+import { localizeRuntimeFieldErrors } from "../shell/fieldErrors";
 import {
   checkServiceAvailability,
   isCheckingServiceAvailability,
@@ -350,6 +352,7 @@ const emit = defineEmits<{ close: [] }>();
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const draft = ref<EditableRuntimeConfig>(cloneRuntimeConfig(defaultRuntimeConfig));
 const fieldErrors = ref<Partial<Record<RuntimeConfigField, readonly string[]>>>({});
 const applying = ref(false);
@@ -379,29 +382,31 @@ const previewAddress = computed(() => previewApiBaseUrl(draft.value));
 const firewallStatus = computed(() => snapshot.value?.service.firewall?.status);
 const firewallProviderName = computed(() =>
   snapshot.value?.platform === "desktop" && snapshot.value.capabilities.serverMode
-    ? "Windows 防火墙"
-    : "系统防火墙",
+    ? t("runtime.firewallProviderWindows")
+    : t("runtime.firewallProviderSystem"),
 );
 const firewallStatusMessage = computed(() => {
   if (snapshot.value?.config.mode !== "server-mode" || !serverMode.value) return "";
 
   switch (firewallStatus.value) {
     case "ready":
-      return "当前端口已允许局域网访问。";
+      return t("runtime.firewallReady");
     case "requires-elevation":
-      return `尚未完成${firewallProviderName.value}授权，其他设备可能无法连接。`;
+      return t("runtime.firewallRequiresElevation", {
+        provider: firewallProviderName.value,
+      });
     case "blocked-by-policy":
-      return `系统策略阻止配置${firewallProviderName.value}，其他设备可能无法连接。`;
+      return t("runtime.firewallBlockedByPolicy", { provider: firewallProviderName.value });
     case "profile-unsupported":
-      return "当前网络属于公用网络，未自动开放局域网端口。";
+      return t("runtime.firewallProfileUnsupported");
     case "disabled":
-      return `${firewallProviderName.value}未运行，无法确认局域网访问状态。`;
+      return t("runtime.firewallDisabled", { provider: firewallProviderName.value });
     case "cleanup-pending":
-      return "旧的 Windows 防火墙规则尚未清理完成，可能仍保留局域网访问。";
+      return t("runtime.firewallCleanupPending");
     case "error":
-      return `${firewallProviderName.value}状态无法确认，请重试或检查系统设置。`;
+      return t("runtime.firewallError", { provider: firewallProviderName.value });
     case "not-required":
-      return "当前平台不需要自动配置防火墙。";
+      return t("runtime.firewallNotRequired");
     default:
       return "";
   }
@@ -412,24 +417,28 @@ const canRepairFirewall = computed(() =>
 const firewallRecoveryRequired = computed(() => canRepairFirewall.value);
 const firewallRecoveryTitle = computed(() =>
   firewallStatus.value === "cleanup-pending"
-    ? "防火墙规则清理未完成"
-    : `${firewallProviderName.value}未完成配置`,
+    ? t("runtime.firewallCleanupTitle")
+    : t("runtime.firewallConfigIncompleteTitle", { provider: firewallProviderName.value }),
 );
 const firewallRecoveryDescription = computed(() =>
   firewallStatus.value === "cleanup-pending"
-    ? "当前运行方式已经切换，但旧的局域网放行规则还没有删除。"
-    : "局域网设备可能无法连接当前服务。",
+    ? t("runtime.firewallCleanupDescription")
+    : t("runtime.firewallConfigIncompleteDescription"),
 );
 const firewallRecoveryDetail = computed(() =>
   firewallStatus.value === "cleanup-pending"
-    ? `可以继续使用当前运行方式，也可以再次确认${firewallProviderName.value}系统权限并重试清理。`
-    : `可以继续使用当前服务，也可以再次确认${firewallProviderName.value}系统权限并重试配置。`,
+    ? t("runtime.firewallCleanupDetail", { provider: firewallProviderName.value })
+    : t("runtime.firewallConfigIncompleteDetail", { provider: firewallProviderName.value }),
 );
 const firewallRepairActionLabel = computed(() =>
-  firewallStatus.value === "cleanup-pending" ? "重试清理" : "重试授权",
+  firewallStatus.value === "cleanup-pending"
+    ? t("runtime.firewallRetryCleanup")
+    : t("runtime.firewallRetryAuthorize"),
 );
 const firewallRepairButtonLabel = computed(() =>
-  firewallStatus.value === "cleanup-pending" ? "重试清理" : "重试防火墙设置",
+  firewallStatus.value === "cleanup-pending"
+    ? t("runtime.firewallRetryCleanup")
+    : t("runtime.firewallRetryButton"),
 );
 const dirty = computed(
   () =>
@@ -468,20 +477,24 @@ const setupFinished = computed(() => isRuntimeSetupFinished(snapshot.value));
 /** 未初始化时即使表单与草稿一致也允许保存，把确认权收在保存路径上。 */
 const canSave = computed(() => dirty.value || !setupFinished.value);
 const modeTitle = computed(() =>
-  remoteMode.value ? "连接远端" : serverMode.value ? "共享服务" : "本机自用",
+  remoteMode.value
+    ? t("runtime.remoteModeLabel")
+    : serverMode.value
+      ? t("runtime.serverModeLabel")
+      : t("runtime.localModeLabel"),
 );
 const bindHostHint = computed(() =>
-  serverMode.value ? "默认值适用于大多数局域网环境。" : "本机模式固定为 127.0.0.1。",
+  serverMode.value ? t("runtime.listenAddressHintDefault") : t("runtime.listenAddressHintLocal"),
 );
 const serverModeDisabledReason = computed(() => {
   if (isPureWebPlatform.value) {
-    return "浏览器无法在本机启动服务，不能启用共享服务。";
+    return t("runtime.serverModeDisabledWeb");
   }
   if (snapshot.value?.capabilities.serverMode) return "";
   if (snapshot.value?.platform === "android") {
-    return "Android 当前只支持本机 127.0.0.1，不能启用共享服务。";
+    return t("runtime.serverModeDisabledAndroid");
   }
-  return "当前平台暂不支持自动配置防火墙，请手动配置。";
+  return t("runtime.firewallManualConfig");
 });
 const usesInsecureRemoteHttp = computed(() => {
   if (!remoteMode.value) return false;
@@ -498,24 +511,24 @@ const usesInsecureRemoteHttp = computed(() => {
 const modeOptions = computed(() => [
   {
     value: "self-hosted" as const,
-    label: "本机自用",
-    description: "服务和数据运行在这台设备上，适合个人或单设备使用。",
+    label: t("runtime.localModeLabel"),
+    description: t("runtime.localModeDescription"),
     selected: draft.value.mode === "self-hosted",
     disabled: isPureWebPlatform.value,
-    disabledReason: isPureWebPlatform.value ? "浏览器无法在本机启动服务，请连接远端。" : "",
+    disabledReason: isPureWebPlatform.value ? t("runtime.webConnectRemoteHint") : "",
   },
   {
     value: "client-only" as const,
-    label: "连接远端",
-    description: "不启动本地服务，连接已经部署好的 WineStock 服务。",
+    label: t("runtime.remoteModeLabel"),
+    description: t("runtime.remoteModeDescription"),
     selected: remoteMode.value,
     disabled: false,
     disabledReason: "",
   },
   {
     value: "server-mode" as const,
-    label: "共享服务",
-    description: "在这台设备运行服务，允许其他设备连接使用。",
+    label: t("runtime.serverModeLabel"),
+    description: t("runtime.serverModeDescription"),
     selected: serverMode.value,
     disabled: isPureWebPlatform.value || !(snapshot.value?.capabilities.serverMode ?? false),
     disabledReason: serverModeDisabledReason.value,
@@ -539,29 +552,29 @@ const statusTone = computed<StatusTone>(() => {
 });
 const statusTitle = computed(() => {
   const phase = snapshot.value?.service.phase;
-  if (firewallStatus.value === "requires-elevation") return "需要防火墙授权";
-  if (firewallStatus.value === "blocked-by-policy") return "防火墙规则被系统策略阻止";
-  if (firewallStatus.value === "profile-unsupported") return "当前网络配置文件不支持自动放行";
-  if (firewallStatus.value === "disabled") return "防火墙未启用，局域网保护状态未知";
-  if (firewallStatus.value === "cleanup-pending") return "旧防火墙规则尚未清理";
-  if (firewallStatus.value === "error") return "防火墙规则更新失败";
-  if (phase === "starting") return "正在启动";
-  if (phase === "stopping") return "正在停止";
-  if (phase === "failed") return "本机服务启动失败";
-  if (!activeAddress.value) return "尚未连接服务";
-  if (serviceAvailabilityStatus.value === "available") return "服务连接正常";
-  if (serviceAvailabilityStatus.value === "unavailable") return "暂时无法连接服务";
-  return "正在检查连接";
+  if (firewallStatus.value === "requires-elevation") return t("runtime.statusNeedsFirewallAuth");
+  if (firewallStatus.value === "blocked-by-policy") return t("runtime.statusFirewallBlocked");
+  if (firewallStatus.value === "profile-unsupported") return t("runtime.statusProfileUnsupported");
+  if (firewallStatus.value === "disabled") return t("runtime.statusFirewallDisabled");
+  if (firewallStatus.value === "cleanup-pending") return t("runtime.statusCleanupPending");
+  if (firewallStatus.value === "error") return t("runtime.statusFirewallError");
+  if (phase === "starting") return t("runtime.statusStarting");
+  if (phase === "stopping") return t("runtime.statusStopping");
+  if (phase === "failed") return t("runtime.statusLocalFailed");
+  if (!activeAddress.value) return t("runtime.statusNotConnected");
+  if (serviceAvailabilityStatus.value === "available") return t("runtime.statusAvailable");
+  if (serviceAvailabilityStatus.value === "unavailable") return t("runtime.statusUnavailable");
+  return t("runtime.statusChecking");
 });
 const confirmationDescription = computed(() => {
-  if (serverPortChanging.value) return "保存后，应用会使用新的服务端口。";
-  if (!enablingLanAccess.value) return "保存后，应用会改用新的服务地址。";
-  return "保存后，同一网络中的设备可以连接 WineStock。";
+  if (serverPortChanging.value) return t("runtime.confirmationPortChange");
+  if (!enablingLanAccess.value) return t("runtime.confirmationAddressChange");
+  return t("runtime.confirmationLanEnable");
 });
 const confirmationDetail = computed(() =>
   runtimeChangeClearsSession.value
-    ? "切换服务后，当前登录状态会被清除，可能需要重新登录。"
-    : "请确认继续保存这项设置。",
+    ? t("runtime.confirmationSessionCleared")
+    : t("runtime.confirmationContinue"),
 );
 
 watch(
@@ -573,7 +586,7 @@ watch(
   { immediate: true },
 );
 watch(shellRuntimeError, (error) => {
-  if (error) notice.error("运行环境初始化失败", { detail: error });
+  if (error) notice.error(t("runtime.runtimeInitFailed"), { detail: error });
 });
 void initializeShellRuntime()
   .then((initial) => {
@@ -607,10 +620,10 @@ function coerceDraftForPlatform(config: EditableRuntimeConfig): EditableRuntimeC
 
 async function requestApply(): Promise<void> {
   const validation = await validateRuntimeConfig(draft.value);
-  fieldErrors.value = validation.fieldErrors;
+  fieldErrors.value = localizeRuntimeFieldErrors(validation.fieldErrors);
   if (!validation.valid) {
-    notice.warning("请检查运行模式", {
-      detail: Object.values(validation.fieldErrors)[0]?.[0] ?? "请检查输入内容",
+    notice.warning(t("runtime.checkRuntimeMode"), {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? t("runtime.checkInput"),
     });
     return;
   }
@@ -644,7 +657,7 @@ async function resolveLocalUserPasswordGate(): Promise<"pass" | "required" | "bl
   try {
     return (await getLocalSessionStatus()).password_placeholder ? "required" : "pass";
   } catch {
-    notice.error("无法确认当前用户密码状态", { detail: "请稍后重试。" });
+    notice.error(t("runtime.passwordStatusFailed"), { detail: t("runtime.retryLater") });
     return "blocked";
   }
 }
@@ -664,11 +677,11 @@ function closePasswordGate(): void {
 
 /** 占位态免旧密码设置真实密码；成功后回到正常的确认与保存流程。 */
 async function submitPasswordGate(): Promise<void> {
-  gateFieldError.value = gatePassword.value.length < 8 ? "密码至少需要 8 个字符" : "";
+  gateFieldError.value = gatePassword.value.length < 8 ? t("runtime.passwordTooShort") : "";
   gateConfirmError.value =
-    gatePassword.value === gatePasswordConfirm.value ? "" : "两次输入的密码不一致";
+    gatePassword.value === gatePasswordConfirm.value ? "" : t("runtime.passwordMismatch");
   if (gateFieldError.value || gateConfirmError.value) {
-    notice.warning("请检查当前用户账号", {
+    notice.warning(t("runtime.checkUserAccount"), {
       detail: gateFieldError.value || gateConfirmError.value,
     });
     return;
@@ -681,11 +694,11 @@ async function submitPasswordGate(): Promise<void> {
       new_password: gatePassword.value,
     });
     passwordGateOpen.value = false;
-    notice.success("当前用户账号已设置");
+    notice.success(t("runtime.accountPasswordSet"));
     confirmationOpen.value = true;
   } catch (error) {
-    notice.error("设置当前用户密码失败", {
-      detail: error instanceof Error ? error.message : "请重试。",
+    notice.error(t("runtime.setPasswordFailed"), {
+      detail: error instanceof Error ? error.message : t("runtime.opFailedRetry"),
     });
   } finally {
     gateSubmitting.value = false;
@@ -702,24 +715,24 @@ async function executeApply(): Promise<void> {
   const wasSetupFinished = setupFinished.value;
   try {
     const result = await applyRuntimeConfig(draft.value);
-    fieldErrors.value = result.fieldErrors;
+    fieldErrors.value = localizeRuntimeFieldErrors(result.fieldErrors);
     if (!result.applied) {
-      notice.error("设置保存失败", {
+      notice.error(t("runtime.saveFailed"), {
         detail:
           result.error?.message ??
-          Object.values(result.fieldErrors)[0]?.[0] ??
-          "设置没有保存，请检查后重试",
+          Object.values(fieldErrors.value)[0]?.[0] ??
+          t("runtime.saveNotApplied"),
       });
       return;
     }
     draft.value = cloneRuntimeConfig(result.snapshot.config);
     if (firewallRecoveryRequired.value) {
       firewallRecoveryOpen.value = true;
-      notice.warning("运行模式已保存，但防火墙未完成", {
-        detail: "可以继续使用，或在此重试防火墙操作。",
+      notice.warning(t("runtime.modeSavedFirewallPending"), {
+        detail: t("runtime.firewallPendingDetail"),
       });
     } else {
-      notice.success("运行模式已保存");
+      notice.success(t("runtime.modeSaved"));
     }
     // 设置从「未完成」变为「已确认」且仍匿名时，自动进入认证入口。
     if (
@@ -730,8 +743,8 @@ async function executeApply(): Promise<void> {
       await navigateAfterSetup(true);
     }
   } catch (error) {
-    notice.error("设置保存失败", {
-      detail: error instanceof Error ? error.message : "请稍后重试。",
+    notice.error(t("runtime.saveFailed"), {
+      detail: error instanceof Error ? error.message : t("runtime.retryLater"),
     });
   } finally {
     applying.value = false;
@@ -752,11 +765,11 @@ async function testRemoteConnection(): Promise<boolean> {
     if (!response.ok || !isHealthPayload(payload)) throw new Error("invalid health response");
     return true;
   } catch (error) {
-    notice.error("远端连接测试失败", {
+    notice.error(t("runtime.remoteTestFailed"), {
       detail:
         error instanceof DOMException && error.name === "AbortError"
-          ? "连接超时，请检查服务器地址和网络连接。"
-          : "暂时无法连接，请检查服务器地址和网络连接。",
+          ? t("runtime.remoteTestTimeout")
+          : t("runtime.remoteTestUnreachable"),
     });
     return false;
   } finally {
@@ -777,11 +790,13 @@ async function repairFirewall(): Promise<void> {
     await repairFirewallShell();
     firewallRecoveryOpen.value = false;
     notice.success(
-      previousFirewallStatus === "cleanup-pending" ? "防火墙规则已清理" : "防火墙设置已完成",
+      previousFirewallStatus === "cleanup-pending"
+        ? t("runtime.firewallCleaned")
+        : t("runtime.firewallConfigured"),
     );
   } catch (error) {
-    notice.error("防火墙操作失败", {
-      detail: error instanceof Error ? error.message : "请重试。",
+    notice.error(t("runtime.firewallOpFailed"), {
+      detail: error instanceof Error ? error.message : t("runtime.opFailedRetry"),
     });
   } finally {
     firewallRepairing.value = false;
@@ -798,8 +813,8 @@ function isFirewallRecoveryStatus(status: string | undefined): boolean {
  */
 async function leaveRuntimeSettings(): Promise<void> {
   if (authStatus.value !== "authenticated" && !setupFinished.value) {
-    notice.warning("请先保存运行模式，再继续。", {
-      detail: "保存成功后才能离开此页面。",
+    notice.warning(t("runtime.saveModeFirst"), {
+      detail: t("runtime.saveModeFirstDetail"),
     });
     return;
   }

@@ -9,15 +9,16 @@
         <div class="user-directory-mobile-list__identity">
           <h2 :title="user.username">{{ user.username }}</h2>
           <p>
-            #{{ user.id }}<template v-if="isCurrentUser(user, currentUserId)"> · 当前账号</template>
+            #{{ user.id
+            }}<template v-if="isCurrentUser(user, currentUserId)"> · {{ $t("users.currentAccount") }}</template>
           </p>
         </div>
         <button
           v-if="hasAvailableAction(user)"
           class="icon-button user-directory-mobile-list__more"
           type="button"
-          title="管理用户"
-          :aria-label="`管理用户：${user.username}`"
+          :title="$t('users.manageUser')"
+          :aria-label="$t('users.manageUserAria', { username: user.username })"
           @click="emit('actions', user)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -30,23 +31,23 @@
 
       <dl>
         <div>
-          <dt>状态</dt>
+          <dt>{{ $t("common.status") }}</dt>
           <dd>
             <UserStatusPill :status="user.status" />
           </dd>
         </div>
         <div>
-          <dt>权限</dt>
-          <dd>{{ user.permissions.length }} 项</dd>
+          <dt>{{ $t("users.permissions") }}</dt>
+          <dd>{{ $t("users.permissionCount", { n: user.permissions.length }) }}</dd>
         </div>
         <div>
-          <dt>密码</dt>
+          <dt>{{ $t("users.password") }}</dt>
           <dd>
             <UserPasswordStatePill :password-change-required="user.password_change_required" />
           </dd>
         </div>
         <div>
-          <dt>最近更新</dt>
+          <dt>{{ $t("users.lastUpdated") }}</dt>
           <dd>
             <time :datetime="user.updated_at">{{ formatUserDate(user.updated_at) }}</time>
           </dd>

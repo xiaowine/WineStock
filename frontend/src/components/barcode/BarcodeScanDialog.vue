@@ -5,7 +5,7 @@
 <template>
   <ModalDialog
     :open="open"
-    :title="title"
+    :title="title ?? t('misc.barcodeScanTitle')"
     :description="description"
     compact
     :nested="nested"
@@ -32,7 +32,7 @@
       />
 
       <p v-if="!cameraSupported" class="barcode-scan__error" role="alert">
-        当前环境无法使用摄像头（常见于局域网 HTTP 访问），请使用下方图片识别。
+        {{ $t("misc.barcodeCameraUnavailable") }}
       </p>
 
       <div class="barcode-scan__tools">
@@ -40,8 +40,8 @@
           v-if="cameraView?.multiCamera"
           class="icon-button"
           type="button"
-          title="切换摄像头"
-          aria-label="切换摄像头"
+          :title="$t('components.barcodeCameraSwitch')"
+          :aria-label="$t('components.barcodeCameraSwitch')"
           @click="handleCycleCamera($event)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -57,8 +57,8 @@
           class="icon-button"
           :class="{ 'barcode-scan__tool--active': cameraView?.torchOn }"
           type="button"
-          :title="cameraView?.torchOn ? '关闭手电筒' : '打开手电筒'"
-          :aria-label="cameraView?.torchOn ? '关闭手电筒' : '打开手电筒'"
+          :title="cameraView?.torchOn ? $t('misc.barcodeTorchOff') : $t('misc.barcodeTorchOn')"
+          :aria-label="cameraView?.torchOn ? $t('misc.barcodeTorchOff') : $t('misc.barcodeTorchOn')"
           :aria-pressed="cameraView?.torchOn"
           @click="handleToggleTorch($event)"
         >
@@ -69,7 +69,7 @@
           </svg>
         </button>
         <label class="secondary-button barcode-scan__file">
-          {{ cameraSupported ? "从图片识别" : "拍照或选图识别" }}
+          {{ cameraSupported ? $t("misc.barcodeRecognizeFromImage") : $t("misc.barcodeCaptureOrSelect") }}
           <input
             type="file"
             accept="image/*"
@@ -80,7 +80,7 @@
       </div>
 
       <p v-if="!cameraSupported" class="barcode-scan__status" role="status" aria-live="polite">
-        {{ statusText || internalStatus || "可拖入图片或 Ctrl+V 粘贴识别。" }}
+        {{ statusText || internalStatus || $t("misc.barcodeDropOrPasteHint") }}
       </p>
     </div>
   </ModalDialog>
@@ -88,10 +88,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { decodeQrImage } from "../../barcode/decoder";
 import { trackTelemetryIssue } from "../../telemetry/clarity";
 import ModalDialog from "../ModalDialog.vue";
 import BarcodeCameraView from "./BarcodeCameraView.vue";
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -104,7 +107,7 @@ const props = withDefaults(
     nested?: boolean;
   }>(),
   {
-    title: "扫码识别",
+    title: undefined,
     description: undefined,
     statusText: "",
     nested: false,
@@ -130,7 +133,7 @@ const viewportStatusText = computed(
     cameraError.value ||
     props.statusText ||
     internalStatus.value ||
-    "对准二维码即可自动识别，点击画面可重新对焦；也可拖入图片或 Ctrl+V 粘贴。",
+    t("misc.barcodeViewportHint"),
 );
 
 watch(
@@ -195,18 +198,18 @@ function handleDrop(event: DragEvent): void {
 }
 
 async function decodeImageSource(file: File): Promise<void> {
-  internalStatus.value = "正在识别图片…";
+  internalStatus.value = t("misc.barcodeRecognizingImage");
   try {
     const results = await decodeQrImage(file);
     if (results.length === 0) {
-      internalStatus.value = "图片中未识别到二维码。";
+      internalStatus.value = t("misc.barcodeImageNoQr");
       return;
     }
     internalStatus.value = "";
     navigator.vibrate?.(50);
     for (const result of results) emit("detect", result.text);
   } catch {
-    internalStatus.value = "图片识别失败，请重试。";
+    internalStatus.value = t("misc.barcodeImageFailed");
   }
 }
 

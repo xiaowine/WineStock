@@ -12,8 +12,8 @@
       <button
         class="icon-button item-editor__back"
         type="button"
-        :title="closeLabel"
-        :aria-label="closeLabel"
+        :title="closeLabelText"
+        :aria-label="closeLabelText"
         @click="emit('close')"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -21,7 +21,7 @@
         </svg>
       </button>
       <div class="item-editor__heading">
-        <h2>{{ draft.id ? draft.name || "编辑物品" : "新建物品" }}</h2>
+        <h2>{{ draft.id ? draft.name || $t('items.editItem') : $t('items.createItem') }}</h2>
         <p v-if="draft.id">{{ draft.sku }} · {{ draft.unit }}</p>
       </div>
       <button
@@ -30,24 +30,24 @@
         type="submit"
         :disabled="saving"
       >
-        {{ saving ? "保存中…" : "保存物品" }}
+        {{ saving ? $t('items.saving') : $t('items.saveItem') }}
       </button>
     </header>
 
     <fieldset v-overlay-scrollbar class="item-editor__content" :disabled="readOnly">
       <div v-if="metadataError" class="item-editor__metadata-error" role="alert">
-        分类和属性模板暂不可用，仍可编辑其它字段。
+        {{ $t('items.metadataUnavailable') }}
       </div>
 
       <section class="item-editor__section" aria-labelledby="item-base-heading">
         <header class="item-editor__section-header">
-          <h3 id="item-base-heading">基础资料</h3>
+          <h3 id="item-base-heading">{{ $t('items.basicInfo') }}</h3>
         </header>
 
         <div class="item-editor__base-layout">
           <FormField
             class="item-editor__image"
-            label="物品主图"
+            :label="$t('items.itemMainImage')"
             validation-key="image"
             :error="validationErrors.image"
             required
@@ -56,16 +56,16 @@
               :model-value="draft.image ?? undefined"
               :delete-on-remove="draft.imageTemporary"
               :invalid="Boolean(validationErrors.image)"
-              label="物品主图"
+              :label="$t('items.itemMainImage')"
               @update:model-value="updateMainImage"
             />
-            <p v-if="!readOnly" class="item-editor__paste-hint">可直接 Ctrl+V 粘贴截图作为主图</p>
+            <p v-if="!readOnly" class="item-editor__paste-hint">{{ $t('items.pasteHint') }}</p>
           </FormField>
 
           <div class="item-editor__fields">
             <FormInput
               v-model="draft.name"
-              label="名称"
+              :label="$t('items.name')"
               name="name"
               maxlength="128"
               autocomplete="off"
@@ -75,7 +75,7 @@
             />
             <FormInput
               v-model="draft.sku"
-              label="编号"
+              :label="$t('items.sku')"
               name="sku"
               maxlength="64"
               autocomplete="off"
@@ -83,15 +83,15 @@
               :error="validationErrors.sku"
               required
             />
-            <FormSelect v-model="draft.categoryId" label="分类" name="category">
-              <option :value="null">未分类</option>
+            <FormSelect v-model="draft.categoryId" :label="$t('items.category')" name="category">
+              <option :value="null">{{ $t('items.uncategorized') }}</option>
               <option v-for="category in categories" :key="category.id" :value="category.id">
                 {{ category.name }}
               </option>
             </FormSelect>
             <FormInput
               v-model="draft.unit"
-              label="计量单位"
+              :label="$t('items.unit')"
               name="unit"
               maxlength="32"
               autocomplete="off"
@@ -101,7 +101,7 @@
             />
             <FormInput
               v-model="draft.defaultPrice"
-              label="参考单价"
+              :label="$t('items.referencePrice')"
               name="default_price"
               type="number"
               min="0"
@@ -112,7 +112,7 @@
             />
             <FormInput
               v-model="draft.reorderPoint"
-              label="再订货点"
+              :label="$t('items.reorderPoint')"
               name="reorder_point"
               type="number"
               min="0"
@@ -124,7 +124,7 @@
             <FormTextarea
               v-model="draft.description"
               class="item-editor__description"
-              label="描述"
+              :label="$t('items.description')"
               name="description"
               maxlength="1024"
               rows="3"
@@ -138,17 +138,17 @@
         aria-labelledby="item-attributes-heading"
       >
         <header class="item-editor__section-header">
-          <h3 id="item-attributes-heading">物品属性</h3>
+          <h3 id="item-attributes-heading">{{ $t('items.itemAttributes') }}</h3>
         </header>
 
         <FormSelect
           class="item-editor__template"
-          label="属性模板"
+          :label="$t('items.attributeTemplate')"
           name="attribute_template"
           :model-value="draft.attributeTemplateId ?? ''"
           @update:model-value="selectTemplate"
         >
-          <option value="">不使用模板</option>
+          <option value="">{{ $t('items.noTemplate') }}</option>
           <option v-for="template in templates" :key="template.id" :value="template.id">
             {{ template.name }}
           </option>
@@ -160,7 +160,7 @@
           aria-labelledby="item-template-attributes-heading"
         >
           <header class="item-editor__attribute-group-header">
-            <h4 id="item-template-attributes-heading">模板属性</h4>
+            <h4 id="item-template-attributes-heading">{{ $t('items.templateAttributes') }}</h4>
           </header>
           <div class="item-editor__template-attributes">
             <ItemAttributeEditor
@@ -178,7 +178,7 @@
           aria-labelledby="item-custom-attributes-heading"
         >
           <header class="item-editor__attribute-group-header">
-            <h4 id="item-custom-attributes-heading">自定义属性</h4>
+            <h4 id="item-custom-attributes-heading">{{ $t('items.customAttributes') }}</h4>
             <button
               class="secondary-button item-editor__add-attribute"
               type="button"
@@ -187,7 +187,7 @@
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              添加属性
+              {{ $t('items.addAttribute') }}
             </button>
           </header>
           <div v-if="customAttributes.length" class="item-editor__custom-attributes">
@@ -205,7 +205,7 @@
 
     <footer v-if="!embedded" class="item-editor__mobile-actions">
       <button v-if="!readOnly" class="primary-button" type="submit" :disabled="saving">
-        {{ saving ? "保存中…" : "保存物品" }}
+        {{ saving ? $t('items.saving') : $t('items.saveItem') }}
       </button>
     </footer>
   </form>
@@ -213,6 +213,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemCategoryResponse } from "../../api/itemCategories";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import { deleteImage, validateImageFile } from "../../api/files";
@@ -250,7 +251,7 @@ const props = withDefaults(
     readOnly?: boolean;
   }>(),
   {
-    closeLabel: "返回物品目录",
+    closeLabel: undefined,
     embedded: false,
     formId: undefined,
     readOnly: false,
@@ -258,6 +259,8 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ save: []; close: [] }>();
+const { t } = useI18n();
+const closeLabelText = computed(() => props.closeLabel ?? t("items.backToCatalog"));
 const formRoot = ref<HTMLFormElement | null>(null);
 const templateFieldsById = computed(
   () =>
@@ -338,7 +341,7 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
 async function applyPastedImage(file: File): Promise<void> {
   const error = await validateImageFile(file);
   if (error) {
-    notice.warning("无法粘贴该图片", { detail: error });
+    notice.warning(t("items.pasteImageFailed"), { detail: error });
     return;
   }
   // 与 AttributeImageField 的更换行为一致：临时上传文件立即删除，旧预览由字段监听释放。
@@ -347,7 +350,7 @@ async function applyPastedImage(file: File): Promise<void> {
     void deleteImage(current.fileId).catch(() => undefined);
   }
   updateMainImage(createPendingImageDraft(file));
-  notice.success("已粘贴图片作为物品主图");
+  notice.success(t("items.pastedImageAsMain"));
 }
 
 async function selectTemplate(value: string | number | boolean | null | undefined): Promise<void> {
@@ -361,8 +364,10 @@ async function selectTemplate(value: string | number | boolean | null | undefine
       .filter((field) => customNames.has(field.field_name.toLowerCase()))
       .map((field) => field.field_name) ?? [];
   if (conflicts.length > 0) {
-    notice.warning("无法切换属性模板", {
-      detail: `自定义属性与目标模板字段重名：${conflicts.join("、")}`,
+    notice.warning(t("items.templateSwitchFailed"), {
+      detail: t("items.templateConflictDetail", {
+        names: conflicts.join(t("items.listSeparator")),
+      }),
     });
     return;
   }
@@ -372,7 +377,7 @@ async function selectTemplate(value: string | number | boolean | null | undefine
   try {
     await Promise.all(changingFiles.map(discardTemporaryAttributeFile));
   } catch {
-    notice.warning("部分临时图片未能立即删除", { detail: "服务会在超过保留期限后自动清理。" });
+    notice.warning(t("items.tempImagesCleanupFailed"), { detail: t("items.autoCleanupNote") });
   }
   applyAttributeTemplate(props.draft, template);
 }

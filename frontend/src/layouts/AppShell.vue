@@ -10,7 +10,7 @@
           ref="navTrigger"
           class="icon-button app-mobile-nav-trigger"
           type="button"
-          aria-label="打开导航"
+          :aria-label="$t('components.navOpen')"
           aria-controls="app-navigation-pane"
           :aria-expanded="navOpen"
           @click="openNavigation"
@@ -47,7 +47,9 @@
           :aria-expanded="accountMenuOpen"
           aria-controls="app-account-popover"
           :aria-label="
-            userDisplayName ? `查看当前用户 ${userDisplayName} 的账户与本机选项` : '查看本机选项'
+            userDisplayName
+              ? $t('components.accountMenuForUser', { name: userDisplayName })
+              : $t('components.accountMenuLocal')
           "
           @click="toggleAccountMenu"
         >
@@ -61,7 +63,7 @@
           v-if="accountMenuOpen"
           class="account-popover-backdrop"
           type="button"
-          aria-label="关闭账户与本机选项"
+          :aria-label="$t('components.accountMenuClose')"
           @click="closeAccountMenu"
         />
         <Transition name="account-popover">
@@ -95,7 +97,7 @@
         v-overlay-scrollbar
         class="app-navigation-pane"
         :class="{ 'app-navigation-pane--open': navOpen }"
-        aria-label="导航面板"
+        :aria-label="$t('components.navigationPane')"
       >
         <div class="app-navigation-pane__header">
           <div class="app-navigation-pane__brand">
@@ -106,10 +108,10 @@
                   APP_STAGE_LABEL
                 }}</span></strong
               >
-              <span>应用导航</span>
+              <span>{{ $t('components.appNavigation') }}</span>
             </div>
           </div>
-          <button class="icon-button" type="button" aria-label="关闭导航" @click="closeNavigation">
+          <button class="icon-button" type="button" :aria-label="$t('components.navigationClose')" @click="closeNavigation">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="m6 6 12 12M18 6 6 18" />
             </svg>
@@ -123,7 +125,7 @@
         />
       </aside>
 
-      <main v-overlay-scrollbar class="app-content-pane" aria-label="主内容">
+      <main v-overlay-scrollbar class="app-content-pane" :aria-label="$t('components.mainContent')">
         <RouteContentView />
         <!-- 触底安全区占位：必须是真实节点以撑开 scrollHeight，内容可仍延伸到导航栏下。 -->
         <div class="app-content-pane__end-inset" aria-hidden="true" />
@@ -135,7 +137,7 @@
         v-if="navOpen"
         class="mobile-nav-backdrop"
         type="button"
-        aria-label="关闭导航"
+        :aria-label="$t('components.navigationClose')"
         @click="closeNavigation"
       />
     </Transition>
@@ -177,6 +179,8 @@ import {
   watch,
 } from "vue";
 import { useRoute } from "vue-router";
+import { useI18n } from "vue-i18n";
+import { translateTitle } from "../i18n";
 import { authSession, localSilentAuthActive } from "../auth/session";
 import AccountPopover from "../components/AccountPopover.vue";
 import AccountUserSummary from "../components/AccountUserSummary.vue";
@@ -218,13 +222,14 @@ const runtimeSettingsDialogOpen = ref(false);
 const donationDialogOpen = ref(false);
 const donationDialogAutomatic = ref(false);
 const route = useRoute();
+const { t } = useI18n();
 const {
   accountMenuOpen,
   closeAccountMenu,
   toggleAccountMenu: toggleAccountPopover,
 } = useAccountPopover();
 const { handleLogout, isLoggingOut, logoutError } = useShellLogout();
-const pageTitle = computed(() => route.meta.title);
+const pageTitle = computed(() => translateTitle(route.meta.title));
 // 本机静默免登录模式：保留用户名展示，但隐藏退出登录并收起不适用的账户管理导航。
 const silentLocalMode = computed(() => localSilentAuthActive.value);
 const visibleNavigation = computed(() =>
@@ -233,18 +238,18 @@ const visibleNavigation = computed(() =>
   }),
 );
 const userDisplayName = computed(() => authSession.value?.user.username ?? "");
-const accountDisplayName = computed(() => userDisplayName.value || "本机");
+const accountDisplayName = computed(() => userDisplayName.value || t("components.localMachine"));
 const runtimeModeLabel = computed(() => {
   switch (runtimeSnapshot.value?.config.mode) {
     case "self-hosted":
-      return "本机模式";
+      return t("components.runtimeModeSelfHosted");
     case "server-mode":
-      return "服务器模式";
+      return t("components.runtimeModeServer");
     case "client-only":
     case "connect-to-remote":
-      return "远程连接";
+      return t("components.runtimeModeRemote");
     default:
-      return "运行模式";
+      return t("components.runtimeMode");
   }
 });
 const accountInitials = computed(() =>

@@ -1,4 +1,5 @@
 // 本文件拥有捐赠二维码的懒加载生成和 WASM 自托管定位；不拥有捐赠内容配置或图片展示。
+import { translateMessageOrNull } from "../i18n";
 import writerWasmAssetUrl from "zxing-wasm/writer/zxing_writer.wasm?url";
 
 // Vite dev server may append `?import&url` to dependency assets; that response is a JS
@@ -38,7 +39,9 @@ export async function generateDonationQr(content: string): Promise<Blob> {
     options: "ecLevel=H",
   });
   if (output.error || !output.image) {
-    throw new Error(output.error || "二维码生成失败");
+    throw new Error(
+      output.error || (translateMessageOrNull("misc.donationQrGenerateFailed") ?? "QR code generation failed"),
+    );
   }
   return output.image;
 }

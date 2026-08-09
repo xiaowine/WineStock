@@ -5,15 +5,15 @@
 <template>
   <ModalDialog
     :open="open"
-    title="创建用户"
-    description="新用户创建后默认没有权限，可在用户列表中继续分配。"
+    :title="$t('users.createUser')"
+    :description="$t('users.createUserDescription')"
     :busy="submitting"
     @close="emit('close')"
   >
     <form id="user-create-form" class="dialog-form" novalidate @submit.prevent="submit">
       <FormInput
         v-model="username"
-        label="用户名"
+        :label="$t('users.username')"
         validation-key="username"
         :error="fieldErrors.username"
         name="username"
@@ -25,11 +25,11 @@
       />
 
       <FormField
-        label="初始密码"
+        :label="$t('users.initialPassword')"
         control-id="user-create-password"
         validation-key="password"
         :error="fieldErrors.password"
-        hint="至少 8 个字符"
+        :hint="$t('users.minPasswordLengthHint')"
         v-slot="{ describedBy, invalid }"
       >
         <PasswordInput
@@ -46,7 +46,7 @@
       </FormField>
 
       <FormField
-        label="确认密码"
+        :label="$t('users.confirmPassword')"
         control-id="user-create-password-confirmation"
         validation-key="confirmation"
         :error="fieldErrors.confirmation"
@@ -67,10 +67,10 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t("common.cancel") }}
       </button>
       <button class="primary-button" type="submit" form="user-create-form" :disabled="submitting">
-        {{ submitting ? "正在创建…" : "创建用户" }}
+        {{ submitting ? $t("users.creatingUser") : $t("users.createUser") }}
       </button>
     </template>
   </ModalDialog>
@@ -78,12 +78,15 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
 import ModalDialog from "../ModalDialog.vue";
 import PasswordInput from "../PasswordInput.vue";
 import FormField from "../forms/FormField.vue";
 import FormInput from "../forms/FormInput.vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   open: boolean;
@@ -127,21 +130,21 @@ function submit(): void {
   const errors: Record<string, string> = {};
   const normalizedUsername = username.value.trim();
   if (!normalizedUsername) {
-    errors.username = "请输入用户名";
+    errors.username = t("users.usernameRequired");
   }
   if (!password.value) {
-    errors.password = "请输入初始密码";
+    errors.password = t("users.initialPasswordRequired");
   } else if (password.value.length < 8) {
-    errors.password = "密码至少需要 8 个字符";
+    errors.password = t("users.passwordMinLength");
   }
   if (!confirmation.value) {
-    errors.confirmation = "请再次输入密码";
+    errors.confirmation = t("users.confirmationRequired");
   } else if (confirmation.value !== password.value) {
-    errors.confirmation = "两次输入的密码不一致";
+    errors.confirmation = t("users.passwordMismatch");
   }
   fieldErrors.value = errors;
   if (Object.keys(errors).length > 0) {
-    notice.warning("请检查用户信息", { detail: Object.values(errors)[0] });
+    notice.warning(t("users.checkUserInfo"), { detail: Object.values(errors)[0] });
     return;
   }
   emit("submit", { username: normalizedUsername, password: password.value });

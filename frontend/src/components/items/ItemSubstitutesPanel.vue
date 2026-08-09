@@ -9,10 +9,10 @@
       class="item-substitutes-panel__header"
     >
       <div v-if="showHeading">
-        <h3 id="item-substitutes-title">维护替代物品</h3>
+        <h3 id="item-substitutes-title">{{ $t('items.maintainSubstitutes') }}</h3>
         <p>
           {{
-            canManage ? "维护缺货时可替代的物品和优先级。" : "查看该物品缺货时可使用的替代物品。"
+            canManage ? $t('items.substitutesManageHint') : $t('items.substitutesViewHint')
           }}
         </p>
       </div>
@@ -23,7 +23,7 @@
         :disabled="saving || loading || !dirty"
         @click="requestSave"
       >
-        {{ saving ? "保存中…" : "保存替代关系" }}
+        {{ saving ? $t('items.saving') : $t('items.saveSubstitutes') }}
       </button>
     </header>
 
@@ -33,10 +33,12 @@
       role="alert"
     >
       <span>{{ loadError }}</span>
-      <button class="secondary-button" type="button" @click="loadSubstitutes">重试</button>
+      <button class="secondary-button" type="button" @click="loadSubstitutes">
+        {{ $t('items.retry') }}
+      </button>
     </div>
     <div v-else-if="loading && !loaded" class="item-substitutes-panel__state" role="status">
-      <span v-if="showLoading">正在加载替代关系…</span>
+      <span v-if="showLoading">{{ $t('items.loadingSubstitutes') }}</span>
     </div>
     <template v-else>
       <section
@@ -44,44 +46,46 @@
         class="item-substitutes-panel__add"
         aria-labelledby="item-substitutes-add-title"
       >
-        <h4 id="item-substitutes-add-title">添加替代物品</h4>
+        <h4 id="item-substitutes-add-title">{{ $t('items.addSubstitute') }}</h4>
         <SearchField
           v-model="searchInput"
-          label="搜索替代物品"
+          :label="$t('items.searchSubstitutes')"
           name="substitute_item_search"
-          placeholder="名称或编号"
+          :placeholder="$t('items.nameOrSku')"
           @search="applySearch"
         />
         <div v-if="candidateError" class="item-substitutes-panel__inline-error" role="alert">
           <span>{{ candidateError }}</span>
-          <button class="text-button" type="button" @click="loadCandidates(1)">重试</button>
+          <button class="text-button" type="button" @click="loadCandidates(1)">
+            {{ $t('items.retry') }}
+          </button>
         </div>
         <div
           v-else-if="candidateLoading && !candidates.length"
           class="item-substitutes-panel__candidate-state"
           role="status"
         >
-          正在搜索物品…
+          {{ $t('items.searchingItems') }}
         </div>
         <div
           v-else-if="activeSearch && !visibleCandidates.length"
           class="item-substitutes-panel__candidate-state"
         >
-          没有找到可添加的物品。
+          {{ $t('items.noAddableItems') }}
         </div>
         <div
           v-else-if="visibleCandidates.length"
           v-overlay-scrollbar
           class="item-substitutes-panel__candidates"
-          aria-label="可添加的替代物品"
+          :aria-label="$t('items.addableSubstitutes')"
         >
           <button
             v-for="candidate in visibleCandidates"
             :key="candidate.id"
             class="item-substitutes-panel__candidate"
             type="button"
-            :aria-label="`添加替代物品：${candidate.name}`"
-            title="添加替代物品"
+            :aria-label="$t('items.addSubstituteNamed', { name: candidate.name })"
+            :title="$t('items.addSubstitute')"
             @click="addSubstitute(candidate)"
           >
             <span
@@ -99,10 +103,12 @@
 
       <section class="item-substitutes-panel__list" aria-labelledby="item-substitutes-list-title">
         <header class="item-substitutes-panel__list-header">
-          <h4 id="item-substitutes-list-title">已配置替代物品</h4>
-          <span>{{ drafts.length }} 项</span>
+          <h4 id="item-substitutes-list-title">{{ $t('items.configuredSubstitutes') }}</h4>
+          <span>{{ $t('items.itemCount', { n: drafts.length }) }}</span>
         </header>
-        <div v-if="!drafts.length" class="item-substitutes-panel__empty">暂无替代物品</div>
+        <div v-if="!drafts.length" class="item-substitutes-panel__empty">
+          {{ $t('items.noSubstitutes') }}
+        </div>
         <div v-else class="item-substitutes-panel__relations">
           <article
             v-for="(draft, index) in drafts"
@@ -113,7 +119,7 @@
               <span class="item-substitutes-panel__priority">{{ draft.priority }}</span>
               <AuthenticatedImage
                 :file-id="draft.imageFileId"
-                :alt="`${draft.name} 主图`"
+                :alt="$t('items.mainImageName', { name: draft.name })"
                 :size="64"
                 previewable
               />
@@ -125,13 +131,13 @@
                 >
                 <dl class="item-substitutes-panel__relation-identity-meta">
                   <div>
-                    <dt>编号</dt>
+                    <dt>{{ $t('items.sku') }}</dt>
                     <dd :title="draft.sku">{{ draft.sku }}</dd>
                   </div>
                   <div>
-                    <dt>分类</dt>
-                    <dd :title="draft.categoryName ?? '未分类'">
-                      {{ draft.categoryName ?? "未分类" }}
+                    <dt>{{ $t('items.category') }}</dt>
+                    <dd :title="draft.categoryName ?? $t('items.uncategorized')">
+                      {{ draft.categoryName ?? $t('items.uncategorized') }}
                     </dd>
                   </div>
                 </dl>
@@ -139,30 +145,34 @@
             </div>
             <dl class="item-substitutes-panel__relation-extra">
               <div>
-                <dt>单位</dt>
+                <dt>{{ $t('items.unitField') }}</dt>
                 <dd>{{ draft.unit }}</dd>
               </div>
               <div>
-                <dt>当前库存</dt>
+                <dt>{{ $t('items.currentStock') }}</dt>
                 <dd>
-                  {{ draft.stockState === null ? "待保存后加载" : formatQuantity(draft.quantity) }}
+                  {{
+                    draft.stockState === null
+                      ? $t('items.pendingSaveLoad')
+                      : formatQuantity(draft.quantity)
+                  }}
                 </dd>
               </div>
               <div>
-                <dt>库存状态</dt>
-                <dd v-if="draft.stockState === null">待加载</dd>
+                <dt>{{ $t('items.stockStateLabel') }}</dt>
+                <dd v-if="draft.stockState === null">{{ $t('items.pendingLoad') }}</dd>
                 <dd v-else :class="`stock-state stock-state--${draft.stockState}`">
                   {{ stockStateLabel(draft.stockState) }}
                 </dd>
               </div>
               <div>
-                <dt>再订货点</dt>
+                <dt>{{ $t('items.reorderPoint') }}</dt>
                 <dd>
                   {{
                     draft.stockState === null
-                      ? "待加载"
+                      ? $t('items.pendingLoad')
                       : draft.reorderPoint === null
-                        ? "未设置"
+                        ? $t('items.notSet')
                         : formatQuantity(draft.reorderPoint)
                   }}
                 </dd>
@@ -170,7 +180,8 @@
             </dl>
             <label class="item-substitutes-panel__notes">
               <span
-                ><span>备注</span><small>剩余 {{ 1024 - draft.notes.length }} 字</small></span
+                ><span>{{ $t('items.remark') }}</span
+                ><small>{{ $t('items.remainingChars', { n: 1024 - draft.notes.length }) }}</small></span
               >
               <textarea
                 v-model="draft.notes"
@@ -178,15 +189,15 @@
                 :disabled="!canManage || saving"
                 rows="2"
                 maxlength="1024"
-                placeholder="可填写兼容性说明"
+                :placeholder="$t('items.notesPlaceholder')"
               />
             </label>
             <div v-if="canManage" class="item-substitutes-panel__relation-actions">
               <button
                 class="icon-button"
                 type="button"
-                title="上移优先级"
-                :aria-label="`将 ${draft.name} 上移`"
+                :title="$t('items.moveUp')"
+                :aria-label="$t('items.moveUpNamed', { name: draft.name })"
                 :disabled="index === 0 || saving"
                 @click="moveSubstitute(index, -1)"
               >
@@ -195,8 +206,8 @@
               <button
                 class="icon-button"
                 type="button"
-                title="下移优先级"
-                :aria-label="`将 ${draft.name} 下移`"
+                :title="$t('items.moveDown')"
+                :aria-label="$t('items.moveDownNamed', { name: draft.name })"
                 :disabled="index === drafts.length - 1 || saving"
                 @click="moveSubstitute(index, 1)"
               >
@@ -205,8 +216,8 @@
               <button
                 class="icon-button item-substitutes-panel__remove"
                 type="button"
-                title="移除替代关系"
-                :aria-label="`移除 ${draft.name}`"
+                :title="$t('items.removeSubstituteRelation')"
+                :aria-label="$t('items.removeSubstituteNamed', { name: draft.name })"
                 :disabled="saving"
                 @click="removeSubstitute(index)"
               >
@@ -227,14 +238,14 @@
 
   <ModalDialog
     :open="clearConfirmOpen"
-    title="清空全部替代关系？"
-    description="保存后当前主物品将不再拥有任何替代物品。"
+    :title="$t('items.clearAllSubstitutesTitle')"
+    :description="$t('items.clearAllSubstitutesDescription')"
     :busy="saving"
     nested
     compact
     @close="clearConfirmOpen = false"
   >
-    <p class="confirmation-copy">此操作会整体替换服务端关系，之后仍可重新添加替代物品。</p>
+    <p class="confirmation-copy">{{ $t('items.clearAllSubstitutesConfirm') }}</p>
     <template #actions>
       <button
         class="secondary-button"
@@ -242,10 +253,10 @@
         :disabled="saving"
         @click="clearConfirmOpen = false"
       >
-        继续编辑
+        {{ $t('items.continueEditing') }}
       </button>
       <button class="danger-button" type="button" :disabled="saving" @click="confirmClearAll">
-        {{ saving ? "保存中…" : "确认清空并保存" }}
+        {{ saving ? $t('items.saving') : $t('items.confirmClearAndSave') }}
       </button>
     </template>
   </ModalDialog>
@@ -253,6 +264,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { listItemOptions, type ItemOptionResponse, type ItemStockState } from "../../api/items";
 import { ApiError } from "../../api/errors";
 import {
@@ -306,6 +318,7 @@ const emit = defineEmits<{
   /** 通知全局页面当前主物品的替代关系已保存。 */
   saved: [];
 }>();
+const { t } = useI18n();
 
 const drafts = ref<SubstituteDraft[]>([]);
 const baseline = ref("[]");
@@ -456,11 +469,11 @@ async function saveSubstitutes(): Promise<void> {
       .map(toDraft);
     normalizePriorities();
     baseline.value = fingerprint(drafts.value);
-    notice.success("替代关系已保存");
+    notice.success(t("items.substitutesSaved"));
     emit("saved");
   } catch (error) {
     saveError.value = errorMessage(error);
-    notice.error("保存替代关系失败", { detail: saveError.value });
+    notice.error(t("items.saveSubstitutesFailed"), { detail: saveError.value });
   } finally {
     saving.value = false;
     emit("saving-change", false);
@@ -532,16 +545,16 @@ function formatQuantity(value: number): string {
 }
 function stockStateLabel(state: ItemStockState): string {
   return {
-    out_of_stock: "缺货",
-    reorder_due: "待补货",
-    needs_configuration: "需配置",
-    normal: "库存正常",
+    out_of_stock: t("items.stockStateOutOfStock"),
+    reorder_due: t("items.stockStateReorderDue"),
+    needs_configuration: t("items.stockStateNeedsConfiguration"),
+    normal: t("items.stockStateNormal"),
   }[state];
 }
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : "无法连接到 WineStock 服务";
+  return error instanceof ApiError ? error.message : t("error.network_unavailable");
 }
 </script>

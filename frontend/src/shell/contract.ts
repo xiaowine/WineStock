@@ -1,4 +1,5 @@
 // 本文件定义 frontend 与 UI 平台 Shell 之间的版本化运行契约；它不实现具体传输或业务 HTTP 请求。
+// 本文件保持零运行时依赖：字段错误本地化辅助在 ./fieldErrors.ts，避免 node 测试内联加载失败。
 
 /** shared 当前支持的运行模式。 */
 export type RuntimeMode = "self-hosted" | "client-only" | "connect-to-remote" | "server-mode";
@@ -143,12 +144,20 @@ export interface RuntimeSnapshot {
   };
 }
 
+/** 单条运行配置字段错误；code 为稳定码，message 为默认文案兜底。 */
+export interface RuntimeConfigFieldError {
+  /** 前端按 `bridge.<code>` 或 `validation.<code>` 本地化的稳定码。 */
+  code: string;
+  /** Shell 返回的安全默认提示。 */
+  message: string;
+}
+
 /** 配置校验返回的字段错误集合。 */
 export interface RuntimeConfigValidationResult {
   /** 全部字段是否通过校验。 */
   valid: boolean;
   /** 按稳定字段名称聚合的错误。 */
-  fieldErrors: Partial<Record<RuntimeConfigField, readonly string[]>>;
+  fieldErrors: Partial<Record<RuntimeConfigField, readonly RuntimeConfigFieldError[]>>;
 }
 
 /** 保存并应用运行配置的结果。 */
@@ -168,7 +177,7 @@ export function assertRuntimeConfigValidationResult(
   if (!isRecord(value) || typeof value.valid !== "boolean" || !isFieldErrors(value.fieldErrors)) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回的配置校验结果无效",
+      "Shell Bridge returned an invalid config validation result",
     );
   }
 }
@@ -180,7 +189,7 @@ export function assertApplyRuntimeConfigResult(
   if (!isRecord(value) || typeof value.applied !== "boolean") {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回的配置应用结果无效",
+      "Shell Bridge returned an invalid config apply result",
     );
   }
   assertRuntimeConfigValidationResult(value);
@@ -188,7 +197,7 @@ export function assertApplyRuntimeConfigResult(
   if (value.error !== undefined && !isOptionalRuntimeError(value.error)) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回的运行错误结构无效",
+      "Shell Bridge returned an invalid runtime error payload",
     );
   }
 }
@@ -325,7 +334,7 @@ export function assertDesktopPreferences(value: unknown): asserts value is Deskt
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回了无效的 Desktop 偏好",
+      "Shell Bridge returned invalid Desktop preferences",
     );
   }
 }
@@ -337,7 +346,7 @@ export function assertDesktopFirewallShellBridgeExtension(
   if (typeof value.repairFirewall !== "function") {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Desktop Shell Bridge 缺少防火墙方法",
+      "Desktop Shell Bridge is missing the firewall method",
     );
   }
 }
@@ -349,7 +358,7 @@ export function assertDesktopWindowThemeShellBridgeExtension(
   if (typeof value.setWindowTheme !== "function") {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Desktop Shell Bridge 缺少窗口主题方法",
+      "Desktop Shell Bridge is missing the window theme method",
     );
   }
 }
@@ -362,14 +371,14 @@ export function assertAppUpdateCheckResult(value: unknown): asserts value is App
     (value.latestVersion !== undefined && typeof value.latestVersion !== "string") ||
     (value.notes !== undefined && typeof value.notes !== "string")
   ) {
-    throw new ShellBridgeContractError("invalid_bridge_payload", "Shell 返回了无效更新检查结果");
+    throw new ShellBridgeContractError("invalid_bridge_payload", "Shell returned an invalid update check result");
   }
 }
 
 /** 初始快照版本通过后，确认注入桥完整实现 v1 的公共具名方法。 */
 export function assertCompleteShellBridge(value: unknown): asserts value is ShellBridge {
   if (!isRecord(value)) {
-    throw new ShellBridgeContractError("invalid_bridge_payload", "平台注入的 Shell Bridge 无效");
+    throw new ShellBridgeContractError("invalid_bridge_payload", "The injected Shell Bridge is invalid");
   }
   const requiredMethods: ReadonlyArray<keyof ShellBridge> = [
     "getRuntimeSnapshot",
@@ -387,7 +396,7 @@ export function assertCompleteShellBridge(value: unknown): asserts value is Shel
   if (missing.length > 0) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      `Shell Bridge v1 缺少方法：${missing.join("、")}`,
+      `Shell Bridge v1 is missing methods: ${missing.join(", ")}`,
     );
   }
 }
@@ -402,7 +411,7 @@ export function assertNativeBackShellBridgeExtension(
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 声明 nativeBack 能力但缺少订阅或应答方法",
+      "Shell Bridge declares nativeBack but is missing subscribe or respond methods",
     );
   }
 }
@@ -418,7 +427,7 @@ export function assertNativeBackRequest(value: unknown): asserts value is Native
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 发布了无效的原生返回请求",
+      "Shell Bridge published an invalid native back request",
     );
   }
 }
@@ -430,7 +439,7 @@ export function assertNativeBackResolutionAck(
   if (!isRecord(value) || typeof value.accepted !== "boolean") {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回了无效的原生返回确认",
+      "Shell Bridge returned an invalid native back acknowledgement",
     );
   }
 }
@@ -473,12 +482,12 @@ export function cloneRuntimeSnapshot(snapshot: RuntimeSnapshot): RuntimeSnapshot
 /** 在使用注入桥数据前校验协议版本和运行快照基础结构。 */
 export function assertCompatibleRuntimeSnapshot(value: unknown): asserts value is RuntimeSnapshot {
   if (!isRecord(value)) {
-    throw new ShellBridgeContractError("invalid_bridge_payload", "Shell Bridge 返回了无效运行快照");
+    throw new ShellBridgeContractError("invalid_bridge_payload", "Shell Bridge returned an invalid runtime snapshot");
   }
   if (value.protocolVersion !== SHELL_BRIDGE_PROTOCOL_VERSION) {
     throw new ShellBridgeContractError(
       "bridge_version_mismatch",
-      `Shell Bridge 协议版本不兼容：前端需要 v${SHELL_BRIDGE_PROTOCOL_VERSION}，Shell 返回 ${String(value.protocolVersion ?? "缺失")}`,
+      `Shell Bridge protocol version mismatch: frontend requires v${SHELL_BRIDGE_PROTOCOL_VERSION}, Shell returned ${String(value.protocolVersion ?? "missing")}`,
     );
   }
 
@@ -511,7 +520,7 @@ export function assertCompatibleRuntimeSnapshot(value: unknown): asserts value i
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回的运行快照结构无效",
+      "Shell Bridge runtime snapshot has an invalid structure",
     );
   }
   assertRuntimeSnapshotSemantics(value as unknown as RuntimeSnapshot);
@@ -523,13 +532,13 @@ function assertRuntimeSnapshotSemantics(snapshot: RuntimeSnapshot): void {
   if (initialized && configStatus !== "configured") {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 运行快照的 initialized 与 configStatus 不一致",
+      "Shell Bridge snapshot initialized and configStatus are inconsistent",
     );
   }
   if (service.apiBaseUrl !== undefined && !isSafeApiBaseUrl(service.apiBaseUrl)) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 返回了不安全的 API 地址",
+      "Shell Bridge returned an unsafe API address",
     );
   }
   if (
@@ -538,10 +547,10 @@ function assertRuntimeSnapshotSemantics(snapshot: RuntimeSnapshot): void {
     service.ownership === "remote" &&
     !service.apiBaseUrl
   ) {
-    throw new ShellBridgeContractError("invalid_bridge_payload", "已初始化的远端快照缺少 API 地址");
+    throw new ShellBridgeContractError("invalid_bridge_payload", "An initialized remote snapshot is missing its API address");
   }
   if (service.phase === "running" && !service.apiBaseUrl) {
-    throw new ShellBridgeContractError("invalid_bridge_payload", "running 快照缺少 API 地址");
+    throw new ShellBridgeContractError("invalid_bridge_payload", "A running snapshot is missing its API address");
   }
   if (
     service.localAuthExchangeToken !== undefined &&
@@ -549,7 +558,7 @@ function assertRuntimeSnapshotSemantics(snapshot: RuntimeSnapshot): void {
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "本地会话换取凭据只能出现在 local+running 快照",
+      "Local session exchange credentials may only appear in a local+running snapshot",
     );
   }
   if (
@@ -560,7 +569,7 @@ function assertRuntimeSnapshotSemantics(snapshot: RuntimeSnapshot): void {
   ) {
     throw new ShellBridgeContractError(
       "invalid_bridge_payload",
-      "Shell Bridge 开放了不适用于当前快照的本地服务能力",
+      "Shell Bridge exposed local service capabilities not applicable to the current snapshot",
     );
   }
 }
@@ -611,10 +620,15 @@ function isOptionalRuntimeError(value: unknown): boolean {
 function isFieldErrors(value: unknown): boolean {
   if (!isRecord(value)) return false;
   return Object.entries(value).every(
-    ([field, messages]) =>
+    ([field, errors]) =>
       ["mode", "bindHost", "port", "remoteBaseUrl"].includes(field) &&
-      Array.isArray(messages) &&
-      messages.every((message) => typeof message === "string"),
+      Array.isArray(errors) &&
+      errors.every(
+        (entry) =>
+          isRecord(entry) &&
+          typeof entry.code === "string" &&
+          typeof entry.message === "string",
+      ),
   );
 }
 

@@ -3,27 +3,27 @@
   <section class="route-page approval-page">
     <header class="content-header approval-page__header">
       <div>
-        <h1>{{ $route.meta.title }}</h1>
-        <p>{{ catalog.pageSubtitle }}</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t(catalog.pageSubtitle) }}</p>
       </div>
     </header>
-    <section class="approval-workspace" :aria-label="`${$route.meta.title}队列`">
+    <section class="approval-workspace" :aria-label="$t('approvals.queue', { title: $title($route.meta.title) })">
       <div class="approval-toolbar">
         <SearchField
           v-model="searchInput"
-          :label="`搜索${$route.meta.title}`"
+          :label="$t('approvals.searchQueue', { title: $title($route.meta.title) })"
           name="approval_search"
-          :placeholder="catalog.searchPlaceholder"
+          :placeholder="$t(catalog.searchPlaceholder)"
           hide-label
           @search="applySearch"
         />
         <div class="approval-toolbar__meta">
-          <span class="approval-count">待审批 {{ total }} 条</span>
+          <span class="approval-count">{{ $t('approvals.pendingCount', { n: total }) }}</span>
           <div class="approval-toolbar__actions">
             <button
               class="icon-button approval-toolbar__filter"
               type="button"
-              title="筛选待审批单据"
+              :title="$t('approvals.filterTitle')"
               :aria-expanded="filterOpen"
               @click="filterOpen = true"
             >
@@ -34,7 +34,7 @@
               class="icon-button approval-toolbar__refresh"
               :class="{ 'approval-toolbar__refresh--pending': showRefreshing }"
               type="button"
-              title="刷新审批队列"
+              :title="$t('approvals.refreshQueue')"
               :disabled="requestPending"
               @click="refresh"
             >
@@ -52,15 +52,15 @@
         :class="{ 'approval-results--refreshing': showRefreshing }"
         :aria-busy="requestPending"
       >
-        <section v-if="showInitialLoading" class="approval-state">正在加载待审批单据…</section>
+        <section v-if="showInitialLoading" class="approval-state">{{ $t('approvals.loadingQueue') }}</section>
         <section v-else-if="loadError && !loaded" class="approval-state approval-state--error">
-          <strong>无法加载审批队列</strong><span>{{ loadError }}</span
-          ><button class="secondary-button" type="button" @click="refresh">重试</button>
+          <strong>{{ $t('approvals.loadQueueFailed') }}</strong><span>{{ loadError }}</span
+          ><button class="secondary-button" type="button" @click="refresh">{{ $t('common.retry') }}</button>
         </section>
         <section v-else-if="loaded && records.length === 0" class="approval-state">
-          <strong>{{ hasFilters ? catalog.noResultLabel : catalog.emptyLabel }}</strong
+          <strong>{{ hasFilters ? $t(catalog.noResultLabel) : $t(catalog.emptyLabel) }}</strong
           ><button v-if="hasFilters" class="text-button" type="button" @click="clearFilters">
-            清除筛选
+            {{ $t('approvals.clearFilters') }}
           </button>
         </section>
         <template v-else
@@ -69,16 +69,16 @@
           </p>
           <ApprovalQueueList :records="records" :catalog="catalog" @open="openReview" />
           <div ref="sentinelElement" class="approval-load-more">
-            <span v-if="loadingMore">正在加载更多待审批单据…</span
+            <span v-if="loadingMore">{{ $t('approvals.loadingMore') }}</span
             ><button
               v-else-if="loadMoreError"
               class="secondary-button"
               type="button"
               @click="loadNextPage"
             >
-              加载失败，点击重试</button
-            ><span v-else-if="hasMore">继续向下滚动加载</span
-            ><span v-else>已加载全部 {{ total }} 条待审批单据</span>
+              {{ $t('approvals.loadMoreFailed') }}</button
+            ><span v-else-if="hasMore">{{ $t('approvals.scrollForMore') }}</span
+            ><span v-else>{{ $t('approvals.allLoaded', { n: total }) }}</span>
           </div></template
         >
       </div>
@@ -107,9 +107,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { ApiError } from "../../api/errors";
 import { authSession, refreshAuthSession } from "../../auth/session";
 import { notice } from "../../notices/notice";
+import { translateMessageOrNull } from "../../i18n";
 import {
   approvalId,
   getApprovalCatalog,
@@ -127,6 +129,7 @@ import ApprovalReviewDialog from "./ApprovalReviewDialog.vue";
 import "./StockApprovalWorkspace.scss";
 
 const props = defineProps<{ kind: ApprovalKind }>();
+const { t } = useI18n();
 const route = useRoute(),
   router = useRouter(),
   catalog = computed(() => getApprovalCatalog(props.kind));
@@ -225,7 +228,7 @@ async function loadPage(page: number, append = false): Promise<boolean> {
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") return false;
     if (handlePermissionFailure(cause)) return false;
-    const message = errorMessage(cause, "请检查服务连接后重试");
+    const message = errorMessage(cause, t("approvals.checkConnectionRetry"));
     if (shouldAppend) loadMoreError.value = message;
     else loadError.value = message;
     return false;
@@ -239,7 +242,7 @@ async function loadPage(page: number, append = false): Promise<boolean> {
   }
 }
 async function refresh(): Promise<void> {
-  if ((await loadPage(1)) && loaded.value) notice.success("审批队列已刷新");
+  if ((await loadPage(1)) && loaded.value) notice.success(t("approvals.queueRefreshed"));
 }
 async function loadNextPage(): Promise<void> {
   if (!requestPending.value && hasMore.value) await loadPage(currentPage.value + 1, true);
@@ -256,7 +259,7 @@ function applyFilters(value: ApprovalDateFilterValue): void {
   const from = localToIso(value.dateFrom),
     to = localToIso(value.dateTo);
   if ((value.dateFrom && !from) || (value.dateTo && !to) || (from && to && from > to)) {
-    notice.warning("请输入有效的创建时间范围");
+    notice.warning(t("approvals.invalidDateRange"));
     return;
   }
   filterOpen.value = false;
@@ -300,7 +303,7 @@ async function loadDetail(): Promise<void> {
     if (detailController === request && selected.value && approvalId(selected.value) === id) {
       selected.value = detail;
       if (detail.order.status !== "pending") {
-        notice.info("该单据已由其他操作处理");
+        notice.info(t("approvals.alreadyProcessed"));
         await advanceAfterAction(id);
       }
     }
@@ -310,10 +313,10 @@ async function loadDetail(): Promise<void> {
       detailController === request
     ) {
       if (cause instanceof ApiError && cause.status === 404) {
-        notice.info("该单据已不存在或不可读取");
+        notice.info(t("approvals.orderUnavailable"));
         await advanceAfterAction(id);
       } else if (!handlePermissionFailure(cause))
-        detailError.value = errorMessage(cause, "无法加载完整单据");
+        detailError.value = errorMessage(cause, t("approvals.loadDetailFailed"));
     }
   } finally {
     if (detailController === request) {
@@ -330,30 +333,32 @@ async function performAction(action: "approve" | "reject"): Promise<void> {
   try {
     const result =
       action === "approve" ? await catalog.value.approve(id) : await catalog.value.reject(id);
+    const label = t(result.kind === "inbound" ? "approvals.inboundOrder" : "approvals.outboundOrder");
     const title =
       action === "approve"
-        ? `${result.kind === "inbound" ? "入库单" : "出库单"} #${id} 已通过`
-        : `${result.kind === "inbound" ? "入库单" : "出库单"} #${id} 已拒绝`;
+        ? t("approvals.approveSuccess", { label, n: id })
+        : t("approvals.rejectSuccess", { label, n: id });
     notice.success(title, {
       detail:
         action === "approve"
           ? result.kind === "inbound"
-            ? "库存已增加。"
-            : "库存已扣减。"
-          : "库存未变更。",
+            ? t("approvals.stockIncreased")
+            : t("approvals.stockDecreased")
+          : t("approvals.stockUnchanged"),
     });
     await advanceAfterAction(id);
   } catch (cause) {
     if (handlePermissionFailure(cause)) return;
     if (cause instanceof ApiError && cause.status === 409 && cause.code === "order_not_pending") {
-      notice.info("该单据已由其他审批人处理");
+      notice.info(t("approvals.processedByAnotherApprover"));
       await advanceAfterAction(id);
       return;
     }
     actionError.value = actionErrorMessage(cause);
-    notice.error(action === "approve" ? "审批通过失败" : "拒绝单据失败", {
-      detail: actionError.value,
-    });
+    notice.error(
+      t(action === "approve" ? "approvals.approveFailed" : "approvals.rejectFailed"),
+      { detail: actionError.value },
+    );
   } finally {
     actionBusy.value = false;
   }
@@ -386,8 +391,8 @@ async function reconcileQueue(removedId: number): Promise<void> {
     totalPages.value = response.total_pages;
     currentPage.value = 1;
   } catch {
-    notice.warning("队列暂未完全同步", {
-      detail: "当前审批结果已保存，可手动刷新队列。",
+    notice.warning(t("approvals.queueSyncPending"), {
+      detail: t("approvals.queueSyncPendingDetail"),
     });
   }
 }
@@ -401,18 +406,13 @@ function mergeRecords(first: ApprovalRecord[], second: ApprovalRecord[]): Approv
   });
 }
 function actionErrorMessage(cause: unknown): string {
-  if (!(cause instanceof ApiError)) return "无法连接服务，请稍后重试";
-  if (cause.code === "insufficient_stock")
-    return "库存不足或指定批次不可用，服务端已回滚整张出库单。";
-  if (cause.code === "inbound_file_unavailable")
-    return "入库附件已不可用，请拒绝后由创建方重新提交。";
-  if (cause.code === "order_not_pending") return "该单据已由其他操作处理。";
-  return cause.message;
+  if (!(cause instanceof ApiError)) return t("approvals.cannotConnectRetry");
+  return translateMessageOrNull(`error.${cause.code}`) ?? cause.message;
 }
 function handlePermissionFailure(cause: unknown): boolean {
   if (!(cause instanceof ApiError) || cause.status !== 403) return false;
-  notice.warning("审批权限已变化", {
-    detail: "正在返回当前会话仍可访问的页面。",
+  notice.warning(t("approvals.permissionChanged"), {
+    detail: t("approvals.permissionChangedDetail"),
   });
   detailController?.abort();
   selected.value = null;

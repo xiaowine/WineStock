@@ -31,6 +31,7 @@ import {
   reportShellBridgeFailure,
 } from "./shell/runtime";
 import { notice } from "./notices/notice";
+import { i18n, initializeI18n, installDocumentTitleSync, translateMessageOrNull, translateTitle } from "./i18n";
 import { startTelemetryIfConsented } from "./telemetry/clarity";
 import { disposeThemeRuntime, initializeTheme } from "./theme/runtime";
 import { openAppUpdateDialog } from "./updates/appUpdate";
@@ -41,6 +42,8 @@ let stopNativeBackNavigation: (() => void) | null = null;
 
 // 主题必须先于 Shell 初始化和其它异步启动工作生效，避免首屏等待期间露出错误背景。
 initializeTheme();
+// 语言同样先于任何文案渲染生效；语言包静态打包，切换不发起网络请求。
+initializeI18n();
 
 async function bootstrapFrontend(): Promise<void> {
   try {
@@ -58,6 +61,7 @@ async function bootstrapFrontend(): Promise<void> {
   // 等待追踪先于鉴权守卫注册，守卫内的会话初始化等待也计入切换反馈。
   installNavigationPendingTracking(router);
   installAuthGuards(router);
+  installDocumentTitleSync(router);
 
   if (activeApiBaseUrl.value) {
     startServiceAvailabilityMonitor();
@@ -91,11 +95,13 @@ async function bootstrapFrontend(): Promise<void> {
     { flush: "sync" },
   );
 
-  createApp(App)
-    .use(router)
-    .directive("copyable", copyableDirective)
-    .directive("overlay-scrollbar", overlayScrollbarDirective)
-    .mount("#app");
+  const app = createApp(App);
+  app.config.globalProperties.$title = translateTitle;
+  app.use(i18n);
+  app.use(router);
+  app.directive("copyable", copyableDirective);
+  app.directive("overlay-scrollbar", overlayScrollbarDirective);
+  app.mount("#app");
   installOverlayScrollbars();
   if (autoUpdateCheckEnabled.value) {
     void checkForUpdate()
@@ -104,7 +110,7 @@ async function bootstrapFrontend(): Promise<void> {
         openAppUpdateDialog(result, "startup");
       })
       .catch((error: unknown) => {
-        notice.warning("暂时无法检查更新", {
+        notice.warning(translateMessageOrNull("misc.updateCheckFailed") ?? "Unable to check for updates", {
           detail: updateCheckErrorMessage(error),
           durationMs: 6_000,
         });
@@ -117,13 +123,13 @@ async function bootstrapFrontend(): Promise<void> {
     stopNativeBackNavigation = await installNativeBackNavigation(router);
   } catch (error) {
     // capability 声明与订阅不一致属于桥契约失败，交给平台 Shell 阻断 WebView。
-    console.warn("无法安装平台原生返回订阅", error);
+    console.warn("Failed to install platform native back navigation subscription", error);
     void reportShellBridgeFailure(error, "shell_bridge_event_subscription_failed");
     return;
   }
   window.requestAnimationFrame(() => {
     void reportFrontendReady().catch((error: unknown) => {
-      console.warn("无法向平台 Shell 报告前端就绪状态", error);
+      console.warn("Failed to report frontend readiness to the platform shell", error);
       void reportShellBridgeFailure(error, "shell_bridge_ready_failed");
     });
   });

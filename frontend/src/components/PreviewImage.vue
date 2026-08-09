@@ -20,13 +20,18 @@
       :style="{ objectFit }"
       @error="imageFailed = true"
     />
-    <span v-else class="preview-image__fallback" role="img" :aria-label="`${alt} 图片未能加载`">
+    <span
+      v-else
+      class="preview-image__fallback"
+      role="img"
+      :aria-label="$t('components.imageLoadFailedWithName', { name: alt })"
+    >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
         <path d="m6 17 3.8-3.5 2.8 2.5 1.8-1.6 3.6 3.6M8.5 9.5h.01" />
         <path d="m16 8 3 3M19 8l-3 3" />
       </svg>
-      <span>图片未能加载</span>
+      <span>{{ $t('components.imageLoadFailed') }}</span>
     </span>
   </component>
 
@@ -42,9 +47,12 @@
 
 <script setup lang="ts">
 import { computed, ref, useAttrs, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import InAppImageViewer, { type ImageViewerOriginRect } from "./InAppImageViewer.vue";
 
 defineOptions({ inheritAttrs: false });
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -72,9 +80,9 @@ const imageFailed = ref(false);
 const imageUnavailable = computed(() => !props.src || imageFailed.value);
 const triggerLabel = computed(() =>
   imageUnavailable.value
-    ? `${props.alt} 图片未能加载`
+    ? t("components.imageLoadFailedWithName", { name: props.alt })
     : props.previewable
-      ? `查看图片：${props.alt}`
+      ? t("components.viewImage", { name: props.alt })
       : undefined,
 );
 

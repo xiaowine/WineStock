@@ -3,7 +3,7 @@
   它不请求 API，也不决定分组能否被服务端移动或删除。
 -->
 <template>
-  <div class="location-group-tree" role="tree" aria-label="库位分组">
+  <div class="location-group-tree" role="tree" :aria-label="$t('locations.group')">
     <div
       class="location-group-tree__row location-group-tree__row--all"
       role="treeitem"
@@ -18,7 +18,7 @@
         @keydown="handleTreeKeydown($event, 0, null)"
         @click="emit('select', null)"
       >
-        <span>全部库位</span>
+        <span>{{ $t('locations.allLocations') }}</span>
         <small>{{ totalLocations }}</small>
       </button>
     </div>
@@ -37,9 +37,11 @@
         v-if="row.hasChildren"
         class="location-group-tree__toggle"
         type="button"
-        :title="expandedGroupIds.includes(row.node.id) ? '收起分组' : '展开分组'"
+        :title="expandedGroupIds.includes(row.node.id) ? $t('locations.collapseGroup') : $t('locations.expandGroup')"
         :aria-label="
-          expandedGroupIds.includes(row.node.id) ? `收起 ${row.node.name}` : `展开 ${row.node.name}`
+          expandedGroupIds.includes(row.node.id)
+            ? $t('locations.collapseGroupNamed', { name: row.node.name })
+            : $t('locations.expandGroupNamed', { name: row.node.name })
         "
         @click="emit('toggle', row.node.id)"
       >
@@ -69,11 +71,11 @@
       <span v-if="canManage" class="location-group-tree__actions">
         <button
           type="button"
-          :title="row.depth + 1 >= MAX_LOCATION_GROUP_DEPTH ? '已达到 10 层上限' : '新建子分组'"
+          :title="row.depth + 1 >= MAX_LOCATION_GROUP_DEPTH ? $t('locations.maxDepthReached') : $t('locations.createChildGroup')"
           :aria-label="
             row.depth + 1 >= MAX_LOCATION_GROUP_DEPTH
-              ? `${row.node.name} 已达到 10 层上限`
-              : `在 ${row.node.name} 下新建分组`
+              ? $t('locations.maxDepthReachedNamed', { name: row.node.name })
+              : $t('locations.createChildUnderNamed', { name: row.node.name })
           "
           :disabled="row.depth + 1 >= MAX_LOCATION_GROUP_DEPTH"
           @click="emit('create-child', row.node)"
@@ -82,8 +84,8 @@
         </button>
         <button
           type="button"
-          title="编辑分组"
-          :aria-label="`编辑分组 ${row.node.name}`"
+          :title="$t('locations.editGroup')"
+          :aria-label="$t('locations.editGroupNamed', { name: row.node.name })"
           @click="emit('edit', row.node)"
         >
           <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -93,8 +95,8 @@
         </button>
         <button
           type="button"
-          title="删除分组"
-          :aria-label="`删除分组 ${row.node.name}`"
+          :title="$t('locations.deleteGroup')"
+          :aria-label="$t('locations.deleteGroupNamed', { name: row.node.name })"
           @click="emit('delete', row.node)"
         >
           <svg viewBox="0 0 20 20" aria-hidden="true">

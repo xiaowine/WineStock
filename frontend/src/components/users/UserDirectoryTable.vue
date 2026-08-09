@@ -7,16 +7,16 @@
     <div
       class="user-directory-table"
       role="table"
-      aria-label="用户列表"
+      :aria-label="$t('users.userList')"
       :aria-rowcount="users.length + 1"
     >
       <div class="user-directory-table__header" role="row">
-        <span role="columnheader">用户</span>
-        <span role="columnheader">状态</span>
-        <span role="columnheader">权限</span>
-        <span role="columnheader">密码</span>
-        <span role="columnheader">最近更新</span>
-        <span role="columnheader">操作</span>
+        <span role="columnheader">{{ $t("users.user") }}</span>
+        <span role="columnheader">{{ $t("common.status") }}</span>
+        <span role="columnheader">{{ $t("users.permissions") }}</span>
+        <span role="columnheader">{{ $t("users.password") }}</span>
+        <span role="columnheader">{{ $t("users.lastUpdated") }}</span>
+        <span role="columnheader">{{ $t("common.actions") }}</span>
       </div>
 
       <article v-for="user in users" :key="user.id" class="user-directory-table__row" role="row">
@@ -24,7 +24,7 @@
           <strong :title="user.username">{{ user.username }}</strong>
           <small
             >#{{ user.id
-            }}<template v-if="isCurrentUser(user, currentUserId)"> · 当前账号</template></small
+            }}<template v-if="isCurrentUser(user, currentUserId)"> · {{ $t("users.currentAccount") }}</template></small
           >
         </div>
 
@@ -33,7 +33,7 @@
         </div>
 
         <div role="cell" class="user-directory-table__permission-count">
-          {{ user.permissions.length }} 项
+          {{ $t("users.permissionCount", { n: user.permissions.length }) }}
         </div>
 
         <div role="cell">
@@ -53,7 +53,7 @@
             type="button"
             @click="emit('username', user)"
           >
-            用户名
+            {{ $t("users.username") }}
           </button>
           <button
             v-if="canEditPermissions"
@@ -61,7 +61,7 @@
             type="button"
             @click="emit('permissions', user)"
           >
-            权限
+            {{ $t("users.permissions") }}
           </button>
           <button
             v-if="canResetPassword && !isCurrentUser(user, currentUserId)"
@@ -69,7 +69,7 @@
             type="button"
             @click="emit('password', user)"
           >
-            临时密码
+            {{ $t("users.temporaryPassword") }}
           </button>
           <button
             v-if="canUpdateStatus && !isCurrentUser(user, currentUserId)"
@@ -77,7 +77,7 @@
             type="button"
             @click="emit('status', user)"
           >
-            {{ user.status === "active" ? "停用" : "启用" }}
+            {{ user.status === "active" ? $t("users.disable") : $t("users.enable") }}
           </button>
           <button
             v-if="canDelete && !isCurrentUser(user, currentUserId)"
@@ -85,7 +85,7 @@
             type="button"
             @click="emit('delete', user)"
           >
-            删除
+            {{ $t("common.delete") }}
           </button>
           <span
             v-if="
@@ -97,7 +97,7 @@
             "
             class="user-directory-table__empty"
           >
-            无可用操作
+            {{ $t("users.noAvailableActions") }}
           </span>
         </div>
       </article>

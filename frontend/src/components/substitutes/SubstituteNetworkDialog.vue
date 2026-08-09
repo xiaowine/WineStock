@@ -2,8 +2,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="替代关系网络"
-    description="查看物品之间的有向替代链、共同依赖和直接上下游。"
+    :title="$t('substitutes.networkTitle')"
+    :description="$t('substitutes.networkDescription')"
     network-workspace
     :restore-focus="!transitioning"
     :auto-focus="false"
@@ -15,9 +15,9 @@
           <SearchField
             v-model="searchInput"
             class="substitute-network-toolbar__search"
-            label="搜索网络节点"
+            :label="$t('substitutes.searchNodeLabel')"
             name="substitute_network_search"
-            placeholder="搜索物品名称或编号"
+            :placeholder="$t('substitutes.searchNodePlaceholder')"
             hide-label
             @search="applySearch"
           />
@@ -26,7 +26,7 @@
             v-overlay-scrollbar
             class="substitute-network-search-results"
             role="listbox"
-            aria-label="网络搜索结果"
+            :aria-label="$t('substitutes.searchResultsLabel')"
           >
             <button
               v-for="node in searchResults"
@@ -36,20 +36,20 @@
               @click="selectSearchResult(node.id)"
             >
               <strong>{{ node.name }}</strong>
-              <span>编号 {{ node.sku }} · {{ node.degree }} 条连接</span>
+              <span>{{ $t('substitutes.nodeConnections', { sku: node.sku, n: node.degree }) }}</span>
             </button>
-            <p v-if="!searchResults.length">没有匹配的网络节点</p>
+            <p v-if="!searchResults.length">{{ $t('substitutes.noSearchResults') }}</p>
           </div>
         </div>
 
-        <div class="substitute-network-toolbar__range" aria-label="关系观察范围">
+        <div class="substitute-network-toolbar__range" :aria-label="$t('substitutes.rangeLabel')">
           <button
             type="button"
             :class="{ active: rangeMode === 'all' }"
             :aria-pressed="rangeMode === 'all'"
             @click="rangeMode = 'all'"
           >
-            全部关系
+            {{ $t('substitutes.rangeAll') }}
           </button>
           <button
             type="button"
@@ -58,23 +58,23 @@
             :disabled="selectedId === null"
             @click="rangeMode = 'direct'"
           >
-            直接关系
+            {{ $t('substitutes.rangeDirect') }}
           </button>
         </div>
 
         <span class="substitute-network-toolbar__count"
-          >{{ displayedNodes.length }} 个节点 · {{ displayedEdges.length }} 条关系</span
+          >{{ $t('substitutes.networkStats', { nodes: displayedNodes.length, edges: displayedEdges.length }) }}</span
         >
         <span v-if="refreshing" class="substitute-network-toolbar__refreshing" role="status"
-          >数据正在刷新</span
+          >{{ $t('substitutes.networkRefreshing') }}</span
         >
 
         <div class="substitute-network-toolbar__controls">
           <button
             class="icon-button"
             type="button"
-            title="适应画布"
-            aria-label="适应画布"
+            :title="$t('substitutes.fitCanvas')"
+            :aria-label="$t('substitutes.fitCanvas')"
             :disabled="!displayedNodes.length"
             @click="canvas?.fit()"
           >
@@ -85,8 +85,8 @@
           <button
             class="icon-button"
             type="button"
-            title="缩小"
-            aria-label="缩小网络"
+            :title="$t('substitutes.zoomOut')"
+            :aria-label="$t('substitutes.zoomOutAria')"
             :disabled="!displayedNodes.length"
             @click="canvas?.zoomOut()"
           >
@@ -98,8 +98,8 @@
           <button
             class="icon-button"
             type="button"
-            title="放大"
-            aria-label="放大网络"
+            :title="$t('substitutes.zoomIn')"
+            :aria-label="$t('substitutes.zoomInAria')"
             :disabled="!displayedNodes.length"
             @click="canvas?.zoomIn()"
           >
@@ -111,8 +111,8 @@
           <button
             class="icon-button"
             type="button"
-            title="复位布局（清除本次拖动位置）"
-            aria-label="复位网络布局"
+            :title="$t('substitutes.resetLayoutTitle')"
+            :aria-label="$t('substitutes.resetLayoutAria')"
             :disabled="!displayedNodes.length"
             @click="canvas?.resetLayout()"
           >
@@ -122,17 +122,17 @@
             </svg>
           </button>
           <details class="substitute-network-legend">
-            <summary class="icon-button" title="查看图例" aria-label="查看网络图例">
+            <summary class="icon-button" :title="$t('substitutes.viewLegend')" :aria-label="$t('substitutes.viewLegendAria')">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="8" />
                 <path d="M12 11v5M12 8h.01" />
               </svg>
             </summary>
             <div>
-              <span><i class="substitute-network-legend__node"></i>物品节点</span>
-              <span><i class="substitute-network-legend__selected"></i>当前节点</span>
-              <span><i class="substitute-network-legend__edge"></i>主物品 → 替代物品</span>
-              <small>连线数字表示替代优先级。</small>
+              <span><i class="substitute-network-legend__node"></i>{{ $t('substitutes.legendNode') }}</span>
+              <span><i class="substitute-network-legend__selected"></i>{{ $t('substitutes.currentNode') }}</span>
+              <span><i class="substitute-network-legend__edge"></i>{{ $t('substitutes.directionLabel') }}</span>
+              <small>{{ $t('substitutes.legendHint') }}</small>
             </div>
           </details>
         </div>
@@ -140,18 +140,15 @@
 
       <div class="substitute-network-stage">
         <div v-if="!graph.nodes.length" class="substitute-network-empty">
-          <strong>暂无可构建的替代关系网络</strong>
-          <span>配置替代关系后即可从这里查看全局结构。</span>
+          <strong>{{ $t('substitutes.emptyNetworkTitle') }}</strong>
+          <span>{{ $t('substitutes.emptyNetworkHint') }}</span>
         </div>
         <div
           v-else-if="graph.nodes.length > 300 && selectedId === null"
           class="substitute-network-empty"
         >
-          <strong>关系网络规模较大</strong>
-          <span
-            >当前共有 {{ graph.nodes.length }} 个节点，请搜索名称或编号
-            选择中心节点后查看局部网络。</span
-          >
+          <strong>{{ $t('substitutes.largeNetworkTitle') }}</strong>
+          <span>{{ $t('substitutes.largeNetworkHint', { n: graph.nodes.length }) }}</span>
         </div>
         <SubstituteNetworkCanvas
           v-else
@@ -183,7 +180,7 @@
           type="button"
           @click="showAllLargeGraph = !showAllLargeGraph"
         >
-          {{ showAllLargeGraph ? "显示核心" : "显示全部" }}
+          {{ showAllLargeGraph ? $t('substitutes.showCore') : $t('substitutes.showAll') }}
         </button>
       </div>
     </div>
@@ -192,6 +189,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { SubstituteRelationResponse } from "../../api/substitutes";
 import type { SubstituteEditorTarget } from "../../pages/substitutes/model";
 import {
@@ -230,6 +228,7 @@ const emit = defineEmits<{
   edit: [target: SubstituteEditorTarget];
 }>();
 
+const { t } = useI18n();
 const canvas = ref<CanvasApi | null>(null);
 const searchInput = ref("");
 const activeSearch = ref("");
@@ -262,11 +261,14 @@ const displayedEdges = computed(() =>
 );
 const scaleNotice = computed(() => {
   if (graph.value.nodes.length > 300 && selectedId.value !== null)
-    return `当前显示 ${displayedNodes.value.length} 个局部节点，完整网络共有 ${graph.value.nodes.length} 个节点。`;
+    return t("substitutes.scaleNoticeLocal", {
+      n: displayedNodes.value.length,
+      total: graph.value.nodes.length,
+    });
   if (graph.value.nodes.length > 180)
     return showAllLargeGraph.value
-      ? `当前显示全部 ${displayedNodes.value.length} 个节点，缩放时会按级别隐藏标签。`
-      : `为保持操作流畅，当前显示 ${displayedNodes.value.length} 个核心或相关节点。`;
+      ? t("substitutes.scaleNoticeAll", { n: displayedNodes.value.length })
+      : t("substitutes.scaleNoticePartial", { n: displayedNodes.value.length });
   return "";
 });
 

@@ -2,7 +2,9 @@
 // 它不拥有预览列表 UI，也不决定批量入口所在的业务流程（订单导入/备份导入共用）。
 // 设计见 docs/implementation-notes/lcsc-batch-item-creation-and-erp-backup-import.md。
 import { computed, onBeforeUnmount, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { ApiError } from "../../api/errors";
+import { translateMessageOrNull } from "../../i18n";
 import {
   createItem,
   listItemOptions,
@@ -64,6 +66,7 @@ export interface BatchLcscRunCallbacks {
  * 单项失败不阻塞后续；同 C 号去重，`sku_taken` 视为已存在并自动匹配。
  */
 export function useBatchLcscItemCreation() {
+  const { t } = useI18n();
   const templates = ref<ItemAttributeTemplateResponse[]>([]);
   const categories = ref<ItemCategoryResponse[]>([]);
   const metadataLoading = ref(false);
@@ -71,7 +74,7 @@ export function useBatchLcscItemCreation() {
   const running = ref(false);
   const progressDone = ref(0);
   const progressTotal = ref(0);
-  const progressPhase = ref("准备本地物品");
+  const progressPhase = ref(t("items.phasePreparingLocalItems"));
   /** 批次选项在同一会话内记住，连续批量创建不必重选；不做持久化。 */
   const options = ref<BatchLcscCreationOptions | null>(null);
   let metadataController: AbortController | null = null;
@@ -108,7 +111,7 @@ export function useBatchLcscItemCreation() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return false;
       metadataError.value =
-        error instanceof ApiError ? error.message : "无法加载模板与分类，请重试";
+        error instanceof ApiError ? error.message : t("items.metadataLoadFailed");
       return false;
     } finally {
       if (metadataController === controller) {
@@ -124,7 +127,7 @@ export function useBatchLcscItemCreation() {
       options.value ?? {
         templateId: defaultAttributeTemplate(templates.value)?.id ?? null,
         categoryId: null,
-        unit: "个",
+        unit: "\u4e2a", // 个
       }
     );
   }
@@ -136,7 +139,7 @@ export function useBatchLcscItemCreation() {
     callbacks: BatchLcscRunCallbacks = {},
   ): Promise<number> {
     if (running.value) return 0;
-    options.value = { ...nextOptions, unit: nextOptions.unit.trim() || "个" };
+    options.value = { ...nextOptions, unit: nextOptions.unit.trim() || "\u4e2a" }; // 个
     const uniqueCodes = [...new Set(codes.map((code) => code.trim().toUpperCase()))].filter(
       Boolean,
     );
@@ -145,7 +148,7 @@ export function useBatchLcscItemCreation() {
     running.value = true;
     progressDone.value = 0;
     progressTotal.value = uniqueCodes.length;
-    progressPhase.value = "检查本地物品";
+    progressPhase.value = t("items.phaseCheckingLocalItems");
     let createdCount = 0;
     try {
       let pendingCodes = uniqueCodes;
@@ -165,8 +168,8 @@ export function useBatchLcscItemCreation() {
         if (isAbort(error, controller.signal)) return 0;
         const reason =
           error instanceof ApiError
-            ? `无法确认本地物品：${error.message}`
-            : "无法确认本地物品，请重试";
+            ? t("items.confirmLocalItemFailedDetail", { message: error.message })
+            : t("items.confirmLocalItemFailed");
         for (const code of uniqueCodes) {
           progressDone.value += 1;
           callbacks.onItemFailed?.(code, reason);
@@ -178,7 +181,7 @@ export function useBatchLcscItemCreation() {
         if (controller.signal.aborted) return 0;
         const batchCodes = pendingCodes.slice(start, start + LCSC_BATCH_LOOKUP_SIZE);
         for (const code of batchCodes) callbacks.onItemLookupStarted?.(code);
-        progressPhase.value = "查询立创资料";
+        progressPhase.value = t("items.phaseQueryingLcsc");
         let lookupResults: Awaited<ReturnType<typeof lookupLcscItems>>;
         try {
           lookupResults = await lookupLcscItems(batchCodes, controller.signal);
@@ -186,8 +189,8 @@ export function useBatchLcscItemCreation() {
           if (isAbort(error, controller.signal)) return 0;
           const reason =
             error instanceof ApiError
-              ? `立创资料查询失败：${error.message}`
-              : "立创资料查询失败，请重试";
+              ? t("items.lcscQueryFailedDetail", { message: error.message })
+              : t("items.lcscQueryFailed");
           for (const code of batchCodes) {
             progressDone.value += 1;
             callbacks.onItemFailed?.(code, reason);
@@ -216,7 +219,7 @@ export function useBatchLcscItemCreation() {
             callbacks.onItemFailed?.(code, lookupFailureMessage(result.error));
             continue;
           }
-          progressPhase.value = "创建物品";
+          progressPhase.value = t("items.phaseCreatingItems");
           callbacks.onItemStarted?.(code);
           const createResult = await createOne(
             code,
@@ -268,14 +271,19 @@ export function useBatchLcscItemCreation() {
       draft.imageTemporary = true;
     } catch (error) {
       if (isAbort(error, signal)) return cancelledResult();
-      return { ok: false, reason: "商品图片获取失败（物品主图为必填）" };
+      return { ok: false, reason: t("items.imageFetchFailedRequired") };
     }
 
     const validation = validateItemDraft(draft, templates.value);
     if (validation) {
       releaseImageDraft(draft.image ?? undefined);
       // 常见于模板必填字段没有对应的立创参数；批量无法代填，留给单个新建处理。
-      return { ok: false, reason: `资料不满足校验：${validation.firstMessage}` };
+      return {
+        ok: false,
+        reason: t("items.validationFailedDetail", {
+          message: translateMessageOrNull(validation.firstMessage) ?? validation.firstMessage,
+        }),
+      };
     }
 
     try {
@@ -285,7 +293,7 @@ export function useBatchLcscItemCreation() {
       ]);
       const result = await createItem(itemCreateRequest(draft));
       const created = await findItemOption(code, result.id, signal);
-      if (!created) return { ok: false, reason: "创建成功但未能读取物品，请重试匹配" };
+      if (!created) return { ok: false, reason: t("items.createdButUnreadable") };
       return { ok: true, item: created, created: true };
     } catch (error) {
       if (isAbort(error, signal)) return cancelledResult();
@@ -294,12 +302,14 @@ export function useBatchLcscItemCreation() {
         await cleanupDraft();
         const existing = await findItemOption(code, null, signal).catch(() => null);
         if (existing) return { ok: true, item: existing, created: false };
-        return { ok: false, reason: "编号已存在但未能匹配到物品，请重试匹配" };
+        return { ok: false, reason: t("items.skuTakenUnmatched") };
       }
       await cleanupDraft();
       return {
         ok: false,
-        reason: error instanceof ApiError ? `创建失败：${error.message}` : "创建失败，请重试",
+        reason: error instanceof ApiError
+          ? t("items.createFailedDetail", { message: error.message })
+          : t("items.createFailed"),
       };
     }
 
@@ -346,18 +356,18 @@ export function useBatchLcscItemCreation() {
 function lookupFailureMessage(error: LcscBatchLookupError | null): string {
   switch (error) {
     case "invalid_product_code":
-      return "立创资料查询失败：客编格式无效";
+      return translateMessageOrNull("items.lcscLookupInvalidCode") ?? "";
     case "product_not_found":
-      return "立创资料查询失败：未查询到该立创商品";
+      return translateMessageOrNull("items.lcscLookupNotFound") ?? "";
     case "timeout":
-      return "立创资料查询失败：查询超时";
+      return translateMessageOrNull("items.lcscLookupTimeout") ?? "";
     case "busy":
-      return "立创资料查询失败：查询繁忙";
+      return translateMessageOrNull("items.lcscLookupBusy") ?? "";
     case "invalid_response":
-      return "立创资料查询失败：立创返回了无法识别的数据";
+      return translateMessageOrNull("items.lcscLookupInvalidResponse") ?? "";
     case "failed":
     default:
-      return "立创资料查询失败，请重试";
+      return translateMessageOrNull("items.lcscQueryFailed") ?? "";
   }
 }
 

@@ -1,20 +1,21 @@
 <!-- 本组件拥有审批队列创建时间筛选草稿；它不写 URL、不请求列表或改变审批状态。 -->
 <template>
-  <ModalDialog :open="open" title="筛选待审批单据" compact @close="emit('close')">
+  <ModalDialog :open="open" :title="$t('approvals.filterTitle')" compact @close="emit('close')">
     <div class="approval-filter-fields">
-      <DateTimeField v-model="draft.dateFrom" name="approval_date_from" label="创建时间起点" />
-      <DateTimeField v-model="draft.dateTo" name="approval_date_to" label="创建时间终点" />
+      <DateTimeField v-model="draft.dateFrom" name="approval_date_from" :label="$t('approvals.dateFromLabel')" />
+      <DateTimeField v-model="draft.dateTo" name="approval_date_to" :label="$t('approvals.dateToLabel')" />
     </div>
     <template #actions>
-      <button class="text-button" type="button" @click="reset">重置</button>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
-      <button class="primary-button" type="button" @click="apply">应用筛选</button>
+      <button class="text-button" type="button" @click="reset">{{ $t('common.reset') }}</button>
+      <button class="secondary-button" type="button" @click="emit('close')">{{ $t('common.cancel') }}</button>
+      <button class="primary-button" type="button" @click="apply">{{ $t('approvals.applyFilters') }}</button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import ModalDialog from "../ModalDialog.vue";
 import DateTimeField from "../forms/DateTimeField.vue";
 import { notice } from "../../notices/notice";
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 }>();
 const draft = reactive<ApprovalDateFilterValue>({ dateFrom: "", dateTo: "" });
 const error = ref("");
+const { t } = useI18n();
 
 watch(
   () => props.open,
@@ -50,8 +52,8 @@ function reset(): void {
 }
 function apply(): void {
   if (draft.dateFrom && draft.dateTo && draft.dateFrom > draft.dateTo) {
-    error.value = "创建时间起点不能晚于终点";
-    notice.warning("请检查审批筛选条件", { detail: error.value });
+    error.value = t("approvals.dateFromAfterTo");
+    notice.warning(t("approvals.checkFilterConditions"), { detail: error.value });
     return;
   }
   emit("apply", { ...draft });

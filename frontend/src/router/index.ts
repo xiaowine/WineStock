@@ -104,7 +104,7 @@ const routes: RouteRecordRaw[] = [
     name: "setup-wizard",
     component: () => import("../pages/SetupWizardPage.vue"),
     meta: {
-      title: "欢迎使用 WineStock",
+      title: "nav.setupWizard",
       requiresAuth: false,
       requiresService: false,
     },
@@ -114,7 +114,7 @@ const routes: RouteRecordRaw[] = [
     name: "runtime-settings",
     component: () => import("../pages/RuntimeSettingsPage.vue"),
     meta: {
-      title: "运行模式",
+      title: "nav.runtimeSettings",
       requiresAuth: false,
       requiresService: false,
       allowsPasswordChangeRequired: true,
@@ -125,7 +125,7 @@ const routes: RouteRecordRaw[] = [
     name: "auth-entry",
     component: () => import("../pages/AuthEntryPage.vue"),
     meta: {
-      title: "准备连接",
+      title: "nav.authEntry",
       requiresAuth: false,
       requiresService: true,
     },
@@ -135,7 +135,7 @@ const routes: RouteRecordRaw[] = [
     name: "login",
     component: () => import("../pages/LoginPage.vue"),
     meta: {
-      title: "登录",
+      title: "nav.login",
       requiresAuth: false,
       requiresService: true,
     },
@@ -145,7 +145,7 @@ const routes: RouteRecordRaw[] = [
     name: "register",
     component: () => import("../pages/RegisterPage.vue"),
     meta: {
-      title: "创建首个用户",
+      title: "nav.register",
       requiresAuth: false,
       requiresService: true,
     },
@@ -155,7 +155,7 @@ const routes: RouteRecordRaw[] = [
     name: "change-password",
     component: () => import("../pages/ChangePasswordPage.vue"),
     meta: {
-      title: "修改密码",
+      title: "nav.changePassword",
       requiresAuth: true,
       requiresService: true,
       allowsPasswordChangeRequired: true,

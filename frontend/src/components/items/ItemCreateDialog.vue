@@ -20,14 +20,18 @@
 
   <ModalDialog
     :open="discardDialogOpen"
-    title="放弃新建物品？"
-    description="当前填写的物品资料不会保留。"
+    :title="$t('items.discardCreateTitle')"
+    :description="$t('items.discardCreateDescription')"
     @close="cancelDiscard"
   >
-    <p>确认后返回原来的业务页面。</p>
+    <p>{{ $t('items.discardCreateConfirm') }}</p>
     <template #actions>
-      <button class="secondary-button" type="button" @click="cancelDiscard">继续编辑</button>
-      <button class="danger-button" type="button" @click="confirmClose">放弃新建</button>
+      <button class="secondary-button" type="button" @click="cancelDiscard">
+        {{ $t('items.continueEditing') }}
+      </button>
+      <button class="danger-button" type="button" @click="confirmClose">
+        {{ $t('items.discardCreate') }}
+      </button>
     </template>
   </ModalDialog>
 </template>

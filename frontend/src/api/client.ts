@@ -7,6 +7,7 @@ import {
   isApiErrorResponse,
   type ApiErrorBody,
 } from "./errors";
+import { translateMessageOrNull } from "../i18n";
 import { resolveApiBaseUrl } from "./runtime-config";
 
 /** API 查询参数基础值。 */
@@ -96,10 +97,12 @@ export class ApiClient {
   async request<TResult>(path: string, options: ApiRequestOptions = {}): Promise<TResult> {
     const method = options.method ?? "GET";
     if (!path.startsWith("/")) {
-      throw new ApiConfigurationError("API 请求路径必须以 / 开头");
+      throw new ApiConfigurationError(localMessage("components.apiPathMustStartWithSlash"));
     }
     if ((method === "GET" || method === "DELETE") && options.json !== undefined) {
-      throw new ApiConfigurationError(`${method} 请求不能携带 JSON 请求体`);
+      throw new ApiConfigurationError(
+        localMessage("components.apiMethodJsonNotAllowed", { method }),
+      );
     }
 
     const requestSignal = combineAbortSignals(options.signal, this.runtimeAbortController.signal);
@@ -154,7 +157,9 @@ export class ApiClient {
         ? payload.error
         : {
             code: "http_error",
-            message: `请求失败（HTTP ${response.status}）`,
+            message: localMessage("components.apiRequestFailed", {
+              status: String(response.status),
+            }),
             details: payload ?? null,
           };
 
@@ -168,7 +173,7 @@ export class ApiClient {
       throw new ApiError(response.status, errorBody, url.toString());
     }
 
-    throw new ApiResponseError(url.toString(), new Error("API 请求重试状态无效"));
+    throw new ApiResponseError(url.toString(), new Error("Invalid API request retry state"));
   }
 
   /**
@@ -177,7 +182,7 @@ export class ApiClient {
    */
   async upload<TResult>(path: string, options: ApiUploadOptions): Promise<TResult> {
     if (!path.startsWith("/")) {
-      throw new ApiConfigurationError("API 请求路径必须以 / 开头");
+      throw new ApiConfigurationError(localMessage("components.apiPathMustStartWithSlash"));
     }
     const requestSignal = combineAbortSignals(options.signal, this.runtimeAbortController.signal);
     const url = buildRequestUrl(resolveApiBaseUrl(), path, undefined);
@@ -196,7 +201,9 @@ export class ApiClient {
         ? result.payload.error
         : {
             code: "http_error",
-            message: `请求失败（HTTP ${result.status}）`,
+            message: localMessage("components.apiRequestFailed", {
+              status: String(result.status),
+            }),
             details: result.payload ?? null,
           };
       if (attempt === 0 && errorBody.code === "invalid_access_token") {
@@ -205,12 +212,20 @@ export class ApiClient {
       }
       throw new ApiError(result.status, errorBody, url.toString());
     }
-    throw new ApiResponseError(url.toString(), new Error("API 上传重试状态无效"));
+    throw new ApiResponseError(url.toString(), new Error("Invalid API upload retry state"));
   }
 }
 
 /** 默认共享 API client 实例。 */
 export const apiClient = new ApiClient();
+
+/** 取本地化配置/请求错误文案并填充参数；键缺失时回退键名本身。 */
+function localMessage(key: string, params?: Record<string, string>): string {
+  const message = translateMessageOrNull(key) ?? key;
+  return params
+    ? message.replace(/\{(\w+)\}/g, (match, name: string) => params[name] ?? match)
+    : message;
+}
 
 function combineAbortSignals(
   callerSignal: AbortSignal | undefined,
@@ -286,7 +301,7 @@ function sendMultipartRequest(
       xhr.abort();
     };
     if (options.signal?.aborted) {
-      reject(new DOMException("请求已取消", "AbortError"));
+      reject(new DOMException("Request cancelled", "AbortError"));
       return;
     }
     options.signal?.addEventListener("abort", abort, { once: true });
@@ -324,7 +339,7 @@ function sendMultipartRequest(
       options.signal?.removeEventListener("abort", abort);
       reject(
         abortedByCaller
-          ? new DOMException("请求已取消", "AbortError")
+          ? new DOMException("Request cancelled", "AbortError")
           : new ApiNetworkError(new Error("XMLHttpRequest aborted")),
       );
     };

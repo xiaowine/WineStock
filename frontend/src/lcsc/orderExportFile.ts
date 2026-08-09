@@ -24,7 +24,7 @@ async function readAndParse(file: File): Promise<LcscOrderParseResult> {
     const XLSX = await import("xlsx");
     workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
   } catch {
-    return { ok: false, error: "文件读取失败，请确认选择的是立创商城导出的 .xls 表格。" };
+    return { ok: false, error: "stockDraft.lcscFileReadFailed" };
   }
   const { utils } = await import("xlsx");
   const sheets = workbook.SheetNames.map((name) => {

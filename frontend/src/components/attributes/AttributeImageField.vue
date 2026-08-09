@@ -5,7 +5,7 @@
     class="inbound-file-field"
     :class="{ 'inbound-control--error': invalid }"
     :title="title"
-    :aria-label="label"
+    :aria-label="labelText"
     :aria-invalid="invalid || undefined"
     tabindex="-1"
   >
@@ -21,14 +21,14 @@
           v-if="value?.previewUrl"
           class="inbound-file-field__image-preview"
           :src="value.previewUrl"
-          :alt="value.name || label"
+          :alt="value.name || label || ''"
         />
         <button
           ref="pickerTrigger"
           class="inbound-file-field__preview-trigger"
           :class="{ 'inbound-file-field__preview-trigger--with-image': value?.previewUrl }"
           type="button"
-          :aria-label="value ? `更换图片：${value.name}` : '选择图片'"
+          :aria-label="value ? $t('items.changeImage', { name: value.name }) : $t('items.selectImage')"
           :aria-expanded="pickerOpen"
           :aria-controls="pickerId"
           @click="togglePicker"
@@ -43,13 +43,15 @@
               <circle cx="9" cy="10" r="1.5" />
               <path d="m5.5 17 4.5-4 3.2 2.8 2.3-2 3 3.2" />
             </svg>
-            <template v-else>图</template>
+            <template v-else>{{ $t('items.imagePlaceholder') }}</template>
           </span>
           <span class="inbound-file-field__preview-copy">
-            <strong>{{ value?.name ?? "选择图片" }}</strong>
-            <span v-if="!value">本地图片或纯色图片</span>
-            <span v-else-if="value.status === 'pending'">将在提交时上传</span>
-            <span v-else-if="value.status === 'uploading'">上传中 {{ value.progress }}%</span>
+            <strong>{{ value?.name ?? $t('items.selectImage') }}</strong>
+            <span v-if="!value">{{ $t('items.localOrSolidImage') }}</span>
+            <span v-else-if="value.status === 'pending'">{{ $t('items.pendingUpload') }}</span>
+            <span v-else-if="value.status === 'uploading'"
+              >{{ $t('items.uploading', { n: value.progress }) }}</span
+            >
             <span v-else-if="value.status === 'failed'">{{ value.error }}</span>
             <span v-else>{{ formatFileSize(value.sizeBytes) }}</span>
           </span>
@@ -59,8 +61,8 @@
         v-if="value"
         class="icon-button inbound-file-field__remove"
         type="button"
-        title="删除图片"
-        aria-label="删除图片"
+        :title="$t('items.deleteImage')"
+        :aria-label="$t('items.deleteImage')"
         @click="remove"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -92,15 +94,15 @@
           :class="{ 'image-picker-popover--above': pickerPlacement === 'above' }"
           :style="pickerStyle"
           role="dialog"
-          aria-label="选择图片来源"
+          :aria-label="$t('items.imageSourceAria')"
         >
           <button class="image-picker-popover__option" type="button" @click="chooseLocalFile">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 16V4M7.5 8.5 12 4l4.5 4.5M5 14v5h14v-5" />
             </svg>
             <span>
-              <strong>本地图片</strong>
-              <small>PNG、JPEG 或 WebP</small>
+              <strong>{{ $t('items.localImage') }}</strong>
+              <small>{{ $t('items.imageFormats') }}</small>
             </span>
           </button>
           <button
@@ -120,8 +122,10 @@
               <circle cx="17" cy="9" r=".8" />
             </svg>
             <span>
-              <strong>纯色图片</strong>
-              <small>{{ colorPickerOpen ? "调整颜色后立即生成" : "打开颜色选择器" }}</small>
+              <strong>{{ $t('items.solidColorImage') }}</strong>
+              <small>{{
+                colorPickerOpen ? $t('items.adjustColorGenerate') : $t('items.openColorPicker')
+              }}</small>
             </span>
             <span
               class="image-picker-popover__color-swatch"
@@ -142,6 +146,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, toRef, useId, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { deleteImage, readImage, validateImageFile } from "../../api/files";
 import {
   ApiConfigurationError,
@@ -173,11 +178,13 @@ const props = withDefaults(
   }>(),
   {
     deleteOnRemove: true,
-    label: "图片属性",
+    label: undefined,
   },
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: ImageDraftValue | undefined] }>();
+const { t } = useI18n();
+const labelText = computed(() => props.label ?? t("items.imageFieldLabel"));
 const value = toRef(props, "modelValue");
 const fieldRoot = ref<HTMLElement | null>(null);
 const pickerTrigger = ref<HTMLButtonElement | null>(null);
@@ -322,7 +329,7 @@ async function selectFile(event: Event): Promise<void> {
   }
   const error = await validateImageFile(file);
   if (error) {
-    notice.warning("无法选择该图片", { detail: error });
+    notice.warning(t("items.imageSelectFailed"), { detail: error });
     pickerTrigger.value?.focus();
     return;
   }
@@ -344,7 +351,7 @@ async function generateSolidColor(color: string): Promise<void> {
     const file = await createSolidColorImage(color);
     if (sequence === solidGenerationSequence) replace(file);
   } catch (error) {
-    notice.error(errorMessage(error, "纯色图片生成失败"));
+    notice.error(errorMessage(error, t("items.solidColorGenerateFailed")));
   }
 }
 
@@ -358,7 +365,7 @@ async function remove(): Promise<void> {
     try {
       await deleteImage(current.fileId);
     } catch (error) {
-      notice.error(errorMessage(error, "删除临时图片失败"));
+      notice.error(errorMessage(error, t("items.deleteTempImageFailed")));
     }
   }
   await nextTick();
@@ -370,7 +377,7 @@ async function loadPreview(target: ImageDraftValue): Promise<void> {
     target.previewUrl = URL.createObjectURL(await readImage(target.fileId as number));
   } catch (error) {
     target.status = "failed";
-    target.error = errorMessage(error, "无法读取已上传图片");
+    target.error = errorMessage(error, t("items.imageReadFailed"));
   }
 }
 
@@ -410,13 +417,13 @@ function handleDocumentScroll(): void {
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof ApiConfigurationError) return error.message;
-  if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
-  if (error instanceof ApiResponseError) return "服务响应格式无效，请检查前后端版本";
+  if (error instanceof ApiNetworkError) return t("error.network_unavailable");
+  if (error instanceof ApiResponseError) return t("error.response_invalid");
   return fallback;
 }
 
 function formatFileSize(bytes: number): string {
-  if (bytes <= 0) return "已保存图片";
+  if (bytes <= 0) return t("items.savedImage");
   return bytes >= 1024 * 1024
     ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
     : `${Math.max(1, Math.round(bytes / 1024))} KB`;

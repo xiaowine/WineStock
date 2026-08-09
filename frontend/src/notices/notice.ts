@@ -68,7 +68,7 @@ export const notices = readonly(mutableNotices);
 export function showNotice(request: NoticeRequest): string {
   const title = request.title.trim();
   if (!title) {
-    throw new Error("Notice 标题不能为空");
+    throw new Error("Notice title must not be empty");
   }
   const detail = request.detail?.trim() || undefined;
   const tone = request.tone ?? "info";

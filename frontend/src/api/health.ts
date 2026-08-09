@@ -17,7 +17,7 @@ export async function checkHealth(signal?: AbortSignal): Promise<void> {
   if (!isHealthResponse(response)) {
     throw new ApiResponseError(
       `${resolveApiBaseUrl()}/api/health`,
-      new Error("健康检查响应不符合预期"),
+      new Error("Unexpected health check response"),
     );
   }
 }

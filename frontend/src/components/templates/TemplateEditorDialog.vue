@@ -12,10 +12,10 @@
     @close="requestClose"
   >
     <form v-if="!readOnly" :id="formId" class="template-editor" novalidate @submit.prevent="submit">
-      <section class="template-editor__basics" aria-label="模板基础信息">
+      <section class="template-editor__basics" :aria-label="$t('templates.basicsAria')">
         <FormInput
           v-model="draft.name"
-          label="模板名称"
+          :label="$t('templates.templateNameLabel')"
           validation-key="name"
           :error="errors.name"
           maxlength="128"
@@ -26,7 +26,7 @@
         />
         <FormTextarea
           v-model="draft.description"
-          label="模板说明"
+          :label="$t('templates.templateDescriptionLabel')"
           validation-key="description"
           :error="errors.description"
           maxlength="1024"
@@ -38,9 +38,9 @@
       <section class="template-editor__fields" aria-labelledby="template-fields-heading">
         <header class="template-editor__fields-toolbar">
           <div>
-            <h3 id="template-fields-heading">字段结构</h3>
+            <h3 id="template-fields-heading">{{ $t('templates.fieldStructure') }}</h3>
             <span>{{ draft.fields.length }} / 64</span>
-            <span>目录字段：已选择 {{ catalogVisibleCount }} / 3</span>
+            <span>{{ $t('templates.catalogVisibleCount', { n: catalogVisibleCount }) }}</span>
           </div>
           <button
             class="secondary-button"
@@ -48,7 +48,7 @@
             :disabled="submitting || draft.fields.length >= 64"
             @click="addField"
           >
-            添加字段
+            {{ $t('templates.addField') }}
           </button>
         </header>
 
@@ -68,9 +68,10 @@
             >
               <span class="template-field-card__order">{{ index + 1 }}</span>
               <span class="template-field-card__identity">
-                <strong>{{ field.fieldName.trim() || "未命名字段" }}</strong>
+                <strong>{{ field.fieldName.trim() || $t('templates.unnamedField') }}</strong>
                 <span
-                  >{{ fieldTypeLabel(field.fieldType) }}{{ field.required ? " · 必填" : "" }}</span
+                  >{{ fieldTypeLabel(field.fieldType)
+                  }}<template v-if="field.required"> · {{ $t('common.required') }}</template></span
                 >
               </span>
               <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -81,8 +82,10 @@
               <button
                 class="icon-button"
                 type="button"
-                title="上移字段"
-                :aria-label="`上移字段 ${field.fieldName || index + 1}`"
+                :title="$t('templates.moveFieldUp')"
+                :aria-label="
+                  $t('templates.moveFieldUpAria', { name: field.fieldName || index + 1 })
+                "
                 :disabled="submitting || index === 0"
                 @click="moveField(index, -1)"
               >
@@ -91,8 +94,10 @@
               <button
                 class="icon-button"
                 type="button"
-                title="下移字段"
-                :aria-label="`下移字段 ${field.fieldName || index + 1}`"
+                :title="$t('templates.moveFieldDown')"
+                :aria-label="
+                  $t('templates.moveFieldDownAria', { name: field.fieldName || index + 1 })
+                "
                 :disabled="submitting || index === draft.fields.length - 1"
                 @click="moveField(index, 1)"
               >
@@ -101,8 +106,10 @@
               <button
                 class="icon-button template-field-card__delete"
                 type="button"
-                title="删除字段"
-                :aria-label="`删除字段 ${field.fieldName || index + 1}`"
+                :title="$t('templates.deleteField')"
+                :aria-label="
+                  $t('templates.deleteFieldAria', { name: field.fieldName || index + 1 })
+                "
                 :disabled="submitting || draft.fields.length === 1"
                 @click="requestDeleteField(index)"
               >
@@ -115,7 +122,7 @@
             <div class="template-field-card__grid">
               <FormInput
                 v-model="field.fieldName"
-                label="字段名称"
+                :label="$t('templates.fieldNameLabel')"
                 :validation-key="`fields.${index}.field_name`"
                 :error="errors[`fields.${index}.field_name`]"
                 maxlength="64"
@@ -125,7 +132,7 @@
               />
               <FormSelect
                 :model-value="field.fieldType"
-                label="字段类型"
+                :label="$t('templates.fieldTypeName')"
                 :validation-key="`fields.${index}.field_type`"
                 :error="errors[`fields.${index}.field_type`]"
                 :disabled="submitting"
@@ -144,11 +151,11 @@
             <div class="template-field-card__switches">
               <label
                 ><input v-model="field.required" type="checkbox" :disabled="submitting" />
-                <span>实际录入必填</span></label
+                <span>{{ $t('templates.requiredInput') }}</span></label
               >
               <label
                 ><input v-model="field.searchable" type="checkbox" :disabled="submitting" />
-                <span>允许参与筛选</span></label
+                <span>{{ $t('templates.searchableToggle') }}</span></label
               >
               <label>
                 <input
@@ -156,34 +163,34 @@
                   type="checkbox"
                   :disabled="submitting || (!field.catalogVisible && catalogVisibleCount >= 3)"
                 />
-                <span>在物品目录展示</span>
+                <span>{{ $t('templates.catalogVisibleToggle') }}</span>
               </label>
             </div>
 
             <div v-if="field.fieldType === 'file'" class="template-field-card__hint">
-              图片字段不支持默认文件。
+              {{ $t('templates.fileNoDefaultHint') }}
             </div>
             <FormSelect
               v-else-if="field.fieldType === 'boolean'"
               v-model="field.defaultValue"
-              label="默认值"
+              :label="$t('templates.defaultValueLabel')"
               :validation-key="`fields.${index}.default_value`"
               :error="errors[`fields.${index}.default_value`]"
               :disabled="submitting"
             >
-              <option value="">不设置</option>
-              <option value="true">是</option>
-              <option value="false">否</option>
+              <option value="">{{ $t('templates.noDefault') }}</option>
+              <option value="true">{{ $t('common.yes') }}</option>
+              <option value="false">{{ $t('common.no') }}</option>
             </FormSelect>
             <FormSelect
               v-else-if="field.fieldType === 'select'"
               v-model="field.defaultValue"
-              label="默认值"
+              :label="$t('templates.defaultValueLabel')"
               :validation-key="`fields.${index}.default_value`"
               :error="errors[`fields.${index}.default_value`]"
               :disabled="submitting"
             >
-              <option value="">不设置</option>
+              <option value="">{{ $t('templates.noDefault') }}</option>
               <option
                 v-for="option in normalizedOptions(field.options)"
                 :key="option"
@@ -195,7 +202,7 @@
             <FormInput
               v-else
               v-model="field.defaultValue"
-              label="默认值"
+              :label="$t('templates.defaultValueLabel')"
               :validation-key="`fields.${index}.default_value`"
               :error="errors[`fields.${index}.default_value`]"
               maxlength="256"
@@ -214,7 +221,7 @@
             <OptionEditor
               v-if="field.fieldType === 'select'"
               v-model="field.options"
-              label="选择候选项"
+              :label="$t('templates.optionChoicesLabel')"
               :error-prefix="`fields.${index}.options`"
               :errors="errors"
               :max-items="128"
@@ -222,22 +229,22 @@
               :disabled="submitting"
             />
 
-            <section class="template-field-card__unit" aria-label="单位规则">
+            <section class="template-field-card__unit" :aria-label="$t('templates.unitRuleLabel')">
               <FormSelect
                 :model-value="field.unitMode"
-                label="单位规则"
+                :label="$t('templates.unitRuleLabel')"
                 :validation-key="`fields.${index}.unit_mode`"
                 :disabled="submitting"
                 @update:model-value="requestUnitModeChange(index, $event)"
               >
-                <option value="none">无单位</option>
-                <option value="fixed">固定单位</option>
-                <option value="select">选择单位</option>
+                <option value="none">{{ $t('templates.unitModeNone') }}</option>
+                <option value="fixed">{{ $t('templates.unitModeFixed') }}</option>
+                <option value="select">{{ $t('templates.unitModeSelect') }}</option>
               </FormSelect>
               <FormInput
                 v-if="field.unitMode === 'fixed'"
                 v-model="field.unitValue"
-                label="固定单位"
+                :label="$t('templates.unitModeFixed')"
                 :validation-key="`fields.${index}.unit_value`"
                 :error="errors[`fields.${index}.unit_value`]"
                 maxlength="32"
@@ -247,7 +254,7 @@
               <OptionEditor
                 v-if="field.unitMode === 'select'"
                 v-model="field.unitOptions"
-                label="单位候选项"
+                :label="$t('templates.unitOptionsLabel')"
                 :error-prefix="`fields.${index}.unit_options`"
                 :errors="errors"
                 :max-items="32"
@@ -263,21 +270,22 @@
     <div v-else class="template-detail">
       <dl class="template-detail__basics">
         <div>
-          <dt>模板名称</dt>
+          <dt>{{ $t('templates.templateNameLabel') }}</dt>
           <dd>{{ template?.name }}</dd>
         </div>
         <div>
-          <dt>模板说明</dt>
-          <dd>{{ template?.description || "暂无说明" }}</dd>
+          <dt>{{ $t('templates.templateDescriptionLabel') }}</dt>
+          <dd>{{ template?.description || $t('templates.noDescription') }}</dd>
         </div>
         <div v-if="template && 'item_usage_count' in template">
-          <dt>当前有效物品使用</dt>
-          <dd>{{ template.item_usage_count }} 个</dd>
+          <dt>{{ $t('templates.activeItemUsage') }}</dt>
+          <dd>{{ $t('templates.itemCount', { n: template.item_usage_count }) }}</dd>
         </div>
       </dl>
-      <section class="template-detail__fields" aria-label="字段结构">
+      <section class="template-detail__fields" :aria-label="$t('templates.fieldStructure')">
         <h3>
-          字段结构 <span>{{ draft.fields.length }} 个字段</span>
+          {{ $t('templates.fieldStructure') }}
+          <span>{{ $t('templates.fieldCount', { n: draft.fields.length }) }}</span>
         </h3>
         <article v-for="(field, index) in draft.fields" :key="field.key">
           <header>
@@ -287,27 +295,27 @@
           </header>
           <dl>
             <div>
-              <dt>录入规则</dt>
+              <dt>{{ $t('templates.entryRuleLabel') }}</dt>
               <dd>
-                {{ field.required ? "必填" : "选填" }} ·
-                {{ field.searchable ? "可筛选" : "不参与筛选" }}
+                {{ field.required ? $t('common.required') : $t('templates.optionalEntry') }} ·
+                {{ field.searchable ? $t('templates.searchableCountLabel') : $t('templates.notSearchable') }}
               </dd>
             </div>
             <div v-if="field.defaultValue">
-              <dt>默认值</dt>
+              <dt>{{ $t('templates.defaultValueLabel') }}</dt>
               <dd>{{ field.defaultValue }}</dd>
             </div>
             <div v-if="field.options.length">
-              <dt>候选项</dt>
+              <dt>{{ $t('templates.optionsDetailLabel') }}</dt>
               <dd>{{ field.options.join("、") }}</dd>
             </div>
             <div>
-              <dt>单位</dt>
+              <dt>{{ $t('common.unit') }}</dt>
               <dd>{{ unitLabel(field) }}</dd>
             </div>
             <div>
-              <dt>目录展示</dt>
-              <dd>{{ field.catalogVisible ? "是" : "否" }}</dd>
+              <dt>{{ $t('templates.catalogVisibleDetail') }}</dt>
+              <dd>{{ field.catalogVisible ? $t('common.yes') : $t('common.no') }}</dd>
             </div>
           </dl>
         </article>
@@ -316,10 +324,10 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="requestClose">
-        {{ readOnly ? "关闭" : "取消" }}
+        {{ readOnly ? $t('common.close') : $t('common.cancel') }}
       </button>
       <button v-if="readOnly && canEdit" class="primary-button" type="button" @click="emit('edit')">
-        编辑模板
+        {{ $t('templates.editTemplate') }}
       </button>
       <button
         v-else-if="!readOnly"
@@ -328,7 +336,13 @@
         :form="formId"
         :disabled="submitting"
       >
-        {{ submitting ? "正在保存…" : template ? "保存模板" : "创建模板" }}
+        {{
+          submitting
+            ? $t('templates.savingNow')
+            : template
+              ? $t('templates.saveTemplateButton')
+              : $t('templates.createTemplateButton')
+        }}
       </button>
     </template>
   </ModalDialog>
@@ -342,13 +356,15 @@
     @close="confirmState = null"
   >
     <template #actions>
-      <button class="secondary-button" type="button" @click="confirmState = null">取消</button>
+      <button class="secondary-button" type="button" @click="confirmState = null">
+        {{ $t('common.cancel') }}
+      </button>
       <button
         :class="confirmState?.danger ? 'danger-button' : 'primary-button'"
         type="button"
         @click="runConfirmedAction"
       >
-        {{ confirmState?.confirmLabel ?? "继续" }}
+        {{ confirmState?.confirmLabel ?? $t('templates.continueAction') }}
       </button>
     </template>
   </ModalDialog>
@@ -356,6 +372,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, useId, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type {
   ItemAttributeTemplateResponse,
   ItemAttributeUnitMode,
@@ -403,6 +420,7 @@ const emit = defineEmits<{
   submit: [draft: TemplateDraft];
 }>();
 
+const { t } = useI18n();
 const formId = `template-editor-form-${useId()}`;
 const draft = reactive<TemplateDraft>(createTemplateDraft(null));
 const errors = ref<Record<string, string>>({});
@@ -410,20 +428,18 @@ const initialSnapshot = ref("");
 const confirmState = ref<ConfirmState | null>(null);
 useFormValidation(errors);
 
-const fieldTypeOptions: { value: TemplateFieldType; label: string }[] = [
-  { value: "text", label: "文本" },
-  { value: "number", label: "数字" },
-  { value: "select", label: "选择" },
-  { value: "date", label: "日期" },
-  { value: "file", label: "图片" },
-  { value: "url", label: "链接" },
-  { value: "boolean", label: "是/否" },
-];
+const fieldTypeOptions: { value: TemplateFieldType; label: string }[] = (
+  ["text", "number", "select", "date", "file", "url", "boolean"] as TemplateFieldType[]
+).map((value) => ({ value, label: fieldTypeLabel(value) }));
 
 const dialogTitle = computed(() =>
-  props.readOnly ? "物品属性模板详情" : props.template ? "编辑物品属性模板" : "新建物品属性模板",
+  props.readOnly
+    ? t("templates.templateDetailTitle")
+    : props.template
+      ? t("templates.editTemplateTitle")
+      : t("templates.newTemplateTitle"),
 );
-const dialogDescription = "定义物品长期属性、单位和最多三个目录展示字段。";
+const dialogDescription = computed(() => t("templates.editorDescription"));
 const catalogVisibleCount = computed(
   () => draft.fields.filter((field) => field.catalogVisible).length,
 );
@@ -463,7 +479,7 @@ function submit(): void {
   errors.value = result.errors;
   if (result.firstFieldIndex !== null) draft.fields[result.firstFieldIndex].expanded = true;
   if (Object.keys(result.errors).length) {
-    notice.warning("请检查模板信息", { detail: Object.values(result.errors)[0] });
+    notice.warning(t("templates.checkTemplateInfo"), { detail: Object.values(result.errors)[0] });
     return;
   }
   emit("submit", JSON.parse(JSON.stringify(draft)) as TemplateDraft);
@@ -497,9 +513,11 @@ function requestDeleteField(index: number): void {
     return;
   }
   confirmState.value = {
-    title: "删除字段？",
-    description: `字段“${field.fieldName || index + 1}”及其配置会从当前模板草稿中移除。`,
-    confirmLabel: "删除字段",
+    title: t("templates.deleteFieldConfirmTitle"),
+    description: t("templates.deleteFieldConfirmDescription", {
+      name: field.fieldName || index + 1,
+    }),
+    confirmLabel: t("templates.deleteField"),
     danger: true,
     action: remove,
   };
@@ -516,9 +534,9 @@ function requestFieldTypeChange(index: number, value: unknown): void {
   if (!needsConfirmation) apply();
   else
     confirmState.value = {
-      title: "更改字段类型？",
-      description: "与新类型不兼容的默认值或候选项会被清除。",
-      confirmLabel: "更改类型",
+      title: t("templates.changeTypeConfirmTitle"),
+      description: t("templates.changeTypeConfirmDescription"),
+      confirmLabel: t("templates.changeTypeConfirmLabel"),
       action: apply,
     };
 }
@@ -537,9 +555,9 @@ function requestUnitModeChange(index: number, value: unknown): void {
   if (!hasCurrentData) apply();
   else
     confirmState.value = {
-      title: "更改单位规则？",
-      description: "当前固定单位或单位候选项会被清除。",
-      confirmLabel: "更改规则",
+      title: t("templates.changeUnitRuleConfirmTitle"),
+      description: t("templates.changeUnitRuleConfirmDescription"),
+      confirmLabel: t("templates.changeUnitRuleConfirmLabel"),
       action: apply,
     };
 }
@@ -547,9 +565,9 @@ function requestUnitModeChange(index: number, value: unknown): void {
 function requestClose(): void {
   if (!props.readOnly && serializeTemplateDraft(draft) !== initialSnapshot.value) {
     confirmState.value = {
-      title: "放弃未保存修改？",
-      description: "关闭后，本次模板字段和基础信息修改不会保留。",
-      confirmLabel: "放弃修改",
+      title: t("templates.discardChangesTitle"),
+      description: t("templates.discardTemplateChangesDescription"),
+      confirmLabel: t("templates.discardChanges"),
       danger: true,
       action: () => emit("close"),
     };
@@ -573,8 +591,9 @@ function normalizedOptions(options: readonly string[]): string[] {
 }
 
 function unitLabel(field: TemplateFieldDraft): string {
-  if (field.unitMode === "fixed") return `固定：${field.unitValue}`;
-  if (field.unitMode === "select") return `可选：${field.unitOptions.join("、")}`;
-  return "无单位";
+  if (field.unitMode === "fixed") return t("templates.unitFixed", { value: field.unitValue });
+  if (field.unitMode === "select")
+    return t("templates.unitSelectable", { value: field.unitOptions.join("、") });
+  return t("templates.unitModeNone");
 }
 </script>

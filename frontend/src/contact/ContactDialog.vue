@@ -2,12 +2,12 @@
 <template>
   <ModalDialog
     :open="open"
-    title="联系与反馈"
-    description="遇到问题、发现错误或有改进建议，欢迎联系作者。"
+    :title="$t('misc.contactTitle')"
+    :description="$t('misc.contactDescription')"
     @close="emit('close')"
   >
     <div class="contact-dialog">
-      <section class="contact-dialog__highlight" aria-label="项目反馈入口">
+      <section class="contact-dialog__highlight" :aria-label="$t('misc.contactFeedbackAria')">
         <div class="contact-dialog__highlight-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false">
             <path d="M4 5.5h16v11H8l-4 3v-14Z" />
@@ -15,28 +15,30 @@
           </svg>
         </div>
         <div>
-          <strong>项目反馈</strong>
-          <p>通过 GitHub 项目主页提交问题和建议。</p>
+          <strong>{{ $t("misc.contactProjectFeedback") }}</strong>
+          <p>{{ $t("misc.contactFeedbackViaGithub") }}</p>
         </div>
-        <button class="primary-button" type="button" @click="openFeedback">打开反馈页</button>
+        <button class="primary-button" type="button" @click="openFeedback">
+          {{ $t("misc.contactOpenFeedbackPage") }}
+        </button>
       </section>
 
       <section class="contact-dialog__section" aria-labelledby="contact-details-title">
-        <h3 id="contact-details-title">联系方式</h3>
+        <h3 id="contact-details-title">{{ $t("misc.contactDetailsTitle") }}</h3>
         <dl class="contact-dialog__details">
           <div>
-            <dt>邮箱</dt>
-            <dd v-copyable="{ text: CONTACT_INFO.email, label: '邮箱' }">
+            <dt>{{ $t("misc.contactEmail") }}</dt>
+            <dd v-copyable="{ text: CONTACT_INFO.email, label: $t('misc.contactEmail') }">
               {{ CONTACT_INFO.email }}
             </dd>
           </div>
           <div>
-            <dt>QQ群</dt>
+            <dt>{{ $t("misc.contactQqGroup") }}</dt>
             <dd>
               <button
                 class="text-button contact-dialog__link"
                 type="button"
-                @click="openContactLink(CONTACT_INFO.qqGroupUrl, 'QQ群')"
+                @click="openContactLink(CONTACT_INFO.qqGroupUrl, $t('misc.contactQqGroup'))"
               >
                 {{ CONTACT_INFO.qqGroup }}
               </button>
@@ -48,7 +50,7 @@
               <button
                 class="text-button contact-dialog__link"
                 type="button"
-                @click="openContactLink(CONTACT_INFO.feedbackUrl, 'GitHub 地址')"
+                @click="openContactLink(CONTACT_INFO.feedbackUrl, $t('misc.contactGithubAddress'))"
               >
                 {{ CONTACT_INFO.feedbackUrl }}
               </button>
@@ -59,12 +61,15 @@
     </div>
 
     <template #actions>
-      <button class="secondary-button" type="button" @click="emit('close')">关闭</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t("common.close") }}
+      </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import ModalDialog from "../components/ModalDialog.vue";
 import { notice } from "../notices/notice";
 import { openExternal } from "../shell/runtime";
@@ -72,15 +77,16 @@ import { CONTACT_INFO } from "./contactInfo";
 
 defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();
+const { t } = useI18n();
 
 function openFeedback(): void {
-  openContactLink(CONTACT_INFO.feedbackUrl, "反馈页");
+  openContactLink(CONTACT_INFO.feedbackUrl, t("misc.contactFeedbackPage"));
 }
 
 function openContactLink(url: string, label: string): void {
   void openExternal(url).catch((error: unknown) => {
-    notice.error(`无法打开${label}`, {
-      detail: error instanceof Error ? error.message : "请稍后重试。",
+    notice.error(t("misc.contactCannotOpen", { name: label }), {
+      detail: error instanceof Error ? error.message : t("misc.contactRetryLater"),
     });
   });
 }

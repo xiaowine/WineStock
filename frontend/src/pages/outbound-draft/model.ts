@@ -1,6 +1,7 @@
 // 本文件拥有出库草稿的本地模型与请求转换；它不发起 HTTP 请求或持久化。
 import type { OutboundCreateRequest } from "../../api/outbound";
 import type { ItemBatchStockResponse, ItemOptionResponse } from "../../api/items";
+import { translateMessageOrNull } from "../../i18n";
 
 /** 出库明细的库存分配方式。 */
 export type OutboundAllocationMode = "fifo" | "specific_batch";
@@ -57,8 +58,9 @@ export function buildOutboundRequest(
 /** 明细阻塞条件仅覆盖创建阶段能确定的必要字段。 */
 export function lineError(line: OutboundDraftLine): string | null {
   if (!Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0)
-    return "请输入大于 0 的数量";
-  if (line.allocationMode === "specific_batch" && line.batchId === null) return "请选择扣减批次";
+    return translateMessageOrNull("stockDraft.quantityMustBePositive") ?? "stockDraft.quantityMustBePositive";
+  if (line.allocationMode === "specific_batch" && line.batchId === null)
+    return translateMessageOrNull("stockDraft.selectDeductionBatch") ?? "stockDraft.selectDeductionBatch";
   return null;
 }
 

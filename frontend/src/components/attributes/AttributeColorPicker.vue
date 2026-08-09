@@ -10,11 +10,16 @@
       :style="{ backgroundColor: `hsl(${hue} 100% 50%)` }"
       role="slider"
       tabindex="0"
-      aria-label="颜色饱和度和亮度"
+      :aria-label="$t('items.colorSaturationAria')"
       aria-valuemin="0"
       aria-valuemax="100"
       :aria-valuenow="Math.round(saturation * 100)"
-      :aria-valuetext="`饱和度 ${Math.round(saturation * 100)}%，亮度 ${Math.round(value * 100)}%`"
+      :aria-valuetext="
+        $t('items.colorSaturationValueText', {
+          s: Math.round(saturation * 100),
+          v: Math.round(value * 100),
+        })
+      "
       @pointerdown="startSaturationDrag"
       @pointermove="moveSaturationDrag"
       @pointerup="finishSaturationDrag"
@@ -36,7 +41,7 @@
       class="attribute-color-picker__hue"
       role="slider"
       tabindex="0"
-      aria-label="色相"
+      :aria-label="$t('items.colorHueAria')"
       aria-valuemin="0"
       aria-valuemax="360"
       :aria-valuenow="Math.round(hue)"
@@ -67,7 +72,7 @@
             inputmode="text"
             autocomplete="off"
             spellcheck="false"
-            aria-label="十六进制颜色"
+            :aria-label="$t('items.colorHexAria')"
             @input="applyHexDraft(false)"
             @blur="applyHexDraft(true)"
             @keydown.enter.prevent="applyHexDraft(true)"
@@ -76,14 +81,14 @@
       </label>
     </div>
 
-    <div class="attribute-color-picker__swatches" aria-label="常用颜色">
+    <div class="attribute-color-picker__swatches" :aria-label="$t('items.colorSwatchesAria')">
       <button
         v-for="color in palette"
         :key="color"
         type="button"
         :style="{ backgroundColor: color }"
         :title="color"
-        :aria-label="`选择颜色 ${color}`"
+        :aria-label="$t('items.colorSelectAria', { color })"
         :aria-pressed="selectedColor === color"
         @click="selectSwatch(color)"
       />

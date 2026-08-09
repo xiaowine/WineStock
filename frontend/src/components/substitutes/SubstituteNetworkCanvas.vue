@@ -6,13 +6,12 @@
     :class="{ 'substitute-network-canvas--settling': settling }"
   >
     <p :id="instructionsId" class="visually-hidden">
-      使用方向键在节点间移动，按 Enter 选择节点，按 Escape
-      清除选择。可拖动画布或节点，滚轮可以缩放。
+      {{ $t('substitutes.canvasInstructions') }}
     </p>
     <svg
       ref="svgElement"
       role="application"
-      aria-label="替代关系星链网络"
+      :aria-label="$t('substitutes.canvasLabel')"
       :aria-describedby="instructionsId"
       :viewBox="`0 0 ${canvasSize.width} ${canvasSize.height}`"
       @wheel.prevent="handleWheel"
@@ -77,14 +76,21 @@
             :transform="nodeTransform(node.id)"
             role="button"
             :tabindex="focusedNodeId === node.id ? 0 : -1"
-            :aria-label="`${node.name}，编号 ${node.sku}，${node.incomingCount} 个上游，${node.outgoingCount} 个直接替代`"
+            :aria-label="
+              $t('substitutes.nodeAria', {
+                name: node.name,
+                sku: node.sku,
+                incoming: node.incomingCount,
+                outgoing: node.outgoingCount,
+              })
+            "
             :aria-pressed="selectedId === node.id"
             :style="nodeStyle(node.id)"
             @pointerdown.stop="handleNodePointerDown($event, node.id)"
             @keydown="handleNodeKeydown($event, node.id)"
             @focus="focusedNodeId = node.id"
           >
-            <title>{{ node.name }} · 编号 {{ node.sku }}</title>
+            <title>{{ $t('substitutes.nodeTitle', { name: node.name, sku: node.sku }) }}</title>
             <circle class="substitute-network-node__hit" :r="nodeHitRadius(node)" />
             <circle class="substitute-network-node__surface" :r="nodeRadius(node)" />
             <rect
@@ -108,7 +114,7 @@
               text-anchor="middle"
               :y="nodeRadius(node) + 34"
             >
-              编号 · {{ truncate(node.sku, 13) }}
+              {{ $t('substitutes.nodeSkuLabel', { sku: truncate(node.sku, 13) }) }}
             </text>
           </g>
         </g>
@@ -116,7 +122,7 @@
     </svg>
 
     <span v-if="showSettling" class="substitute-network-canvas__status" role="status"
-      >正在整理关系网络…</span
+      >{{ $t('substitutes.settlingNetwork') }}</span
     >
   </div>
 </template>

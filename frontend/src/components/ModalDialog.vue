@@ -37,8 +37,8 @@
             <button
               class="icon-button"
               type="button"
-              title="关闭"
-              aria-label="关闭"
+              :title="$t('components.modalClose')"
+              :aria-label="$t('components.modalClose')"
               :disabled="busy"
               @click="requestClose"
             >

@@ -2,84 +2,89 @@
 <template>
   <ModalDialog
     :open="open"
-    title="筛选操作日志"
-    description="按业务实体、操作人或分页数量进一步缩小结果范围。"
+    :title="$t('events.filterTitle')"
+    :description="$t('events.filterDescription')"
     @close="emit('close')"
   >
     <form id="event-filter-form" class="event-filter-form" novalidate @submit.prevent="submit">
       <FormInput
         v-model="entityId"
-        label="实体 ID"
+        :label="$t('events.entityIdLabel')"
         type="number"
         min="1"
         step="1"
-        placeholder="例如 42"
+        :placeholder="$t('events.exampleId', { n: 42 })"
         :error="errors.entityId"
         validation-key="entityId"
       />
       <FormInput
         v-model="userId"
-        label="操作人用户 ID"
+        :label="$t('events.userIdLabel')"
         type="number"
         min="1"
         step="1"
-        placeholder="例如 1"
+        :placeholder="$t('events.exampleId', { n: 1 })"
         :error="errors.userId"
         validation-key="userId"
       />
       <DateTimeField
         v-model="dateFrom"
-        label="开始时间"
+        :label="$t('events.dateFromLabel')"
         validation-key="dateRange"
         :error="errors.dateRange"
       />
       <DateTimeField
         v-model="dateTo"
-        label="结束时间"
+        :label="$t('events.dateToLabel')"
         validation-key="dateRange"
         :error="errors.dateRange"
       />
       <FormInput
         v-model="customEntityType"
-        label="实体类型原始值"
+        :label="$t('events.customEntityTypeLabel')"
         maxlength="64"
-        placeholder="可选，例如 custom_event"
-        hint="填写后覆盖工具栏中的实体类型"
+        :placeholder="$t('events.customValuePlaceholder', { value: 'custom_event' })"
+        :hint="$t('events.hintEntityType')"
         :error="errors.customEntityType"
         validation-key="customEntityType"
       />
       <FormInput
         v-model="customAction"
-        label="动作原始值"
+        :label="$t('events.customActionLabel')"
         maxlength="64"
-        placeholder="可选，例如 archived"
-        hint="填写后覆盖工具栏中的动作"
+        :placeholder="$t('events.customValuePlaceholder', { value: 'archived' })"
+        :hint="$t('events.hintAction')"
         :error="errors.customAction"
         validation-key="customAction"
       />
       <label class="event-filter-form__page-size">
-        <span>每页数量</span>
+        <span>{{ $t('events.pageSizeLabel') }}</span>
         <SelectControl v-model="pageSize" name="event_page_size">
-          <option :value="25">25 条</option>
-          <option :value="50">50 条</option>
-          <option :value="100">100 条</option>
-          <option :value="200">200 条</option>
+          <option :value="25">{{ $t('events.pageSizeOption', { n: 25 }) }}</option>
+          <option :value="50">{{ $t('events.pageSizeOption', { n: 50 }) }}</option>
+          <option :value="100">{{ $t('events.pageSizeOption', { n: 100 }) }}</option>
+          <option :value="200">{{ $t('events.pageSizeOption', { n: 200 }) }}</option>
         </SelectControl>
       </label>
     </form>
 
     <template #actions>
       <button class="text-button event-filter-form__reset" type="button" @click="reset">
-        重置
+        {{ $t('common.reset') }}
       </button>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
-      <button class="primary-button" type="submit" form="event-filter-form">应用筛选</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t('common.cancel') }}
+      </button>
+      <button class="primary-button" type="submit" form="event-filter-form">
+        {{ $t('events.applyFilters') }}
+      </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import DateTimeField from "../forms/DateTimeField.vue";
 import FormInput from "../forms/FormInput.vue";
 import SelectControl from "../forms/SelectControl.vue";
@@ -115,6 +120,7 @@ const dateFrom = ref("");
 const dateTo = ref("");
 const pageSize = ref(50);
 const errors = ref<Record<string, string>>({});
+const { t } = useI18n();
 const { clearErrors } = useFormValidation(errors);
 
 watch(
@@ -146,22 +152,22 @@ function reset(): void {
 
 function submit(): void {
   const nextErrors: Record<string, string> = {};
-  if (!validPositiveInteger(entityId.value)) nextErrors.entityId = "实体 ID 必须是正整数";
-  if (!validPositiveInteger(userId.value)) nextErrors.userId = "用户 ID 必须是正整数";
+  if (!validPositiveInteger(entityId.value)) nextErrors.entityId = t("events.errorEntityIdPositive");
+  if (!validPositiveInteger(userId.value)) nextErrors.userId = t("events.errorUserIdPositive");
   if (customEntityType.value && !customEntityType.value.trim())
-    nextErrors.customEntityType = "实体类型不能只包含空格";
+    nextErrors.customEntityType = t("events.errorEntityTypeBlank");
   if (customAction.value && !customAction.value.trim())
-    nextErrors.customAction = "动作不能只包含空格";
+    nextErrors.customAction = t("events.errorActionBlank");
   if (
     dateFrom.value &&
     dateTo.value &&
     new Date(dateFrom.value).getTime() > new Date(dateTo.value).getTime()
   ) {
-    nextErrors.dateRange = "开始时间不能晚于结束时间";
+    nextErrors.dateRange = t("events.errorDateRangeInverted");
   }
   errors.value = nextErrors;
   if (Object.keys(nextErrors).length > 0) {
-    notice.warning("请检查筛选条件", { detail: Object.values(nextErrors)[0] });
+    notice.warning(t("events.filterInvalidNotice"), { detail: Object.values(nextErrors)[0] });
     return;
   }
   emit("apply", {

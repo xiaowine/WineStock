@@ -27,7 +27,7 @@
       </div>
       <div v-show="!initialCheck" class="service-unavailable__actions">
         <button class="secondary-button" type="button" :disabled="busy" @click="$emit('settings')">
-          运行模式
+          {{ $t("startup.runtimeMode") }}
         </button>
         <button
           class="primary-button service-unavailable__retry"
@@ -49,6 +49,9 @@ export type ServiceUnavailableVariant = "remote" | "local-failed" | "local-stopp
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -77,33 +80,33 @@ const assertive = computed(() => !props.initialCheck && props.variant !== "local
 const copy = computed(() => {
   if (props.initialCheck) {
     return {
-      title: "正在连接",
-      body: "正在检查服务状态，请稍候。",
-      retryLabel: "重新连接",
-      retryBusyLabel: "正在连接…",
+      title: t("startup.connectingTitle"),
+      body: t("startup.connectingBody"),
+      retryLabel: t("startup.reconnect"),
+      retryBusyLabel: t("startup.connectingBusy"),
     };
   }
   switch (props.variant) {
     case "local-failed":
       return {
-        title: "本地服务异常",
-        body: "本地服务自动恢复失败。可以重试启动，或前往运行模式检查配置。",
-        retryLabel: "重试启动",
-        retryBusyLabel: "正在启动…",
+        title: t("startup.localFailedTitle"),
+        body: t("startup.localFailedBody"),
+        retryLabel: t("startup.restartService"),
+        retryBusyLabel: t("startup.startingBusy"),
       };
     case "local-stopped":
       return {
-        title: "本地服务已停止",
-        body: "本地服务当前处于停止状态，启动后将返回当前页面。",
-        retryLabel: "启动服务",
-        retryBusyLabel: "正在启动…",
+        title: t("startup.localStoppedTitle"),
+        body: t("startup.localStoppedBody"),
+        retryLabel: t("startup.startService"),
+        retryBusyLabel: t("startup.startingBusy"),
       };
     default:
       return {
-        title: "暂时无法连接服务",
-        body: "请确认服务已启动且网络连接正常。系统会自动重试，连接恢复后将返回当前页面。",
-        retryLabel: "重新连接",
-        retryBusyLabel: "正在连接…",
+        title: t("startup.remoteUnreachableTitle"),
+        body: t("startup.remoteUnreachableBody"),
+        retryLabel: t("startup.reconnect"),
+        retryBusyLabel: t("startup.connectingBusy"),
       };
   }
 });

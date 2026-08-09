@@ -20,7 +20,7 @@
       @keydown="handleTriggerKeydown"
     >
       <span :class="{ 'select-control__value--placeholder': selectedOption?.placeholder }">
-        {{ selectedOption?.label ?? "请选择" }}
+        {{ selectedOption?.label ?? $t('components.pleaseSelect') }}
       </span>
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="m4 6 4 4 4-4" />

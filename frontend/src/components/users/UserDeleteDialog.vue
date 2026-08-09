@@ -3,27 +3,30 @@
   它不调用删除 API，也不替代后端的操作者保护和防锁死校验。
 -->
 <template>
-  <ModalDialog :open="Boolean(user)" title="删除用户" :busy="submitting" @close="emit('close')">
+  <ModalDialog
+    :open="Boolean(user)"
+    :title="$t('users.deleteUser')"
+    :busy="submitting"
+    @close="emit('close')"
+  >
     <template #context>
       <div v-if="user" class="dialog-account-context dialog-account-context--danger">
-        <span>目标用户</span>
+        <span>{{ $t("users.targetUser") }}</span>
         <strong :title="user.username">{{ user.username }}</strong>
       </div>
     </template>
 
     <div class="dialog-content">
-      <p class="confirmation-copy">
-        删除后，该账号会立即退出所有设备，并且无法再登录或出现在用户列表中。
-      </p>
-      <p class="form-warning">此操作无法撤销，用户名也不能重新注册使用。历史业务记录仍会保留。</p>
+      <p class="confirmation-copy">{{ $t("users.deleteConfirmation") }}</p>
+      <p class="form-warning">{{ $t("users.deleteWarning") }}</p>
     </div>
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t("common.cancel") }}
       </button>
       <button class="danger-button" type="button" :disabled="submitting" @click="emit('submit')">
-        {{ submitting ? "正在删除…" : "确认删除" }}
+        {{ submitting ? $t("users.deleting") : $t("users.confirmDelete") }}
       </button>
     </template>
   </ModalDialog>

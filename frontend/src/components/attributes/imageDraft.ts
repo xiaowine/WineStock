@@ -6,6 +6,7 @@ import {
   ApiNetworkError,
   ApiResponseError,
 } from "../../api/errors";
+import { translateMessageOrNull } from "../../i18n";
 
 const solidColorPalette = [
   "#d97757",
@@ -72,7 +73,7 @@ export async function createSolidColorImage(color: string, size = 512): Promise<
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("当前浏览器无法生成纯色图片");
+  if (!context) throw new Error("The current browser cannot generate a solid color image");
   context.fillStyle = color;
   context.fillRect(0, 0, size, size);
   return canvasPngFile(canvas, `solid-${color.replace("#", "").toLowerCase()}.png`);
@@ -84,7 +85,7 @@ export async function createMissingProductImage(partNumber: string, size = 512):
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("当前浏览器无法生成默认商品图片");
+  if (!context) throw new Error("The current browser cannot generate the default product image");
 
   const scale = size / 512;
   context.fillStyle = "#f4f5f6";
@@ -108,7 +109,7 @@ export async function createMissingProductImage(partNumber: string, size = 512):
   context.textBaseline = "middle";
   context.fillStyle = "#3f4851";
   context.font = `650 ${30 * scale}px system-ui, sans-serif`;
-  context.fillText("暂无商品图片", size / 2, 326 * scale);
+  context.fillText(translateMessageOrNull("items.noProductImageText") ?? "", size / 2, 326 * scale);
 
   const normalizedCode = partNumber.trim().toUpperCase() || "UNKNOWN";
   let codeFontSize = 25 * scale;
@@ -127,7 +128,7 @@ export async function createMissingProductImage(partNumber: string, size = 512):
 async function canvasPngFile(canvas: HTMLCanvasElement, name: string): Promise<File> {
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
-      (value) => (value ? resolve(value) : reject(new Error("PNG 图片生成失败"))),
+      (value) => (value ? resolve(value) : reject(new Error("PNG image generation failed"))),
       "image/png",
     );
   });
@@ -151,7 +152,7 @@ export async function uploadImageDraft(target: ImageDraftValue): Promise<void> {
   if (target.fileId && target.status === "uploaded") return;
   if (!target.localFile) {
     target.status = "failed";
-    target.error = "本地图片已丢失，请重新选择";
+    target.error = translateMessageOrNull("items.imageDraftLocalImageLost") ?? "";
     throw new Error(target.error);
   }
   const controller = new AbortController();
@@ -202,7 +203,7 @@ export function isImageDraftValue(value: unknown): value is ImageDraftValue {
 
 function imageUploadErrorMessage(error: unknown): string {
   if (error instanceof ApiError || error instanceof ApiConfigurationError) return error.message;
-  if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
-  if (error instanceof ApiResponseError) return "服务响应格式无效，请检查前后端版本";
-  return "图片上传失败，请在提交时重试";
+  if (error instanceof ApiNetworkError) return translateMessageOrNull("error.network_unavailable") ?? "";
+  if (error instanceof ApiResponseError) return translateMessageOrNull("error.response_invalid") ?? "";
+  return translateMessageOrNull("items.imageUploadFailedRetry") ?? "";
 }

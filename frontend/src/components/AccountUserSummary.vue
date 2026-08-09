@@ -3,7 +3,7 @@
   它只显示头像和名称，不拥有账户菜单、鉴权状态或用户数据加载。
 -->
 <template>
-  <div class="account-user-summary" aria-label="当前用户">
+  <div class="account-user-summary" :aria-label="$t('components.currentUser')">
     <span class="account-user-summary__avatar" aria-hidden="true">{{ initials }}</span>
     <span class="account-user-summary__identity">
       <strong>{{ displayName }}</strong>

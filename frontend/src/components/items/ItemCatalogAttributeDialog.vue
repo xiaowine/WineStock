@@ -3,18 +3,18 @@
   <ModalDialog
     :open="open"
     :busy="saving"
-    title="列表展示设置"
-    description="选择最多三个在物品列表中用于快速识别物品的模板属性。"
+    :title="$t('items.displaySettingsTitle')"
+    :description="$t('items.displaySettingsDescription')"
     @close="emit('close')"
   >
     <template v-if="activeTemplate" #context>
       <div class="catalog-attribute-dialog__context">
         <div>
-          <span>当前模板</span>
+          <span>{{ $t('items.currentTemplate') }}</span>
           <strong>{{ activeTemplate.name }}</strong>
         </div>
         <div class="catalog-attribute-dialog__count">
-          <span>已选展示字段</span>
+          <span>{{ $t('items.selectedDisplayFields') }}</span>
           <strong>{{ selectedCount }} / 3</strong>
         </div>
       </div>
@@ -27,7 +27,7 @@
       @submit.prevent="save"
     >
       <label class="catalog-attribute-dialog__template">
-        <span>物品属性模板</span>
+        <span>{{ $t('items.itemAttributeTemplate') }}</span>
         <SelectControl
           v-model="selectedTemplateId"
           name="catalog_attribute_template"
@@ -42,8 +42,8 @@
       <Transition name="catalog-attribute-panel" mode="out-in">
         <div v-if="activeTemplate" :key="activeTemplate.id" class="catalog-attribute-dialog__panel">
           <div class="catalog-attribute-dialog__panel-header">
-            <strong>可选展示字段</strong>
-            <span>{{ activeTemplate.fields.length }} 项</span>
+            <strong>{{ $t('items.availableDisplayFields') }}</strong>
+            <span>{{ $t('items.itemCount', { n: activeTemplate.fields.length }) }}</span>
           </div>
           <div v-overlay-scrollbar class="catalog-attribute-dialog__options">
             <label
@@ -71,14 +71,14 @@
         </div>
 
         <div v-else key="empty" class="catalog-attribute-dialog__empty">
-          暂无可配置的物品属性模板
+          {{ $t('items.noConfigurableTemplates') }}
         </div>
       </Transition>
     </form>
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">
-        取消
+        {{ $t('items.cancel') }}
       </button>
       <button
         class="primary-button"
@@ -86,7 +86,7 @@
         form="item-catalog-attribute-form"
         :disabled="saving || !activeTemplate || !changed"
       >
-        {{ saving ? "保存中…" : "保存设置" }}
+        {{ saving ? $t('items.saving') : $t('items.saveSettings') }}
       </button>
     </template>
   </ModalDialog>
@@ -94,6 +94,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { TemplateFieldType } from "../../api/templateFields";
 import {
   updateItemAttributeTemplate,
@@ -114,6 +115,7 @@ const emit = defineEmits<{
   close: [];
   saved: [template: ItemAttributeTemplateResponse];
 }>();
+const { t } = useI18n();
 
 const selectedTemplateId = ref<number | null>(null);
 const selectedFieldIds = ref<number[]>([]);
@@ -162,12 +164,12 @@ async function save(): Promise<void> {
     const updated = await updateItemAttributeTemplate(template.id, {
       fields: template.fields.map((field) => fieldRequest(field, selected.has(field.id))),
     });
-    notice.success("列表展示已更新");
+    notice.success(t("items.displaySettingsUpdated"));
     emit("saved", updated);
     emit("close");
   } catch (error) {
-    notice.error("保存列表展示失败", {
-      detail: error instanceof ApiError ? error.message : "无法连接到 WineStock 服务",
+    notice.error(t("items.displaySettingsSaveFailed"), {
+      detail: error instanceof ApiError ? error.message : t("error.network_unavailable"),
     });
   } finally {
     saving.value = false;
@@ -194,13 +196,13 @@ function normalizedIds(ids: number[]): string {
 
 function fieldTypeLabel(type: TemplateFieldType): string {
   return {
-    text: "文本",
-    number: "数值",
-    select: "选项",
-    date: "日期",
-    file: "图片",
-    url: "链接",
-    boolean: "是 / 否",
+    text: t("items.fieldTypeText"),
+    number: t("items.catalogFieldTypeNumber"),
+    select: t("items.fieldTypeSelect"),
+    date: t("items.fieldTypeDate"),
+    file: t("items.fieldTypeFile"),
+    url: t("items.catalogFieldTypeUrl"),
+    boolean: t("items.catalogFieldTypeBoolean"),
   }[type];
 }
 </script>

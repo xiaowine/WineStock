@@ -5,11 +5,11 @@
 <template>
   <ModalDialog
     :open="open"
-    :title="location ? '编辑库位' : '新建库位'"
+    :title="location ? $t('locations.editLocation') : $t('locations.createLocation')"
     :description="
       location
-        ? '修改所属分组、唯一名称、备注和展示顺序。'
-        : '库位会出现在入库明细的存放位置选择器中。'
+        ? $t('locations.editLocationDescription')
+        : $t('locations.newLocationDescription')
     "
     :busy="submitting"
     @close="emit('close')"
@@ -17,14 +17,14 @@
     <form :id="formId" class="dialog-form" novalidate @submit.prevent="submit">
       <FormSelect
         v-model="groupId"
-        label="所属分组"
+        :label="$t('locations.groupField')"
         validation-key="group_id"
         :error="errors.group_id"
         name="location_group_id"
         required
         :disabled="submitting"
       >
-        <option :value="null" disabled>请选择分组</option>
+        <option :value="null" disabled>{{ $t('locations.selectGroupPlaceholder') }}</option>
         <option v-for="option in groupOptions" :key="option.id" :value="option.id">
           {{ option.label }}
         </option>
@@ -32,13 +32,13 @@
 
       <FormInput
         v-model="name"
-        label="库位名称"
+        :label="$t('locations.locationNameField')"
         validation-key="name"
         :error="errors.name"
         name="location_name"
         maxlength="128"
         autocomplete="off"
-        hint="未删除库位内全局唯一"
+        :hint="$t('locations.nameUniqueHint')"
         autofocus
         required
         :disabled="submitting"
@@ -46,7 +46,7 @@
 
       <FormTextarea
         v-model="notes"
-        label="备注"
+        :label="$t('locations.remark')"
         validation-key="notes"
         :error="errors.notes"
         name="location_notes"
@@ -57,10 +57,10 @@
 
       <FormInput
         v-model="sortOrder"
-        label="排序"
+        :label="$t('locations.sortField')"
         validation-key="sort_order"
         :error="errors.sort_order"
-        hint="数值越小越靠前"
+        :hint="$t('locations.sortAscendingHint')"
         name="location_sort_order"
         type="number"
         step="1"
@@ -70,10 +70,10 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t('locations.cancel') }}
       </button>
       <button class="primary-button" type="submit" :form="formId" :disabled="submitting">
-        {{ submitting ? "正在保存…" : location ? "保存库位" : "创建库位" }}
+        {{ submitting ? $t('locations.saving') : location ? $t('locations.saveLocation') : $t('locations.createLocationSubmit') }}
       </button>
     </template>
   </ModalDialog>
@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import { ref, useId, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { LocationResponse, LocationUpdateRequest } from "../../api/locations";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
@@ -106,6 +107,7 @@ const emit = defineEmits<{
 }>();
 
 const formId = `location-form-${useId()}`;
+const { t } = useI18n();
 const groupId = ref<number | null>(null);
 const name = ref("");
 const notes = ref("");
@@ -136,12 +138,12 @@ watch(
 function submit(): void {
   const nextErrors: Record<string, string> = {};
   const normalizedName = name.value.trim();
-  if (!groupId.value) nextErrors.group_id = "请选择所属分组";
-  if (!normalizedName) nextErrors.name = "请输入库位名称";
-  if (!Number.isInteger(sortOrder.value ?? 0)) nextErrors.sort_order = "排序必须是整数";
+  if (!groupId.value) nextErrors.group_id = t("locations.selectGroupError");
+  if (!normalizedName) nextErrors.name = t("locations.enterLocationName");
+  if (!Number.isInteger(sortOrder.value ?? 0)) nextErrors.sort_order = t("locations.sortMustBeInteger");
   errors.value = nextErrors;
   if (Object.keys(nextErrors).length > 0) {
-    notice.warning("请检查库位信息", { detail: Object.values(nextErrors)[0] });
+    notice.warning(t("locations.checkLocationInfo"), { detail: Object.values(nextErrors)[0] });
     return;
   }
   emit("submit", {

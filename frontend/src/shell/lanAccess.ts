@@ -2,6 +2,9 @@
 import type { RuntimeSnapshot } from "./contract";
 
 const PLACEHOLDER_MARKERS = /[<>{}]/u;
+// 兼容旧版壳可能发布的 "http://<局域网地址>:port" 一类占位值；<> 已被上面正则覆盖，
+// 此处再按字面过滤一次，避免不带尖括号的占位串进入界面。
+const LAN_PLACEHOLDER_TEXT = "\u5c40\u57df\u7f51\u5730\u5740";
 
 /** 地址入口只依赖快照中的最小只读结构，兼容 Vue readonly 快照。 */
 interface LanAccessSnapshot {
@@ -44,7 +47,7 @@ export function normalizeLanAccessUrls(urls: readonly string[] | undefined): str
   const seen = new Set<string>();
   for (const rawUrl of urls) {
     const candidate = rawUrl.trim();
-    if (!candidate || PLACEHOLDER_MARKERS.test(candidate) || candidate.includes("局域网地址")) {
+    if (!candidate || PLACEHOLDER_MARKERS.test(candidate) || candidate.includes(LAN_PLACEHOLDER_TEXT)) {
       continue;
     }
 

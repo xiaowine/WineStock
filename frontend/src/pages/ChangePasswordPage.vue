@@ -11,24 +11,24 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="change-password-title">{{ $route.meta.title }}</h1>
+          <h1 id="change-password-title">{{ $title($route.meta.title) }}</h1>
           <p>
             {{
               passwordChangeRequired
-                ? "当前账号使用的是临时密码，修改后才能进入其它功能。"
-                : "输入当前密码并设置一个新的登录密码。"
+                ? $t('auth.tempPasswordNotice')
+                : $t('auth.changePasswordInstructions')
             }}
           </p>
         </div>
       </header>
 
       <p class="auth-account-context">
-        当前账号：<strong>{{ username }}</strong>
+        {{ $t('auth.currentAccount') }}<strong>{{ username }}</strong>
       </p>
 
       <form class="auth-form" novalidate @submit.prevent="submitPasswordChange">
         <FormField
-          label="当前密码"
+          :label="$t('auth.currentPassword')"
           control-id="change-current-password"
           validation-key="current_password"
           :error="currentPasswordError"
@@ -48,11 +48,11 @@
         </FormField>
 
         <FormField
-          label="新密码"
+          :label="$t('auth.newPassword')"
           control-id="change-new-password"
           validation-key="new_password"
           :error="newPasswordError"
-          hint="至少 8 个字符"
+          :hint="$t('auth.passwordMinLengthHint')"
           v-slot="{ describedBy, invalid }"
         >
           <PasswordInput
@@ -69,7 +69,7 @@
         </FormField>
 
         <FormField
-          label="确认新密码"
+          :label="$t('auth.confirmNewPassword')"
           control-id="change-new-password-confirmation"
           validation-key="new_password_confirmation"
           :error="newPasswordConfirmationError"
@@ -88,7 +88,7 @@
         </FormField>
 
         <button class="primary-button primary-button--full" type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? "正在修改…" : "修改密码" }}
+          {{ isSubmitting ? $t('auth.changingPassword') : $t('auth.changePassword') }}
         </button>
       </form>
 
@@ -98,7 +98,7 @@
           class="secondary-button"
           :to="{ name: 'dashboard' }"
         >
-          返回总览
+          {{ $t('auth.backToOverview') }}
         </RouterLink>
         <button
           class="secondary-button"
@@ -106,7 +106,7 @@
           :disabled="isSubmitting || isLoggingOut"
           @click="handleLogout"
         >
-          {{ isLoggingOut ? "正在退出…" : "退出登录" }}
+          {{ isLoggingOut ? $t('auth.loggingOut') : $t('auth.logout') }}
         </button>
       </div>
     </section>
@@ -116,6 +116,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { changeOwnPassword } from "../api/auth";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import {
@@ -135,6 +136,7 @@ import { useFormValidation } from "../composables/useFormValidation";
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const currentPassword = ref("");
 const newPassword = ref("");
 const newPasswordConfirmation = ref("");
@@ -162,8 +164,8 @@ async function submitPasswordChange(): Promise<void> {
     newPasswordConfirmation.value,
   );
   if (Object.keys(fieldErrors.value).length > 0) {
-    notice.warning("请检查密码信息", {
-      detail: Object.values(fieldErrors.value)[0]?.[0] ?? "请检查密码信息",
+    notice.warning(t("auth.checkPasswordInfo"), {
+      detail: Object.values(fieldErrors.value)[0]?.[0] ?? t("auth.checkPasswordInfo"),
     });
     return;
   }
@@ -176,7 +178,7 @@ async function submitPasswordChange(): Promise<void> {
     });
     markPasswordChangeCompleted();
     await router.replace(resolvePostLoginLocation(router, route.query.redirect));
-    notice.success("密码已修改");
+    notice.success(t("auth.passwordChanged"));
   } catch (error) {
     applyPasswordChangeError(error);
   } finally {
@@ -194,8 +196,8 @@ async function handleLogout(): Promise<void> {
   } catch (error) {
     errorMessage.value =
       error instanceof AuthPersistenceError
-        ? "无法清除本地登录状态，请检查浏览器存储权限后重试"
-        : "退出失败，请稍后重试";
+        ? t("auth.logoutPersistenceFailed")
+        : t("auth.logoutFailed");
     return;
   }
 
@@ -204,9 +206,9 @@ async function handleLogout(): Promise<void> {
     query: result === "local_only" ? { logout: "local_only" } : undefined,
   });
   if (result === "local_only") {
-    notice.warning("本机已退出，但服务端会话吊销未确认");
+    notice.warning(t("auth.logoutLocalOnlyWarning"));
   } else {
-    notice.success("已退出登录");
+    notice.success(t("auth.loggedOut"));
   }
 }
 
@@ -217,19 +219,19 @@ function validatePasswordChange(
 ): Readonly<Record<string, readonly string[]>> {
   const errors: Record<string, string[]> = {};
   if (!currentPasswordValue.trim()) {
-    errors.current_password = ["请输入当前密码"];
+    errors.current_password = [t("auth.currentPasswordRequired")];
   }
   if (!newPasswordValue.trim()) {
-    errors.new_password = ["请输入新密码"];
+    errors.new_password = [t("auth.newPasswordRequired")];
   } else if (newPasswordValue.length < 8) {
-    errors.new_password = ["新密码至少需要 8 个字符"];
+    errors.new_password = [t("auth.newPasswordMinLength")];
   } else if (newPasswordValue === currentPasswordValue) {
-    errors.new_password = ["新密码不能与当前密码相同"];
+    errors.new_password = [t("auth.newPasswordSameAsCurrent")];
   }
   if (!confirmationValue) {
-    errors.new_password_confirmation = ["请再次输入新密码"];
+    errors.new_password_confirmation = [t("auth.newPasswordConfirmationRequired")];
   } else if (confirmationValue !== newPasswordValue) {
-    errors.new_password_confirmation = ["两次输入的新密码不一致"];
+    errors.new_password_confirmation = [t("auth.newPasswordMismatch")];
   }
   return errors;
 }
@@ -240,9 +242,9 @@ function applyPasswordChangeError(error: unknown): void {
     const hasFieldErrors = Object.keys(error.fieldErrors).length > 0;
     errorMessage.value =
       error.code === "invalid_credentials"
-        ? "当前密码错误"
+        ? t("error.invalid_credentials")
         : hasFieldErrors
-          ? "请检查输入内容"
+          ? t("auth.checkInput")
           : error.message;
     notice.error(errorMessage.value, {
       detail: hasFieldErrors ? Object.values(error.fieldErrors)[0]?.[0] : undefined,
@@ -255,17 +257,17 @@ function applyPasswordChangeError(error: unknown): void {
     return;
   }
   if (error instanceof ApiNetworkError) {
-    errorMessage.value = "无法连接到 WineStock 服务，请检查服务地址和运行状态";
+    errorMessage.value = t("auth.networkConnectFailed");
     notice.error(errorMessage.value);
     return;
   }
   if (error instanceof ApiResponseError) {
-    errorMessage.value = "服务响应格式无效，请检查服务版本";
+    errorMessage.value = t("auth.responseInvalidFormat");
     notice.error(errorMessage.value);
     return;
   }
 
-  errorMessage.value = "修改密码失败，请稍后重试";
+  errorMessage.value = t("auth.passwordChangeFailed");
   notice.error(errorMessage.value);
 }
 </script>

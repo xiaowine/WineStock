@@ -3,7 +3,7 @@
   它按端侧需要展示用户摘要与账户操作，但不读取会话、运行快照，也不管理弹层开关。
 -->
 <template>
-  <section class="account-popover" aria-label="账户与本机">
+  <section class="account-popover" :aria-label="$t('components.accountSection')">
     <AccountUserSummary
       v-if="showUserSummary"
       class="account-popover__summary"
@@ -20,7 +20,7 @@
       :disabled="isLoggingOut"
       @click="emit('preferences')"
     >
-      偏好设置
+      {{ $t('components.preferences') }}
     </button>
     <button
       class="secondary-button account-popover__settings"
@@ -28,7 +28,7 @@
       :disabled="isLoggingOut"
       @click="emit('runtimeSettings')"
     >
-      运行模式
+      {{ $t('components.runtimeMode') }}
     </button>
     <button
       v-if="showDonation"
@@ -37,7 +37,7 @@
       :disabled="isLoggingOut"
       @click="emit('donation')"
     >
-      支持软件
+      {{ $t('components.supportSoftware') }}
     </button>
     <button
       v-if="showContact"
@@ -46,7 +46,7 @@
       :disabled="isLoggingOut"
       @click="emit('contact')"
     >
-      联系与反馈
+      {{ $t('components.contactFeedback') }}
     </button>
     <button
       v-if="showLanAccess"
@@ -55,7 +55,7 @@
       :disabled="isLoggingOut"
       @click="emit('lanAccess')"
     >
-      本机局域网地址
+      {{ $t('components.lanAddress') }}
     </button>
     <button
       v-if="showLogout"
@@ -64,7 +64,7 @@
       :disabled="isLoggingOut"
       @click="emit('logout')"
     >
-      {{ isLoggingOut ? "正在退出…" : "退出登录" }}
+      {{ isLoggingOut ? $t('components.loggingOut') : $t('components.logout') }}
     </button>
   </section>
 </template>

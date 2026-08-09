@@ -12,16 +12,20 @@
   >
     <template #summary>
       <span
-        ><strong>{{ inbound.flow.lines.value.length }}</strong> 条明细</span
+        ><strong>{{
+          $t('stockDraft.linesSummary', { n: inbound.flow.lines.value.length })
+        }}</strong></span
       >
       <span aria-hidden="true">·</span>
       <span
-        >入库数量 <strong>{{ inbound.quantitySummary.value }}</strong></span
+        >{{ $t('stockDraft.inboundQuantity') }}
+        <strong>{{ inbound.quantitySummary.value }}</strong></span
       >
       <template v-if="inbound.draftAmountReady.value">
         <span aria-hidden="true">·</span>
         <span
-          >预计金额 <strong>¥{{ formatMoney(inbound.draftTotal.value) }}</strong></span
+          >{{ $t('stockDraft.expectedAmount') }}
+          <strong>¥{{ formatMoney(inbound.draftTotal.value) }}</strong></span
         >
       </template>
     </template>
@@ -35,26 +39,26 @@
         <button
           class="secondary-button inbound-add-item-button inbound-import-action--desktop"
           type="button"
-          title="导入立创商城订单导出的表格"
+          :title="$t('stockDraft.importOrderTitle')"
           @click="openOrderImport"
         >
-          导入订单
+          {{ $t('stockDraft.importOrder') }}
         </button>
         <button
           v-if="inbound.canCreateItem.value"
           class="secondary-button inbound-add-item-button inbound-import-action--desktop"
           type="button"
-          title="导入第三方 ERP 备份，按库存生成期初入库草稿"
+          :title="$t('stockDraft.importBackupTitle')"
           @click="openBackupImport"
         >
-          导入备份
+          {{ $t('stockDraft.importBackup') }}
         </button>
         <button
           ref="importMenuTrigger"
           class="icon-button inbound-import-menu__trigger"
           type="button"
-          title="导入入库数据"
-          aria-label="导入入库数据"
+          :title="$t('stockDraft.importInboundData')"
+          :aria-label="$t('stockDraft.importInboundData')"
           :aria-expanded="importMenuOpen"
           :aria-controls="importMenuId"
           @click="toggleImportMenu"
@@ -69,11 +73,13 @@
             :id="importMenuId"
             class="inbound-import-menu"
             role="group"
-            aria-label="选择导入方式"
+            :aria-label="$t('stockDraft.chooseImportMethod')"
           >
-            <button type="button" @click="openOrderImport">导入订单</button>
+            <button type="button" @click="openOrderImport">
+              {{ $t('stockDraft.importOrder') }}
+            </button>
             <button v-if="inbound.canCreateItem.value" type="button" @click="openBackupImport">
-              导入备份
+              {{ $t('stockDraft.importBackup') }}
             </button>
           </div>
         </Transition>
@@ -82,15 +88,15 @@
         v-if="inbound.pendingLocationCount.value > 0"
         class="secondary-button inbound-add-item-button inbound-batch-location-button"
         type="button"
-        title="为所有尚未选择库位的明细一次指定库位"
+        :title="$t('stockDraft.batchSetLocationTitle')"
         @click="inbound.batchLocationOpen.value = true"
       >
-        批量设置库位
+        {{ $t('stockDraft.batchSetLocation') }}
       </button>
     </template>
 
     <template #line-cells="{ line }">
-      <td data-label="数量">
+      <td :data-label="$t('common.amount')">
         <strong
           class="inbound-line__value"
           :class="{ 'inbound-line__value--warning': !validQuantity(line.quantity) }"
@@ -98,7 +104,7 @@
           {{ inboundQuantityLabel(line) }}
         </strong>
       </td>
-      <td data-label="单价 / 小计">
+      <td :data-label="$t('stockDraft.unitPriceSubtotal')">
         <div class="inbound-line__value-stack">
           <strong
             class="inbound-line__value"
@@ -107,11 +113,11 @@
             {{ inboundPriceLabel(line) }}
           </strong>
           <span v-if="validQuantity(line.quantity) && validUnitPrice(line.unitPrice)">
-            小计 ¥{{ formatMoney(lineSubtotal(line)) }}
+            {{ $t('stockDraft.subtotal') }} ¥{{ formatMoney(lineSubtotal(line)) }}
           </span>
         </div>
       </td>
-      <td data-label="库位">
+      <td :data-label="$t('stockDraft.location')">
         <strong
           class="inbound-line__value inbound-line__value--truncate"
           :class="{
@@ -124,7 +130,7 @@
           {{ inboundLocationLabel(line) }}
         </strong>
       </td>
-      <td data-label="批次">
+      <td :data-label="$t('stockDraft.batch')">
         <span class="inbound-line__value--truncate" :title="inboundBatchDetail(line)">
           {{ inboundBatchDetail(line) }}
         </span>
@@ -133,11 +139,17 @@
 
     <template #line-editor="{ line }">
       <div v-if="inbound.scanOrderPrompt.value" class="inbound-scan-source-prompt" role="status">
-        <span>识别到立创订单 {{ inbound.scanOrderPrompt.value }}，填入本单来源？</span>
-        <button class="text-button" type="button" @click="inbound.applyScanOrderNo">填入</button>
-        <button class="text-button" type="button" @click="inbound.ignoreScanOrderNo">忽略</button>
+        <span>{{
+          $t('stockDraft.scanOrderPrompt', { order: inbound.scanOrderPrompt.value })
+        }}</span>
+        <button class="text-button" type="button" @click="inbound.applyScanOrderNo">
+          {{ $t('stockDraft.fillIn') }}
+        </button>
+        <button class="text-button" type="button" @click="inbound.ignoreScanOrderNo">
+          {{ $t('stockDraft.ignore') }}
+        </button>
         <button class="text-button" type="button" @click="inbound.suppressScanOrderPrompt">
-          本单不再提示
+          {{ $t('stockDraft.dontAskAgain') }}
         </button>
       </div>
       <InboundLineEditor
@@ -152,24 +164,24 @@
     <template #submit-summary>
       <dl class="inbound-submit-summary">
         <div>
-          <dt>入库来源</dt>
+          <dt>{{ $t('stockDraft.inboundSource') }}</dt>
           <dd>{{ inbound.flow.source.value.trim() }}</dd>
         </div>
         <div>
-          <dt>明细数量</dt>
-          <dd>{{ inbound.flow.lines.value.length }} 条</dd>
+          <dt>{{ $t('stockDraft.lineCount') }}</dt>
+          <dd>{{ $t('stockDraft.linesCountShort', { n: inbound.flow.lines.value.length }) }}</dd>
         </div>
         <div>
-          <dt>入库总量</dt>
+          <dt>{{ $t('stockDraft.inboundTotalQuantity') }}</dt>
           <dd>{{ inbound.quantitySummary.value }}</dd>
         </div>
         <div>
-          <dt>预计金额</dt>
+          <dt>{{ $t('stockDraft.expectedAmount') }}</dt>
           <dd>¥{{ formatMoney(inbound.draftTotal.value) }}</dd>
         </div>
       </dl>
       <p v-if="inbound.flow.canDirect.value" class="inbound-submit-warning">
-        请确认库位、数量和单价无误。直接入库完成后应通过后续库存业务进行调整。
+        {{ $t('stockDraft.directInboundWarning') }}
       </p>
     </template>
 
@@ -209,11 +221,11 @@
     class="route-page outbound-draft-page"
   >
     <section class="outbound-blocked">
-      <h2>无法读取可出库物品</h2>
-      <p>
-        当前账号具备创建出库单权限，但缺少物品与库存批次读取权限。请联系管理员授予“查看库存物品”权限后继续。
-      </p>
-      <button class="secondary-button" type="button" @click="router.back()">返回</button>
+      <h2>{{ $t('stockDraft.outboundBlockedTitle') }}</h2>
+      <p>{{ $t('stockDraft.outboundBlockedBody') }}</p>
+      <button class="secondary-button" type="button" @click="router.back()">
+        {{ $t('common.back') }}
+      </button>
     </section>
   </section>
 
@@ -225,21 +237,24 @@
   >
     <template #summary>
       <span
-        ><strong>{{ outbound.flow.lines.value.length }}</strong> 条明细</span
+        ><strong>{{
+          $t('stockDraft.linesSummary', { n: outbound.flow.lines.value.length })
+        }}</strong></span
       >
       <span aria-hidden="true">·</span>
       <span
-        >出库数量 <strong>{{ outbound.quantitySummary.value }}</strong></span
+        >{{ $t('stockDraft.outboundQuantity') }}
+        <strong>{{ outbound.quantitySummary.value }}</strong></span
       >
       <template v-if="outbound.costSummary.value.state === 'complete'">
         <span aria-hidden="true">·</span>
         <span
-          >预计成本
+          >{{ $t('stockDraft.expectedCost') }}
           <strong>¥{{ formatMoney(outbound.costSummary.value.amount ?? 0) }}</strong></span
         >
       </template>
       <template v-else-if="outbound.costSummary.value.state === 'loading'">
-        <span aria-hidden="true">·</span><span>正在估算成本…</span>
+        <span aria-hidden="true">·</span><span>{{ $t('stockDraft.estimatingCost') }}</span>
       </template>
       <template
         v-else-if="
@@ -247,12 +262,12 @@
           outbound.costSummary.value.state === 'failed'
         "
       >
-        <span aria-hidden="true">·</span><span>成本以实际出库为准</span>
+        <span aria-hidden="true">·</span><span>{{ $t('stockDraft.costPerActualOutbound') }}</span>
       </template>
     </template>
 
     <template #line-cells="{ line }">
-      <td data-label="数量">
+      <td :data-label="$t('common.amount')">
         <strong
           class="outbound-line__value"
           :class="{ 'outbound-line__value--warning': !outbound.validQuantity(line.quantity) }"
@@ -260,7 +275,7 @@
           {{ outbound.quantityLabel(line) }}
         </strong>
       </td>
-      <td data-label="分配 / 批次">
+      <td :data-label="$t('stockDraft.allocationBatch')">
         <div class="outbound-line__value-stack">
           <strong class="outbound-line__value">{{ outbound.allocationPrimary(line) }}</strong>
           <span
@@ -277,7 +292,7 @@
           </span>
         </div>
       </td>
-      <td data-label="库位">
+      <td :data-label="$t('stockDraft.location')">
         <strong
           class="outbound-line__value outbound-line__value--truncate"
           :title="outbound.allocationLocationLabel(line)"
@@ -285,7 +300,7 @@
           {{ outbound.allocationLocationLabel(line) }}
         </strong>
       </td>
-      <td data-label="预计成本">
+      <td :data-label="$t('stockDraft.expectedCost')">
         <div class="outbound-line__value-stack">
           <strong
             class="outbound-line__value outbound-line__value--truncate"
@@ -324,15 +339,22 @@
     <template #submit-summary>
       <dl class="outbound-confirm">
         <div>
-          <dt>出库去向</dt>
+          <dt>{{ $t('stockDraft.outboundDestination') }}</dt>
           <dd>{{ outbound.flow.source.value }}</dd>
         </div>
         <div>
-          <dt>明细</dt>
-          <dd>{{ outbound.flow.lines.value.length }} 条 · {{ outbound.quantitySummary.value }}</dd>
+          <dt>{{ $t('stockDraft.detailsLabel') }}</dt>
+          <dd>
+            {{
+              $t('stockDraft.linesAndQuantity', {
+                n: outbound.flow.lines.value.length,
+                q: outbound.quantitySummary.value,
+              })
+            }}
+          </dd>
         </div>
         <div>
-          <dt>预计出库成本</dt>
+          <dt>{{ $t('stockDraft.expectedOutboundCost') }}</dt>
           <dd>{{ outbound.confirmCostLabel.value }}</dd>
         </div>
       </dl>
@@ -342,6 +364,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import StockDraftWorkspace from "../components/stock-draft/StockDraftWorkspace.vue";
 import LcscOrderImportDialog from "../components/stock-draft/LcscOrderImportDialog.vue";
@@ -368,6 +391,7 @@ import "./stock-draft/outbound.scss";
 
 const props = defineProps<{ kind: "inbound" | "outbound" }>();
 
+const { t } = useI18n();
 const router = useRouter();
 // 路由出口按路由 name 重建组件实例，kind 在单个实例生命周期内恒定，
 // 因此按 kind 条件装配领域 composable 是安全的。
@@ -442,22 +466,22 @@ function openBackupImport(): void {
 function inboundQuantityLabel(line: InboundDraftLine): string {
   return validQuantity(line.quantity)
     ? formatQuantity(line.quantity) + " " + line.item.unit
-    : "待填写";
+    : t("stockDraft.toBeFilled");
 }
 
 function inboundPriceLabel(line: InboundDraftLine): string {
-  return validUnitPrice(line.unitPrice) ? "¥" + formatMoney(line.unitPrice) : "待填写";
+  return validUnitPrice(line.unitPrice) ? "¥" + formatMoney(line.unitPrice) : t("stockDraft.toBeFilled");
 }
 
 function inboundLocationLabel(line: InboundDraftLine): string {
   return line.locationId === null
-    ? "待选择"
-    : (inboundLocationMap.value.get(line.locationId)?.name ?? "库位已失效");
+    ? t("stockDraft.toBeSelected")
+    : (inboundLocationMap.value.get(line.locationId)?.name ?? t("stockDraft.locationInvalid"));
 }
 
 function inboundBatchDetail(line: InboundDraftLine): string {
-  const batch = line.batchNo.trim() || "自动生成批次";
-  const expiry = line.expiresAt || "无有效期";
+  const batch = line.batchNo.trim() || t("stockDraft.autoGeneratedBatch");
+  const expiry = line.expiresAt || t("stockDraft.noExpiry");
   return `${batch} · ${expiry}`;
 }
 </script>

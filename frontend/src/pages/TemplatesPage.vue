@@ -6,8 +6,8 @@
   <section class="route-page templates-page">
     <header class="content-header templates-page__header">
       <div>
-        <h1>{{ $route.meta.title }}</h1>
-        <p>维护物品归类与长期属性结构。</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t('templates.subtitle') }}</p>
       </div>
     </header>
 
@@ -16,7 +16,7 @@
         v-overlay-scrollbar
         class="templates-tabs"
         role="tablist"
-        aria-label="分类与模板业务域"
+        :aria-label="$t('templates.domainTabsAria')"
         @keydown="handleTabKeydown"
       >
         <button
@@ -30,7 +30,7 @@
           :tabindex="activeDomain === domain.value ? 0 : -1"
           @click="selectDomain(domain.value)"
         >
-          {{ domain.label }}
+          {{ t(domain.label) }}
         </button>
       </div>
 
@@ -57,15 +57,15 @@
               <div class="templates-toolbar__commands">
                 <div class="templates-toolbar__summary">
                   <span>{{ filteredCount }} {{ domainCountLabel }}</span>
-                  <span v-if="showRefreshing" role="status">正在刷新</span>
+                  <span v-if="showRefreshing" role="status">{{ $t('templates.refreshing') }}</span>
                 </div>
                 <div class="templates-toolbar__actions">
                   <button
                     class="icon-button templates-toolbar__refresh"
                     :class="{ 'templates-toolbar__refresh--pending': showRefreshing }"
                     type="button"
-                    :title="`刷新${activeDomainLabel}`"
-                    :aria-label="`刷新${activeDomainLabel}`"
+                    :title="t('templates.refreshTitle', { domain: activeDomainLabel })"
+                    :aria-label="t('templates.refreshTitle', { domain: activeDomainLabel })"
                     :aria-busy="currentState.loading"
                     :disabled="currentState.loading"
                     @click="refreshCurrent"
@@ -79,8 +79,8 @@
                     v-if="canManage"
                     class="icon-button icon-button--primary templates-toolbar__create"
                     type="button"
-                    :title="`新建${activeDomainLabel}`"
-                    :aria-label="`新建${activeDomainLabel}`"
+                    :title="t('templates.createTitle', { domain: activeDomainLabel })"
+                    :aria-label="t('templates.createTitle', { domain: activeDomainLabel })"
                     @click="openCreate"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -97,7 +97,7 @@
               >
                 <strong>{{ currentState.error }}</strong>
                 <button class="secondary-button" type="button" @click="loadDomain(activeDomain)">
-                  重试
+                  {{ $t('common.retry') }}
                 </button>
               </div>
               <div
@@ -105,21 +105,23 @@
                 class="templates-state"
                 role="status"
               >
-                正在加载{{ activeDomainLabel }}…
+                {{ $t('templates.loadingDomain', { domain: activeDomainLabel }) }}
               </div>
               <div v-else-if="filteredCount === 0" class="templates-state">
                 <strong>{{
-                  currentSearch ? "没有符合条件的结果" : `还没有${activeDomainLabel}`
+                  currentSearch
+                    ? $t('templates.noSearchResults')
+                    : $t('templates.noDomainRecords', { domain: activeDomainLabel })
                 }}</strong>
                 <span>{{
                   currentSearch
-                    ? "可以清除搜索查看全部内容。"
+                    ? $t('templates.clearSearchToSeeAll')
                     : canManage
-                      ? `可从工具栏新建${activeDomainLabel}。`
-                      : "当前没有可查看的数据。"
+                      ? $t('templates.createFromToolbar', { domain: activeDomainLabel })
+                      : $t('templates.noDataAvailable')
                 }}</span>
                 <button v-if="currentSearch" class="text-button" type="button" @click="clearSearch">
-                  清除搜索
+                  {{ $t('templates.clearSearch') }}
                 </button>
               </div>
               <template v-else>
@@ -135,10 +137,12 @@
                   v-if="activeDomain === 'category'"
                   class="templates-table templates-table--category"
                   role="table"
-                  aria-label="物品分类列表"
+                  :aria-label="$t('templates.categoryListAria')"
                 >
                   <div class="templates-table__head" role="row">
-                    <span>分类</span><span>说明</span><span>排序与操作</span>
+                    <span>{{ $t('templates.categoryHeaderName') }}</span
+                    ><span>{{ $t('templates.categoryHeaderDescription') }}</span
+                    ><span>{{ $t('templates.categoryHeaderOrderActions') }}</span>
                   </div>
                   <article
                     v-for="category in filteredCategories"
@@ -148,39 +152,38 @@
                   >
                     <div class="templates-table__identity" role="cell">
                       <strong>{{ category.name }}</strong
-                      ><span>分类 #{{ category.id }}</span>
+                      ><span>{{ $t('templates.categoryIdLabel', { id: category.id }) }}</span>
                     </div>
                     <div
                       class="templates-table__description"
                       role="cell"
                       :title="category.description ?? undefined"
                     >
-                      {{ category.description || "暂无说明" }}
+                      {{ category.description || $t('templates.noDescription') }}
                     </div>
                     <div class="templates-table__decision" role="cell">
-                      <span class="templates-table__meta"
-                        ><span
+                      <span class="templates-table__meta">
+                        <span
                           :class="{
                             'templates-table__usage--empty': category.item_usage_count === 0,
                           }"
                           >{{ usageLabel(category.item_usage_count) }}</span
-                        ><span
-                          >排序 <strong>{{ category.sort_order }}</strong></span
-                        ><span
-                          >更新
+                        ><span>{{ $t('templates.sortOrder') }}
+                          <strong>{{ category.sort_order }}</strong></span
+                        ><span>{{ $t('templates.updated') }}
                           <time
                             :datetime="category.updated_at"
                             :title="formatFullDateTime(category.updated_at)"
                             >{{ formatTime(category.updated_at) }}</time
                           ></span
-                        ></span
-                      >
+                        >
+                      </span>
                       <span v-if="canManage" class="templates-table__actions">
                         <button
                           class="icon-button"
                           type="button"
-                          title="编辑分类"
-                          :aria-label="`编辑分类 ${category.name}`"
+                          :title="$t('templates.editCategory')"
+                          :aria-label="$t('templates.editCategoryAria', { name: category.name })"
                           @click="openCategory(category)"
                         >
                           <EditIcon />
@@ -188,8 +191,8 @@
                         <button
                           class="icon-button templates-table__delete"
                           type="button"
-                          title="删除分类"
-                          :aria-label="`删除分类 ${category.name}`"
+                          :title="$t('templates.deleteCategory')"
+                          :aria-label="$t('templates.deleteCategoryAria', { name: category.name })"
                           @click="openDelete('category', category)"
                         >
                           <DeleteIcon />
@@ -203,10 +206,12 @@
                   v-else-if="activeDomain === 'item'"
                   class="templates-table templates-table--template"
                   role="table"
-                  aria-label="物品属性模板列表"
+                  :aria-label="$t('templates.templateListAria')"
                 >
                   <div class="templates-table__head" role="row">
-                    <span>物品模板</span><span>字段与默认项</span><span>更新与操作</span>
+                    <span>{{ $t('templates.templateHeaderName') }}</span
+                    ><span>{{ $t('templates.templateHeaderFields') }}</span
+                    ><span>{{ $t('templates.templateHeaderUpdatedActions') }}</span>
                   </div>
                   <article
                     v-for="template in filteredItemTemplates"
@@ -223,21 +228,25 @@
                       <strong
                         >{{ template.name
                         }}<em v-if="template.is_default" class="templates-table__default-badge"
-                          >默认</em
+                          >{{ $t('templates.defaultBadge') }}</em
                         ></strong
-                      ><span>物品模板 #{{ template.id }}</span
-                      ><small>{{ template.description || "暂无说明" }}</small>
+                      ><span>{{ $t('templates.templateIdLabel', { id: template.id }) }}</span
+                      ><small>{{ template.description || $t('templates.noDescription') }}</small>
                     </button>
                     <div class="templates-table__information" role="cell">
                       <span class="templates-table__metrics"
                         ><span
-                          >字段 <strong>{{ template.fields.length }}</strong></span
+                          >{{ $t('templates.fieldCountLabel') }}
+                          <strong>{{ template.fields.length }}</strong></span
                         ><span
-                          >必填 <strong>{{ countRequired(template.fields) }}</strong></span
+                          >{{ $t('templates.requiredCountLabel') }}
+                          <strong>{{ countRequired(template.fields) }}</strong></span
                         ><span
-                          >可筛选 <strong>{{ countSearchable(template.fields) }}</strong></span
+                          >{{ $t('templates.searchableCountLabel') }}
+                          <strong>{{ countSearchable(template.fields) }}</strong></span
                         ><span
-                          >目录 <strong>{{ countCatalogVisible(template) }}/3</strong></span
+                          >{{ $t('templates.catalogCountLabel') }}
+                          <strong>{{ countCatalogVisible(template) }}/3</strong></span
                         ><span
                           :class="{
                             'templates-table__usage--empty': template.item_usage_count === 0,
@@ -256,8 +265,8 @@
                         <button
                           class="icon-button"
                           type="button"
-                          title="查看模板"
-                          :aria-label="`查看模板 ${template.name}`"
+                          :title="$t('templates.viewTemplate')"
+                          :aria-label="$t('templates.viewTemplateAria', { name: template.name })"
                           @click="openTemplate(template, true)"
                         >
                           <ViewIcon />
@@ -267,11 +276,15 @@
                             class="icon-button"
                             :class="{ 'templates-table__default-active': template.is_default }"
                             type="button"
-                            :title="template.is_default ? '取消默认模板' : '设为默认模板'"
+                            :title="
+                              template.is_default
+                                ? $t('templates.unsetDefaultTemplate')
+                                : $t('templates.setDefaultTemplate')
+                            "
                             :aria-label="
                               template.is_default
-                                ? `取消默认模板 ${template.name}`
-                                : `设为默认模板 ${template.name}`
+                                ? $t('templates.unsetDefaultTemplateAria', { name: template.name })
+                                : $t('templates.setDefaultTemplateAria', { name: template.name })
                             "
                             :aria-pressed="template.is_default"
                             :disabled="defaultUpdatingId !== null"
@@ -282,8 +295,8 @@
                           <button
                             class="icon-button"
                             type="button"
-                            title="编辑模板"
-                            :aria-label="`编辑模板 ${template.name}`"
+                            :title="$t('templates.editTemplate')"
+                            :aria-label="$t('templates.editTemplateAria', { name: template.name })"
                             @click="openTemplate(template, false)"
                           >
                             <EditIcon />
@@ -291,8 +304,8 @@
                           <button
                             class="icon-button"
                             type="button"
-                            title="复制模板"
-                            :aria-label="`复制模板 ${template.name}`"
+                            :title="$t('templates.copyTemplate')"
+                            :aria-label="$t('templates.copyTemplateAria', { name: template.name })"
                             @click="openCopy(template)"
                           >
                             <CopyIcon />
@@ -300,8 +313,8 @@
                           <button
                             class="icon-button templates-table__delete"
                             type="button"
-                            title="删除模板"
-                            :aria-label="`删除模板 ${template.name}`"
+                            :title="$t('templates.deleteTemplate')"
+                            :aria-label="$t('templates.deleteTemplateAria', { name: template.name })"
                             @click="openDelete('item', template)"
                           >
                             <DeleteIcon />
@@ -369,6 +382,7 @@ import {
   ref,
   watch,
 } from "vue";
+import { useI18n } from "vue-i18n";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
 import {
   createItemCategory,
@@ -389,6 +403,8 @@ import {
 import type { TemplateFieldResponse } from "../api/templateFields";
 import { hasPermission, stockPermissions } from "../auth/permissions";
 import { authSession } from "../auth/session";
+import { translateMessageOrNull } from "../i18n";
+import type { MessageKeyPath } from "../i18n/schema";
 import CategoryDialog from "../components/templates/CategoryDialog.vue";
 import TemplateCopyDialog, {
   type TemplateCopyTarget,
@@ -418,9 +434,11 @@ interface EditorState {
   readOnly: boolean;
 }
 
-const domains: { value: TemplateDomain; label: string }[] = [
-  { value: "category", label: "物品分类" },
-  { value: "item", label: "物品属性模板" },
+const { t } = useI18n();
+
+const domains: { value: TemplateDomain; label: MessageKeyPath }[] = [
+  { value: "category", label: "templates.domainCategory" },
+  { value: "item", label: "templates.domainItemTemplate" },
 ];
 
 const activeDomain = ref<TemplateDomain>("category");
@@ -449,16 +467,18 @@ const canManage = computed(() =>
 );
 const currentState = computed(() => states[activeDomain.value]);
 const currentSearch = computed(() => searches[activeDomain.value]);
-const activeDomainLabel = computed(
-  () => domains.find((domain) => domain.value === activeDomain.value)?.label ?? "",
-);
+const activeDomainLabel = computed(() => domainLabel(activeDomain.value));
 const domainTransitionName = computed(() => `templates-domain-${domainTransitionDirection.value}`);
-const domainCountLabel = computed(
-  () => ({ category: "个分类", item: "个物品模板" })[activeDomain.value],
+const domainCountLabel = computed(() =>
+  activeDomain.value === "category"
+    ? t("templates.categoryCountUnit")
+    : t("templates.itemTemplateCountUnit"),
 );
-const searchLabel = computed(() => `搜索${activeDomainLabel.value}`);
-const searchPlaceholder = computed(
-  () => `搜索${activeDomain.value === "category" ? "分类" : "模板"}名称或说明`,
+const searchLabel = computed(() => t("templates.searchDomain", { domain: activeDomainLabel.value }));
+const searchPlaceholder = computed(() =>
+  activeDomain.value === "category"
+    ? t("templates.searchCategoryPlaceholder")
+    : t("templates.searchTemplatePlaceholder"),
 );
 const refreshPending = computed(() => currentState.value.loaded && currentState.value.loading);
 const initialLoading = computed(() => !currentState.value.loaded && currentState.value.loading);
@@ -501,6 +521,11 @@ watch(canManage, (allowed) => {
   if (editorState.value) editorState.value = { ...editorState.value, readOnly: true };
 });
 
+function domainLabel(domain: TemplateDomain): string {
+  const key = domains.find((item) => item.value === domain)?.label;
+  return key ? t(key) : "";
+}
+
 async function loadDomain(domain: TemplateDomain, announce = false): Promise<boolean> {
   controllers.get(domain)?.abort();
   const controller = new AbortController();
@@ -511,13 +536,14 @@ async function loadDomain(domain: TemplateDomain, announce = false): Promise<boo
     if (domain === "category") categories.value = await listItemCategories(controller.signal);
     else itemTemplates.value = await listItemAttributeTemplates(controller.signal);
     states[domain].loaded = true;
-    if (announce) notice.success(`${domains.find((item) => item.value === domain)?.label}已刷新`);
+    if (announce)
+      notice.success(t("templates.refreshedDomain", { domain: domainLabel(domain) }));
     return true;
   } catch (error) {
     if (isAbortError(error)) return false;
     states[domain].error = errorMessage(
       error,
-      `加载${domains.find((item) => item.value === domain)?.label}失败`,
+      t("templates.loadDomainFailed", { domain: domainLabel(domain) }),
     );
     notice.error(states[domain].error);
     return false;
@@ -620,10 +646,12 @@ async function saveCategory(request: ItemCategoryWriteRequest): Promise<void> {
       ? await updateItemCategory(editingCategory.value.id, request)
       : await createItemCategory(request);
     categories.value = upsert(categories.value, updated);
-    notice.success(editingCategory.value ? "物品分类已更新" : "物品分类已创建");
+    notice.success(
+      editingCategory.value ? t("templates.categoryUpdated") : t("templates.categoryCreated"),
+    );
     closeActionsAfterSuccess();
   } catch (error) {
-    handleActionError(error, "保存物品分类失败");
+    handleActionError(error, t("templates.saveCategoryFailed"));
   } finally {
     actionSubmitting.value = false;
   }
@@ -640,10 +668,10 @@ async function saveTemplate(draft: TemplateDraft): Promise<void> {
       ? await updateItemAttributeTemplate(template.id, request)
       : await createItemAttributeTemplate(request);
     itemTemplates.value = upsert(itemTemplates.value, updated);
-    notice.success(template ? "模板已更新" : "模板已创建");
+    notice.success(template ? t("templates.templateUpdated") : t("templates.templateCreated"));
     closeActionsAfterSuccess();
   } catch (error) {
-    handleActionError(error, "保存模板失败");
+    handleActionError(error, t("templates.saveTemplateFailed"));
   } finally {
     actionSubmitting.value = false;
   }
@@ -659,9 +687,9 @@ async function copyTemplate(name: string): Promise<void> {
     itemTemplates.value = upsert(itemTemplates.value, copied);
     editorState.value = { template: copied, readOnly: false };
     copyTarget.value = null;
-    notice.success("模板已复制，请检查后保存");
+    notice.success(t("templates.templateCopied"));
   } catch (error) {
-    handleActionError(error, "复制模板失败");
+    handleActionError(error, t("templates.copyTemplateFailed"));
   } finally {
     actionSubmitting.value = false;
   }
@@ -678,21 +706,21 @@ async function deleteTargetRecord(): Promise<void> {
       categories.value = categories.value.filter((item) => item.id !== target.id);
       notice.success(
         result.affected_active_item_count > 0
-          ? `物品分类已删除；${result.affected_active_item_count} 个当前物品需要重新归类`
-          : "物品分类已删除；未影响当前有效物品",
+          ? t("templates.categoryDeletedAffected", { n: result.affected_active_item_count })
+          : t("templates.categoryDeletedClean"),
       );
     } else {
       const result = await deleteItemAttributeTemplate(target.id);
       itemTemplates.value = itemTemplates.value.filter((item) => item.id !== target.id);
       notice.success(
         result.affected_active_item_count > 0
-          ? `模板已删除；${result.affected_active_item_count} 个当前物品已解除模板关联`
-          : "模板已删除；未影响当前有效物品",
+          ? t("templates.templateDeletedAffected", { n: result.affected_active_item_count })
+          : t("templates.templateDeletedClean"),
       );
     }
     closeActionsAfterSuccess();
   } catch (error) {
-    handleActionError(error, "删除失败");
+    handleActionError(error, t("templates.deleteFailed"));
   } finally {
     actionSubmitting.value = false;
   }
@@ -708,7 +736,7 @@ function countCatalogVisible(template: ItemAttributeTemplateResponse): number {
   return template.fields.filter((field) => field.catalog_visible).length;
 }
 function usageLabel(count: number): string {
-  return count > 0 ? `已用于 ${count} 个物品` : "暂未被物品使用";
+  return count > 0 ? t("templates.usedByItems", { n: count }) : t("templates.unusedByItems");
 }
 
 function filterRecords<T extends { name: string; description: string | null }>(
@@ -773,7 +801,7 @@ function handleActionError(error: unknown, fallback: string): void {
     ["category_name_taken", "template_name_taken"].includes(error.code)
   ) {
     actionFieldErrors.value.name =
-      error.code === "category_name_taken" ? "分类名称已存在" : "模板名称已存在";
+      translateMessageOrNull(`error.${error.code}`) ?? error.message;
   }
   notice.error(actionError.value, { detail: Object.values(actionFieldErrors.value)[0] });
   if (error instanceof ApiError && error.status === 404) void loadDomain(activeDomain.value);
@@ -784,7 +812,7 @@ function apiFieldErrors(error: unknown): Record<string, string> {
   return Object.fromEntries(
     Object.entries(error.fieldErrors).map(([path, messages]) => [
       normalizeFieldPath(path),
-      messages[0] ?? "字段无效",
+      messages[0] ?? t("templates.fieldInvalid"),
     ]),
   );
 }
@@ -811,11 +839,16 @@ async function toggleDefaultTemplate(template: ItemAttributeTemplateResponse): P
       if (entry.id === updated.id) return updated;
       return updated.is_default && entry.is_default ? { ...entry, is_default: false } : entry;
     });
-    notice.success(updated.is_default ? `已将「${updated.name}」设为默认模板` : "已取消默认模板", {
-      detail: updated.is_default ? "新建物品将自动应用该模板。" : undefined,
-    });
+    notice.success(
+      updated.is_default
+        ? t("templates.defaultTemplateSet", { name: updated.name })
+        : t("templates.defaultTemplateUnset"),
+      { detail: updated.is_default ? t("templates.defaultTemplateSetDetail") : undefined },
+    );
   } catch (error) {
-    notice.error("默认模板设置失败", { detail: errorMessage(error, "请稍后重试。") });
+    notice.error(t("templates.defaultTemplateUpdateFailed"), {
+      detail: errorMessage(error, t("templates.tryLater")),
+    });
   } finally {
     defaultUpdatingId.value = null;
   }
@@ -823,13 +856,14 @@ async function toggleDefaultTemplate(template: ItemAttributeTemplateResponse): P
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
-    if (error.code === "category_name_taken") return "分类名称已存在";
-    if (error.code === "template_name_taken") return "模板名称已存在";
-    if (error.status === 403) return "当前账号已没有执行此操作的权限";
-    if (error.status === 404) return "记录已被删除，请刷新后重试";
+    if (error.code === "category_name_taken" || error.code === "template_name_taken") {
+      return translateMessageOrNull(`error.${error.code}`) ?? error.message;
+    }
+    if (error.status === 403) return t("templates.actionForbidden");
+    if (error.status === 404) return t("templates.recordDeletedRefresh");
     return error.message || fallback;
   }
-  if (error instanceof ApiNetworkError) return "无法连接到 WineStock 服务";
+  if (error instanceof ApiNetworkError) return error.message || fallback;
   if (error instanceof ApiConfigurationError || error instanceof ApiResponseError)
     return error.message;
   return fallback;

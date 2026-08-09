@@ -1,5 +1,6 @@
 // 本文件拥有 frontend API 地址和客户端元数据解析，属于运行时配置边界；它不启动或发现 Axum 服务。
 import { ApiConfigurationError } from "./errors";
+import { translateMessageOrNull } from "../i18n";
 
 let runtimeApiBaseUrlConfigured = false;
 let runtimeApiBaseUrl: string | undefined;
@@ -37,9 +38,7 @@ export function resolveApiBaseUrl(): string {
   const configured = runtimeApiBaseUrlConfigured ? runtimeApiBaseUrl : resolveInitialApiBaseUrl();
 
   if (!configured) {
-    throw new ApiConfigurationError(
-      "未配置 WineStock 服务地址，请由平台注入 apiBaseUrl 或设置 VITE_API_BASE_URL",
-    );
+    throw new ApiConfigurationError(localMessage("components.apiBaseUrlMissing"));
   }
 
   return normalizeApiBaseUrl(configured);
@@ -69,20 +68,30 @@ export function normalizeApiBaseUrl(configured: string): string {
   try {
     url = new URL(configured);
   } catch (error) {
-    throw new ApiConfigurationError(`WineStock 服务地址无效：${String(error)}`);
+    throw new ApiConfigurationError(
+      localMessage("components.apiBaseUrlInvalid", { detail: String(error) }),
+    );
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new ApiConfigurationError("WineStock 服务地址必须使用 http 或 https");
+    throw new ApiConfigurationError(localMessage("components.apiBaseUrlProtocol"));
   }
   if (url.hostname === "0.0.0.0" || url.hostname === "[::]" || url.hostname === "::") {
-    throw new ApiConfigurationError("全接口监听地址不能作为前端访问地址");
+    throw new ApiConfigurationError(localMessage("components.apiBaseUrlWildcardHost"));
   }
   if (url.username || url.password || url.search || url.hash) {
-    throw new ApiConfigurationError("WineStock 服务地址不能包含凭据、查询参数或 hash");
+    throw new ApiConfigurationError(localMessage("components.apiBaseUrlRestricted"));
   }
 
   return url.toString().replace(/\/$/, "");
+}
+
+/** 取本地化 API 配置错误文案并填充参数；键缺失时回退键名本身。 */
+function localMessage(key: string, params?: Record<string, string>): string {
+  const message = translateMessageOrNull(key) ?? key;
+  return params
+    ? message.replace(/\{(\w+)\}/g, (match, name: string) => params[name] ?? match)
+    : message;
 }
 
 /** 解析登录请求使用的平台、设备名称和版本号。 */

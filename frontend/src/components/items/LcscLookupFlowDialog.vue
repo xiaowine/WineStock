@@ -5,8 +5,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="立创资料"
-    :description="`商品编号 ${productCode}`"
+    :title="$t('items.lcscDataTitle')"
+    :description="$t('items.productCodeValue', { code: productCode })"
     compact
     nested
     @close="emit('dismiss')"
@@ -18,21 +18,25 @@
       :templates="templates"
     />
     <div v-else-if="request.error.value" class="lcsc-flow__error" role="alert">
-      <strong>查询失败</strong>
+      <strong>{{ $t('items.lookupFailed') }}</strong>
       <span>{{ request.error.value }}</span>
     </div>
-    <div v-else class="lcsc-flow__status" role="status">正在查询立创资料…</div>
+    <div v-else class="lcsc-flow__status" role="status">{{ $t('items.lcscQuerying') }}</div>
 
     <template #actions>
       <template v-if="request.candidate.value">
-        <button class="secondary-button" type="button" @click="emit('dismiss')">不填写</button>
-        <button class="primary-button" type="button" @click="applyCandidate">覆盖填写</button>
+        <button class="secondary-button" type="button" @click="emit('dismiss')">
+          {{ $t('items.doNotFill') }}
+        </button>
+        <button class="primary-button" type="button" @click="applyCandidate">
+          {{ $t('items.overwriteFill') }}
+        </button>
       </template>
       <template v-else-if="request.error.value">
         <button class="secondary-button" type="button" @click="emit('dismiss')">
           {{ dismissLabel }}
         </button>
-        <button class="primary-button" type="button" @click="retry">重试</button>
+        <button class="primary-button" type="button" @click="retry">{{ $t('items.retry') }}</button>
       </template>
       <button v-else class="secondary-button" type="button" @click="emit('dismiss')">
         {{ dismissLabel }}
@@ -42,7 +46,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import type { LcscItemLookupResponse } from "../../api/items";
 import { defaultAttributeTemplate } from "../../pages/items/model";
@@ -59,7 +64,7 @@ const props = withDefaults(
     /** 取消按钮文案；扫码路径传「返回扫码」明确去向。 */
     dismissLabel?: string;
   }>(),
-  { dismissLabel: "取消" },
+  { dismissLabel: undefined },
 );
 
 const emit = defineEmits<{
@@ -67,6 +72,8 @@ const emit = defineEmits<{
   /** 用户取消、关闭或在错误态放弃；由调用方决定回到扫码还是留在编辑器。 */
   dismiss: [];
 }>();
+const { t } = useI18n();
+const dismissLabel = computed(() => props.dismissLabel ?? t("items.cancel"));
 
 const request = useLcscLookupRequest();
 const selectedTemplateId = ref<number | null>(null);

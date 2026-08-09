@@ -11,7 +11,7 @@
         class="in-app-image-viewer"
         role="dialog"
         aria-modal="true"
-        :aria-label="`查看图片：${alt}`"
+        :aria-label="$t('components.viewImage', { name: alt })"
         @click.self="close"
       >
         <div class="in-app-image-viewer__dim" aria-hidden="true" />
@@ -19,8 +19,8 @@
           ref="closeButton"
           class="icon-button in-app-image-viewer__close"
           type="button"
-          title="关闭图片查看"
-          aria-label="关闭图片查看"
+          :title="$t('components.closeImageViewer')"
+          :aria-label="$t('components.closeImageViewer')"
           @click="onCloseClick"
           @pointerup="blurCloseButton"
           @touchend="blurCloseButton"

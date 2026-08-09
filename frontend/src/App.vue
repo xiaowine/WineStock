@@ -9,7 +9,7 @@
     <Transition name="service-recovery">
       <div v-if="showRecoveryBanner" class="app-service-recovery" role="status" aria-live="polite">
         <span class="app-service-recovery__spinner" aria-hidden="true"></span>
-        本地服务恢复中…
+        {{ $t("startup.serviceRecovery") }}
       </div>
     </Transition>
     <ServiceUnavailableScreen

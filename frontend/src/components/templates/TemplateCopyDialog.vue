@@ -2,8 +2,8 @@
 <template>
   <ModalDialog
     :open="Boolean(target)"
-    title="复制模板"
-    :description="target ? `以“${target.name}”的完整字段结构创建副本。` : undefined"
+    :title="$t('templates.copyTemplate')"
+    :description="target ? $t('templates.copyTemplateDescription', { name: target.name }) : undefined"
     :busy="submitting"
     compact
     @close="emit('close')"
@@ -11,7 +11,7 @@
     <form :id="formId" class="dialog-form" novalidate @submit.prevent="submit">
       <FormInput
         v-model="name"
-        label="新模板名称"
+        :label="$t('templates.newTemplateNameLabel')"
         validation-key="name"
         :error="errors.name"
         maxlength="128"
@@ -23,10 +23,10 @@
     </form>
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t('common.cancel') }}
       </button>
       <button class="primary-button" type="submit" :form="formId" :disabled="submitting">
-        {{ submitting ? "正在复制…" : "复制并编辑" }}
+        {{ submitting ? $t('templates.copyingNow') : $t('templates.copyAndEdit') }}
       </button>
     </template>
   </ModalDialog>
@@ -34,6 +34,7 @@
 
 <script setup lang="ts">
 import { ref, useId, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
 import ModalDialog from "../ModalDialog.vue";
@@ -56,6 +57,7 @@ const emit = defineEmits<{
   submit: [name: string];
 }>();
 
+const { t } = useI18n();
 const formId = `template-copy-form-${useId()}`;
 const name = ref("");
 const errors = ref<Record<string, string>>({});
@@ -65,7 +67,7 @@ watch(
   () => props.target,
   (target) => {
     if (!target) return;
-    name.value = `${target.name} 副本`;
+    name.value = t("templates.copyDraftName", { name: target.name });
     errors.value = props.fieldError ? { name: props.fieldError } : {};
   },
 );
@@ -80,13 +82,13 @@ watch(
 function submit(): void {
   const normalized = name.value.trim();
   const error = !normalized
-    ? "请输入新模板名称"
+    ? t("templates.newTemplateNameRequired")
     : normalized.length > 128
-      ? "模板名称不能超过 128 个字符"
+      ? t("templates.nameTooLong")
       : "";
   errors.value = error ? { name: error } : {};
   if (error) {
-    notice.warning("请检查模板名称", { detail: error });
+    notice.warning(t("templates.checkTemplateName"), { detail: error });
     return;
   }
   emit("submit", normalized);

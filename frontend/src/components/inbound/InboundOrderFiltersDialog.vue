@@ -2,8 +2,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="筛选入库单"
-    description="按处理状态和创建日期缩小入库单范围。"
+    :title="$t('orders.filterInbound')"
+    :description="$t('orders.filterInboundDescription')"
     @close="emit('close')"
   >
     <form
@@ -12,31 +12,32 @@
       novalidate
       @submit.prevent="submit"
     >
-      <FormSelect v-model="status" label="处理状态" validation-key="status">
-        <option value="">全部状态</option>
-        <option value="pending">待审批</option>
-        <option value="approved">已入库</option>
-        <option value="rejected">已拒绝</option>
+      <FormSelect v-model="status" :label="$t('orders.processingStatus')" validation-key="status">
+        <option value="">{{ $t("orders.allStatuses") }}</option>
+        <option value="pending">{{ $t("orders.statusPending") }}</option>
+        <option value="approved">{{ $t("orders.statusApprovedInbound") }}</option>
+        <option value="rejected">{{ $t("orders.statusRejected") }}</option>
       </FormSelect>
       <DateTimeField
         v-model="dateFrom"
-        label="开始时间"
+        :label="$t('orders.startTime')"
         validation-key="dateRange"
         :error="errors.dateRange"
       />
       <DateTimeField
         v-model="dateTo"
-        label="结束时间"
+        :label="$t('orders.endTime')"
         validation-key="dateRange"
         :error="errors.dateRange"
       />
     </form>
     <template #actions
       ><button class="text-button inbound-order-filter-form__reset" type="button" @click="reset">
-        重置</button
-      ><button class="secondary-button" type="button" @click="emit('close')">取消</button
+        {{ $t("orders.reset") }}</button
+      ><button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t("orders.cancel") }}</button
       ><button class="primary-button" type="submit" form="inbound-order-filter-form">
-        应用筛选
+        {{ $t("orders.applyFilter") }}
       </button></template
     >
   </ModalDialog>
@@ -44,6 +45,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { InboundOrderStatus } from "../../api/inboundOrders";
 import DateTimeField from "../forms/DateTimeField.vue";
 import FormSelect from "../forms/FormSelect.vue";
@@ -58,6 +60,7 @@ export interface InboundOrderFilterValue {
 }
 const props = defineProps<{ open: boolean; value: InboundOrderFilterValue }>();
 const emit = defineEmits<{ close: []; apply: [value: InboundOrderFilterValue] }>();
+const { t } = useI18n();
 const status = ref<InboundOrderStatus | "">("");
 const dateFrom = ref("");
 const dateTo = ref("");
@@ -83,11 +86,11 @@ function reset(): void {
 function submit(): void {
   const dateRangeError =
     dateFrom.value && dateTo.value && dateFrom.value > dateTo.value
-      ? "开始日期不能晚于结束日期"
+      ? t("orders.startAfterEndDate")
       : "";
   errors.value = dateRangeError ? { dateRange: dateRangeError } : {};
   if (dateRangeError) {
-    notice.warning("请检查筛选条件", { detail: dateRangeError });
+    notice.warning(t("orders.checkFilterConditions"), { detail: dateRangeError });
     return;
   }
   if (!dateRangeError)

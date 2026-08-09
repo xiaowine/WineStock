@@ -6,15 +6,15 @@
   <section class="route-page dashboard-page">
     <header class="content-header dashboard-page__header">
       <div class="dashboard-page__heading">
-        <h1>{{ $route.meta.title }}</h1>
-        <p>查看当前库存规模、近期流转和需要关注的呆滞物品。</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t('dashboard.subtitle') }}</p>
       </div>
       <button
         class="icon-button dashboard-page__refresh"
         :class="{ 'dashboard-page__refresh--pending': showDashboardRefreshing }"
         type="button"
-        title="刷新库存总览"
-        aria-label="刷新库存总览"
+        :title="$t('dashboard.refresh')"
+        :aria-label="$t('dashboard.refresh')"
         :aria-busy="refreshing"
         :disabled="refreshing"
         @click="refreshDashboard"
@@ -25,11 +25,15 @@
         </svg>
       </button>
       <span v-if="showDashboardRefreshing" class="visually-hidden" role="status">
-        正在刷新库存总览
+        {{ $t('dashboard.refreshing') }}
       </span>
     </header>
 
-    <section v-if="contactEntryVisible" class="dashboard-contact-banner" aria-label="联系与反馈">
+    <section
+      v-if="contactEntryVisible"
+      class="dashboard-contact-banner"
+      :aria-label="$t('dashboard.contactFeedback')"
+    >
       <div class="dashboard-contact-banner__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false">
           <path d="M4 5.5h16v11H8l-4 3v-14Z" />
@@ -37,14 +41,16 @@
         </svg>
       </div>
       <div class="dashboard-contact-banner__copy">
-        <strong>需要帮助或发现问题？</strong>
-        <span>欢迎联系作者反馈使用情况。</span>
+        <strong>{{ $t('dashboard.contactBannerTitle') }}</strong>
+        <span>{{ $t('dashboard.contactBannerText') }}</span>
       </div>
-      <button class="secondary-button" type="button" @click="openContactDialog">联系与反馈</button>
+      <button class="secondary-button" type="button" @click="openContactDialog">
+        {{ $t('dashboard.contactFeedback') }}
+      </button>
     </section>
 
     <div v-if="showInitialLoading" class="dashboard-page__initial-state" role="status">
-      正在加载库存总览…
+      {{ $t('dashboard.loadingOverview') }}
     </div>
 
     <section
@@ -52,36 +58,40 @@
       class="dashboard-page__state dashboard-page__state--error"
       role="alert"
     >
-      <h2>无法加载总览</h2>
+      <h2>{{ $t('dashboard.loadFailedTitle') }}</h2>
       <p>{{ initialError }}</p>
-      <button class="secondary-button" type="button" @click="loadDashboard">重试</button>
+      <button class="secondary-button" type="button" @click="loadDashboard">
+        {{ $t('dashboard.retry') }}
+      </button>
     </section>
 
     <template v-else-if="overview">
-      <section class="dashboard-summary" aria-label="库存摘要">
+      <section class="dashboard-summary" :aria-label="$t('dashboard.summary')">
         <article class="dashboard-summary-card">
-          <span>物品种类</span>
+          <span>{{ $t('dashboard.itemKinds') }}</span>
           <strong>{{ formatInteger(overview.total_items) }}</strong>
-          <small>当前有效物品</small>
+          <small>{{ $t('dashboard.activeItems') }}</small>
         </article>
         <article class="dashboard-summary-card">
-          <span>库存总量</span>
+          <span>{{ $t('dashboard.totalStock') }}</span>
           <strong>{{ formatNumber(overview.total_quantity) }}</strong>
-          <small>全部有效批次余量</small>
+          <small>{{ $t('dashboard.batchRemaining') }}</small>
         </article>
         <article class="dashboard-summary-card">
-          <span>库存价值</span>
+          <span>{{ $t('dashboard.stockValue') }}</span>
           <strong>{{ formatNumber(overview.total_value) }}</strong>
-          <small>按当前批次成本估算</small>
+          <small>{{ $t('dashboard.valueEstimate') }}</small>
         </article>
         <article class="dashboard-summary-card dashboard-summary-card--activity">
-          <span>近 3 天流转</span>
+          <span>{{ $t('dashboard.recentActivity') }}</span>
           <div>
             <p>
-              <small>入库</small><strong>{{ formatNumber(overview.inbound_3d) }}</strong>
+              <small>{{ $t('dashboard.inbound') }}</small
+              ><strong>{{ formatNumber(overview.inbound_3d) }}</strong>
             </p>
             <p>
-              <small>出库</small><strong>{{ formatNumber(overview.outbound_3d) }}</strong>
+              <small>{{ $t('dashboard.outbound') }}</small
+              ><strong>{{ formatNumber(overview.outbound_3d) }}</strong>
             </p>
           </div>
         </article>
@@ -90,10 +100,14 @@
       <section class="dashboard-panel dashboard-trend-panel">
         <header class="dashboard-panel__header">
           <div>
-            <h2>出入库趋势</h2>
-            <p>只统计审批通过后生成的库存流水。</p>
+            <h2>{{ $t('dashboard.trendTitle') }}</h2>
+            <p>{{ $t('dashboard.trendSubtitle') }}</p>
           </div>
-          <div class="dashboard-period-control" role="group" aria-label="趋势时间范围">
+          <div
+            class="dashboard-period-control"
+            role="group"
+            :aria-label="$t('dashboard.trendPeriodRange')"
+          >
             <button
               v-for="option in periodOptions"
               :key="option"
@@ -103,7 +117,7 @@
               :disabled="loadingTrends"
               @click="selectTrendDays(option)"
             >
-              {{ option }} 天
+              {{ $t('dashboard.days', { n: option }) }}
             </button>
           </div>
         </header>
@@ -113,14 +127,16 @@
       <section class="dashboard-panel dashboard-slow-moving">
         <header class="dashboard-panel__header">
           <div>
-            <h2>呆滞物品</h2>
-            <p>当前有库存且 30 天内没有出入库流水的物品。</p>
+            <h2>{{ $t('dashboard.slowMovingTitle') }}</h2>
+            <p>{{ $t('dashboard.slowMovingSubtitle') }}</p>
           </div>
-          <span class="dashboard-panel__count"> {{ overview.slow_moving_items.length }} 项 </span>
+          <span class="dashboard-panel__count">
+            {{ $t('dashboard.itemCount', { n: overview.slow_moving_items.length }) }}
+          </span>
         </header>
 
         <div v-if="visibleSlowMovingItems.length === 0" class="dashboard-slow-moving__empty">
-          当前没有需要关注的呆滞物品。
+          {{ $t('dashboard.noSlowMovingItems') }}
         </div>
 
         <template v-else>
@@ -128,10 +144,10 @@
             <table class="dashboard-slow-moving__table">
               <thead>
                 <tr>
-                  <th scope="col">物品</th>
-                  <th scope="col">当前库存</th>
-                  <th scope="col">库存价值</th>
-                  <th scope="col">未流转</th>
+                  <th scope="col">{{ $t('dashboard.item') }}</th>
+                  <th scope="col">{{ $t('dashboard.currentStock') }}</th>
+                  <th scope="col">{{ $t('dashboard.stockValue') }}</th>
+                  <th scope="col">{{ $t('dashboard.inactive') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,7 +159,9 @@
                   <td>{{ formatNumber(item.quantity) }}</td>
                   <td>{{ formatNumber(item.value) }}</td>
                   <td>
-                    <span class="dashboard-age-pill">{{ item.days_since_last_movement }} 天</span>
+                    <span class="dashboard-age-pill">{{
+                      $t('dashboard.days', { n: item.days_since_last_movement })
+                    }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -157,15 +175,17 @@
                   <strong :title="item.item_name">{{ item.item_name }}</strong
                   ><small>#{{ item.item_id }}</small>
                 </div>
-                <span class="dashboard-age-pill">{{ item.days_since_last_movement }} 天</span>
+                <span class="dashboard-age-pill">{{
+                  $t('dashboard.days', { n: item.days_since_last_movement })
+                }}</span>
               </header>
               <dl>
                 <div>
-                  <dt>当前库存</dt>
+                  <dt>{{ $t('dashboard.currentStock') }}</dt>
                   <dd>{{ formatNumber(item.quantity) }}</dd>
                 </div>
                 <div>
-                  <dt>库存价值</dt>
+                  <dt>{{ $t('dashboard.stockValue') }}</dt>
                   <dd>{{ formatNumber(item.value) }}</dd>
                 </div>
               </dl>
@@ -176,7 +196,7 @@
             v-if="overview.slow_moving_items.length > visibleSlowMovingItems.length"
             class="dashboard-slow-moving__footnote"
           >
-            当前展示前 {{ visibleSlowMovingItems.length }} 项。
+            {{ $t('dashboard.showingFirstN', { n: visibleSlowMovingItems.length }) }}
           </p>
         </template>
       </section>
@@ -193,11 +213,14 @@ import {
   type DashboardOverviewResponse,
 } from "../api/dashboard";
 import { ApiConfigurationError, ApiError, ApiNetworkError, ApiResponseError } from "../api/errors";
+import { useI18n } from "vue-i18n";
 import DashboardTrendChart from "../components/dashboard/DashboardTrendChart.vue";
 import { openContactDialog } from "../contact/contactDialog";
 import { contactEntryVisible } from "../contact/contactPreferences";
 import { useStablePendingIndicator } from "../composables/useStablePendingIndicator";
 import { notice } from "../notices/notice";
+
+const { t } = useI18n();
 
 const SLOW_MOVING_LIMIT = 8;
 const periodOptions = [7, 30, 90] as const;
@@ -239,7 +262,7 @@ async function loadDashboard(): Promise<void> {
   const results = await Promise.allSettled([loadOverview(), loadTrends()]);
   const failure = results.find((result) => result.status === "rejected");
   if (failure?.status === "rejected" && overview.value === null) {
-    initialError.value = dashboardErrorMessage(failure.reason, "加载库存总览失败");
+    initialError.value = dashboardErrorMessage(failure.reason, t("dashboard.loadOverviewFailed"));
   }
 }
 
@@ -248,10 +271,10 @@ async function refreshDashboard(): Promise<void> {
   const results = await Promise.allSettled([loadOverview(), loadTrends()]);
   const failure = results.find((result) => result.status === "rejected");
   if (failure?.status === "rejected") {
-    notice.error(dashboardErrorMessage(failure.reason, "刷新总览失败"));
+    notice.error(dashboardErrorMessage(failure.reason, t("dashboard.refreshFailed")));
     return;
   }
-  notice.success("总览已刷新");
+  notice.success(t("dashboard.refreshSuccess"));
 }
 
 async function loadOverview(): Promise<void> {
@@ -291,7 +314,7 @@ function selectTrendDays(days: TrendDays): void {
   }
   trendDays.value = days;
   void loadTrends().catch((error) => {
-    notice.error(dashboardErrorMessage(error, "加载趋势失败"));
+    notice.error(dashboardErrorMessage(error, t("dashboard.loadTrendsFailed")));
   });
 }
 
@@ -309,7 +332,7 @@ function dashboardErrorMessage(error: unknown, fallback: string): string {
   }
   if (error instanceof ApiError) {
     if (error.code === "permission_denied") {
-      return "当前账号没有查看库存总览的权限";
+      return t("dashboard.permissionDenied");
     }
     return error.message;
   }
@@ -317,10 +340,10 @@ function dashboardErrorMessage(error: unknown, fallback: string): string {
     return error.message;
   }
   if (error instanceof ApiNetworkError) {
-    return "无法连接到 WineStock 服务";
+    return t("dashboard.cannotConnect");
   }
   if (error instanceof ApiResponseError) {
-    return "服务响应格式无效，请检查前后端版本";
+    return t("dashboard.invalidResponseFormat");
   }
   return fallback;
 }

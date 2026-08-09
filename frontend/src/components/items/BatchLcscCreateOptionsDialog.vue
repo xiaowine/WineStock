@@ -5,8 +5,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="批量创建选项"
-    :description="`将为 ${count} 个未匹配编号自动查询立创资料并创建物品，全部使用以下设置。`"
+    :title="$t('items.batchCreateOptionsTitle')"
+    :description="$t('items.batchCreateOptionsDescription', { n: count })"
     compact
     nested
     @close="emit('close')"
@@ -14,33 +14,33 @@
     <div class="batch-create-options">
       <p v-if="metadataError" class="form-error" role="alert">{{ metadataError }}</p>
       <template v-else>
-        <FormSelect v-model="templateId" label="属性模板" name="batch_create_template">
-          <option :value="null">不使用模板</option>
+        <FormSelect v-model="templateId" :label="$t('items.attributeTemplate')" name="batch_create_template">
+          <option :value="null">{{ $t('items.noTemplate') }}</option>
           <option v-for="template in templates" :key="template.id" :value="template.id">
-            {{ template.name }}{{ template.is_default ? "（默认）" : "" }}
+            {{ template.name }}{{ template.is_default ? $t('items.defaultSuffix') : "" }}
           </option>
         </FormSelect>
-        <p class="batch-create-options__hint">
-          未匹配到模板字段的立创参数会保存为自定义属性，不会丢失；个别物品可在创建后调整。
-        </p>
-        <FormSelect v-model="categoryId" label="分类" name="batch_create_category">
-          <option :value="null">不指定</option>
+        <p class="batch-create-options__hint">{{ $t('items.batchCreateOptionsHint') }}</p>
+        <FormSelect v-model="categoryId" :label="$t('items.category')" name="batch_create_category">
+          <option :value="null">{{ $t('items.unspecified') }}</option>
           <option v-for="category in categories" :key="category.id" :value="category.id">
             {{ category.name }}
           </option>
         </FormSelect>
-        <FormInput v-model="unit" label="计量单位" name="batch_create_unit" required />
+        <FormInput v-model="unit" :label="$t('items.unit')" name="batch_create_unit" required />
       </template>
     </div>
     <template #actions>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t('items.cancel') }}
+      </button>
       <button
         class="primary-button"
         type="button"
         :disabled="metadataError !== '' || !unit.trim()"
         @click="confirm"
       >
-        开始创建
+        {{ $t('items.startCreating') }}
       </button>
     </template>
   </ModalDialog>
@@ -72,7 +72,7 @@ const emit = defineEmits<{
 
 const templateId = ref<number | null>(null);
 const categoryId = ref<number | null>(null);
-const unit = ref("个");
+const unit = ref("\u4e2a"); // 个
 
 watch(
   () => props.open,
@@ -89,7 +89,7 @@ function confirm(): void {
   emit("confirm", {
     templateId: templateId.value,
     categoryId: categoryId.value,
-    unit: unit.value.trim() || "个",
+    unit: unit.value.trim() || "\u4e2a", // 个
   });
 }
 </script>

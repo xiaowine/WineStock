@@ -4,7 +4,9 @@
     class="status-pill"
     :class="passwordChangeRequired ? 'status-pill--warn' : 'status-pill--neutral'"
   >
-    {{ passwordChangeRequired ? "待修改" : "正常" }}
+    {{
+      passwordChangeRequired ? $t("users.passwordChangeRequired") : $t("users.passwordNormal")
+    }}
   </span>
 </template>
 

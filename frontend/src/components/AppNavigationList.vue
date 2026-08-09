@@ -3,7 +3,7 @@
   它只渲染已完成权限过滤的入口，不决定路由权限，也不拥有 Drawer 开关状态。
 -->
 <template>
-  <nav class="app-navigation" aria-label="模块导航">
+  <nav class="app-navigation" :aria-label="$t('components.moduleNavigation')">
     <div
       v-for="group in navigationGroups"
       :key="group.id"
@@ -23,7 +23,7 @@
         <svg class="menu-item__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path :d="navigationIconPaths[item.icon]" />
         </svg>
-        <span>{{ item.label }}</span>
+        <span>{{ $title(item.label) }}</span>
       </RouterLink>
     </div>
   </nav>
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { AppNavigationIcon, AppNavigationItem } from "../router/navigation";
 
 const props = defineProps<{
@@ -45,6 +46,8 @@ const emit = defineEmits<{
   navigate: [];
 }>();
 
+const { t } = useI18n();
+
 const navigationGroups = computed(() =>
   [
     {
@@ -54,7 +57,7 @@ const navigationGroups = computed(() =>
     },
     {
       id: "management",
-      label: "管理",
+      label: t("components.management"),
       items: props.items.filter((item) => item.group === "management"),
     },
   ].filter((group) => group.items.length > 0),

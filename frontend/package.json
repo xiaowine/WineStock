@@ -34,6 +34,7 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-opener": "2.5.4",
     "vue": "^3.5.40",
+    "vue-i18n": "^11.4.8",
     "vue-router": "^5.2.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zxing-wasm": "^3.1.2"

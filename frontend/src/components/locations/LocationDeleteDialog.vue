@@ -5,13 +5,15 @@
 <template>
   <ModalDialog
     :open="Boolean(target)"
-    :title="target?.kind === 'group' ? '删除库位分组' : '删除库位'"
+    :title="target?.kind === 'group' ? $t('locations.deleteGroupTitle') : $t('locations.deleteLocation')"
     :busy="submitting"
     @close="emit('close')"
   >
     <template #context>
       <div v-if="target" class="dialog-account-context dialog-account-context--danger">
-        <span>{{ target.kind === "group" ? "目标分组" : "目标库位" }}</span>
+        <span>{{
+          target.kind === "group" ? $t('locations.targetGroup') : $t('locations.targetLocation')
+        }}</span>
         <strong :title="target.label">{{ target.label }}</strong>
       </div>
     </template>
@@ -20,18 +22,18 @@
       <p class="confirmation-copy">
         {{
           target?.kind === "group"
-            ? "只有不包含子分组和有效库位的空分组才能删除。"
-            : "只有没有当前库存批次引用的库位才能删除，历史单据不会被移除。"
+            ? $t('locations.deleteGroupConfirmation')
+            : $t('locations.deleteLocationConfirmation')
         }}
       </p>
     </div>
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t('locations.cancel') }}
       </button>
       <button class="danger-button" type="button" :disabled="submitting" @click="emit('submit')">
-        {{ submitting ? "正在删除…" : "确认删除" }}
+        {{ submitting ? $t('locations.deleting') : $t('locations.confirmDelete') }}
       </button>
     </template>
   </ModalDialog>

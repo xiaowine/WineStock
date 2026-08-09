@@ -46,69 +46,69 @@ export interface AppRouteCatalogEntry {
 /** 应用壳一级路由目录；同一页面名称只能在这里声明一次。 */
 export const appRouteCatalog = {
   dashboard: {
-    title: "库存总览",
+    title: "nav.dashboard",
     requiredPermission: stockPermissions.dashboardRead,
     navigation: { group: "primary", icon: "dashboard", order: 10 },
   },
   items: {
-    title: "物品管理",
+    title: "nav.items",
     requiredPermission: stockPermissions.itemRead,
     navigation: { group: "primary", icon: "items", order: 20 },
   },
   inbound: {
-    title: "新建入库",
+    title: "nav.inbound",
     requiredPermission: stockPermissions.inboundCreate,
     navigation: { group: "primary", icon: "inbound-create", order: 30 },
   },
   "inbound-orders": {
-    title: "入库记录",
+    title: "nav.inbound-orders",
     requiredPermission: stockPermissions.inboundRead,
     navigation: { group: "primary", icon: "inbound-orders", order: 50 },
   },
   outbound: {
-    title: "新建出库",
+    title: "nav.outbound",
     requiredPermission: stockPermissions.outboundCreate,
     navigation: { group: "primary", icon: "outbound-create", order: 40 },
   },
   "outbound-orders": {
-    title: "出库记录",
+    title: "nav.outbound-orders",
     requiredPermission: stockPermissions.outboundRead,
     navigation: { group: "primary", icon: "outbound-orders", order: 60 },
   },
   "inbound-approvals": {
-    title: "入库审批",
+    title: "nav.inbound-approvals",
     requiredPermission: stockPermissions.inboundApprove,
     requiredPermissions: [stockPermissions.inboundRead, stockPermissions.inboundApprove],
     navigation: { group: "primary", icon: "inbound-approvals", order: 70 },
   },
   "outbound-approvals": {
-    title: "出库审批",
+    title: "nav.outbound-approvals",
     requiredPermission: stockPermissions.outboundApprove,
     requiredPermissions: [stockPermissions.outboundRead, stockPermissions.outboundApprove],
     navigation: { group: "primary", icon: "outbound-approvals", order: 80 },
   },
   locations: {
-    title: "库位管理",
+    title: "nav.locations",
     requiredPermission: stockPermissions.locationRead,
     navigation: { group: "management", icon: "locations", order: 10 },
   },
   templates: {
-    title: "分类与模板",
+    title: "nav.templates",
     requiredPermission: stockPermissions.templateRead,
     navigation: { group: "management", icon: "templates", order: 20 },
   },
   substitutes: {
-    title: "替代关系",
+    title: "nav.substitutes",
     requiredPermission: stockPermissions.substituteRead,
     navigation: { group: "management", icon: "substitutes", order: 30 },
   },
   events: {
-    title: "操作日志",
+    title: "nav.events",
     requiredPermission: stockPermissions.auditRead,
     navigation: { group: "management", icon: "events", order: 40 },
   },
   users: {
-    title: "用户管理",
+    title: "nav.users",
     requiredPermission: userPermissions.read,
     navigation: { group: "management", icon: "users", order: 50 },
   },

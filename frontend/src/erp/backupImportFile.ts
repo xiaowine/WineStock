@@ -24,7 +24,7 @@ async function readAndParse(file: File): Promise<ErpBackupParseResult> {
     const XLSX = await import("xlsx");
     workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
   } catch {
-    return { ok: false, error: "文件读取失败，请确认选择的是 ERP 导出的 .xlsx 备份文件。" };
+    return { ok: false, error: "stockDraft.backupFileReadFailed" };
   }
   const { utils } = await import("xlsx");
   const sheets = workbook.SheetNames.map((name) => {

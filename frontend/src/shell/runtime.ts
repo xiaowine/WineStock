@@ -151,7 +151,7 @@ export async function subscribeNativeBackRequested(
     listener(request);
   });
   if (typeof stop !== "function") {
-    throw new Error("Shell Bridge 原生返回订阅没有返回取消函数");
+    throw new Error("Shell Bridge native back subscription did not return a cancellation function");
   }
   return stop;
 }
@@ -162,7 +162,7 @@ export async function resolveNativeBack(
 ): Promise<NativeBackResolutionAck> {
   const snapshot = await initializeShellRuntime();
   if (!snapshot.capabilities.nativeBack) {
-    throw new Error("当前平台未启用原生返回协商");
+    throw new Error("Native back negotiation is not enabled on this platform");
   }
   const result = await requireNativeBackBridge().resolveNativeBack(resolution);
   assertNativeBackResolutionAck(result);
@@ -173,7 +173,7 @@ export async function resolveNativeBack(
 export async function startLocalService(): Promise<RuntimeSnapshot> {
   const snapshot = await initializeShellRuntime();
   if (!snapshot.capabilities.startLocalService) {
-    throw new Error("当前平台不支持启动本地服务");
+    throw new Error("Starting the local service is not supported on this platform");
   }
   const previousApiBaseUrl = activeApiBaseUrl.value;
   const result = await requireBridge().startLocalService();
@@ -185,7 +185,7 @@ export async function startLocalService(): Promise<RuntimeSnapshot> {
 export async function restartLocalService(): Promise<RuntimeSnapshot> {
   const snapshot = await initializeShellRuntime();
   if (!snapshot.capabilities.restartLocalService) {
-    throw new Error("当前平台不支持重启本地服务");
+    throw new Error("Restarting the local service is not supported on this platform");
   }
   const previousApiBaseUrl = activeApiBaseUrl.value;
   const result = await requireBridge().restartLocalService();
@@ -198,7 +198,7 @@ export async function repairFirewall(): Promise<RuntimeSnapshot> {
   const snapshot = await initializeShellRuntime();
   const repair = requireBridge().repairFirewall;
   if (snapshot.platform !== "desktop" || typeof repair !== "function") {
-    throw new Error("当前平台不支持防火墙操作");
+    throw new Error("Firewall operations are not supported on this platform");
   }
   const previousApiBaseUrl = activeApiBaseUrl.value;
   const result = await repair();
@@ -210,7 +210,7 @@ export async function repairFirewall(): Promise<RuntimeSnapshot> {
 export async function openExternal(url: string): Promise<void> {
   const snapshot = await initializeShellRuntime();
   if (!snapshot.capabilities.openExternal) {
-    throw new Error("当前平台不支持打开外部链接");
+    throw new Error("Opening external links is not supported on this platform");
   }
   await requireBridge().openExternal(url);
 }
@@ -232,7 +232,7 @@ export async function installUpdate(version: string): Promise<void> {
   const snapshot = await initializeShellRuntime();
   const installer = requireBridge().installUpdate;
   if ((snapshot.platform !== "desktop" && snapshot.platform !== "android") || !installer) {
-    throw new Error("当前平台不支持安装更新");
+    throw new Error("Installing updates is not supported on this platform");
   }
   await installer(version);
 }
@@ -312,7 +312,7 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
         } catch (error) {
           mutableRuntimeStatus.value = "failed";
           mutableRuntimeError.value =
-            error instanceof Error ? error.message : "Shell Bridge 发布了无效运行快照";
+            error instanceof Error ? error.message : "Shell Bridge published an invalid runtime snapshot";
           void reportShellBridgeFailure(error, "shell_bridge_snapshot_invalid");
         }
       });
@@ -328,7 +328,7 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
     ) {
       throw startupFailure(
         "shell_bridge_event_subscription_failed",
-        new Error("Shell Bridge 事件订阅没有返回取消函数"),
+        new Error("Shell Bridge event subscription did not return a cancellation function"),
       );
     }
     mutableRuntimeStatus.value = "ready";
@@ -337,7 +337,7 @@ async function performInitialization(): Promise<RuntimeSnapshot> {
   } catch (error) {
     mutableRuntimeStatus.value = "failed";
     mutableRuntimeError.value =
-      error instanceof Error ? error.message : "无法读取 WineStock 运行配置";
+      error instanceof Error ? error.message : "Failed to read WineStock runtime configuration";
     configureRuntimeApiBaseUrl(undefined);
     throw error;
   }
@@ -349,7 +349,7 @@ function startupFailure(
 ): Error & {
   shellBridgeFailureCode: ShellBridgeFailureCode;
 } {
-  const error = cause instanceof Error ? cause : new Error("Shell Bridge 启动失败");
+  const error = cause instanceof Error ? cause : new Error("Shell Bridge startup failed");
   return Object.assign(error, { shellBridgeFailureCode: code });
 }
 
@@ -421,7 +421,7 @@ function applySnapshot(snapshot: RuntimeSnapshot, previousApiBaseUrl?: string): 
 
 function requireBridge(): ShellBridge {
   if (!bridge) {
-    throw new Error("Shell Bridge 尚未初始化");
+    throw new Error("Shell Bridge has not been initialized");
   }
   return bridge;
 }

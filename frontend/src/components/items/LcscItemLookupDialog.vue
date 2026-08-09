@@ -2,8 +2,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="查询立创资料"
-    description="输入 C 开头的立创商城商品编号。"
+    :title="$t('items.lcscLookupTitle')"
+    :description="$t('items.lcscLookupDescription')"
     compact
     nested
     @close="requestClose"
@@ -18,19 +18,19 @@
       <FormInput
         :id="`${formId}-product-code`"
         v-model="productCode"
-        label="立创商品编号"
+        :label="$t('items.lcscProductCode')"
         name="lcsc_product_code"
         maxlength="32"
         autocomplete="off"
         autofocus
-        placeholder="例如 C2983288"
+        :placeholder="$t('items.lcscCodePlaceholder')"
         :disabled="request.pending.value"
         validation-key="productCode"
         :error="errors.productCode"
       />
 
       <div v-if="request.pending.value" class="lcsc-lookup__status" role="status">
-        正在查询立创资料…
+        {{ $t('items.lcscQuerying') }}
       </div>
     </form>
 
@@ -43,8 +43,12 @@
 
     <template #actions>
       <template v-if="request.candidate.value">
-        <button class="secondary-button" type="button" @click="requestClose">不填写</button>
-        <button class="primary-button" type="button" @click="applyCandidate">覆盖填写</button>
+        <button class="secondary-button" type="button" @click="requestClose">
+          {{ $t('items.doNotFill') }}
+        </button>
+        <button class="primary-button" type="button" @click="applyCandidate">
+          {{ $t('items.overwriteFill') }}
+        </button>
       </template>
       <template v-else>
         <button
@@ -53,7 +57,7 @@
           :disabled="request.pending.value"
           @click="requestClose"
         >
-          取消
+          {{ $t('items.cancel') }}
         </button>
         <button
           class="primary-button"
@@ -61,7 +65,13 @@
           :form="formId"
           :disabled="request.pending.value"
         >
-          {{ request.pending.value ? "正在查询…" : request.error.value ? "重新查询" : "查询" }}
+          {{
+            request.pending.value
+              ? $t('items.querying')
+              : request.error.value
+                ? $t('items.reQuery')
+                : $t('items.query')
+          }}
         </button>
       </template>
     </template>
@@ -70,6 +80,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, useId, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import type { LcscItemLookupResponse } from "../../api/items";
 import { defaultAttributeTemplate } from "../../pages/items/model";
@@ -93,6 +104,7 @@ const emit = defineEmits<{
   close: [];
   apply: [candidate: LcscItemLookupResponse, templateId: number | null];
 }>();
+const { t } = useI18n();
 
 const formId = `lcsc-lookup-${useId()}`;
 const productCode = ref("");
@@ -120,7 +132,7 @@ watch(request.candidate, (candidate) => {
 
 watch(request.error, (error) => {
   if (error) {
-    notice.error("查询立创资料失败", {
+    notice.error(t("items.lcscQueryFailed"), {
       detail: error,
       onClick: () => void submitLookup(),
     });
@@ -136,9 +148,9 @@ async function submitLookup(): Promise<void> {
   const normalized = normalizeCode(productCode.value);
   productCode.value = normalized;
   if (!/^C[0-9]+$/.test(normalized)) {
-    const error = "商品编号必须以 C 开头，后续全部为数字。";
+    const error = t("items.lcscCodeInvalid");
     errors.value = { productCode: error };
-    notice.warning("请检查商品编号", { detail: error });
+    notice.warning(t("items.checkLcscCode"), { detail: error });
     return;
   }
   await request.lookup(normalized);

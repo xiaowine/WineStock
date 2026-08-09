@@ -92,7 +92,7 @@ export function establishAuthSession(response: AuthTokenResponse): void {
 export async function establishLocalInitialUser(username: string): Promise<void> {
   const exchangeToken = mutableLocalAuthExchangeToken.value;
   if (exchangeToken === undefined || mutableIsLoggingOut.value) {
-    throw new Error("本机初始化凭据不可用");
+    throw new Error("Local initial-user exchange token unavailable");
   }
 
   const metadata = resolveApiClientMetadata();

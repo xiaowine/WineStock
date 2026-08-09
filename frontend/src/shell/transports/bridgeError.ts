@@ -21,7 +21,7 @@ export function normalizeShellBridgeTransportError(error: unknown): ShellBridgeT
     return new ShellBridgeTransportError(candidate.code, candidate.message);
   }
 
-  const message = error instanceof Error && error.message ? error.message : "Shell Bridge 调用失败";
+  const message = error instanceof Error && error.message ? error.message : "Shell Bridge invocation failed";
   return new ShellBridgeTransportError("invalid_bridge_payload", message);
 }
 
@@ -33,7 +33,7 @@ function extractErrorCandidate(error: unknown): { code: string; message: string 
   if (error instanceof Error) {
     const errorCode = readErrorCode(error);
     if (errorCode) {
-      return { code: errorCode, message: error.message || "Shell Bridge 调用失败" };
+      return { code: errorCode, message: error.message || "Shell Bridge invocation failed" };
     }
     return parseErrorText(error.message);
   }

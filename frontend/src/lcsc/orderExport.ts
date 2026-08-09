@@ -20,7 +20,10 @@ export interface LcscOrderImportLine {
 export interface LcscOrderSkippedLine {
   rowLabel: string;
   productCode: string | null;
+  /** 消息键；由展示层翻译后展示。 */
   reason: string;
+  /** 消息键的插值参数；无参数时省略。 */
+  params?: Record<string, string>;
 }
 
 export type LcscOrderParseResult =
@@ -35,11 +38,13 @@ export type LcscOrderParseResult =
 
 const ORDER_NO_PATTERN = /^SO\d+$/i;
 const PRODUCT_CODE_PATTERN = /^C\d+$/i;
-const HEADER_PRODUCT_CODE = "商品编号";
-const HEADER_QUANTITY = "订购数量（修改后）";
-const HEADER_UNIT_PRICE = "商品单价";
-const HEADER_NOT_SHIPPED = "是否不发此货";
-const DETAIL_MARKER = "商品明细列表";
+// 下列表头/标记为立创导出文件的数据常量（与 UI 语言无关），转义保持运行时值与导出格式一致。
+const HEADER_PRODUCT_CODE = "\u5546\u54c1\u7f16\u53f7"; // 商品编号
+const HEADER_QUANTITY = "\u8ba2\u8d2d\u6570\u91cf\uff08\u4fee\u6539\u540e\uff09"; // 订购数量（修改后）
+const HEADER_UNIT_PRICE = "\u5546\u54c1\u5355\u4ef7"; // 商品单价
+const HEADER_NOT_SHIPPED = "\u662f\u5426\u4e0d\u53d1\u6b64\u8d27"; // 是否不发此货
+const DETAIL_MARKER = "\u5546\u54c1\u660e\u7ec6\u5217\u8868"; // 商品明细列表
+const ORDER_NO_MARKER = "\u8ba2\u5355\u7f16\u53f7"; // 订单编号
 
 /**
  * 解析立创订单导出工作簿。
@@ -60,7 +65,8 @@ export function parseLcscOrderSheets(
   return (
     fallback ?? {
       ok: false,
-      error: "未在文件中找到立创订单明细，请确认选择的是立创商城「订单详情」导出的表格。",
+      // 错误文案为消息键，由展示层 translateMessageOrNull 翻译后呈现。
+      error: "stockDraft.lcscOrderDetailNotFound",
     }
   );
 }
@@ -76,7 +82,7 @@ function parseSheet(rows: LcscOrderSheetRows): Extract<LcscOrderParseResult, { o
   const notShippedColumn = columnOf(HEADER_NOT_SHIPPED);
   if (productCodeColumn < 0 || quantityColumn < 0 || unitPriceColumn < 0) return null;
 
-  const orderNoRow = rows.find((row) => cellText(row[0]).includes("订单编号"));
+  const orderNoRow = rows.find((row) => cellText(row[0]).includes(ORDER_NO_MARKER));
   const orderNoValue = cellText(orderNoRow?.[1]).trim().toUpperCase();
   const orderNo = ORDER_NO_PATTERN.test(orderNoValue) ? orderNoValue : null;
 
@@ -87,12 +93,18 @@ function parseSheet(rows: LcscOrderSheetRows): Extract<LcscOrderParseResult, { o
     if (!rawCode) continue;
     const rowLabel = cellText(row[0]).trim() || String(lines.length + skipped.length + 1);
     if (!PRODUCT_CODE_PATTERN.test(rawCode)) {
-      skipped.push({ rowLabel, productCode: null, reason: `商品编号「${rawCode}」不是合法 C 号` });
+      // reason 为消息键，携带插值参数；由展示层翻译后呈现。
+      skipped.push({
+        rowLabel,
+        productCode: null,
+        reason: "stockDraft.invalidProductCode",
+        params: { code: rawCode },
+      });
       continue;
     }
     const productCode = `C${rawCode.slice(1)}`;
     if (notShippedColumn >= 0 && cellText(row[notShippedColumn]).trim()) {
-      skipped.push({ rowLabel, productCode, reason: "该行标记为不发货" });
+      skipped.push({ rowLabel, productCode, reason: "stockDraft.rowMarkedNotShipped" });
       continue;
     }
     const quantity = parseQuantity(row[quantityColumn]);
@@ -100,7 +112,8 @@ function parseSheet(rows: LcscOrderSheetRows): Extract<LcscOrderParseResult, { o
       skipped.push({
         rowLabel,
         productCode,
-        reason: `订购数量「${cellText(row[quantityColumn])}」无法解析`,
+        reason: "stockDraft.quantityUnparsable",
+        params: { value: cellText(row[quantityColumn]) },
       });
       continue;
     }
@@ -109,7 +122,8 @@ function parseSheet(rows: LcscOrderSheetRows): Extract<LcscOrderParseResult, { o
       skipped.push({
         rowLabel,
         productCode,
-        reason: `商品单价「${cellText(row[unitPriceColumn])}」无法解析`,
+        reason: "stockDraft.unitPriceUnparsable",
+        params: { value: cellText(row[unitPriceColumn]) },
       });
       continue;
     }

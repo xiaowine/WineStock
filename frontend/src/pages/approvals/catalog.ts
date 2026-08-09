@@ -16,6 +16,7 @@ import {
   rejectInboundOrder,
   rejectOutboundOrder,
 } from "../../api/stockApprovals";
+import { translateMessageOrNull } from "../../i18n";
 
 /** 库存审批领域。 */
 export type ApprovalKind = "inbound" | "outbound";
@@ -53,13 +54,13 @@ export interface ApprovalCatalog {
 const catalogs: Record<ApprovalKind, ApprovalCatalog> = {
   inbound: {
     kind: "inbound",
-    pageSubtitle: "审核待入库单据，确认后写入批次与库存。",
-    searchPlaceholder: "搜索单号、来源、物品或批次",
-    emptyLabel: "当前没有待审批入库单",
-    noResultLabel: "没有符合条件的待审批入库单",
-    contextLabel: "来源",
-    approveConsequence: "将为全部明细创建批次并增加对应库位库存，同时写入库存流水和审计事件。",
-    rejectConsequence: "只把单据标记为已拒绝，不创建批次、不增加库存。拒绝后不能再次审批。",
+    pageSubtitle: "approvals.inboundSubtitle",
+    searchPlaceholder: "approvals.inboundSearchPlaceholder",
+    emptyLabel: "approvals.inboundEmptyLabel",
+    noResultLabel: "approvals.inboundNoResultLabel",
+    contextLabel: "approvals.contextSource",
+    approveConsequence: "approvals.inboundApproveConsequence",
+    rejectConsequence: "approvals.inboundRejectConsequence",
     async list(query, signal) {
       const response = await listInboundOrders({ ...query, status: "pending" }, signal);
       return {
@@ -82,14 +83,13 @@ const catalogs: Record<ApprovalKind, ApprovalCatalog> = {
   },
   outbound: {
     kind: "outbound",
-    pageSubtitle: "审核待出库单据，确认后由服务端重新核对并扣减库存。",
-    searchPlaceholder: "搜索单号、去向、物品或批次",
-    emptyLabel: "当前没有待审批出库单",
-    noResultLabel: "没有符合条件的待审批出库单",
-    contextLabel: "去向",
-    approveConsequence:
-      "服务端将在同一事务内重新检查库存，并按指定批次或 FIFO 扣减；任一明细失败则整张单据不生效。",
-    rejectConsequence: "只把单据标记为已拒绝，不扣减库存。拒绝后不能再次审批。",
+    pageSubtitle: "approvals.outboundSubtitle",
+    searchPlaceholder: "approvals.outboundSearchPlaceholder",
+    emptyLabel: "approvals.outboundEmptyLabel",
+    noResultLabel: "approvals.outboundNoResultLabel",
+    contextLabel: "approvals.contextDestination",
+    approveConsequence: "approvals.outboundApproveConsequence",
+    rejectConsequence: "approvals.outboundRejectConsequence",
     async list(query, signal) {
       const response = await listOutboundOrders({ ...query, status: "pending" }, signal);
       return {
@@ -124,7 +124,9 @@ export function approvalId(record: ApprovalRecord): number {
 
 /** 返回单据来源或去向。 */
 export function approvalContext(record: ApprovalRecord): string {
-  return record.kind === "inbound"
-    ? record.order.source || "未记录来源"
-    : record.order.destination || "未记录去向";
+  return (
+    record.kind === "inbound"
+      ? record.order.source || translateMessageOrNull("approvals.unrecordedSource")
+      : record.order.destination || translateMessageOrNull("approvals.unrecordedDestination")
+  ) ?? "";
 }

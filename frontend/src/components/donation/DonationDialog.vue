@@ -5,23 +5,27 @@
 <template>
   <ModalDialog
     :open="open"
-    title="支持软件"
-    description="感谢你帮助 WineStock 持续维护。"
+    :title="$t('misc.donationTitle')"
+    :description="$t('misc.donationDescription')"
     :wide="donationMethods.length > 1"
     @close="emit('close')"
   >
     <div class="donation-dialog">
-      <section v-if="donationMethods.length" class="donation-dialog__methods" aria-label="捐赠方式">
+      <section
+        v-if="donationMethods.length"
+        class="donation-dialog__methods"
+        :aria-label="$t('misc.donationMethodsLabel')"
+      >
         <article v-for="method in donationMethods" :key="method.id" class="donation-dialog__method">
           <header class="donation-dialog__method-header">
-            <h3>{{ method.label }}</h3>
+            <h3>{{ $t(METHOD_LABEL_KEYS[method.id]) }}</h3>
           </header>
 
           <div class="donation-dialog__qr-frame">
             <img
               v-if="qrUrls[method.id]"
               :src="qrUrls[method.id]"
-              :alt="`${method.label}捐赠二维码`"
+              :alt="$t('misc.donationQrAlt', { method: $t(METHOD_LABEL_KEYS[method.id]) })"
               class="donation-dialog__qr"
             />
             <span
@@ -30,10 +34,10 @@
               role="status"
               aria-live="polite"
             >
-              正在生成二维码…
+              {{ $t("misc.donationQrGenerating") }}
             </span>
             <span v-else class="donation-dialog__qr-status donation-dialog__qr-status--error">
-              二维码暂时不可用
+              {{ $t("misc.donationQrUnavailable") }}
             </span>
           </div>
 
@@ -46,21 +50,32 @@
 
     <template #actions>
       <button v-if="automatic" class="secondary-button" type="button" @click="emit('disable')">
-        不再提示
+        {{ $t("misc.donationNeverPrompt") }}
       </button>
       <button v-if="automatic" class="secondary-button" type="button" @click="emit('snooze')">
-        稍后再说
+        {{ $t("misc.donationLater") }}
       </button>
-      <button class="secondary-button" type="button" @click="emit('close')">关闭</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t("common.close") }}
+      </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, reactive, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import ModalDialog from "../ModalDialog.vue";
 import { donationMethods, type DonationMethodId } from "../../donation/config";
 import { generateDonationQr } from "../../donation/qrGenerator";
+
+/** 捐赠方式的显示名由语言包按 id 解析，标签文案不进入配置数据。 */
+const METHOD_LABEL_KEYS: Record<DonationMethodId, string> = {
+  wechat: "misc.donationMethodWechat",
+  alipay: "misc.donationMethodAlipay",
+};
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -112,8 +127,7 @@ async function generateQrs(): Promise<void> {
         qrUrls[method.id] = URL.createObjectURL(image);
       } catch (error) {
         if (request !== generationRequest) return;
-        qrErrors[method.id] =
-          error instanceof Error ? error.message : "二维码生成失败，请稍后重试。";
+        qrErrors[method.id] = error instanceof Error ? error.message : t("misc.donationQrFailedRetry");
       } finally {
         if (request === generationRequest) qrLoading[method.id] = false;
       }

@@ -1,11 +1,13 @@
 // 本文件拥有出入库草稿工作台物品目录的搜索、取消、分页合并和滚动触底状态；它不管理草稿明细。
 import { computed, onBeforeUnmount, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { listItemOptions, type ItemOptionResponse } from "../api/items";
 
 const pageSize = 50;
 
 /** 服务端分页物品目录。 */
 export function useStockItemCatalog(errorMessage: (error: unknown) => string) {
+  const { t } = useI18n();
   const items = ref<ItemOptionResponse[]>([]);
   const totalItems = ref(0);
   const currentPage = ref(0);
@@ -21,8 +23,8 @@ export function useStockItemCatalog(errorMessage: (error: unknown) => string) {
   const exhausted = computed(() => currentPage.value > 0 && currentPage.value >= totalPages.value);
   const resultLabel = computed(() =>
     loadingItems.value && items.value.length === 0
-      ? "正在加载结果"
-      : `共 ${totalItems.value} 个物品`,
+      ? t("items.loadingResults")
+      : t("items.totalItems", { n: totalItems.value }),
   );
 
   onBeforeUnmount(() => controller?.abort());

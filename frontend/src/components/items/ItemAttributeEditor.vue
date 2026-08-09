@@ -10,19 +10,19 @@
       v-if="!templateField"
       v-model="attribute.fieldName"
       class="item-attribute-editor__name"
-      label="属性名称"
+      :label="$t('items.attributeName')"
       :name="`attribute_name_${attribute.key}`"
       :readonly="!attribute.custom"
       :required="attribute.custom"
       :validation-key="validationKey('name')"
       :error="validationErrors.name"
       maxlength="64"
-      placeholder="例如：产地"
+      :placeholder="$t('items.attributeNamePlaceholder')"
     />
     <FormField
       v-if="attribute.custom && attribute.fieldType === 'select'"
       class="item-attribute-editor__options"
-      label="候选项"
+      :label="$t('items.optionsLabel')"
       :validation-key="validationKey('options')"
       :error="validationErrors.options"
       required
@@ -37,44 +37,44 @@
           v-model="attribute.options[index]"
           :name="`attribute_option_${attribute.key}_${index}`"
           required
-          placeholder="输入候选项"
+          :placeholder="$t('items.optionInputPlaceholder')"
           :aria-invalid="invalid || undefined"
           :aria-describedby="describedBy"
         />
         <button
           type="button"
           class="icon-button"
-          aria-label="删除候选项"
+          :aria-label="$t('items.deleteOption')"
           @click="removeOption(attribute.options, index)"
         >
           ×
         </button>
       </div>
       <button type="button" class="secondary-button" @click="attribute.options.push('')">
-        添加候选项
+        {{ $t('items.addOption') }}
       </button>
     </FormField>
     <FormSelect
       v-if="!templateField"
       v-model="attribute.fieldType"
       class="item-attribute-editor__type"
-      label="类型"
+      :label="$t('items.attributeType')"
       :name="`attribute_type_${attribute.key}`"
       :disabled="!attribute.custom"
       @focus="rememberType"
       @change="requestTypeReset"
     >
-      <option value="text">文本</option>
-      <option value="number">数字</option>
-      <option value="select">选项</option>
-      <option value="date">日期</option>
-      <option value="url">网址</option>
-      <option value="boolean">布尔</option>
-      <option value="file">图片</option>
+      <option value="text">{{ $t('items.fieldTypeText') }}</option>
+      <option value="number">{{ $t('items.fieldTypeNumber') }}</option>
+      <option value="select">{{ $t('items.fieldTypeSelect') }}</option>
+      <option value="date">{{ $t('items.fieldTypeDate') }}</option>
+      <option value="url">{{ $t('items.fieldTypeUrl') }}</option>
+      <option value="boolean">{{ $t('items.fieldTypeBoolean') }}</option>
+      <option value="file">{{ $t('items.fieldTypeFile') }}</option>
     </FormSelect>
     <FormField
       class="item-attribute-editor__value"
-      :label="templateField?.field_name ?? '属性值'"
+      :label="templateField?.field_name ?? $t('items.attributeValue')"
       :required="templateField?.required ?? attribute.custom"
       :validation-key="validationKey('value')"
       :error="validationErrors.value"
@@ -86,7 +86,7 @@
           :model-value="fileValue"
           :delete-on-remove="attribute.fileTemporary"
           :invalid="invalid"
-          :label="templateField?.field_name ?? (attribute.fieldName || '属性图片')"
+          :label="templateField?.field_name ?? (attribute.fieldName || $t('items.attributeImage'))"
           @update:model-value="updateFile"
         />
         <SelectControl
@@ -97,9 +97,9 @@
           :aria-invalid="invalid || undefined"
           :aria-describedby="describedBy"
         >
-          <option :value="undefined">请选择</option>
-          <option :value="true">是</option>
-          <option :value="false">否</option>
+          <option :value="undefined">{{ $t('items.pleaseSelect') }}</option>
+          <option :value="true">{{ $t('items.yes') }}</option>
+          <option :value="false">{{ $t('items.no') }}</option>
         </SelectControl>
         <SelectControl
           v-else-if="attribute.fieldType === 'select'"
@@ -109,7 +109,7 @@
           :aria-invalid="invalid || undefined"
           :aria-describedby="describedBy"
         >
-          <option value="">请选择</option>
+          <option value="">{{ $t('items.pleaseSelect') }}</option>
           <option v-for="option in selectOptions" :key="option" :value="option">
             {{ option }}
           </option>
@@ -123,7 +123,7 @@
           :pattern="attribute.fieldType === 'url' ? 'https?://.+' : undefined"
           :aria-invalid="invalid || undefined"
           :aria-describedby="describedBy"
-          placeholder="输入属性值"
+          :placeholder="$t('items.attributeValuePlaceholder')"
         />
         <span v-if="unitMode === 'fixed'" class="item-attribute-editor__fixed-unit">{{
           fixedUnitLabel
@@ -138,12 +138,12 @@
           <SelectControl
             v-model="attribute.unit"
             :name="`attribute_unit_${attribute.key}`"
-            aria-label="单位"
+            :aria-label="$t('items.unitField')"
             required
             :aria-invalid="unitInvalid || undefined"
             :aria-describedby="unitDescribedBy"
           >
-            <option value="">选择单位</option>
+            <option value="">{{ $t('items.selectUnit') }}</option>
             <option v-for="option in unitOptions" :key="option" :value="option">
               {{ option }}
             </option>
@@ -154,7 +154,7 @@
     <FormField
       v-if="attribute.fieldType === 'number' && attribute.custom"
       class="item-attribute-editor__unit"
-      label="单位"
+      :label="$t('items.unitField')"
       :validation-key="validationKey('unitSettings')"
       :error="validationErrors.unitSettings"
     >
@@ -166,15 +166,15 @@
         @click="unitDialogOpen = true"
       >
         <span>{{ unitSummary }}</span>
-        <strong>设置单位</strong>
+        <strong>{{ $t('items.unitSettings') }}</strong>
       </button>
     </FormField>
     <button
       v-if="!templateField"
       class="icon-button item-attribute-editor__remove"
       type="button"
-      title="删除属性"
-      aria-label="删除属性"
+      :title="$t('items.deleteAttribute')"
+      :aria-label="$t('items.deleteAttribute')"
       @click="removeAttribute"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -192,18 +192,20 @@
     />
     <ModalDialog
       :open="typeResetDialogOpen"
-      title="清空属性值？"
-      description="修改属性类型会清空当前属性值及单位设置。"
+      :title="$t('items.clearValueTitle')"
+      :description="$t('items.clearValueDescription')"
       compact
       nested
       @close="cancelTypeReset"
     >
-      <p>确认后无法恢复当前属性值。</p>
+      <p>{{ $t('items.clearValueConfirm') }}</p>
       <template #actions>
         <button class="secondary-button" type="button" @click="cancelTypeReset">
-          保留当前类型
+          {{ $t('items.keepType') }}
         </button>
-        <button class="danger-button" type="button" @click="confirmTypeReset">确认清空</button>
+        <button class="danger-button" type="button" @click="confirmTypeReset">
+          {{ $t('items.confirmClear') }}
+        </button>
       </template>
     </ModalDialog>
   </div>
@@ -211,6 +213,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import AttributeImageField from "../attributes/AttributeImageField.vue";
 import type { ItemAttributeTemplateFieldResponse } from "../../api/itemAttributeTemplates";
 import type { ImageDraftValue } from "../attributes/imageDraft";
@@ -237,6 +240,7 @@ const props = withDefaults(
   },
 );
 const emit = defineEmits<{ remove: [] }>();
+const { t } = useI18n();
 const fileValue = computed(() =>
   typeof props.attribute.value === "object" && props.attribute.value?.kind === "file"
     ? props.attribute.value
@@ -261,10 +265,12 @@ const unitDialogOpen = ref(false);
 const typeResetDialogOpen = ref(false);
 const unitSummary = computed(() => {
   if (props.attribute.unitMode === "fixed")
-    return `指定单位 · ${props.attribute.fixedUnit || "未设置"}`;
+    return t("items.unitSummaryFixed", {
+      value: props.attribute.fixedUnit || t("items.notSet"),
+    });
   if (props.attribute.unitMode === "select")
-    return `选择单位 · ${props.attribute.unitOptions.length} 个候选`;
-  return "无单位";
+    return t("items.unitSummarySelect", { n: props.attribute.unitOptions.length });
+  return t("items.unitModeNone");
 });
 let previousType = props.attribute.fieldType;
 
@@ -347,7 +353,7 @@ async function discardTemporaryFile(): Promise<void> {
   try {
     await discardTemporaryAttributeFile(props.attribute);
   } catch {
-    notice.warning("临时图片未能立即删除", { detail: "服务会在超过保留期限后自动清理。" });
+    notice.warning(t("items.tempImageCleanupFailed"), { detail: t("items.autoCleanupNote") });
   }
 }
 </script>

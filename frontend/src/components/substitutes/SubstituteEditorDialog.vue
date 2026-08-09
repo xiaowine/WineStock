@@ -5,8 +5,8 @@
 <template>
   <ModalDialog
     :open="open"
-    :title="target ? '替代关系详情' : '新增替代关系'"
-    :description="chosenTarget ? undefined : '先选择需要配置替代关系的主物品。'"
+    :title="target ? $t('substitutes.editorTitleEdit') : $t('substitutes.create')"
+    :description="chosenTarget ? undefined : $t('substitutes.editorPickPrompt')"
     :busy="saving"
     workspace
     @close="requestClose"
@@ -14,22 +14,22 @@
     <template v-if="chosenTarget" #context>
       <div class="substitute-editor-dialog__context">
         <div>
-          <span>当前主物品</span>
+          <span>{{ $t('substitutes.currentPrimary') }}</span>
           <strong :title="chosenTarget.name">{{ chosenTarget.name }}</strong>
         </div>
         <div>
-          <span>编号</span>
+          <span>{{ $t('substitutes.skuLabel') }}</span>
           <strong :title="chosenTarget.sku">{{ chosenTarget.sku }}</strong>
         </div>
       </div>
     </template>
 
-    <section v-if="!chosenTarget" class="substitute-target-picker" aria-label="选择主物品">
+    <section v-if="!chosenTarget" class="substitute-target-picker" :aria-label="$t('substitutes.pickTargetLabel')">
       <SearchField
         v-model="searchInput"
-        label="搜索主物品"
+        :label="$t('substitutes.searchTargetLabel')"
         name="substitute_primary_item_search"
-        placeholder="名称或编号"
+        :placeholder="$t('substitutes.searchTargetPlaceholder')"
         autofocus
         @search="applySearch"
       />
@@ -40,29 +40,31 @@
         role="alert"
       >
         <span>{{ searchError }}</span>
-        <button class="secondary-button" type="button" @click="loadTargets">重试</button>
+        <button class="secondary-button" type="button" @click="loadTargets">
+          {{ $t('common.retry') }}
+        </button>
       </div>
       <div v-else-if="searchLoading" class="substitute-target-picker__state" role="status">
-        <span v-if="showSearchLoading">正在搜索主物品…</span>
+        <span v-if="showSearchLoading">{{ $t('substitutes.searchingTarget') }}</span>
       </div>
       <div v-else-if="!activeSearch" class="substitute-target-picker__state">
-        <strong>搜索主物品</strong>
-        <span>输入名称或编号后选择需要维护的物品。</span>
+        <strong>{{ $t('substitutes.searchTargetLabel') }}</strong>
+        <span>{{ $t('substitutes.searchTargetHint') }}</span>
       </div>
       <div v-else-if="!targets.length" class="substitute-target-picker__state">
-        <strong>没有找到匹配的物品</strong>
-        <span>请检查名称或编号后重试。</span>
+        <strong>{{ $t('substitutes.noTargetsTitle') }}</strong>
+        <span>{{ $t('substitutes.noTargetsHint') }}</span>
       </div>
       <div
         v-else
         v-overlay-scrollbar
         class="substitute-target-picker__results"
-        aria-label="主物品候选"
+        :aria-label="$t('substitutes.targetCandidatesLabel')"
       >
         <button v-for="item in targets" :key="item.id" type="button" @click="selectTarget(item)">
           <span
             ><strong :title="item.name">{{ item.name }}</strong
-            ><small :title="item.sku">编号 {{ item.sku }}</small></span
+            ><small :title="item.sku">{{ $t('substitutes.skuLabel') }} {{ item.sku }}</small></span
           >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
         </button>
@@ -77,7 +79,7 @@
         :disabled="saving"
         @click="requestReselect"
       >
-        重新选择主物品
+        {{ $t('substitutes.reselectTarget') }}
       </button>
       <ItemSubstitutesPanel
         ref="substitutesPanel"
@@ -99,7 +101,7 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="saving" @click="requestClose">
-        {{ chosenTarget && canManage ? "取消" : "关闭" }}
+        {{ chosenTarget && canManage ? $t('common.cancel') : $t('common.close') }}
       </button>
       <button
         v-if="chosenTarget && canManage"
@@ -108,23 +110,27 @@
         :disabled="saving || !dirty"
         @click="requestSave"
       >
-        {{ saving ? "保存中…" : "保存替代关系" }}
+        {{ saving ? $t('common.saving') : $t('substitutes.saveRelation') }}
       </button>
     </template>
   </ModalDialog>
 
   <ModalDialog
     :open="discardOpen"
-    title="放弃未保存的替代关系？"
-    description="当前优先级、备注和替代物品修改不会保留。"
+    :title="$t('substitutes.discardTitle')"
+    :description="$t('substitutes.discardDescription')"
     nested
     compact
     @close="cancelDiscard"
   >
-    <p class="confirmation-copy">此操作不会修改服务端已经保存的替代关系。</p>
+    <p class="confirmation-copy">{{ $t('substitutes.discardHint') }}</p>
     <template #actions>
-      <button class="secondary-button" type="button" @click="cancelDiscard">继续编辑</button>
-      <button class="danger-button" type="button" @click="confirmDiscard">放弃修改</button>
+      <button class="secondary-button" type="button" @click="cancelDiscard">
+        {{ $t('substitutes.continueEditing') }}
+      </button>
+      <button class="danger-button" type="button" @click="confirmDiscard">
+        {{ $t('substitutes.discardChanges') }}
+      </button>
     </template>
   </ModalDialog>
 </template>

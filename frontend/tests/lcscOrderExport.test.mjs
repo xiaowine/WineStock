@@ -158,7 +158,8 @@ test("returns a friendly error when no sheet contains the detail marker", () => 
     { name: "Sheet2", rows: [] },
   ]);
   assert.equal(result.ok, false);
-  assert.match(result.error, /立创/);
+  // 错误经 i18n 改造后返回消息键，由消费方 translateMessageOrNull 翻译。
+  assert.equal(result.error, "stockDraft.lcscOrderDetailNotFound");
 });
 
 // ---- 本机样本用例：目录里有 .xls 时对真实导出执行断言，否则跳过。 ----

@@ -5,14 +5,14 @@
 <template>
   <ModalDialog
     :open="Boolean(user)"
-    title="修改用户名"
-    description="修改后，用户需要使用新用户名登录；现有登录会话不会失效。"
+    :title="$t('users.updateUsername')"
+    :description="$t('users.updateUsernameDescription')"
     :busy="submitting"
     @close="emit('close')"
   >
     <template #context>
       <div v-if="user" class="dialog-account-context">
-        <span>当前用户名</span>
+        <span>{{ $t("users.currentUsername") }}</span>
         <strong :title="user.username">{{ user.username }}</strong>
       </div>
     </template>
@@ -20,7 +20,7 @@
     <form id="user-username-form" class="dialog-form" novalidate @submit.prevent="submit">
       <FormInput
         v-model="username"
-        label="新用户名"
+        :label="$t('users.newUsername')"
         validation-key="username"
         :error="fieldErrors.username"
         name="username"
@@ -35,10 +35,10 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="submitting" @click="emit('close')">
-        取消
+        {{ $t("common.cancel") }}
       </button>
       <button class="primary-button" type="submit" form="user-username-form" :disabled="submitting">
-        {{ submitting ? "正在保存…" : "保存用户名" }}
+        {{ submitting ? $t("users.saving") : $t("users.saveUsername") }}
       </button>
     </template>
   </ModalDialog>
@@ -46,11 +46,14 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { UserAdminResponse } from "../../api/users";
 import { useFormValidation } from "../../composables/useFormValidation";
 import { notice } from "../../notices/notice";
 import ModalDialog from "../ModalDialog.vue";
 import FormInput from "../forms/FormInput.vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   user: UserAdminResponse | null;
@@ -90,13 +93,13 @@ function submit(): void {
   const normalizedUsername = username.value.trim();
   const errors: Record<string, string> = {};
   if (!normalizedUsername) {
-    errors.username = "请输入用户名";
+    errors.username = t("users.usernameRequired");
   } else if (normalizedUsername.length > 64) {
-    errors.username = "用户名不能超过 64 个字符";
+    errors.username = t("users.usernameTooLong");
   }
   fieldErrors.value = errors;
   if (Object.keys(errors).length > 0) {
-    notice.warning("请检查用户名", { detail: Object.values(errors)[0] });
+    notice.warning(t("users.checkUsername"), { detail: Object.values(errors)[0] });
     return;
   }
   emit("submit", normalizedUsername);

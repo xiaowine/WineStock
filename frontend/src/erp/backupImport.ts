@@ -67,20 +67,21 @@ export function parseErpBackupSheets(sheets: ErpBackupSheet[]): ErpBackupParseRe
 
   const meta = readMeta(sheetByName.get("meta"));
   if (meta.schemaVersion !== 1) {
-    return { ok: false, error: "不支持的备份版本，请使用 schemaVersion 为 1 的备份文件。" };
+    // 错误文案为消息键，由展示层 translateMessageOrNull 翻译后呈现。
+    return { ok: false, error: "stockDraft.backupUnsupportedVersion" };
   }
 
   const locationRows = sheetByName.get("storage_locations");
   const componentRows = sheetByName.get("components");
   const inventoryRows = sheetByName.get("inventory_items");
   if (!locationRows || !componentRows || !inventoryRows) {
-    return { ok: false, error: "备份缺少库位、器件或库存表，无法导入。" };
+    return { ok: false, error: "stockDraft.backupMissingTables" };
   }
 
   const locationsById = readLocations(locationRows);
   const componentsById = readComponents(componentRows);
   if (componentsById.size === 0) {
-    return { ok: false, error: "备份中没有器件数据。" };
+    return { ok: false, error: "stockDraft.backupNoComponents" };
   }
 
   const items: ErpBackupImportItem[] = [];
@@ -108,7 +109,7 @@ export function parseErpBackupSheets(sheets: ErpBackupSheet[]): ErpBackupParseRe
   }
 
   if (items.length === 0 && skippedManualByPart.size === 0) {
-    return { ok: false, error: "备份中没有可导入的库存记录。" };
+    return { ok: false, error: "stockDraft.backupNoImportableStock" };
   }
 
   const locations = [...locationsById.values()];

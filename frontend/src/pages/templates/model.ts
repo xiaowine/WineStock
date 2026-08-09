@@ -10,6 +10,14 @@ import type {
   TemplateFieldResponse,
   TemplateFieldType,
 } from "../../api/templateFields";
+import { i18n, translateMessageOrNull } from "../../i18n";
+import type { MessageKeyPath } from "../../i18n/schema";
+
+/** 按消息键取模板域校验文案；带参数时按 {name} 命名插值。 */
+function localizedMessage(key: string, params?: Record<string, string | number>): string {
+  if (!params) return translateMessageOrNull(key) ?? key;
+  return i18n.global.t(key as MessageKeyPath, params);
+}
 
 export type TemplateDomain = "category" | "item";
 
@@ -90,11 +98,11 @@ export function validateTemplateDraft(draft: TemplateDraft): TemplateDraftValida
   const errors: Record<string, string> = {};
   const name = draft.name.trim();
   const description = draft.description.trim();
-  if (!name) errors.name = "请输入模板名称";
-  else if (name.length > 128) errors.name = "模板名称不能超过 128 个字符";
-  if (description.length > 1024) errors.description = "模板说明不能超过 1024 个字符";
-  if (draft.fields.length < 1) errors.fields = "模板至少需要一个字段";
-  if (draft.fields.length > 64) errors.fields = "模板最多只能有 64 个字段";
+  if (!name) errors.name = localizedMessage("templates.modelNameRequired");
+  else if (name.length > 128) errors.name = localizedMessage("templates.nameTooLong");
+  if (description.length > 1024) errors.description = localizedMessage("templates.descriptionTooLong");
+  if (draft.fields.length < 1) errors.fields = localizedMessage("templates.atLeastOneField");
+  if (draft.fields.length > 64) errors.fields = localizedMessage("templates.maxFields");
 
   const names = new Map<string, number>();
   let catalogVisibleCount = 0;
@@ -102,14 +110,16 @@ export function validateTemplateDraft(draft: TemplateDraft): TemplateDraftValida
   draft.fields.forEach((field, index) => {
     const prefix = `fields.${index}`;
     const fieldName = field.fieldName.trim();
-    if (!fieldName) errors[`${prefix}.field_name`] = "请输入字段名称";
-    else if (fieldName.length > 64) errors[`${prefix}.field_name`] = "字段名称不能超过 64 个字符";
+    if (!fieldName) errors[`${prefix}.field_name`] = localizedMessage("templates.fieldNameRequired");
+    else if (fieldName.length > 64)
+      errors[`${prefix}.field_name`] = localizedMessage("templates.fieldNameTooLong");
     else {
       const normalized = fieldName.toLocaleLowerCase();
       if (names.has(normalized)) {
-        errors[`${prefix}.field_name`] = "字段名称不能重复";
+        errors[`${prefix}.field_name`] = localizedMessage("templates.fieldNameDuplicate");
         const previous = names.get(normalized);
-        if (previous !== undefined) errors[`fields.${previous}.field_name`] = "字段名称不能重复";
+        if (previous !== undefined)
+          errors[`fields.${previous}.field_name`] = localizedMessage("templates.fieldNameDuplicate");
       } else names.set(normalized, index);
     }
 
@@ -126,7 +136,7 @@ export function validateTemplateDraft(draft: TemplateDraft): TemplateDraftValida
     }
   });
 
-  if (catalogVisibleCount > 3) errors.catalog_visible = "目录展示字段最多只能选择 3 个";
+  if (catalogVisibleCount > 3) errors.catalog_visible = localizedMessage("templates.maxCatalogVisible");
   return { errors, firstFieldIndex };
 }
 
@@ -156,15 +166,16 @@ export function clearIncompatibleFieldData(
 }
 
 export function fieldTypeLabel(type: TemplateFieldType): string {
-  return {
-    text: "文本",
-    number: "数字",
-    select: "选择",
-    date: "日期",
-    file: "图片",
-    url: "链接",
-    boolean: "是/否",
+  const key = {
+    text: "templates.typeText",
+    number: "templates.typeNumber",
+    select: "templates.typeSelect",
+    date: "templates.typeDate",
+    file: "templates.typeFile",
+    url: "templates.typeUrl",
+    boolean: "templates.typeBoolean",
   }[type];
+  return translateMessageOrNull(key) ?? key;
 }
 
 function responseFieldToDraft(field: TemplateFieldResponse): TemplateFieldDraft {
@@ -216,19 +227,20 @@ function validateDefaultValue(
   errors: Record<string, string>,
 ): void {
   const value = field.defaultValue.trim();
-  if (value.length > 256) errors[`${prefix}.default_value`] = "默认值不能超过 256 个字符";
+  if (value.length > 256) errors[`${prefix}.default_value`] = localizedMessage("templates.defaultValueTooLong");
   if (!value) return;
   if (field.fieldType === "number" && !Number.isFinite(Number(value)))
-    errors[`${prefix}.default_value`] = "请输入有效数字";
+    errors[`${prefix}.default_value`] = localizedMessage("templates.invalidNumber");
   if (field.fieldType === "boolean" && !["true", "false"].includes(value))
-    errors[`${prefix}.default_value`] = "布尔默认值只能是是或否";
+    errors[`${prefix}.default_value`] = localizedMessage("templates.booleanDefaultInvalid");
   if (field.fieldType === "url" && !isHttpUrl(value))
-    errors[`${prefix}.default_value`] = "链接必须使用 HTTP 或 HTTPS";
+    errors[`${prefix}.default_value`] = localizedMessage("templates.urlInvalid");
   if (field.fieldType === "date" && !isCalendarDate(value))
-    errors[`${prefix}.default_value`] = "请输入有效的 YYYY-MM-DD 日期";
-  if (field.fieldType === "file") errors[`${prefix}.default_value`] = "图片字段不能设置默认值";
+    errors[`${prefix}.default_value`] = localizedMessage("templates.dateInvalid");
+  if (field.fieldType === "file")
+    errors[`${prefix}.default_value`] = localizedMessage("templates.fileNoDefault");
   if (field.fieldType === "select" && !field.options.some((option) => option.trim() === value)) {
-    errors[`${prefix}.default_value`] = "默认值必须属于候选项";
+    errors[`${prefix}.default_value`] = localizedMessage("templates.defaultNotInOptions");
   }
 }
 
@@ -239,8 +251,9 @@ function validateUnit(
 ): void {
   if (field.unitMode === "fixed") {
     const value = field.unitValue.trim();
-    if (!value) errors[`${prefix}.unit_value`] = "请输入固定单位";
-    else if (value.length > 32) errors[`${prefix}.unit_value`] = "固定单位不能超过 32 个字符";
+    if (!value) errors[`${prefix}.unit_value`] = localizedMessage("templates.unitValueRequired");
+    else if (value.length > 32)
+      errors[`${prefix}.unit_value`] = localizedMessage("templates.unitValueTooLong");
   }
   if (field.unitMode === "select") {
     validateStringOptions(field.unitOptions, prefix, "unit_options", 32, 32, errors);
@@ -255,16 +268,18 @@ function validateStringOptions(
   maxLength: number,
   errors: Record<string, string>,
 ): void {
-  if (options.length < 1) errors[`${prefix}.${key}`] = "至少需要一个候选项";
-  if (options.length > maxItems) errors[`${prefix}.${key}`] = `候选项最多只能有 ${maxItems} 个`;
+  if (options.length < 1) errors[`${prefix}.${key}`] = localizedMessage("templates.atLeastOneOption");
+  if (options.length > maxItems)
+    errors[`${prefix}.${key}`] = localizedMessage("templates.maxOptions", { n: maxItems });
   const seen = new Set<string>();
   options.forEach((option, optionIndex) => {
     const value = option.trim();
     const errorKey = `${prefix}.${key}.${optionIndex}`;
-    if (!value) errors[errorKey] = "候选项不能为空";
-    else if (value.length > maxLength) errors[errorKey] = `候选项不能超过 ${maxLength} 个字符`;
+    if (!value) errors[errorKey] = localizedMessage("templates.optionRequired");
+    else if (value.length > maxLength)
+      errors[errorKey] = localizedMessage("templates.optionTooLong", { n: maxLength });
     const normalized = value.toLocaleLowerCase();
-    if (value && seen.has(normalized)) errors[errorKey] = "候选项不能重复";
+    if (value && seen.has(normalized)) errors[errorKey] = localizedMessage("templates.optionDuplicate");
     seen.add(normalized);
   });
 }

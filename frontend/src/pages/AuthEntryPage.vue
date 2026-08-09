@@ -8,19 +8,23 @@
           <span class="brand-name">WineStock</span>
         </div>
         <div>
-          <h1 id="auth-entry-title">准备连接</h1>
-          <p>{{ errorMessage || "正在确认当前服务的账户状态。" }}</p>
+          <h1 id="auth-entry-title">{{ $t("auth.preparingConnection") }}</h1>
+          <p>{{ errorMessage || $t("auth.confirmingAccountStatus") }}</p>
         </div>
       </header>
-      <p v-if="checking" class="auth-runtime-note" role="status">正在检查服务状态…</p>
+      <p v-if="checking" class="auth-runtime-note" role="status">
+        {{ $t("auth.checkingService") }}
+      </p>
       <div v-else class="auth-page-actions">
-        <button class="primary-button" type="button" @click="resolveEntry">重试</button>
+        <button class="primary-button" type="button" @click="resolveEntry">
+          {{ $t("auth.retry") }}
+        </button>
         <!-- returnTo 使用完整 fullPath（含 redirect），便于设置完成后桥接回业务目标。 -->
         <RouterLink
           class="secondary-button"
           :to="{ name: 'runtime-settings', query: { returnTo: route.fullPath } }"
         >
-          运行模式
+          {{ $t("auth.runtimeMode") }}
         </RouterLink>
       </div>
     </section>
@@ -30,11 +34,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { getAuthBootstrapStatus } from "../api/auth";
 import BrandMark from "../components/BrandMark.vue";
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const checking = ref(true);
 const errorMessage = ref("");
 
@@ -50,7 +56,7 @@ async function resolveEntry(): Promise<void> {
       query: route.query,
     });
   } catch {
-    errorMessage.value = "无法确认账户状态，请检查服务连接后重试。";
+    errorMessage.value = t("auth.entryStatusCheckFailed");
   } finally {
     checking.value = false;
   }

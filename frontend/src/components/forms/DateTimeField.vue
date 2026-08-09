@@ -31,7 +31,7 @@
   <ModalDialog
     :open="open"
     :title="label"
-    description="选择日期并设置精确到秒的时间。"
+    :description="$t('components.dateTimePickerDescription')"
     compact
     nested
     @close="closePicker"
@@ -41,8 +41,8 @@
         <button
           class="icon-button"
           type="button"
-          title="上个月"
-          aria-label="上个月"
+          :title="$t('components.previousMonth')"
+          :aria-label="$t('components.previousMonth')"
           @click="changeMonth(-1)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
@@ -51,8 +51,8 @@
         <button
           class="icon-button"
           type="button"
-          title="下个月"
-          aria-label="下个月"
+          :title="$t('components.nextMonth')"
+          :aria-label="$t('components.nextMonth')"
           @click="changeMonth(1)"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
@@ -82,36 +82,36 @@
       </div>
 
       <fieldset class="date-time-picker__time">
-        <legend>时间</legend>
+        <legend>{{ $t('common.time') }}</legend>
         <label>
-          <span>时</span>
+          <span>{{ $t('components.hourUnit') }}</span>
           <input
             v-model="hour"
             inputmode="numeric"
             maxlength="2"
-            aria-label="小时"
+            :aria-label="$t('components.hourInputLabel')"
             @blur="hour = normalizePart(hour, 23)"
           />
         </label>
         <span aria-hidden="true">:</span>
         <label>
-          <span>分</span>
+          <span>{{ $t('components.minuteUnit') }}</span>
           <input
             v-model="minute"
             inputmode="numeric"
             maxlength="2"
-            aria-label="分钟"
+            :aria-label="$t('components.minuteInputLabel')"
             @blur="minute = normalizePart(minute, 59)"
           />
         </label>
         <span aria-hidden="true">:</span>
         <label>
-          <span>秒</span>
+          <span>{{ $t('components.secondUnit') }}</span>
           <input
             v-model="second"
             inputmode="numeric"
             maxlength="2"
-            aria-label="秒"
+            :aria-label="$t('components.secondInputLabel')"
             @blur="second = normalizePart(second, 59)"
           />
         </label>
@@ -120,16 +120,21 @@
 
     <template #actions>
       <button class="text-button date-time-picker__clear" type="button" @click="clearValue">
-        清除
+        {{ $t('common.clear') }}
       </button>
-      <button class="secondary-button" type="button" @click="closePicker">取消</button>
-      <button class="primary-button" type="button" @click="applyValue">应用</button>
+      <button class="secondary-button" type="button" @click="closePicker">
+        {{ $t('common.cancel') }}
+      </button>
+      <button class="primary-button" type="button" @click="applyValue">
+        {{ $t('common.apply') }}
+      </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, useId } from "vue";
+import { useI18n } from "vue-i18n";
 import ModalDialog from "../ModalDialog.vue";
 import FormField from "./FormField.vue";
 
@@ -143,6 +148,8 @@ interface CalendarDay {
   selected: boolean;
   ariaLabel: string;
 }
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -160,13 +167,21 @@ const props = withDefaults(
     error: "",
     hint: "",
     disabled: false,
-    placeholder: "请选择日期和时间",
+    placeholder: "",
   },
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 const triggerId = `date-time-${useId()}`;
-const weekdays = ["一", "二", "三", "四", "五", "六", "日"];
+const weekdays = computed(() => [
+  t("components.weekdayMon"),
+  t("components.weekdayTue"),
+  t("components.weekdayWed"),
+  t("components.weekdayThu"),
+  t("components.weekdayFri"),
+  t("components.weekdaySat"),
+  t("components.weekdaySun"),
+]);
 const open = ref(false);
 const year = ref(0);
 const month = ref(0);
@@ -176,9 +191,13 @@ const minute = ref("00");
 const second = ref("00");
 
 const displayValue = computed(() =>
-  props.modelValue ? formatDisplayValue(props.modelValue) : props.placeholder,
+  props.modelValue
+    ? formatDisplayValue(props.modelValue)
+    : props.placeholder || t("components.dateTimePlaceholder"),
 );
-const monthLabel = computed(() => `${year.value}年${month.value + 1}月`);
+const monthLabel = computed(() =>
+  t("components.monthYear", { year: year.value, month: month.value + 1 }),
+);
 const calendarDays = computed<CalendarDay[]>(() => {
   const firstWeekday = (new Date(year.value, month.value, 1).getDay() + 6) % 7;
   const start = 1 - firstWeekday;
@@ -196,7 +215,11 @@ const calendarDays = computed<CalendarDay[]>(() => {
         date.getFullYear() === year.value &&
         date.getMonth() === month.value &&
         date.getDate() === day.value,
-      ariaLabel: `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`,
+      ariaLabel: t("components.dateFull", {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
+      }),
     };
   });
 });

@@ -5,21 +5,25 @@
 <template>
   <ModalDialog
     :open="open"
-    title="本机局域网地址"
-    description="以下地址属于当前设备，供网络可达的其它设备连接 WineStock。"
+    :title="$t('runtime.lanDialogTitle')"
+    :description="$t('runtime.lanDialogDescription')"
     compact
     @close="emit('close')"
   >
     <div class="lan-access-dialog">
-      <ul v-if="urls.length" class="lan-access-dialog__list" aria-label="本机局域网地址">
+      <ul
+        v-if="urls.length"
+        class="lan-access-dialog__list"
+        :aria-label="$t('runtime.lanDialogTitle')"
+      >
         <li v-for="url in urls" :key="url" class="lan-access-dialog__item">
           <code class="lan-access-dialog__address">{{ url }}</code>
           <button
-            v-copyable="{ text: url, label: '连接地址' }"
+            v-copyable="{ text: url, label: $t('runtime.lanCopyLabel') }"
             class="icon-button lan-access-dialog__copy"
             type="button"
-            title="复制地址"
-            :aria-label="`复制连接地址 ${url}`"
+            :title="$t('runtime.copyAddress')"
+            :aria-label="$t('runtime.copyAddressAria', { url })"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M8 8h11v11H8z" />
@@ -28,18 +32,20 @@
           </button>
         </li>
       </ul>
-      <p v-else class="lan-access-dialog__empty" role="status">暂无可用的局域网连接地址。</p>
-
-      <p class="lan-access-dialog__guidance">
-        连接失败时，请确认设备与本机网络互通，并检查操作系统防火墙。
+      <p v-else class="lan-access-dialog__empty" role="status">
+        {{ $t("runtime.lanEmpty") }}
       </p>
+
+      <p class="lan-access-dialog__guidance">{{ $t("runtime.lanGuidance") }}</p>
       <div v-if="hasInsecureUrl" class="form-warning lan-access-dialog__warning" role="status">
-        列表中包含 HTTP 明文地址，只应分享给可信网络内的设备。
+        {{ $t("runtime.lanInsecureWarning") }}
       </div>
     </div>
 
     <template #actions>
-      <button class="secondary-button" type="button" @click="emit('close')">关闭</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t("runtime.close") }}
+      </button>
     </template>
   </ModalDialog>
 </template>

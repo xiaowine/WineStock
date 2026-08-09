@@ -15,9 +15,9 @@
       class="password-input__toggle"
       type="button"
       :disabled="disabled"
-      :aria-label="visible ? '隐藏密码' : '显示密码'"
+      :aria-label="visible ? $t('components.hidePassword') : $t('components.showPassword')"
       :aria-pressed="visible"
-      :title="visible ? '隐藏密码' : '显示密码'"
+      :title="visible ? $t('components.hidePassword') : $t('components.showPassword')"
       @click="toggleVisibility"
     >
       <svg v-if="visible" viewBox="0 0 24 24" aria-hidden="true" focusable="false">

@@ -2,8 +2,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="高级筛选"
-    description="组合分类、属性模板和物品属性筛选目录。"
+    :title="$t('items.advancedFilter')"
+    :description="$t('items.advancedFilterDescription')"
     compact
     @close="emit('close')"
   >
@@ -15,18 +15,18 @@
     >
       <div class="item-catalog-filter__fixed-fields">
         <label>
-          <span>分类</span>
+          <span>{{ $t('items.category') }}</span>
           <SelectControl v-model="draft.categoryId" name="item_filter_category">
-            <option :value="null">全部分类</option>
+            <option :value="null">{{ $t('items.allCategories') }}</option>
             <option v-for="category in categories" :key="category.id" :value="category.id">
               {{ category.name }}
             </option>
           </SelectControl>
         </label>
         <label>
-          <span>属性模板</span>
+          <span>{{ $t('items.attributeTemplate') }}</span>
           <SelectControl v-model="draft.attributeTemplateId" name="item_filter_template">
-            <option :value="null">全部模板</option>
+            <option :value="null">{{ $t('items.allTemplates') }}</option>
             <option v-for="template in templates" :key="template.id" :value="template.id">
               {{ template.name }}
             </option>
@@ -34,15 +34,17 @@
         </label>
       </div>
 
-      <div v-if="loading" class="item-catalog-filter__state" role="status">正在加载筛选值…</div>
+      <div v-if="loading" class="item-catalog-filter__state" role="status">
+        {{ $t('items.loadingFilterValues') }}
+      </div>
       <div v-else-if="visibleFields.length" class="item-catalog-filter__groups">
         <section v-for="field in visibleFields" :key="field.key" class="item-catalog-filter__group">
           <header>
             <strong>{{ field.label }}</strong>
             <span>{{
               selectedValues(field.key).length
-                ? `已选 ${selectedValues(field.key).length}`
-                : `${field.values.length} 项`
+                ? $t('items.selectedCount', { n: selectedValues(field.key).length })
+                : $t('items.itemCount', { n: field.values.length })
             }}</span>
           </header>
           <div class="item-catalog-filter__values">
@@ -63,7 +65,7 @@
               <span :title="displayValue(field, value.value)">{{
                 displayValue(field, value.value)
               }}</span>
-              <small>{{ value.unavailable ? "不可用" : value.count }}</small>
+              <small>{{ value.unavailable ? $t('items.unavailable') : value.count }}</small>
             </label>
           </div>
           <button
@@ -74,13 +76,15 @@
           >
             {{
               expandedFields.includes(field.key)
-                ? "收起"
-                : `显示其余 ${mergedValues(field).length - COLLAPSED_VALUE_COUNT} 项`
+                ? $t('items.collapse')
+                : $t('items.showRemaining', {
+                    n: mergedValues(field).length - COLLAPSED_VALUE_COUNT,
+                  })
             }}
           </button>
         </section>
       </div>
-      <div v-else class="item-catalog-filter__state">当前条件下没有可用的高级筛选字段</div>
+      <div v-else class="item-catalog-filter__state">{{ $t('items.noFilterFields') }}</div>
     </form>
 
     <template #actions>
@@ -90,16 +94,21 @@
         :disabled="!hasDraftFilters"
         @click="clearDraft"
       >
-        清除全部
+        {{ $t('items.clearAll') }}
       </button>
-      <button class="secondary-button" type="button" @click="emit('close')">取消</button>
-      <button class="primary-button" type="submit" form="item-catalog-filter-form">应用筛选</button>
+      <button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t('items.cancel') }}
+      </button>
+      <button class="primary-button" type="submit" form="item-catalog-filter-form">
+        {{ $t('items.applyFilters') }}
+      </button>
     </template>
   </ModalDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemCategoryResponse } from "../../api/itemCategories";
 import type { ItemAttributeTemplateResponse } from "../../api/itemAttributeTemplates";
 import {
@@ -129,6 +138,7 @@ const emit = defineEmits<{
   close: [];
   apply: [filters: ItemCatalogFilters];
 }>();
+const { t } = useI18n();
 
 const draft = reactive<ItemCatalogFilters>(emptyItemCatalogFilters());
 const expandedFields = ref<string[]>([]);
@@ -190,7 +200,7 @@ function toggleExpanded(key: string): void {
 
 function displayValue(field: ItemFilterFieldResponse, value: string): string {
   if (field.value_type === "boolean")
-    return value === "true" ? "是" : value === "false" ? "否" : value;
+    return value === "true" ? t("items.yes") : value === "false" ? t("items.no") : value;
   return value;
 }
 

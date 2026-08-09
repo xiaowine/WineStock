@@ -6,8 +6,8 @@
 <template>
   <ModalDialog
     :open="open"
-    title="导入 ERP 备份"
-    description="选择第三方「LCSC Android ERP」导出的 .xlsx 备份，按备份库存生成一张期初入库草稿。"
+    :title="$t('stockDraft.importErpBackupTitle')"
+    :description="$t('stockDraft.importErpBackupDescription')"
     workspace
     :busy="importing || preparing || matching"
     @close="requestClose"
@@ -15,7 +15,7 @@
     <div class="erp-backup-import">
       <div class="erp-backup-import__file-row">
         <label class="secondary-button erp-backup-import__file">
-          {{ fileName ? "重新选择文件" : "选择备份文件" }}
+          {{ fileName ? $t('stockDraft.reselectFile') : $t('stockDraft.selectBackupFile') }}
           <input
             type="file"
             accept=".xlsx"
@@ -29,41 +29,49 @@
       </div>
 
       <p v-if="parseError" class="erp-backup-import__error" role="alert">{{ parseError }}</p>
-      <p v-else-if="parsing" class="erp-backup-import__hint" role="status">正在解析备份…</p>
+      <p v-else-if="parsing" class="erp-backup-import__hint" role="status">
+        {{ $t('stockDraft.parsingBackup') }}
+      </p>
       <p v-else-if="preparing" class="erp-backup-import__hint" role="status" aria-live="polite">
         {{ preparationMessage }}
       </p>
       <p v-if="matching" class="erp-backup-import__hint" role="status" aria-live="polite">
-        正在一次性匹配本地物品 {{ matchCompleted }}/{{ matchTotal }}…
+        {{ $t('stockDraft.matchingItemsProgress', { done: matchCompleted, total: matchTotal }) }}
       </p>
       <div v-if="preparationError" class="erp-backup-import__error" role="alert">
         {{ preparationError }}
-        <button class="text-button" type="button" @click="retryPreparation">重试检查</button>
+        <button class="text-button" type="button" @click="retryPreparation">
+          {{ $t('stockDraft.retryCheck') }}
+        </button>
       </div>
       <div v-if="importError" class="erp-backup-import__error" role="alert">
         {{ importError }}
-        <button class="text-button" type="button" @click="retryImport">重试导入</button>
+        <button class="text-button" type="button" @click="retryImport">
+          {{ $t('stockDraft.retryImport') }}
+        </button>
       </div>
 
       <template v-else-if="parsed">
         <p class="erp-backup-import__summary" role="status">
-          共 <strong>{{ locations.length }}</strong> 个库位（待新建
-          {{ newLocationCount }} 个）、<strong>{{ componentRows.length }}</strong> 种器件（已匹配
-          {{ matchedComponentCount }}、待创建 {{ creatableCount }}）、库存
-          <strong>{{ parsed.items.length }}</strong> 条。
+          {{
+            $t('stockDraft.backupSummary', {
+              locations: locations.length,
+              new: newLocationCount,
+              components: componentRows.length,
+              matched: matchedComponentCount,
+              creatable: creatableCount,
+              items: parsed.items.length,
+            })
+          }}
         </p>
 
         <div v-if="duplicateExists" class="erp-backup-import__warn" role="alert">
-          已存在以「{{ fileName }}」为来源的入库单，该备份可能已导入过——继续会使库存数量翻倍。
+          {{ $t('stockDraft.duplicateImportWarning', { fileName }) }}
         </div>
 
         <div v-if="parsed.skippedManual.length > 0" class="erp-backup-import__notice" role="status">
-          <strong>已跳过 {{ parsed.skippedManual.length }} 项手工录入器件</strong>
-          <span>
-            编号以 C0
-            开头的器件（C01、C02…）是原软件里手工创建的，不对应立创商品，无法在线获取资料，
-            本次导入不包含。如需保留，请在导入完成后手工创建这些物品。
-          </span>
+          <strong>{{ $t('stockDraft.skippedManualTitle', { n: parsed.skippedManual.length }) }}</strong>
+          <span>{{ $t('stockDraft.skippedManualBody') }}</span>
         </div>
 
         <div v-overlay-scrollbar class="erp-backup-import__table-wrap">
@@ -85,14 +93,14 @@
                     :checked="allCreatableSelected"
                     :indeterminate.prop="someCreatableSelected"
                     :disabled="busy"
-                    aria-label="全选待创建器件"
+                    :aria-label="$t('stockDraft.selectAllCreatable')"
                     @change="toggleSelectAllCreatable(($event.target as HTMLInputElement).checked)"
                   />
                 </th>
-                <th scope="col">器件</th>
-                <th scope="col">编号</th>
-                <th scope="col">库存</th>
-                <th scope="col">状态</th>
+                <th scope="col">{{ $t('stockDraft.component') }}</th>
+                <th scope="col">{{ $t('stockDraft.code') }}</th>
+                <th scope="col">{{ $t('stockDraft.stock') }}</th>
+                <th scope="col">{{ $t('common.status') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -104,7 +112,7 @@
                     type="checkbox"
                     class="erp-backup-import__select"
                     :disabled="busy"
-                    :aria-label="`选择 ${row.component.partNumber}`"
+                    :aria-label="$t('stockDraft.selectComponent', { code: row.component.partNumber })"
                   />
                 </td>
                 <td class="erp-backup-import__name" :title="row.component.name ?? ''">
@@ -115,16 +123,24 @@
                 <td class="erp-backup-import__status-cell">
                   <template v-if="row.status === 'matched'">
                     <span class="erp-backup-import__status--ok" :title="row.item?.name"
-                      >已在库</span
+                      >{{ $t('stockDraft.inStock') }}</span
                     >
                   </template>
                   <template v-else-if="row.status === 'created'">
-                    <span class="erp-backup-import__status--ok">已创建</span>
+                    <span class="erp-backup-import__status--ok">{{ $t('stockDraft.created') }}</span>
                   </template>
-                  <template v-else-if="row.status === 'matching'">匹配中…</template>
-                  <template v-else-if="row.status === 'lookup'">查询立创资料…</template>
-                  <template v-else-if="row.status === 'creating'">创建中…</template>
-                  <template v-else-if="row.status === 'missing'">待创建</template>
+                  <template v-else-if="row.status === 'matching'"
+                    >{{ $t('stockDraft.matching') }}</template
+                  >
+                  <template v-else-if="row.status === 'lookup'"
+                    >{{ $t('stockDraft.lookupLcscData') }}</template
+                  >
+                  <template v-else-if="row.status === 'creating'"
+                    >{{ $t('stockDraft.creating') }}</template
+                  >
+                  <template v-else-if="row.status === 'missing'"
+                    >{{ $t('stockDraft.toBeCreated') }}</template
+                  >
                   <template v-else-if="row.status === 'failed'">
                     <span :title="row.reason">{{ row.reason }}</span>
                   </template>
@@ -140,7 +156,7 @@
       </template>
 
       <p v-else class="erp-backup-import__hint">
-        备份里的图片不会解析，物品资料按 C 号在线补齐；C0 手工器件不导入。
+        {{ $t('stockDraft.backupHint') }}
       </p>
     </div>
 
@@ -160,8 +176,8 @@
           batch.running.value
             ? `${batch.progressLabel.value}…`
             : batch.metadataLoading.value
-              ? "准备中…"
-              : `创建选中的 ${selectedCreatableCount} 个物品`
+              ? $t('stockDraft.preparing')
+              : $t('stockDraft.createSelectedItems', { n: selectedCreatableCount })
         }}
       </button>
       <button
@@ -170,7 +186,7 @@
         :disabled="importing || preparing || matching"
         @click="requestClose"
       >
-        取消
+        {{ $t('common.cancel') }}
       </button>
       <button
         v-if="parsed"
@@ -181,7 +197,11 @@
         :disabled="!canImport || busy"
         @click="confirmImport"
       >
-        {{ importing ? `${importProgressMessage}…` : `导入 ${importableCount} 条库存` }}
+        {{
+          importing
+            ? `${importProgressMessage}…`
+            : $t('stockDraft.importStockLines', { n: importableCount })
+        }}
       </button>
     </template>
   </ModalDialog>
@@ -199,18 +219,18 @@
 
   <ModalDialog
     :open="closeConfirmOpen"
-    title="停止批量创建？"
-    description="关闭后将停止尚未完成的创建；已经创建的物品会保留。"
+    :title="$t('stockDraft.stopBatchCreateTitle')"
+    :description="$t('stockDraft.stopBatchCreateDescription')"
     compact
     nested
     @close="closeConfirmOpen = false"
   >
     <template #actions>
       <button class="secondary-button" type="button" @click="closeConfirmOpen = false">
-        继续创建
+        {{ $t('stockDraft.continueCreating') }}
       </button>
       <button class="danger-button" type="button" @click="confirmCloseWhileCreating">
-        停止并关闭
+        {{ $t('stockDraft.stopAndClose') }}
       </button>
     </template>
   </ModalDialog>
@@ -237,12 +257,14 @@ export interface ErpBackupImportPayload {
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { lookupItemOptions } from "../../api/items";
 import { listInboundOrders } from "../../api/inboundOrders";
 import { createLocation, listLocationGroupTree, listLocations } from "../../api/locations";
 import { notice } from "../../notices/notice";
 import { parseErpBackupFile } from "../../erp/backupImportFile";
 import type { ErpBackupComponent, ErpBackupParseResult } from "../../erp/backupImport";
+import { translateMessageOrNull } from "../../i18n";
 import BatchLcscCreateOptionsDialog from "../items/BatchLcscCreateOptionsDialog.vue";
 import {
   useBatchLcscItemCreation,
@@ -301,6 +323,11 @@ const batchOptionsOpen = ref(false);
 const closeConfirmOpen = ref(false);
 const batch = useBatchLcscItemCreation();
 let matchAbortController: AbortController | null = null;
+
+const { t } = useI18n();
+
+/** 备份来源前缀写入单据来源，重复检测搜索按同一前缀匹配；属存储数据，不随 UI 语言变化。 */
+const backupSourcePrefix = "\u5907\u4efd\u5bfc\u5165"; // 备份导入
 
 const busy = computed(() => batch.running.value || importing.value);
 const locations = computed(() => parsed.value?.locations ?? []);
@@ -398,7 +425,8 @@ async function handleFileChange(event: Event): Promise<void> {
   if (runId !== fileRunId.value) return;
   parsing.value = false;
   if (!result.ok) {
-    parseError.value = result.error;
+    // 解析层返回消息键，这里翻译后展示。
+    parseError.value = translateMessageOrNull(result.error) ?? result.error;
     return;
   }
   parsed.value = result;
@@ -427,7 +455,7 @@ async function prepareImport(runId: number): Promise<void> {
   if (!parsed.value || runId !== fileRunId.value) return;
   preparing.value = true;
   preparationError.value = "";
-  preparationMessage.value = "正在检查重复导入并读取现有库位…";
+  preparationMessage.value = t("stockDraft.checkingDuplicateAndLocations");
   const results = await Promise.allSettled([
     matchComponents(runId),
     computeNewLocationCount(),
@@ -437,7 +465,7 @@ async function prepareImport(runId: number): Promise<void> {
   const failures = results.filter((result) => result.status === "rejected");
   preparing.value = false;
   if (failures.length > 0) {
-    preparationError.value = "导入准备未完成，请重试检查后再导入。";
+    preparationError.value = t("stockDraft.preparationFailed");
   }
 }
 
@@ -457,7 +485,7 @@ async function checkDuplicate(): Promise<void> {
   const page = await listInboundOrders({
     page: 1,
     page_size: 1,
-    search: `备份导入 ${fileName.value}`,
+    search: `${backupSourcePrefix} ${fileName.value}`,
   });
   duplicateExists.value = page.total > 0;
 }
@@ -490,7 +518,7 @@ async function matchComponents(runId: number): Promise<void> {
       return {
         ...row,
         status: "missing",
-        reason: result?.error === "not_found" ? "库中没有该编号" : "",
+        reason: result?.error === "not_found" ? t("stockDraft.codeNotFoundInStock") : "",
       };
     });
     matchCompleted.value = codes.length;
@@ -498,7 +526,7 @@ async function matchComponents(runId: number): Promise<void> {
     if (controller.signal.aborted || runId !== fileRunId.value) return;
     componentRows.value = componentRows.value.map((row) =>
       row.status === "matching"
-        ? { ...row, status: "failed", reason: "查询失败，可重试检查" }
+        ? { ...row, status: "failed", reason: t("stockDraft.lookupFailedRetryCheck") }
         : row,
     );
     throw error;
@@ -575,7 +603,7 @@ async function confirmImport(): Promise<void> {
   if (!parsed.value || !canImport.value || busy.value) return;
   importing.value = true;
   importError.value = "";
-  importProgressMessage.value = "准备库位…";
+  importProgressMessage.value = t("stockDraft.preparingLocations");
   try {
     const itemByPart = new Map(
       componentRows.value
@@ -585,7 +613,9 @@ async function confirmImport(): Promise<void> {
     const locationIdByCode = await resolveLocations();
     if (!locationIdByCode) return;
 
-    importProgressMessage.value = `组装库存明细 ${parsed.value.items.length} 条`;
+    importProgressMessage.value = t("stockDraft.assemblingStockLines", {
+      n: parsed.value.items.length,
+    });
 
     const rows = parsed.value.items
       .map((item) => {
@@ -620,7 +650,7 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
   if (!parsed.value) return null;
   importProgressTotal.value = parsed.value.locations.length;
   importProgressDone.value = 0;
-  importProgressMessage.value = "查询现有库位";
+  importProgressMessage.value = t("stockDraft.queryingLocations");
   try {
     const existing = await listLocations();
     const idByName = new Map(existing.map((location) => [location.name, location.id]));
@@ -629,17 +659,20 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
 
     let groupId: number | null = null;
     if (missing.length > 0) {
-      importProgressMessage.value = "查询库位分组";
+      importProgressMessage.value = t("stockDraft.queryingLocationGroups");
       const tree = await listLocationGroupTree();
       groupId = tree[0]?.id ?? null;
       if (groupId === null) {
-        importError.value = "没有可用的库位分组来新建库位。";
-        notice.error("无法导入", { detail: importError.value });
+        importError.value = t("stockDraft.noLocationGroup");
+        notice.error(t("stockDraft.cannotImport"), { detail: importError.value });
         return null;
       }
     }
     for (const location of parsed.value.locations) {
-      importProgressMessage.value = `准备库位 ${importProgressDone.value + 1}/${importProgressTotal.value}`;
+      importProgressMessage.value = t("stockDraft.preparingLocationProgress", {
+        done: importProgressDone.value + 1,
+        total: importProgressTotal.value,
+      });
       const existingId = idByName.get(location.code);
       if (existingId !== undefined) {
         result.set(location.code, existingId);
@@ -653,8 +686,10 @@ async function resolveLocations(): Promise<Map<string, number> | null> {
     return result;
   } catch (error) {
     importError.value =
-      error instanceof Error ? `库位准备失败：${error.message}` : "库位准备失败，请重试。";
-    notice.error("库位准备失败", { detail: importError.value });
+      error instanceof Error
+        ? t("stockDraft.locationPrepareFailedDetail", { message: error.message })
+        : t("stockDraft.locationPrepareFailed");
+    notice.error(t("stockDraft.locationPrepareFailedTitle"), { detail: importError.value });
     return null;
   }
 }

@@ -1,38 +1,40 @@
 <template>
   <ModalDialog
     :open="open"
-    title="筛选出库单"
-    description="按处理状态和创建时间缩小出库单范围。"
+    :title="$t('orders.filterOutbound')"
+    :description="$t('orders.filterOutboundDescription')"
     @close="emit('close')"
     ><form id="outbound-filter" class="outbound-filter" novalidate @submit.prevent="submit">
-      <FormSelect v-model="status" label="处理状态" validation-key="status"
-        ><option value="">全部状态</option>
-        <option value="pending">待审批</option>
-        <option value="approved">已出库</option>
-        <option value="rejected">已拒绝</option></FormSelect
+      <FormSelect v-model="status" :label="$t('orders.processingStatus')" validation-key="status"
+        ><option value="">{{ $t("orders.allStatuses") }}</option>
+        <option value="pending">{{ $t("orders.statusPending") }}</option>
+        <option value="approved">{{ $t("orders.statusApprovedOutbound") }}</option>
+        <option value="rejected">{{ $t("orders.statusRejected") }}</option></FormSelect
       ><DateTimeField
         v-model="dateFrom"
-        label="开始时间"
+        :label="$t('orders.startTime')"
         validation-key="dateRange"
         :error="errors.dateRange"
       /><DateTimeField
         v-model="dateTo"
-        label="结束时间"
+        :label="$t('orders.endTime')"
         validation-key="dateRange"
         :error="errors.dateRange"
       />
     </form>
     <template #actions
-      ><button class="text-button" type="button" @click="reset">重置</button
-      ><button class="secondary-button" type="button" @click="emit('close')">取消</button
+      ><button class="text-button" type="button" @click="reset">{{ $t("orders.reset") }}</button
+      ><button class="secondary-button" type="button" @click="emit('close')">
+        {{ $t("orders.cancel") }}</button
       ><button class="primary-button" type="submit" form="outbound-filter">
-        应用筛选
+        {{ $t("orders.applyFilter") }}
       </button></template
     ></ModalDialog
   >
 </template>
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { OutboundOrderStatus } from "../../api/outboundOrders";
 import DateTimeField from "../forms/DateTimeField.vue";
 import FormSelect from "../forms/FormSelect.vue";
@@ -46,6 +48,7 @@ export interface OutboundOrderFilterValue {
 }
 const props = defineProps<{ open: boolean; value: OutboundOrderFilterValue }>();
 const emit = defineEmits<{ close: []; apply: [value: OutboundOrderFilterValue] }>();
+const { t } = useI18n();
 const status = ref<OutboundOrderStatus | "">(""),
   dateFrom = ref(""),
   dateTo = ref("");
@@ -72,11 +75,11 @@ function reset() {
 function submit() {
   const error =
     dateFrom.value && dateTo.value && dateFrom.value > dateTo.value
-      ? "开始时间不能晚于结束时间"
+      ? t("orders.startAfterEndTime")
       : "";
   errors.value = error ? { dateRange: error } : {};
   if (error) {
-    notice.warning("请检查筛选条件", { detail: error });
+    notice.warning(t("orders.checkFilterConditions"), { detail: error });
     return;
   }
   emit("apply", { status: status.value, dateFrom: dateFrom.value, dateTo: dateTo.value });

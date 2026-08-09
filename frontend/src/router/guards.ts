@@ -97,7 +97,7 @@ export function installAuthGuards(router: Router): void {
           ? currentRoute.query.redirect
           : undefined;
       void router.replace(createPasswordChangeRedirect(redirect)).catch((error: unknown) => {
-        console.warn("强制改密状态恢复后无法跳转到修改密码页", error);
+        console.warn("Failed to navigate to the change-password page after forced password change", error);
       });
       return;
     }
@@ -109,7 +109,7 @@ export function installAuthGuards(router: Router): void {
       const fallbackName = getDefaultAppRouteName(session?.user.permissions);
       if (fallbackName !== currentRoute.name) {
         void router.replace({ name: fallbackName }).catch((error: unknown) => {
-          console.warn("当前会话权限变化后无法返回可用页面", error);
+          console.warn("Failed to navigate to an available page after session permissions changed", error);
         });
       }
       return;
@@ -124,7 +124,7 @@ export function installAuthGuards(router: Router): void {
     }
 
     void router.replace(createAuthEntryRedirect(currentRoute.fullPath)).catch((error: unknown) => {
-      console.warn("会话失效后无法跳转到登录页", error);
+      console.warn("Failed to navigate to the sign-in page after the session expired", error);
     });
   });
 }

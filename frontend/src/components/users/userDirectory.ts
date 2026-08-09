@@ -1,5 +1,6 @@
 // 用户目录展示层的纯函数；不请求 API，也不承担后端授权。
 import type { UserAdminResponse, UserStatus } from "../../api/users";
+import { translateMessageOrNull } from "../../i18n";
 
 export interface UserDirectoryCapabilities {
   canUpdateUsername: boolean;
@@ -27,7 +28,8 @@ export function hasAvailableUserAction(
 }
 
 export function userStatusLabel(status: UserStatus): string {
-  return status === "active" ? "已启用" : "已停用";
+  const key = status === "active" ? "users.statusActive" : "users.statusDisabled";
+  return translateMessageOrNull(key) ?? key;
 }
 
 export function userStatusClass(status: UserStatus): string {

@@ -6,12 +6,12 @@
   <section class="route-page substitutes-page">
     <header class="content-header substitutes-page__header">
       <div>
-        <h1>{{ $route.meta.title }}</h1>
-        <p>从全局视角维护缺货时的替代顺序和兼容性说明。</p>
+        <h1>{{ $title($route.meta.title) }}</h1>
+        <p>{{ $t('substitutes.subtitle') }}</p>
       </div>
     </header>
 
-    <section class="substitutes-workspace" aria-label="替代关系列表">
+    <section class="substitutes-workspace" :aria-label="$t('substitutes.relationListLabel')">
       <div
         class="substitutes-toolbar"
         :class="{
@@ -21,9 +21,9 @@
         <SearchField
           v-model="searchInput"
           class="substitutes-toolbar__search"
-          label="搜索替代关系"
+          :label="$t('substitutes.searchLabel')"
           name="substitute_relation_search"
-          placeholder="主物品、替代物品、编号或备注"
+          :placeholder="$t('substitutes.searchPlaceholder')"
           :disabled="loading && !loaded"
           @search="applySearch"
         />
@@ -35,7 +35,7 @@
               v-if="showStableRefreshing"
               class="substitutes-toolbar__refresh-status"
               role="status"
-              >正在刷新</span
+              >{{ $t('substitutes.refreshing') }}</span
             >
           </div>
           <div class="substitutes-toolbar__actions">
@@ -43,8 +43,8 @@
               class="icon-button substitutes-toolbar__refresh"
               :class="{ 'substitutes-toolbar__refresh--pending': showStableRefreshing }"
               type="button"
-              title="刷新替代关系"
-              aria-label="刷新替代关系"
+              :title="$t('substitutes.refresh')"
+              :aria-label="$t('substitutes.refresh')"
               :aria-busy="loading"
               :disabled="loading"
               @click="refreshRelations"
@@ -57,8 +57,8 @@
             <button
               class="icon-button substitutes-toolbar__network"
               type="button"
-              title="查看替代关系网络"
-              aria-label="查看替代关系网络"
+              :title="$t('substitutes.viewNetwork')"
+              :aria-label="$t('substitutes.viewNetwork')"
               :disabled="!loaded"
               @click="networkOpen = true"
             >
@@ -73,8 +73,8 @@
               v-if="canManage && canReadItems"
               class="icon-button icon-button--primary substitutes-toolbar__create"
               type="button"
-              title="新增替代关系"
-              aria-label="新增替代关系"
+              :title="$t('substitutes.create')"
+              :aria-label="$t('substitutes.create')"
               @click="openCreate"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -94,35 +94,41 @@
           class="substitutes-state substitutes-state--error"
           role="alert"
         >
-          <strong>无法加载替代关系</strong>
+          <strong>{{ $t('substitutes.loadFailedTitle') }}</strong>
           <span>{{ loadError }}</span>
-          <button class="secondary-button" type="button" @click="retryLoad">重试</button>
+          <button class="secondary-button" type="button" @click="retryLoad">
+            {{ $t('common.retry') }}
+          </button>
         </div>
         <div v-else-if="loading && !loaded" class="substitutes-state" role="status">
-          <span v-if="showInitialLoading">正在加载替代关系…</span>
+          <span v-if="showInitialLoading">{{ $t('substitutes.loadingRelations') }}</span>
         </div>
         <div v-else-if="!visibleGroups.length" class="substitutes-state">
-          <strong>{{ activeSearch ? "没有匹配的替代关系" : "暂无已配置的替代关系" }}</strong>
+          <strong>{{
+            activeSearch
+              ? $t('substitutes.noSearchMatches')
+              : $t('substitutes.noRelations')
+          }}</strong>
           <span>{{
             activeSearch
-              ? "可以清除搜索后查看全部已有关系。"
+              ? $t('substitutes.noSearchMatchesHint')
               : canManage && canReadItems
-                ? "可以从工具栏新增替代关系。"
-                : "当前没有可查看的替代关系。"
+                ? $t('substitutes.noRelationsCreateHint')
+                : $t('substitutes.noRelationsReadonlyHint')
           }}</span>
           <button v-if="activeSearch" class="text-button" type="button" @click="clearSearch">
-            清除搜索
+            {{ $t('substitutes.clearSearch') }}
           </button>
         </div>
         <template v-else>
           <p v-if="loadError" class="substitutes-results__inline-error" role="alert">
             {{ loadError }}
           </p>
-          <div class="substitutes-table" role="table" aria-label="全局替代关系">
+          <div class="substitutes-table" role="table" :aria-label="$t('substitutes.tableLabel')">
             <div class="substitutes-table__head" role="row">
-              <span role="columnheader">主物品身份</span>
-              <span role="columnheader">替代关系摘要</span>
-              <span role="columnheader">判断与操作</span>
+              <span role="columnheader">{{ $t('substitutes.columnMainItem') }}</span>
+              <span role="columnheader">{{ $t('substitutes.columnSummary') }}</span>
+              <span role="columnheader">{{ $t('substitutes.columnActions') }}</span>
             </div>
             <SubstituteRelationGroup
               v-for="group in visibleGroups"
@@ -156,17 +162,19 @@
 
     <ModalDialog
       :open="routeDiscardOpen"
-      title="离开替代关系页面？"
-      description="当前未保存的替代关系修改不会保留。"
+      :title="$t('substitutes.leaveTitle')"
+      :description="$t('substitutes.leaveDescription')"
       nested
       compact
       @close="cancelRouteLeave"
     >
-      <p class="confirmation-copy">此操作不会修改服务端已经保存的数据。</p>
+      <p class="confirmation-copy">{{ $t('substitutes.leaveHint') }}</p>
       <template #actions>
-        <button class="secondary-button" type="button" @click="cancelRouteLeave">继续编辑</button>
+        <button class="secondary-button" type="button" @click="cancelRouteLeave">
+          {{ $t('substitutes.continueEditing') }}
+        </button>
         <button class="danger-button" type="button" @click="confirmRouteLeave">
-          放弃修改并离开
+          {{ $t('substitutes.discardAndLeave') }}
         </button>
       </template>
     </ModalDialog>
@@ -175,6 +183,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { onBeforeRouteLeave } from "vue-router";
 import { listSubstituteRelations, type SubstituteRelationResponse } from "../api/substitutes";
 import { authSession } from "../auth/session";
@@ -196,6 +205,7 @@ import {
 import { formatRelationCount, substituteErrorMessage } from "./substitutes/presentation";
 import "./SubstitutesPage.scss";
 
+const { t } = useI18n();
 const relations = ref<SubstituteRelationResponse[]>([]);
 const loaded = ref(false);
 const loading = ref(false);
@@ -262,12 +272,12 @@ async function loadRelations(showSuccessNotice = false): Promise<boolean> {
     relations.value = await listSubstituteRelations(controller.signal);
     loaded.value = true;
     loadError.value = "";
-    if (showSuccessNotice) notice.success("替代关系已刷新");
+    if (showSuccessNotice) notice.success(t("substitutes.refreshed"));
     return true;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") return false;
     loadError.value = substituteErrorMessage(error);
-    if (loaded.value) notice.error("刷新替代关系失败", { detail: loadError.value });
+    if (loaded.value) notice.error(t("substitutes.refreshFailed"), { detail: loadError.value });
     return false;
   } finally {
     if (requestController === controller) {

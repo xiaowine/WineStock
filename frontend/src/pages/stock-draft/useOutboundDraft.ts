@@ -1,6 +1,7 @@
 // 本文件拥有合并草稿页的出库域装配：分配草稿、批次分页、成本估算与提交编排。
 // 它复用旧出库页的 model 与持久化（含同一 localStorage 键），不修改旧页面任何文件。
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import {
   listItemBatches,
@@ -46,41 +47,47 @@ interface CostBatchSnapshot {
   batches: ItemBatchStockResponse[];
 }
 
-/** 出库域的工作台文案与列配置。 */
+/** 出库域的工作台文案与列配置；值均为消息键，由工作台壳翻译后渲染。 */
 export const outboundDraftTexts: StockDraftTexts = {
   rootClass: "stock-draft-page--outbound",
-  summaryAriaLabel: "当前出库草稿摘要",
-  workspaceTitle: "出库单信息与明细",
-  metaAriaLabel: "出库单基础信息",
-  sourceLabel: "出库去向",
+  summaryAriaLabel: "stockDraft.outboundSummaryAriaLabel",
+  workspaceTitle: "stockDraft.outboundWorkspaceTitle",
+  metaAriaLabel: "stockDraft.outboundMetaAriaLabel",
+  sourceLabel: "stockDraft.outboundDestination",
   sourceName: "outbound_destination",
-  sourcePlaceholder: "客户 / 部门 / 项目",
+  sourcePlaceholder: "stockDraft.outboundSourcePlaceholder",
   notesName: "outbound_notes",
-  notesPlaceholder: "可选，记录出库说明",
-  linesAriaLabel: "出库明细复核",
-  emptyTitle: "还没有出库明细",
-  emptyHint: "点击“选择物品”选择一项，完成对应出库明细。",
-  columns: ["数量", "分配 / 批次", "库位", "预计成本"],
-  editorTitle: "配置出库明细",
-  editorDescription: "数量和扣减方式属于同一条明细；完成后才能继续添加下一项。",
+  notesPlaceholder: "stockDraft.outboundNotesPlaceholder",
+  linesAriaLabel: "stockDraft.outboundLinesAriaLabel",
+  emptyTitle: "stockDraft.outboundEmptyTitle",
+  emptyHint: "stockDraft.outboundEmptyHint",
+  columns: [
+    "common.amount",
+    "stockDraft.allocationBatch",
+    "stockDraft.location",
+    "stockDraft.expectedCost",
+  ],
+  editorTitle: "stockDraft.outboundEditorTitle",
+  editorDescription: "stockDraft.outboundEditorDescription",
   editorWide: true,
-  pickerTitle: "选择出库物品",
+  pickerTitle: "stockDraft.outboundPickerTitle",
   pickerSearchName: "outbound_item_search",
-  clearTitle: "清空出库草稿？",
-  clearDescription: "所有未提交内容将从本机删除。",
-  leaveBody: "确认离开当前出库流程吗？",
-  submitTitleDirect: "确认直接出库？",
-  submitTitlePending: "确认提交审核？",
-  submitDescriptionDirect: "确认后会立即扣减库存并写入出库流水。",
-  submitDescriptionPending: "提交后进入待审批，库存不会立即扣减。",
-  submitButtonDirect: "直接出库",
-  submitButtonPending: "提交审核",
-  submitConfirmDirect: "确认直接出库",
-  submitConfirmPending: "确认提交审核",
+  clearTitle: "stockDraft.clearOutboundTitle",
+  clearDescription: "stockDraft.clearOutboundDescription",
+  leaveBody: "stockDraft.leaveOutboundBody",
+  submitTitleDirect: "stockDraft.submitOutboundDirectTitle",
+  submitTitlePending: "stockDraft.submitPendingTitle",
+  submitDescriptionDirect: "stockDraft.submitOutboundDirectDescription",
+  submitDescriptionPending: "stockDraft.submitOutboundPendingDescription",
+  submitButtonDirect: "stockDraft.submitOutboundDirectButton",
+  submitButtonPending: "stockDraft.submitPendingButton",
+  submitConfirmDirect: "stockDraft.confirmOutboundDirect",
+  submitConfirmPending: "stockDraft.confirmOutboundPending",
 };
 
 /** 组装出库域草稿流；handle 由工作台挂载后回填。 */
 export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
+  const { t } = useI18n();
   const router = useRouter();
   const source = ref("");
   const notes = ref("");
@@ -127,7 +134,7 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
         }, new Map<string, number>()),
       )
         .map(([unit, quantity]) => `${quantity} ${unit}`)
-        .join("、") || "未填写数量",
+        .join("、") || t("stockDraft.quantityNotFilled"),
   );
   const batchMore = computed(() => batchPage.value < batchPages.value);
   const batchPending = useStablePendingIndicator(batchLoading, {
@@ -165,7 +172,7 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
   const confirmCostLabel = computed(() =>
     costSummary.value.state === "complete"
       ? `¥${formatMoney(costSummary.value.amount ?? 0)}`
-      : "实际出库时按扣减批次确认",
+      : t("stockDraft.costConfirmedAtOutbound"),
   );
 
   const { restoreDraft, resumeDraftSaving, removePersistedDraft } = useOutboundDraftPersistence(
@@ -177,14 +184,14 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
   );
 
   onMounted(async () => {
-    if (restoreDraft()) notice.info("已恢复上次未提交的出库草稿");
+    if (restoreDraft()) notice.info(t("stockDraft.restoredOutboundDraft"));
     resumeDraftSaving();
     requestCostEstimates();
     if (hasPermission(authSession.value?.user.permissions, stockPermissions.locationRead)) {
       try {
         locations.value = await listLocations({});
       } catch {
-        locationError.value = "无法加载库位";
+        locationError.value = t("stockDraft.loadLocationsFailed");
       }
     }
   });
@@ -272,7 +279,7 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
     validationAttempted.value = true;
     const blocking = outboundLineError(candidate);
     if (blocking) {
-      notice.warning("当前出库明细尚未完成", { detail: blocking });
+      notice.warning(t("stockDraft.outboundLineIncomplete"), { detail: blocking });
       void nextTick(() =>
         document.querySelector<HTMLElement>("[data-outbound-allocation-quantity]")?.focus(),
       );
@@ -287,18 +294,20 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
   function reviewGate(): boolean {
     validationAttempted.value = true;
     if (!source.value.trim()) {
-      notice.warning("请填写出库去向");
+      notice.warning(t("stockDraft.fillOutboundDestination"));
       sourceInput.value?.focus();
       return false;
     }
     if (!lines.value.length) {
-      notice.warning("请至少添加一条出库明细");
+      notice.warning(t("stockDraft.addAtLeastOneOutboundLine"));
       handle.openItemPicker();
       return false;
     }
     const bad = lines.value.find((line) => outboundLineError(line));
     if (bad) {
-      notice.warning("出库明细尚未填写完整", { detail: `请检查“${bad.item.name}”。` });
+      notice.warning(t("stockDraft.outboundLinesIncomplete"), {
+        detail: t("stockDraft.checkItemName", { name: bad.item.name }),
+      });
       handle.openLineEditor(bad.lineId);
       return false;
     }
@@ -312,10 +321,10 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
         buildOutboundRequest(source.value, notes.value, lines.value),
       );
       if (canDirect.value) await approveOutboundOrder(order.id);
-      notice.success(canDirect.value ? "出库成功" : "出库单已提交", {
+      notice.success(canDirect.value ? t("stockDraft.outboundSuccess") : t("stockDraft.outboundSubmitted"), {
         detail: canDirect.value
-          ? `单号 #${order.id} 已完成出库，库存已扣减。`
-          : `单号 #${order.id} 已进入待审批状态，库存未扣减。`,
+          ? t("stockDraft.outboundSuccessDetail", { id: order.id })
+          : t("stockDraft.outboundSubmittedDetail", { id: order.id }),
         onClick: hasPermission(authSession.value?.user.permissions, stockPermissions.outboundRead)
           ? () => router.push({ name: "outbound-orders" })
           : undefined,
@@ -326,9 +335,12 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
     } catch (error) {
       // 前端校验全过仍被拒（含直接出库的审批步骤失败），属于要抓的排查场景。
       trackTelemetryIssue("outbound_submit_failed");
-      notice.error(canDirect.value ? "直接出库失败" : "提交出库单失败", {
-        detail: error instanceof ApiError ? error.message : "请检查网络后重试",
-      });
+      notice.error(
+        canDirect.value ? t("stockDraft.outboundDirectFailed") : t("stockDraft.outboundSubmitFailed"),
+        {
+          detail: error instanceof ApiError ? error.message : t("stockDraft.checkNetworkRetry"),
+        },
+      );
       return "keep";
     } finally {
       submitting.value = false;
@@ -366,28 +378,35 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
   function costEstimatePrimary(line: OutboundDraftLine): string {
     const estimate = lineCostEstimate(line);
     if (estimate.state === "complete") return `¥${formatMoney(estimate.amount ?? 0)}`;
-    if (estimate.state === "insufficient") return "库存可能不足";
-    if (estimate.state === "failed") return "暂无法估算成本";
-    return estimate.state === "loading" ? "正在估算成本…" : "填写数量后估算成本";
+    if (estimate.state === "insufficient") return t("stockDraft.stockMayBeInsufficient");
+    if (estimate.state === "failed") return t("stockDraft.costEstimateUnavailable");
+    return estimate.state === "loading"
+      ? t("stockDraft.estimatingCost")
+      : t("stockDraft.estimateAfterQuantity");
   }
 
   function costEstimateSecondary(line: OutboundDraftLine): string | null {
     const estimate = lineCostEstimate(line);
     if (estimate.state === "complete" && estimate.allocationCount > 1)
-      return `${estimate.allocationCount} 个批次`;
-    if (estimate.state === "insufficient" || estimate.state === "failed") return "实际出库时确认";
+      return t("stockDraft.batchCount", { n: estimate.allocationCount });
+    if (estimate.state === "insufficient" || estimate.state === "failed")
+      return t("stockDraft.confirmAtActualOutbound");
     return null;
   }
 
   function costEstimateDetail(estimate: OutboundCostEstimate): string {
     if (estimate.state === "complete")
-      return `预计出库成本 ¥${formatMoney(estimate.amount ?? 0)}${estimate.allocationCount > 1 ? `，按 ${estimate.allocationCount} 个批次分摊。` : "。"} 实际出库时会按实际库存重新校验。`;
-    if (estimate.state === "insufficient")
-      return "当前库存快照无法完整覆盖该数量，成本将在实际出库时按实际扣减批次确认。";
-    if (estimate.state === "failed")
-      return "暂无法读取批次成本；不影响提交，实际出库时会按实际库存处理。";
-    if (estimate.state === "loading") return "正在按当前批次余额估算成本…";
-    return "填写数量后，将按当前批次余额估算成本。";
+      return t("stockDraft.costEstimateDetailComplete", {
+        amount: formatMoney(estimate.amount ?? 0),
+        allocated:
+          estimate.allocationCount > 1
+            ? t("stockDraft.allocatedAcrossBatches", { n: estimate.allocationCount })
+            : t("stockDraft.allocatedSingle"),
+      });
+    if (estimate.state === "insufficient") return t("stockDraft.costInsufficientDetail");
+    if (estimate.state === "failed") return t("stockDraft.costFailedDetail");
+    if (estimate.state === "loading") return t("stockDraft.costLoadingDetail");
+    return t("stockDraft.costIdleDetail");
   }
 
   async function loadCostBatches(itemId: number): Promise<void> {
@@ -447,34 +466,43 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
   function allocationSummary(line: OutboundDraftLine): string {
     if (line.allocationMode === "fifo")
       return line.locationId
-        ? `按 FIFO 分配 · 库位 #${line.locationId}`
-        : "按 FIFO 分配 · 全部库位";
+        ? t("stockDraft.fifoAllocationWithLocation", { locationId: line.locationId })
+        : t("stockDraft.fifoAllocationAllLocations");
     const batch = findBatch(line);
     return batch
-      ? `批次 ${batch.batch_no} · ${batch.location_name}`
+      ? t("stockDraft.batchWithLocation", { batch: batch.batch_no, location: batch.location_name })
       : line.batchId
-        ? `指定批次 #${line.batchId}`
-        : "尚未选择批次";
+        ? t("stockDraft.specificBatchWithId", { batchId: line.batchId })
+        : t("stockDraft.batchNotSelected");
   }
 
   function allocationPrimary(line: OutboundDraftLine): string {
-    return line.allocationMode === "fifo" ? "FIFO 分配" : "指定批次";
+    return line.allocationMode === "fifo"
+      ? t("stockDraft.fifoAllocation")
+      : t("stockDraft.specificBatch");
   }
 
   function allocationSecondary(line: OutboundDraftLine): string {
     if (line.allocationMode === "fifo") return "";
-    if (batchUnavailable(line)) return "批次已失效";
+    if (batchUnavailable(line)) return t("stockDraft.batchInvalid");
     const batch = findBatch(line);
-    return batch ? batch.batch_no : line.batchId ? `批次 #${line.batchId}` : "待选择批次";
+    return batch
+      ? batch.batch_no
+      : line.batchId
+        ? t("stockDraft.batchWithId", { batchId: line.batchId })
+        : t("stockDraft.batchToBeSelected");
   }
 
   function allocationLocationLabel(line: OutboundDraftLine): string {
     const batch = findBatch(line);
     if (batch) return batch.location_name;
-    if (line.locationId === null) return line.allocationMode === "fifo" ? "全部库位" : "随批次确定";
+    if (line.locationId === null)
+      return line.allocationMode === "fifo"
+        ? t("stockDraft.allLocations")
+        : t("stockDraft.determinedByBatch");
     return (
       locations.value.find((candidate) => candidate.id === line.locationId)?.name ??
-      `库位 #${line.locationId}`
+      t("stockDraft.locationWithId", { locationId: line.locationId })
     );
   }
 
@@ -488,7 +516,7 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
   }
 
   function quantityLabel(line: OutboundDraftLine): string {
-    return validQuantity(line.quantity) ? `${line.quantity} ${line.item.unit}` : "待填写";
+    return validQuantity(line.quantity) ? `${line.quantity} ${line.item.unit}` : t("stockDraft.toBeFilled");
   }
 
   async function resetBatches(): Promise<void> {
@@ -534,7 +562,9 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError"))
         batchError.value =
-          error instanceof ApiError && error.status === 403 ? "无权读取库存批次" : "加载批次失败";
+          error instanceof ApiError && error.status === 403
+            ? t("stockDraft.noPermissionReadBatches")
+            : t("stockDraft.loadBatchesFailed");
     } finally {
       if (batchController === controller) {
         batchController = null;
@@ -559,7 +589,11 @@ export function useOutboundDraft(handle: StockDraftWorkspaceHandle) {
     canDirect,
     sourceInput,
     lineError: outboundLineError,
-    lineEditLabel: (line) => `${line.item.name}：${allocationSummary(line)}，打开出库明细编辑器`,
+    lineEditLabel: (line) =>
+      t("stockDraft.editOutboundLineAria", {
+        name: line.item.name,
+        allocation: allocationSummary(line),
+      }),
     addItem,
     removeLine,
     onEditorOpen,

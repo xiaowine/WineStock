@@ -21,29 +21,29 @@ export async function readLcscItemImage(
     referrerPolicy: "no-referrer",
     signal,
   });
-  if (!response.ok) throw new Error("立创商品图片请求失败");
+  if (!response.ok) throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u8bf7\u6c42\u5931\u8d25"); // 立创商品图片请求失败;
 
   const declaredLength = response.headers.get("content-length");
   if (declaredLength !== null) {
     const size = Number(declaredLength);
     if (!Number.isSafeInteger(size) || size < 0 || size > MAX_IMAGE_BYTES) {
-      throw new Error("立创商品图片大小无效");
+      throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u5927\u5c0f\u65e0\u6548"); // 立创商品图片大小无效;
     }
   }
   const mimeType = response.headers.get("content-type")?.split(";", 1)[0]?.trim() ?? "";
-  if (!SUPPORTED_IMAGE_TYPES.has(mimeType)) throw new Error("立创商品图片格式不受支持");
+  if (!SUPPORTED_IMAGE_TYPES.has(mimeType)) throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u683c\u5f0f\u4e0d\u53d7\u652f\u6301"); // 立创商品图片格式不受支持;
 
   const blob = await response.blob();
-  if (blob.size <= 0 || blob.size > MAX_IMAGE_BYTES) throw new Error("立创商品图片大小无效");
-  if (blob.type !== mimeType) throw new Error("立创商品图片格式不一致");
+  if (blob.size <= 0 || blob.size > MAX_IMAGE_BYTES) throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u5927\u5c0f\u65e0\u6548"); // 立创商品图片大小无效;
+  if (blob.type !== mimeType) throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u683c\u5f0f\u4e0d\u4e00\u81f4"); // 立创商品图片格式不一致;
   if (!(await hasMatchingImageSignature(blob, mimeType))) {
-    throw new Error("立创商品图片内容无效");
+    throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u5185\u5bb9\u65e0\u6548"); // 立创商品图片内容无效;
   }
   return blob;
 }
 
 function controlledLcscImageUrl(source: string | null): string {
-  if (!source) throw new Error("立创商品没有可用图片");
+  if (!source) throw new Error("\u7acb\u521b\u5546\u54c1\u6ca1\u6709\u53ef\u7528\u56fe\u7247"); // 立创商品没有可用图片;
   const url = new URL(source);
   if (
     url.protocol !== "https:" ||
@@ -54,7 +54,7 @@ function controlledLcscImageUrl(source: string | null): string {
     url.search ||
     url.hash
   ) {
-    throw new Error("立创商品图片地址无效");
+    throw new Error("\u7acb\u521b\u5546\u54c1\u56fe\u7247\u5730\u5740\u65e0\u6548"); // 立创商品图片地址无效;
   }
   return url.href;
 }

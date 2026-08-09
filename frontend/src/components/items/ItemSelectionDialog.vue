@@ -16,9 +16,9 @@
         <div class="item-selection-dialog__search" role="search">
           <SearchField
             :model-value="searchInput"
-            label="搜索物品"
+            :label="$t('items.searchItems')"
             :name="searchName"
-            placeholder="名称、编号或模板属性"
+            :placeholder="$t('items.selectionSearchPlaceholder')"
             @update:model-value="emit('update:search-input', $event)"
             @search="emit('search', $event)"
           />
@@ -27,8 +27,8 @@
           v-if="canCreateItem"
           class="icon-button icon-button--primary item-selection-dialog__create"
           type="button"
-          title="新建物品"
-          aria-label="新建物品"
+          :title="$t('items.createItem')"
+          :aria-label="$t('items.createItem')"
           @click="emit('create-item')"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -42,10 +42,10 @@
         class="item-selection-dialog__state"
         role="status"
       >
-        正在加载物品…
+        {{ $t('items.loadingItems') }}
       </div>
       <div v-else-if="items.length === 0" class="item-selection-dialog__state">
-        没有找到可配置的物品。
+        {{ $t('items.noConfigurableItems') }}
       </div>
 
       <div
@@ -53,7 +53,7 @@
         :ref="captureList"
         v-overlay-scrollbar
         class="item-selection-dialog__list"
-        aria-label="可选择物品"
+        :aria-label="$t('items.selectableItems')"
         @scroll.passive="emit('scroll-items')"
       >
         <article
@@ -64,7 +64,7 @@
         >
           <AuthenticatedImage
             :file-id="item.image_file_id"
-            :alt="`${item.name} 主图`"
+            :alt="$t('items.mainImageName', { name: item.name })"
             :size="40"
             previewable
           />
@@ -79,10 +79,14 @@
             :data-item-action="item.id"
             :aria-label="
               selectedItemIds.has(item.id)
-                ? `继续配置 ${item.name} 的明细`
-                : `添加并配置 ${item.name}`
+                ? $t('items.continueConfiguring', { name: item.name })
+                : $t('items.addAndConfigure', { name: item.name })
             "
-            :title="selectedItemIds.has(item.id) ? '继续配置' : '添加并配置'"
+            :title="
+              selectedItemIds.has(item.id)
+                ? $t('items.continueConfiguringShort')
+                : $t('items.addAndConfigureShort')
+            "
             @click="selectItem(item, $event)"
           >
             <svg v-if="selectedItemIds.has(item.id)" viewBox="0 0 24 24" aria-hidden="true">
@@ -91,7 +95,11 @@
             <svg v-else viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            <span>{{ selectedItemIds.has(item.id) ? "继续配置" : "添加并配置" }}</span>
+            <span>{{
+              selectedItemIds.has(item.id)
+                ? $t('items.continueConfiguringShort')
+                : $t('items.addAndConfigureShort')
+            }}</span>
           </button>
         </article>
         <div
@@ -99,13 +107,13 @@
           class="item-selection-dialog__state item-selection-dialog__state--tail"
           role="status"
         >
-          正在加载更多物品…
+          {{ $t('items.loadingMoreItems') }}
         </div>
         <div
           v-else-if="itemsExhausted"
           class="item-selection-dialog__state item-selection-dialog__state--tail"
         >
-          已加载全部物品
+          {{ $t('items.allItemsLoaded') }}
         </div>
       </div>
     </div>
@@ -114,6 +122,7 @@
 
 <script setup lang="ts">
 import { watch } from "vue";
+import { useI18n } from "vue-i18n";
 import type { ItemOptionResponse } from "../../api/items";
 import AuthenticatedImage from "../attributes/AuthenticatedImage.vue";
 import ModalDialog from "../ModalDialog.vue";
@@ -149,12 +158,13 @@ const emit = defineEmits<{
   "select-item": [item: ItemOptionResponse];
   "create-item": [];
 }>();
+const { t } = useI18n();
 
 watch(
   () => props.itemError,
   (error) => {
     if (error) {
-      notice.error("加载物品失败", {
+      notice.error(t("items.loadItemsFailed"), {
         detail: error,
         onClick: () => {
           if (props.items.length === 0) emit("reset-items");

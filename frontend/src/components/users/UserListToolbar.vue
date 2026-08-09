@@ -6,21 +6,21 @@
   <section
     class="user-list-toolbar"
     :class="{ 'user-list-toolbar--readonly': !canRegister }"
-    aria-label="用户列表工具栏"
+    :aria-label="$t('users.toolbar')"
   >
     <div class="user-list-toolbar__filters">
       <SearchField
         v-model="search"
         class="user-list-toolbar__search"
-        label="搜索用户名"
+        :label="$t('users.searchUsername')"
         name="search"
-        placeholder="搜索用户名"
+        :placeholder="$t('users.searchUsername')"
         :maxlength="64"
         @search="emit('search', $event)"
       />
 
       <label class="user-list-toolbar__status">
-        <span>账号状态</span>
+        <span>{{ $t("users.accountStatus") }}</span>
         <SelectControl
           v-model="status"
           name="user_status"
@@ -37,19 +37,19 @@
     <div class="user-list-toolbar__meta">
       <span class="user-list-toolbar__count">
         <Transition name="user-count" mode="out-in">
-          <span :key="total">{{ total }} 个用户</span>
+          <span :key="total">{{ $t("users.userCount", { n: total }) }}</span>
         </Transition>
       </span>
       <div class="user-list-toolbar__actions">
         <span v-if="refreshing" class="user-list-toolbar__refresh-status" aria-hidden="true">
-          正在刷新
+          {{ $t("users.refreshing") }}
         </span>
         <button
           class="icon-button user-list-toolbar__refresh"
           :class="{ 'user-list-toolbar__refresh--pending': refreshing }"
           type="button"
-          title="刷新用户列表"
-          aria-label="刷新用户列表"
+          :title="$t('users.refreshUserList')"
+          :aria-label="$t('users.refreshUserList')"
           :aria-busy="loading"
           :disabled="loading"
           @click="emit('refresh')"
@@ -59,13 +59,15 @@
             <path d="M18.2 16a7 7 0 1 1 .8-7l1 3" />
           </svg>
         </button>
-        <span v-if="refreshing" class="visually-hidden" role="status">正在刷新用户列表</span>
+        <span v-if="refreshing" class="visually-hidden" role="status">{{
+          $t("users.refreshingUserList")
+        }}</span>
         <button
           v-if="canRegister"
           class="icon-button icon-button--primary user-list-toolbar__create"
           type="button"
-          title="创建用户"
-          aria-label="创建用户"
+          :title="$t('users.createUser')"
+          :aria-label="$t('users.createUser')"
           @click="emit('create')"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
@@ -76,7 +78,8 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick } from "vue";
+import { computed, nextTick } from "vue";
+import { useI18n } from "vue-i18n";
 import type { UserStatus } from "../../api/users";
 import SearchField from "../SearchField.vue";
 import SelectControl from "../forms/SelectControl.vue";
@@ -98,11 +101,13 @@ const emit = defineEmits<{
   create: [];
 }>();
 
-const statusOptions: ReadonlyArray<{ label: string; value: "" | UserStatus }> = [
-  { label: "全部", value: "" },
-  { label: "已启用", value: "active" },
-  { label: "已停用", value: "disabled" },
-];
+const { t } = useI18n();
+
+const statusOptions = computed<ReadonlyArray<{ label: string; value: "" | UserStatus }>>(() => [
+  { label: t("common.all"), value: "" },
+  { label: t("users.statusActive"), value: "active" },
+  { label: t("users.statusDisabled"), value: "disabled" },
+]);
 
 /** 同步账号状态并立即应用筛选，使选择框行为与其它目录页一致。 */
 async function applyStatus(): Promise<void> {

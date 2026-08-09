@@ -27,7 +27,7 @@
       <button
         class="icon-button"
         type="button"
-        title="上移"
+        :title="$t('templates.moveUp')"
         :disabled="disabled || index === 0"
         @click="move(index, -1)"
       >
@@ -36,7 +36,7 @@
       <button
         class="icon-button"
         type="button"
-        title="下移"
+        :title="$t('templates.moveDown')"
         :disabled="disabled || index === model.length - 1"
         @click="move(index, 1)"
       >
@@ -45,7 +45,7 @@
       <button
         class="icon-button template-option-editor__delete"
         type="button"
-        title="删除"
+        :title="$t('common.delete')"
         :disabled="disabled"
         @click="model.splice(index, 1)"
       >
@@ -58,7 +58,7 @@
       :disabled="disabled || model.length >= maxItems"
       @click="add"
     >
-      + 添加候选项
+      {{ $t('templates.addOption') }}
     </button>
   </fieldset>
 </template>
