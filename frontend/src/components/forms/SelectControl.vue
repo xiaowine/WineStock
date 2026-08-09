@@ -67,7 +67,7 @@
   </span>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts" generic="T">
 import {
   Comment,
   Fragment,
@@ -87,10 +87,10 @@ import { useNativeBackHandler } from "../../composables/useNativeBackHandler";
 import { NativeBackPriority } from "../../navigation/nativeBack";
 import { readSafeAreaInsets } from "../../shell/safeArea";
 
-interface NormalizedOption {
+interface NormalizedOption<T> {
   key: string;
   label: string;
-  value: unknown;
+  value: T;
   disabled: boolean;
   placeholder: boolean;
   group?: string;
@@ -114,10 +114,10 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  change: [value: unknown];
+  change: [value: T];
 }>();
 
-const model = defineModel<unknown>();
+const model = defineModel<T>();
 const attrs = useAttrs();
 const slots = useSlots();
 const uid = useId();
@@ -156,8 +156,8 @@ const serializedValue = computed(() =>
   model.value === null || model.value === undefined ? "" : String(model.value),
 );
 
-function normalizeNodes(nodes: VNode[], group?: string): NormalizedOption[] {
-  const normalized: NormalizedOption[] = [];
+function normalizeNodes(nodes: VNode[], group?: string): NormalizedOption<T>[] {
+  const normalized: NormalizedOption<T>[] = [];
   for (const node of nodes) {
     if (node.type === Comment || node.type === Text) continue;
     if (node.type === Fragment) {
@@ -171,7 +171,8 @@ function normalizeNodes(nodes: VNode[], group?: string): NormalizedOption[] {
     if (node.type === "option") {
       const label = nodeText(node);
       const hasValue = Object.prototype.hasOwnProperty.call(node.props ?? {}, "value");
-      const value = hasValue ? node.props?.value : label;
+      // 选项 value 来自调用方模板，在泛型 T 契约内；DOM 属性本身没有静态类型。
+      const value = (hasValue ? node.props?.value : label) as T;
       normalized.push({
         key: `${group ?? ""}:${String(value ?? "")}:${normalized.length}`,
         label,
@@ -199,7 +200,7 @@ function nodeText(node: VNode): string {
     .trim();
 }
 
-function sameValue(left: unknown, right: unknown): boolean {
+function sameValue(left: T | undefined, right: T | undefined): boolean {
   if (Object.is(left, right)) return true;
   if (left === null || left === undefined || right === null || right === undefined) return false;
   return String(left) === String(right);
@@ -233,7 +234,7 @@ function close(restoreFocus = false): void {
   if (restoreFocus) void nextTick(() => trigger.value?.focus());
 }
 
-function choose(option: NormalizedOption): void {
+function choose(option: NormalizedOption<T>): void {
   if (option.disabled) return;
   model.value = option.value;
   emit("change", option.value);

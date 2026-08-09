@@ -1,6 +1,6 @@
 // 本文件拥有 frontend 全局鉴权守卫、内部登录回跳、强制改密和会话失效导航；它不读取或持久化 token。
 import { watch } from "vue";
-import type { RouteLocationRaw, Router } from "vue-router";
+import type { LocationQueryValue, RouteLocationRaw, Router } from "vue-router";
 import { hasPermission, hasPermissions } from "../auth/permissions";
 import {
   authSession,
@@ -146,7 +146,10 @@ function hasRoutePermissions(
 /**
  * 解析登录后的内部回跳目标；拒绝外部、反斜杠和未匹配路由，失败时回到 dashboard。
  */
-export function resolvePostLoginLocation(router: Router, redirect: unknown): RouteLocationRaw {
+export function resolvePostLoginLocation(
+  router: Router,
+  redirect: LocationQueryValue | LocationQueryValue[],
+): RouteLocationRaw {
   const defaultRoute = {
     name: getDefaultAppRouteName(authSession.value?.user.permissions),
   };

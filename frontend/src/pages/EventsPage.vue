@@ -525,8 +525,8 @@ function mergeEvents(
   return merged;
 }
 
-function changeEntityType(value: unknown): void {
-  const next = String(value ?? "");
+function changeEntityType(value: string): void {
+  const next = value;
   if (next === CUSTOM_EVENT_FILTER) {
     filterDialogOpen.value = true;
     syncInputsFromState();
@@ -535,8 +535,8 @@ function changeEntityType(value: unknown): void {
   void navigate({ entityType: next, page: 1 });
 }
 
-function changeAction(value: unknown): void {
-  const next = String(value ?? "");
+function changeAction(value: string): void {
+  const next = value;
   if (next === CUSTOM_EVENT_FILTER) {
     filterDialogOpen.value = true;
     syncInputsFromState();

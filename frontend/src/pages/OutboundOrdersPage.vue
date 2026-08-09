@@ -468,7 +468,7 @@ function retrySelected(): void {
 function isStatus(v: unknown): v is OutboundOrderStatus {
   return v === "pending" || v === "approved" || v === "rejected";
 }
-function iso(v: unknown) {
+function iso(v: unknown): string {
   return typeof v === "string" && !Number.isNaN(new Date(v).getTime())
     ? new Date(v).toISOString()
     : "";

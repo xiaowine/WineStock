@@ -1,8 +1,10 @@
 // 本模块把 Shell Bridge 更新错误码映射为前端安全文案，不解析底层异常字符串。
 import { translateMessageOrNull } from "../i18n";
 
-function updateErrorCode(error: unknown): unknown {
-  return error instanceof Error ? (error as Error & { code?: unknown }).code : undefined;
+function updateErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const code = (error as Error & { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
 }
 
 function localizedUpdateCode(error: unknown): string | null {

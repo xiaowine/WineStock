@@ -523,7 +523,10 @@ function requestDeleteField(index: number): void {
   };
 }
 
-function requestFieldTypeChange(index: number, value: unknown): void {
+function requestFieldTypeChange(
+  index: number,
+  value: string | number | boolean | null | undefined,
+): void {
   const nextType = value as TemplateFieldType;
   const field = draft.fields[index];
   if (nextType === field.fieldType) return;
@@ -541,7 +544,10 @@ function requestFieldTypeChange(index: number, value: unknown): void {
     };
 }
 
-function requestUnitModeChange(index: number, value: unknown): void {
+function requestUnitModeChange(
+  index: number,
+  value: string | number | boolean | null | undefined,
+): void {
   const nextMode = value as ItemAttributeUnitMode;
   const field = draft.fields[index];
   if (nextMode === field.unitMode) return;

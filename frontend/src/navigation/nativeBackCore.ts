@@ -1,5 +1,10 @@
 // 本文件拥有平台无关的原生返回 registry 与一次性请求协调；它不依赖 Vue、Router 实例或 Shell Bridge 传输。
-import type { NativeBackReason, NativeBackRequest, NativeBackResolution } from "../shell/contract";
+import type {
+  NativeBackReason,
+  NativeBackRequest,
+  NativeBackResolution,
+  NativeBackResolutionAck,
+} from "../shell/contract";
 
 /** 临时 UI 到路由 history 的稳定处理优先级。 */
 export const NativeBackPriority = {
@@ -95,7 +100,7 @@ export function createNativeBackRegistry(
 export interface NativeBackCoordinatorOptions {
   registry: NativeBackRegistry;
   subscribe(listener: (request: NativeBackRequest) => void): Promise<() => void>;
-  resolve(resolution: NativeBackResolution): Promise<unknown>;
+  resolve(resolution: NativeBackResolution): Promise<NativeBackResolutionAck>;
   navigateBack(): void;
   onResolutionError?(request: NativeBackRequest, error: unknown): void;
 }

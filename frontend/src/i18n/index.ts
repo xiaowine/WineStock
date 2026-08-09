@@ -67,9 +67,8 @@ export function setAppLocale(locale: AppLocale): void {
 }
 
 /** 翻译路由标题消息键；传入非键（如品牌名）时原样返回。 */
-export function translateTitle(key: unknown): string {
-  const value = String(key ?? "");
-  return translateMessageOrNull(value) ?? value;
+export function translateTitle(key: string): string {
+  return translateMessageOrNull(key) ?? key;
 }
 
 /** 按消息键翻译；key 不存在时返回 null，供错误/校验码兜底链路使用。 */
@@ -130,7 +129,7 @@ function handleStorageChange(event: StorageEvent): void {
   }
 }
 
-function applyDocumentTitle(title: unknown): void {
+function applyDocumentTitle(title: string): void {
   try {
     document.title = translateTitle(title);
   } catch {

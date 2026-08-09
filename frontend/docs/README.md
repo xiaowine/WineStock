@@ -38,6 +38,7 @@ UI 平台的首次设置、API 地址、运行配置和服务恢复界面由本�
 - `i18n.md`：前端多语言架构、语言包键组织、翻译写作规则与防回退扫描门禁。
 - `ui-consistency-checklist.md`：按业务状态、目标视口和真实尺寸验证 UI 规范是否落实的实施与量化验收清单。
 - `async-state-transitions.md`：加载、恢复、刷新和错误切换的防闪烁状态规则。
+- `type-safety.md`：类型卫生约定——禁止显式 `any`；`unknown` 只允许出现在信任边界并必须配运行时守卫；业务内部流转使用具体类型；门禁 `pnpm test:type-hygiene`。
 - `mobile-interactions.md`：浏览器/Android WebView 安全区变量、full-bleed 背景、固定操作区和移动端验收规则。
 - [`../../docs/in-app-image-viewer.md`](../../docs/in-app-image-viewer.md)：应用内图片查看（不管理系统栏）。
 - `implementation-notes/`：只属于前端的历史方案和非规范性实施记录。

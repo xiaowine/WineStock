@@ -362,7 +362,7 @@
 </template>
 
 <script setup lang="ts" generic="L extends StockDraftLineBase">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, type VNode } from "vue";
 import { useI18n } from "vue-i18n";
 import { onBeforeRouteLeave } from "vue-router";
 import { listItemOptions, type ItemOptionResponse } from "../../api/items";
@@ -396,12 +396,12 @@ const props = defineProps<{
 }>();
 
 defineSlots<{
-  summary(): unknown;
-  actions?(): unknown;
-  "line-cells"(props: { line: L }): unknown;
-  "line-editor"(props: { line: L }): unknown;
-  "submit-summary"(): unknown;
-  extras(): unknown;
+  summary(): VNode[];
+  actions?(): VNode[];
+  "line-cells"(props: { line: L }): VNode[];
+  "line-editor"(props: { line: L }): VNode[];
+  "submit-summary"(): VNode[];
+  extras(): VNode[];
 }>();
 
 type ConfirmMode = "clear" | "leave" | "submit" | null;

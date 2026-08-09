@@ -9,7 +9,7 @@ export type HealthResponse = ApiResponse<ApiSchema<"HealthResponse">>;
 
 /** 无鉴权检查当前配置的 WineStock 服务是否能够正常响应。 */
 export async function checkHealth(signal?: AbortSignal): Promise<void> {
-  const response = await apiClient.request<unknown>("/api/health", {
+  const response = await apiClient.request<HealthResponse>("/api/health", {
     authenticated: false,
     signal,
   });

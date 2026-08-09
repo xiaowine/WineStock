@@ -112,6 +112,8 @@ Do not introduce one without user approval.
 - 配置、URL、绑定地址、启动和关闭行为变更前，分别读取配置模型、运行网络和平台生命周期文档。
 - shared 代码留在 shared crate，HTTP 与业务能力留在 core，平台生命周期留在对应 shell，前端渲染与资源留在 frontend 或平台打包层。
 - 模块保持单一职责；存在清晰边界时，不把无关行为堆入同一文件、函数、模块或 crate。
+- 新增前端代码禁止显式 `any`；`unknown` 只允许出现在信任边界且必须配运行时守卫（`is*`/`assert*`/`instanceof`），业务内部流转使用具体类型；约定、信任边界清单与门禁（`pnpm test:type-hygiene`）见 `frontend/docs/type-safety.md`。
+- UI 用户可见文案必须走语言资源（`frontend/docs/i18n.md` 写作规则 1），禁止硬编码任何语言的 UI 文本；`pnpm test:i18n-scan` 只拦截中文，纯英文硬编码靠代码评审把关。
 - 删除或简化行为时，同时删除失效的函数、包装器、参数、配置键、测试和文档。
 - 除非用户明确要求兼容，不保留没有业务意义的兼容层。
 - 修改数据库 schema 或迁移策略前，必须确认是否允许破坏性数据库变更；当前任务已经明确允许时无需重复询问。

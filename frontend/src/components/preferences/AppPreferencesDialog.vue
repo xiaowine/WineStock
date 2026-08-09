@@ -16,11 +16,11 @@
       </section>
 
       <section class="app-preferences__section" aria-labelledby="preferences-language-title">
-        <h3 id="preferences-language-title">语言 / Language</h3>
+        <h3 id="preferences-language-title">{{ $t('components.languageHeading') }}</h3>
         <SegmentedPreferenceSelector
           :options="localeChoices"
           :model-value="selectedLocale"
-          :ariaLabel="localeAriaLabel"
+          :ariaLabel="$t('components.appLanguage')"
           @change="handleLocaleChange"
         />
       </section>
@@ -295,12 +295,10 @@ const contactVisible = ref(contactEntryVisible.value);
 // 语言切换即时生效并持久化；跨标签页变更经 appLocale 同步回本 Dialog。
 const selectedLocale = ref<AppLocale>(appLocale.value);
 const localeChoices = computed<readonly { value: AppLocale; label: string }[]>(() => [
-  { value: "zh-CN", label: "简体中文" },
-  { value: "en-US", label: "English" },
+  // 语言自名按 i18n.md 新增语言规则保持原文，不随界面语言翻译。
+  { value: "zh-CN", label: t("common.languageZh") },
+  { value: "en-US", label: t("common.languageEn") },
 ]);
-const localeAriaLabel = computed(() =>
-  selectedLocale.value === "zh-CN" ? "应用语言" : "App language",
-);
 function handleLocaleChange(value: string): void {
   setAppLocale(value as AppLocale);
 }
