@@ -9,11 +9,13 @@ pub mod config;
 pub mod config_file;
 mod config_validation;
 pub mod error;
+pub mod garde_code;
 pub mod text_validation;
 
 pub use config::{AppConfig, ConfigValidationIssue, RuntimeMode, ServerConfig, StorageConfig};
 pub use config_file::{load_or_create_json_config, LoadedJsonConfig};
 pub use error::{ConfigFileError, ConfigParseError};
+pub use garde_code::garde_error_code;
 
 #[cfg(test)]
 #[path = "tests/lib.rs"]

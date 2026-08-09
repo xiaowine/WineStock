@@ -5,6 +5,7 @@
 
 mod cors;
 mod docs;
+mod error_codes;
 mod error_response;
 mod health;
 mod router;

@@ -168,6 +168,27 @@ fn exposes_structured_validation_issue_paths() {
 }
 
 #[test]
+fn validation_issues_emit_stable_codes() {
+    let mut config = AppConfig::default();
+    config.server.bind_host = "not an ip".to_owned();
+    config.storage.database_path = " ".to_owned();
+
+    let issues = config.validation_issues();
+
+    let bind = issues
+        .iter()
+        .find(|issue| issue.path == "server.bind_host")
+        .expect("bind_host issue should exist");
+    assert_eq!(bind.code, "invalid_ip");
+
+    let database = issues
+        .iter()
+        .find(|issue| issue.path == "storage.database_path")
+        .expect("database_path issue should exist");
+    assert_eq!(database.code, "must_not_be_blank");
+}
+
+#[test]
 fn creates_caller_default_json_config_when_missing() {
     let temp = tempdir().expect("temp dir should exist");
     let config_path = temp.path().join("nested").join("config.json");

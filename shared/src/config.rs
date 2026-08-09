@@ -7,7 +7,9 @@ use garde::Validate;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    config_validation::validate_optional_http_url, error::ConfigParseError,
+    config_validation::validate_optional_http_url,
+    error::ConfigParseError,
+    garde_code::garde_error_code,
     text_validation::validate_not_blank,
 };
 
@@ -17,7 +19,10 @@ pub struct ConfigValidationIssue {
     /// shared 配置字段路径，例如 `server.bind_host`。
     pub path: String,
 
-    /// garde 规则返回的校验说明。
+    /// garde 规则返回的稳定错误码，供平台映射为本地化字段提示。
+    pub code: String,
+
+    /// garde 规则返回的校验说明；前端未命中 code 时作为兜底展示。
     pub message: String,
 }
 
@@ -53,9 +58,13 @@ impl AppConfig {
             Ok(()) => Vec::new(),
             Err(report) => report
                 .iter()
-                .map(|(path, error)| ConfigValidationIssue {
-                    path: path.to_string(),
-                    message: error.message().to_owned(),
+                .map(|(path, error)| {
+                    let message = error.message().to_owned();
+                    ConfigValidationIssue {
+                        path: path.to_string(),
+                        code: garde_error_code(&message).to_owned(),
+                        message,
+                    }
                 })
                 .collect(),
         }

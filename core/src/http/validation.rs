@@ -127,9 +127,12 @@ fn validation_details(report: garde::Report) -> serde_json::Value {
     let fields = report
         .iter()
         .map(|(path, error)| {
+            let message = error.message();
             json!({
                 "path": path.to_string(),
-                "message": error.message(),
+                // 稳定错误码供前端按 validation.<code> 本地化；message 仅作兜底。
+                "code": winestock_shared::garde_error_code(message),
+                "message": message,
             })
         })
         .collect::<Vec<_>>();
