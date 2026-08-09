@@ -89,6 +89,8 @@ Android 实现 [`../../docs/shell-bridge.md`](../../docs/shell-bridge.md) 定义
 - `build<Variant>RustNativeLibraries` 使用预先准备的 `cargo-ndk 4.1.2` 和 NDK `30.0.14904198`，
   以 `--locked --offline` 构建；Debug 使用 Cargo debug profile，Release 使用 `--release`，因此
   `winestock-android -> winestock-core -> winestock-shared` 整条链都使用对应 profile。
+- 宿主机 Rust/cargo-ndk/target/NDK 的版本锁定点、安装步骤与常见失败对照见
+  [`build-environment.md`](build-environment.md)；普通 Gradle 构建不会自动安装这些工具。
 - Android 适配 crate 的 package/library 名称统一为 `winestock-android` / `winestock_android`，最终加载文件为
   `libwinestock_android.so`；`android/native` 仍是该 JNI 适配层的源码目录。
 - 工作区 Release profile 启用 fat LTO，并显式关闭 Cargo strip；最终 Android `.so` 的符号处理仍由
@@ -187,6 +189,7 @@ Android 启动失败文案整改方案见 [`webview-startup-error-remediation.md
 
 ## 相关文档
 
+- [`build-environment.md`](build-environment.md)：Android 构建的宿主机工具链要求（Rust/cargo-ndk/target/NDK 版本锁定与安装）。
 - [`webview-evolution-api26-to-2026.md`](webview-evolution-api26-to-2026.md)：API 26 至 2026-07-28 的 Android/WebView/AndroidX WebKit 演进统计、项目影响分级与测试矩阵。
 - [`release-package-size-analysis.md`](release-package-size-analysis.md)：Release APK/native library 实测组成、Swagger UI 移除结果与后续压缩方向。
 - [`webview-file-selection-permissions.md`](webview-file-selection-permissions.md)：通用的 WebView 文件选择、URI 授权、媒体库与相机权限提示；不作为具体功能契约。
