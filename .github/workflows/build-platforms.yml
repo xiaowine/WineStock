@@ -333,7 +333,7 @@ jobs:
       - name: Generate unified update manifest
         shell: bash
         env:
-          UPDATE_BASE_URL: https://tapan.top/file/winestock
+          UPDATE_BASE_URL: https://api.ikuns.top/WineRealm/file/winestock
         run: |
           set -euo pipefail
           installer="$(find release-artifacts -type f -name '*.exe' -print -quit)"

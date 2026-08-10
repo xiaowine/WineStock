@@ -88,7 +88,7 @@ Desktop 和 Android 使用统一清单；Server 独立检查 GitHub Release。�
 ```json
 {
   "version": "0.1.1",
-  "baseUrl": "https://tapan.top/file/winestock",
+  "baseUrl": "https://api.ikuns.top/WineRealm/file/winestock",
   "notes": "修复若干问题并改进启动稳定性。",
   "desktop": {
     "file": "WineStock-0.1.1-setup.exe",

@@ -92,7 +92,7 @@ WineStock Server 已停止。
 
 ```text
 WineStock Server 有可用更新: 0.1.0 -> 0.1.1
-下载文件: https://tapan.top/file/winestock/WineStock-server-0.1.1-windows-x64.zip
+下载文件: https://api.ikuns.top/WineRealm/file/winestock/WineStock-server-0.1.1-windows-x64.zip
 ```
 
 没有更新时只输出当前版本。检查失败使用非零状态退出，不启动服务，也不在当前进程内安装更新。
