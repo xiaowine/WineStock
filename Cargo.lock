@@ -7553,7 +7553,7 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 
 [[package]]
 name = "winestock-android"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "android_logger",
  "jni 0.22.4",
@@ -7569,7 +7569,7 @@ dependencies = [
 
 [[package]]
 name = "winestock-core"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "argon2",
  "axum",
@@ -7598,7 +7598,7 @@ dependencies = [
 
 [[package]]
 name = "winestock-desktop"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "if-addrs",
  "reqwest",
@@ -7625,7 +7625,7 @@ dependencies = [
 
 [[package]]
 name = "winestock-server"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "reqwest",
  "serde",
@@ -7639,7 +7639,7 @@ dependencies = [
 
 [[package]]
 name = "winestock-shared"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "garde",
  "serde",
