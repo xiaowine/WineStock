@@ -111,6 +111,7 @@ export const items = {
   pastedImageAsMain: "Image pasted as the item main image",
   templateSwitchFailed: "Could not switch attribute template",
   templateConflictDetail: "Custom attributes conflict with target template fields: {names}",
+  listSeparator: ", ",
   // Attribute editor
   attributeName: "Attribute name",
   attributeNamePlaceholder: "e.g. Origin",
@@ -293,6 +294,7 @@ export const items = {
   lcscFillPrompt:
     "Use the lookup result to fill the current form? Valid fields in the result will overwrite the current content.",
   // Batch creation
+  metadataLoadFailed: "Failed to load templates and categories.",
   batchCreateOptionsTitle: "Batch creation options",
   batchCreateOptionsDescription:
     "{n} unmatched codes will be looked up on LCSC and created as items, all using the settings below.",
@@ -310,8 +312,11 @@ export const items = {
   lcscLookupTimeout: "LCSC lookup failed: timed out",
   lcscLookupBusy: "LCSC lookup failed: service busy",
   lcscLookupInvalidResponse: "LCSC lookup failed: unrecognizable data returned",
+  lcscQueryFailed: "LCSC lookup failed.",
   lcscQueryFailedDetail: "LCSC lookup failed: {message}",
+  confirmLocalItemFailed: "Could not confirm the local item.",
   confirmLocalItemFailedDetail: "Could not confirm the local item: {message}",
+  createFailed: "Creation failed.",
   createFailedDetail: "Creation failed: {message}",
   imageFetchFailedRequired: "Failed to fetch the product image (the main image is required)",
   validationFailedDetail: "The data does not pass validation: {message}",
@@ -337,6 +342,10 @@ export const items = {
   validationSelectValueInvalid: "The attribute value must come from the options.",
   validationFixedUnitRequired: "Please set the fixed unit.",
   validationUnitValueRequired: "Please choose the actual unit.",
+  validationUnitNameRequired: "Please enter the unit name.",
+  validationUnitOptionsRequired: "Add at least one unit candidate.",
+  validationUnitOptionBlank: "Unit candidates cannot be empty.",
+  validationUnitOptionDuplicate: "Unit candidates cannot be duplicated ignoring case.",
   validationSkuTaken: "The code already exists, please use a different one.",
   // Image drafts
   mainImageName: "{name} main image",

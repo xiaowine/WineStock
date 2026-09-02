@@ -322,7 +322,7 @@
         :disabled="saving || substitutesSaving"
         @click="emit('close')"
       >
-        {{ activePage !== "data" || readOnly ? $t('items.close') : $t('items.cancel') }}
+        {{ activePage !== "data" || readOnly ? $t('common.close') : $t('common.cancel') }}
       </button>
       <button
         v-if="activePage === 'data' && !readOnly"
@@ -332,7 +332,7 @@
         :disabled="saving || dataLoading || substitutesDirty"
         :title="substitutesDirty ? $t('items.saveSubstitutesFirst') : undefined"
       >
-        {{ saving ? $t('items.saving') : $t('items.saveItem') }}
+        {{ saving ? $t('common.saving') : $t('items.saveItem') }}
       </button>
     </template>
   </ModalDialog>
@@ -359,7 +359,7 @@
     :open="open && lcscFlowOpen"
     :product-code="lcscFlowCode"
     :templates="templates"
-    :dismiss-label="lcscFlowFromScan ? $t('items.backToScan') : $t('items.cancel')"
+    :dismiss-label="lcscFlowFromScan ? $t('items.backToScan') : $t('common.cancel')"
     @apply="applyFlowCandidate"
     @dismiss="dismissFlow"
   />

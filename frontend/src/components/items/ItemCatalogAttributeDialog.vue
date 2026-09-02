@@ -78,7 +78,7 @@
 
     <template #actions>
       <button class="secondary-button" type="button" :disabled="saving" @click="emit('close')">
-        {{ $t('items.cancel') }}
+        {{ $t('common.cancel') }}
       </button>
       <button
         class="primary-button"
@@ -86,7 +86,7 @@
         form="item-catalog-attribute-form"
         :disabled="saving || !activeTemplate || !changed"
       >
-        {{ saving ? $t('items.saving') : $t('items.saveSettings') }}
+        {{ saving ? $t('common.saving') : $t('items.saveSettings') }}
       </button>
     </template>
   </ModalDialog>

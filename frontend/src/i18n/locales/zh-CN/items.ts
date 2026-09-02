@@ -109,6 +109,7 @@ export const items = {
   pastedImageAsMain: "已粘贴图片作为物品主图",
   templateSwitchFailed: "无法切换属性模板",
   templateConflictDetail: "自定义属性与目标模板字段重名：{names}",
+  listSeparator: "、",
   // 属性编辑器
   attributeName: "属性名称",
   attributeNamePlaceholder: "例如：产地",
@@ -287,6 +288,7 @@ export const items = {
   lcscLookupUnknownError: "查询过程中发生未知错误，请稍后重试。",
   lcscFillPrompt: "是否使用查询结果填写当前表单？查询结果中的有效字段将覆盖当前内容。",
   // 批量创建
+  metadataLoadFailed: "加载模板与分类失败。",
   batchCreateOptionsTitle: "批量创建选项",
   batchCreateOptionsDescription:
     "将为 {n} 个未匹配编号自动查询立创资料并创建物品，全部使用以下设置。",
@@ -304,8 +306,11 @@ export const items = {
   lcscLookupTimeout: "立创资料查询失败：查询超时",
   lcscLookupBusy: "立创资料查询失败：查询繁忙",
   lcscLookupInvalidResponse: "立创资料查询失败：立创返回了无法识别的数据",
+  lcscQueryFailed: "立创资料查询失败。",
   lcscQueryFailedDetail: "立创资料查询失败：{message}",
+  confirmLocalItemFailed: "无法确认本地物品。",
   confirmLocalItemFailedDetail: "无法确认本地物品：{message}",
+  createFailed: "创建失败。",
   createFailedDetail: "创建失败：{message}",
   imageFetchFailedRequired: "商品图片获取失败（物品主图为必填）",
   validationFailedDetail: "资料不满足校验：{message}",
@@ -330,6 +335,10 @@ export const items = {
   validationSelectValueInvalid: "属性值必须来自候选项。",
   validationFixedUnitRequired: "请设置指定单位。",
   validationUnitValueRequired: "请选择实际单位。",
+  validationUnitNameRequired: "请填写单位名称。",
+  validationUnitOptionsRequired: "至少添加一个单位候选。",
+  validationUnitOptionBlank: "单位候选不能为空。",
+  validationUnitOptionDuplicate: "单位候选忽略大小写后不能重复。",
   validationSkuTaken: "编号已存在，请更换。",
   // 图片草稿
   mainImageName: "{name} 主图",

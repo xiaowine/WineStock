@@ -42,6 +42,7 @@ export const auth = {
   passwordChangeFailed: "修改密码失败，请稍后重试",
   checkPasswordInfo: "请检查密码信息",
   passwordMinLengthHint: "至少 8 个字符",
+  backToOverview: "返回库存总览",
   // 表单字段
   username: "用户名",
   password: "密码",

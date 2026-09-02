@@ -98,8 +98,8 @@
           :aria-describedby="describedBy"
         >
           <option :value="undefined">{{ $t('items.pleaseSelect') }}</option>
-          <option :value="true">{{ $t('items.yes') }}</option>
-          <option :value="false">{{ $t('items.no') }}</option>
+          <option :value="true">{{ $t('common.yes') }}</option>
+          <option :value="false">{{ $t('common.no') }}</option>
         </SelectControl>
         <SelectControl
           v-else-if="attribute.fieldType === 'select'"

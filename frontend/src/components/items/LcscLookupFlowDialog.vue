@@ -73,7 +73,7 @@ const emit = defineEmits<{
   dismiss: [];
 }>();
 const { t } = useI18n();
-const dismissLabel = computed(() => props.dismissLabel ?? t("items.cancel"));
+const dismissLabel = computed(() => props.dismissLabel ?? t("common.cancel"));
 
 const request = useLcscLookupRequest();
 const selectedTemplateId = ref<number | null>(null);

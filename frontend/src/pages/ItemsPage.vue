@@ -404,7 +404,7 @@
           :disabled="deletingItem"
           @click="cancelDeleteItem"
         >
-          {{ $t('items.cancel') }}
+          {{ $t('common.cancel') }}
         </button>
         <button
           class="danger-button"
@@ -1036,8 +1036,8 @@ function catalogAttributeText(attribute: CatalogAttributeResponse): string {
       ? t("items.fieldTypeFile")
       : typeof attribute.value === "boolean"
         ? attribute.value
-          ? t("items.yes")
-          : t("items.no")
+          ? t("common.yes")
+          : t("common.no")
         : String(attribute.value);
   return attribute.unit ? `${value} ${attribute.unit}` : value;
 }

@@ -105,7 +105,7 @@
     </div>
 
     <template #actions>
-      <button type="button" class="secondary-button" @click="close">{{ $t('items.cancel') }}</button>
+      <button type="button" class="secondary-button" @click="close">{{ $t('common.cancel') }}</button>
       <button type="button" class="primary-button" @click="save">{{ $t('items.applySettings') }}</button>
     </template>
   </ModalDialog>

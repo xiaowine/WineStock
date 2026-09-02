@@ -30,7 +30,7 @@
         type="submit"
         :disabled="saving"
       >
-        {{ saving ? $t('items.saving') : $t('items.saveItem') }}
+        {{ saving ? $t('common.saving') : $t('items.saveItem') }}
       </button>
     </header>
 
@@ -205,7 +205,7 @@
 
     <footer v-if="!embedded" class="item-editor__mobile-actions">
       <button v-if="!readOnly" class="primary-button" type="submit" :disabled="saving">
-        {{ saving ? $t('items.saving') : $t('items.saveItem') }}
+        {{ saving ? $t('common.saving') : $t('items.saveItem') }}
       </button>
     </footer>
   </form>

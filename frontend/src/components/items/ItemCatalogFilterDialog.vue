@@ -97,7 +97,7 @@
         {{ $t('items.clearAll') }}
       </button>
       <button class="secondary-button" type="button" @click="emit('close')">
-        {{ $t('items.cancel') }}
+        {{ $t('common.cancel') }}
       </button>
       <button class="primary-button" type="submit" form="item-catalog-filter-form">
         {{ $t('items.applyFilters') }}
@@ -200,7 +200,7 @@ function toggleExpanded(key: string): void {
 
 function displayValue(field: ItemFilterFieldResponse, value: string): string {
   if (field.value_type === "boolean")
-    return value === "true" ? t("items.yes") : value === "false" ? t("items.no") : value;
+    return value === "true" ? t("common.yes") : value === "false" ? t("common.no") : value;
   return value;
 }
 

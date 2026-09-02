@@ -57,7 +57,7 @@
           :disabled="request.pending.value"
           @click="requestClose"
         >
-          {{ $t('items.cancel') }}
+          {{ $t('common.cancel') }}
         </button>
         <button
           class="primary-button"

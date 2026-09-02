@@ -32,7 +32,7 @@
     </div>
     <template #actions>
       <button class="secondary-button" type="button" @click="emit('close')">
-        {{ $t('items.cancel') }}
+        {{ $t('common.cancel') }}
       </button>
       <button
         class="primary-button"

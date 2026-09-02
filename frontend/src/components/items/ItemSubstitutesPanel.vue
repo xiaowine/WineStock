@@ -23,7 +23,7 @@
         :disabled="saving || loading || !dirty"
         @click="requestSave"
       >
-        {{ saving ? $t('items.saving') : $t('items.saveSubstitutes') }}
+        {{ saving ? $t('common.saving') : $t('items.saveSubstitutes') }}
       </button>
     </header>
 
@@ -256,7 +256,7 @@
         {{ $t('items.continueEditing') }}
       </button>
       <button class="danger-button" type="button" :disabled="saving" @click="confirmClearAll">
-        {{ saving ? $t('items.saving') : $t('items.confirmClearAndSave') }}
+        {{ saving ? $t('common.saving') : $t('items.confirmClearAndSave') }}
       </button>
     </template>
   </ModalDialog>

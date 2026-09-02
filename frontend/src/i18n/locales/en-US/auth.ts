@@ -42,6 +42,7 @@ export const auth = {
   passwordChangeFailed: "Failed to change the password. Please try again later.",
   checkPasswordInfo: "Please check your password information.",
   passwordMinLengthHint: "At least 8 characters",
+  backToOverview: "Back to Inventory Overview",
   // Form fields
   username: "Username",
   password: "Password",
