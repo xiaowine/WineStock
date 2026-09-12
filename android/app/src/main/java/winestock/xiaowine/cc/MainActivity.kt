@@ -2,6 +2,7 @@ package winestock.xiaowine.cc
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.os.Bundle
@@ -50,6 +51,11 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestedOrientation = if (resources.configuration.smallestScreenWidthDp < 600) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
         when (val compatibility = checkedCompatibility()) {
             is WebViewCompatibilityResult.Supported -> startShell(splashScreen)
             is WebViewCompatibilityResult.Unsupported -> showCompatibilityScreen(compatibility)
